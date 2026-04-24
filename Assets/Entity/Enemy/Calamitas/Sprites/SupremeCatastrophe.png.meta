@@ -1,0 +1,548 @@
+fileFormatVersion: 2
+guid: 9706b07b65209544697b8971f1684102
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: 5173318080504574605
+    second: SupremeCatastrophe_0
+  - first:
+      213: -5220521879215132750
+    second: SupremeCatastrophe_1
+  - first:
+      213: 1871012828532138928
+    second: SupremeCatastrophe_2
+  - first:
+      213: -4906389903471854715
+    second: SupremeCatastrophe_3
+  - first:
+      213: -2848903351195715280
+    second: SupremeCatastrophe_4
+  - first:
+      213: 4238240124455328305
+    second: SupremeCatastrophe_5
+  - first:
+      213: 6411114607886788084
+    second: SupremeCatastrophe_6
+  - first:
+      213: -7528684195517221435
+    second: SupremeCatastrophe_7
+  - first:
+      213: -8373036625241866028
+    second: SupremeCatastrophe_8
+  - first:
+      213: 7437732300719934906
+    second: SupremeCatastrophe_9
+  - first:
+      213: 2589896605646012843
+    second: SupremeCatastrophe_10
+  - first:
+      213: -4233433532582389662
+    second: SupremeCatastrophe_11
+  - first:
+      213: 4692505005385211224
+    second: SupremeCatastrophe_12
+  - first:
+      213: 5860431901279642827
+    second: SupremeCatastrophe_13
+  - first:
+      213: 6970909168912796169
+    second: SupremeCatastrophe_14
+  - first:
+      213: 4978889881501593479
+    second: SupremeCatastrophe_15
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: SupremeCatastrophe_0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 1610
+        width: 400
+        height: 230
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d82b49282615bc740800000000000000
+      internalID: 5173318080504574605
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SupremeCatastrophe_1
+      rect:
+        serializedVersion: 2
+        x: 400
+        y: 1610
+        width: 400
+        height: 230
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2bf2a37a20bfc87b0800000000000000
+      internalID: -5220521879215132750
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SupremeCatastrophe_2
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 1380
+        width: 400
+        height: 230
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0b36bd6214c27f910800000000000000
+      internalID: 1871012828532138928
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SupremeCatastrophe_3
+      rect:
+        serializedVersion: 2
+        x: 400
+        y: 1380
+        width: 400
+        height: 230
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 58b3ff1c06009ebb0800000000000000
+      internalID: -4906389903471854715
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SupremeCatastrophe_4
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 1150
+        width: 400
+        height: 230
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0393f880f79a678d0800000000000000
+      internalID: -2848903351195715280
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SupremeCatastrophe_5
+      rect:
+        serializedVersion: 2
+        x: 400
+        y: 1150
+        width: 400
+        height: 230
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 13a97f220f041da30800000000000000
+      internalID: 4238240124455328305
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SupremeCatastrophe_6
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 920
+        width: 400
+        height: 230
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4f5e861b4cad8f850800000000000000
+      internalID: 6411114607886788084
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SupremeCatastrophe_7
+      rect:
+        serializedVersion: 2
+        x: 400
+        y: 920
+        width: 400
+        height: 230
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5c53914ec9db48790800000000000000
+      internalID: -7528684195517221435
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SupremeCatastrophe_8
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 690
+        width: 400
+        height: 230
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4d08f153d8ffccb80800000000000000
+      internalID: -8373036625241866028
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SupremeCatastrophe_9
+      rect:
+        serializedVersion: 2
+        x: 400
+        y: 690
+        width: 400
+        height: 230
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: abd4cd6ee12283760800000000000000
+      internalID: 7437732300719934906
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SupremeCatastrophe_10
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 460
+        width: 400
+        height: 230
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ba14580bd3921f320800000000000000
+      internalID: 2589896605646012843
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SupremeCatastrophe_11
+      rect:
+        serializedVersion: 2
+        x: 400
+        y: 460
+        width: 400
+        height: 230
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 268133eb1a2df35c0800000000000000
+      internalID: -4233433532582389662
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SupremeCatastrophe_12
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 230
+        width: 400
+        height: 230
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 85d5ab0c0702f1140800000000000000
+      internalID: 4692505005385211224
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SupremeCatastrophe_13
+      rect:
+        serializedVersion: 2
+        x: 400
+        y: 230
+        width: 400
+        height: 230
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: bc4e32aa3cf645150800000000000000
+      internalID: 5860431901279642827
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SupremeCatastrophe_14
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 400
+        height: 230
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 90a8f86a4f4adb060800000000000000
+      internalID: 6970909168912796169
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SupremeCatastrophe_15
+      rect:
+        serializedVersion: 2
+        x: 400
+        y: 0
+        width: 400
+        height: 230
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 78f60bac7f1981540800000000000000
+      internalID: 4978889881501593479
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 7f114c5efe0958e429f5f02be2d62b50
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries:
+      - key: SpriteEditor.SliceSettings
+        value: '{"sliceOnImport":false,"gridCellCount":{"x":2.0,"y":8.0},"gridSpriteSize":{"x":400.0,"y":230.0},"gridSpriteOffset":{"x":0.0,"y":0.0},"gridSpritePadding":{"x":0.0,"y":0.0},"pivot":{"x":0.5,"y":0.5},"pivotPixels":{"x":0.0,"y":0.0},"autoSlicingMethod":0,"spriteAlignment":0,"pivotUnitMode":0,"slicingType":2,"keepEmptyRects":false,"isAlternate":false}'
+    nameFileIdTable:
+      SupremeCatastrophe_0: 5173318080504574605
+      SupremeCatastrophe_1: -5220521879215132750
+      SupremeCatastrophe_10: 2589896605646012843
+      SupremeCatastrophe_11: -4233433532582389662
+      SupremeCatastrophe_12: 4692505005385211224
+      SupremeCatastrophe_13: 5860431901279642827
+      SupremeCatastrophe_14: 6970909168912796169
+      SupremeCatastrophe_15: 4978889881501593479
+      SupremeCatastrophe_2: 1871012828532138928
+      SupremeCatastrophe_3: -4906389903471854715
+      SupremeCatastrophe_4: -2848903351195715280
+      SupremeCatastrophe_5: 4238240124455328305
+      SupremeCatastrophe_6: 6411114607886788084
+      SupremeCatastrophe_7: -7528684195517221435
+      SupremeCatastrophe_8: -8373036625241866028
+      SupremeCatastrophe_9: 7437732300719934906
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

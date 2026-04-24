@@ -1,0 +1,159 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &3833232205807113178
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 3927815798732981671}
+  - component: {fileID: 3761296212852370725}
+  - component: {fileID: 1408768414376969219}
+  - component: {fileID: 1107193161931272667}
+  - component: {fileID: 9134430705271790931}
+  - component: {fileID: 7406530973566174406}
+  - component: {fileID: 1112208910998001511}
+  - component: {fileID: 914213045829876620}
+  - component: {fileID: 1174758468203273627}
+  m_Layer: 0
+  m_Name: AssassinBuff
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &3927815798732981671
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3833232205807113178}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &3761296212852370725
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3833232205807113178}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2d6fc77fb17265a4587c3caba1c89810, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::RogueBuffGroup
+  groupId: 2
+  groupDisplayName: Shadow Syndicate
+  groupDescription: "Nh\xF3m buff n\xE0y t\u1EADp trung v\xE0o kh\u1EA3 n\u0103ng
+    c\u01A1 \u0111\u1ED9ng, n\xE9 tr\xE1nh v\xE0 khu\u1EBFch \u0111\u1EA1i s\xE1t
+    th\u01B0\u01A1ng b\u1EA1o k\xEDch."
+  groupIcon: {fileID: 21300000, guid: 477200bcbf8f9bd4fbbbb72068fe0ac8, type: 3}
+  minorBuffs:
+  - {fileID: 1408768414376969219}
+  - {fileID: 1107193161931272667}
+  - {fileID: 9134430705271790931}
+  - {fileID: 7406530973566174406}
+  - {fileID: 1112208910998001511}
+  - {fileID: 914213045829876620}
+  majorBuff: {fileID: 1174758468203273627}
+  requiredMinorToUnlockMajor: 3
+--- !u!114 &1408768414376969219
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3833232205807113178}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 512e582bbecd5dc4397195a5141fb3f1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AssassinCritRate1
+  icon: {fileID: 21300000, guid: 477200bcbf8f9bd4fbbbb72068fe0ac8, type: 3}
+--- !u!114 &1107193161931272667
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3833232205807113178}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9400941d86ad5c04aa72d4a28ea3b22d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AssassinCritRate2
+  icon: {fileID: 21300000, guid: 477200bcbf8f9bd4fbbbb72068fe0ac8, type: 3}
+--- !u!114 &9134430705271790931
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3833232205807113178}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a84d5847501d06a40835c07cf6b076f2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AssassinCritDamage1
+  icon: {fileID: 21300000, guid: 477200bcbf8f9bd4fbbbb72068fe0ac8, type: 3}
+--- !u!114 &7406530973566174406
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3833232205807113178}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4a47dc50502078245853ba1d7ddf9a3a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AssassinCritDamage2
+  icon: {fileID: 21300000, guid: 477200bcbf8f9bd4fbbbb72068fe0ac8, type: 3}
+--- !u!114 &1112208910998001511
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3833232205807113178}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fd38f42dc47325e4f911ab32000c2ab8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AssassinAttackSpeed1
+  icon: {fileID: 21300000, guid: 477200bcbf8f9bd4fbbbb72068fe0ac8, type: 3}
+--- !u!114 &914213045829876620
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3833232205807113178}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 910a4d18c0546154fbc8822fec7b0a9d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AssassinBonusPhysical1
+  icon: {fileID: 21300000, guid: 477200bcbf8f9bd4fbbbb72068fe0ac8, type: 3}
+--- !u!114 &1174758468203273627
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3833232205807113178}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bd505bd31b73c4d49bc821b397995c48, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::AssassinMajor
+  icon: {fileID: 21300000, guid: 477200bcbf8f9bd4fbbbb72068fe0ac8, type: 3}

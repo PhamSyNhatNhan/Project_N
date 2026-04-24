@@ -1,0 +1,520 @@
+fileFormatVersion: 2
+guid: 87f5bd0dfbb9e2b489eaa6df9b62267f
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -2223369000675792903
+    second: spr_GuraSharkSpecial_12_0
+  - first:
+      213: -8021322373253148858
+    second: spr_GuraSharkSpecial_12_1
+  - first:
+      213: 4999268051345718223
+    second: spr_GuraSharkSpecial_12_2
+  - first:
+      213: 5118622911976653857
+    second: spr_GuraSharkSpecial_12_3
+  - first:
+      213: 8410581837176682294
+    second: spr_GuraSharkSpecial_12_4
+  - first:
+      213: 7514745311381847874
+    second: spr_GuraSharkSpecial_12_5
+  - first:
+      213: 5006765406374992379
+    second: spr_GuraSharkSpecial_12_6
+  - first:
+      213: 6720744389367894716
+    second: spr_GuraSharkSpecial_12_7
+  - first:
+      213: -5145553487100851533
+    second: spr_GuraSharkSpecial_12_8
+  - first:
+      213: 785399733778836558
+    second: spr_GuraSharkSpecial_12_9
+  - first:
+      213: 1831279628505004000
+    second: spr_GuraSharkSpecial_12_10
+  - first:
+      213: 5908380369425702977
+    second: spr_GuraSharkSpecial_12_11
+  - first:
+      213: 3671549154793001245
+    second: spr_GuraSharkSpecial_12_12
+  - first:
+      213: -802524231926317109
+    second: spr_GuraSharkSpecial_12_13
+  - first:
+      213: 155490156682161255
+    second: spr_GuraSharkSpecial_12_14
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: spr_GuraSharkSpecial_12_0
+      rect:
+        serializedVersion: 2
+        x: 126
+        y: 183
+        width: 6
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9f7aa1e7ca10521e0800000000000000
+      internalID: -2223369000675792903
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: spr_GuraSharkSpecial_12_1
+      rect:
+        serializedVersion: 2
+        x: 169
+        y: 162
+        width: 61
+        height: 78
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 64f4a51ecc98ea090800000000000000
+      internalID: -8021322373253148858
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: spr_GuraSharkSpecial_12_2
+      rect:
+        serializedVersion: 2
+        x: 8
+        y: 94
+        width: 40
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: fcbbb613ec7f06540800000000000000
+      internalID: 4999268051345718223
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: spr_GuraSharkSpecial_12_3
+      rect:
+        serializedVersion: 2
+        x: 35
+        y: 82
+        width: 75
+        height: 42
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1244b873b60090740800000000000000
+      internalID: 5118622911976653857
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: spr_GuraSharkSpecial_12_4
+      rect:
+        serializedVersion: 2
+        x: 41
+        y: 96
+        width: 101
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 637b447ae9368b470800000000000000
+      internalID: 8410581837176682294
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: spr_GuraSharkSpecial_12_5
+      rect:
+        serializedVersion: 2
+        x: 135
+        y: 90
+        width: 66
+        height: 52
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 24f727ebb0db94860800000000000000
+      internalID: 7514745311381847874
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: spr_GuraSharkSpecial_12_6
+      rect:
+        serializedVersion: 2
+        x: 215
+        y: 100
+        width: 35
+        height: 42
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: bf912b03c9a9b7540800000000000000
+      internalID: 5006765406374992379
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: spr_GuraSharkSpecial_12_7
+      rect:
+        serializedVersion: 2
+        x: 220
+        y: 81
+        width: 31
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cb219720a61e44d50800000000000000
+      internalID: 6720744389367894716
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: spr_GuraSharkSpecial_12_8
+      rect:
+        serializedVersion: 2
+        x: 245
+        y: 96
+        width: 103
+        height: 72
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3bac494ad525798b0800000000000000
+      internalID: -5145553487100851533
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: spr_GuraSharkSpecial_12_9
+      rect:
+        serializedVersion: 2
+        x: 276
+        y: 89
+        width: 76
+        height: 31
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e4ce29a85ec46ea00800000000000000
+      internalID: 785399733778836558
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: spr_GuraSharkSpecial_12_10
+      rect:
+        serializedVersion: 2
+        x: 332
+        y: 87
+        width: 33
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0e7337d9e130a6910800000000000000
+      internalID: 1831279628505004000
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: spr_GuraSharkSpecial_12_11
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 255
+        height: 89
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 140a28d54a8cef150800000000000000
+      internalID: 5908380369425702977
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: spr_GuraSharkSpecial_12_12
+      rect:
+        serializedVersion: 2
+        x: 63
+        y: 78
+        width: 26
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d1192dae086f3f230800000000000000
+      internalID: 3671549154793001245
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: spr_GuraSharkSpecial_12_13
+      rect:
+        serializedVersion: 2
+        x: 291
+        y: 76
+        width: 36
+        height: 16
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: bcf7368867cdcd4f0800000000000000
+      internalID: -802524231926317109
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: spr_GuraSharkSpecial_12_14
+      rect:
+        serializedVersion: 2
+        x: 181
+        y: 0
+        width: 228
+        height: 71
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 76c2c134979682200800000000000000
+      internalID: 155490156682161255
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      spr_GuraSharkSpecial_12_0: -2223369000675792903
+      spr_GuraSharkSpecial_12_1: -8021322373253148858
+      spr_GuraSharkSpecial_12_10: 1831279628505004000
+      spr_GuraSharkSpecial_12_11: 5908380369425702977
+      spr_GuraSharkSpecial_12_12: 3671549154793001245
+      spr_GuraSharkSpecial_12_13: -802524231926317109
+      spr_GuraSharkSpecial_12_14: 155490156682161255
+      spr_GuraSharkSpecial_12_2: 4999268051345718223
+      spr_GuraSharkSpecial_12_3: 5118622911976653857
+      spr_GuraSharkSpecial_12_4: 8410581837176682294
+      spr_GuraSharkSpecial_12_5: 7514745311381847874
+      spr_GuraSharkSpecial_12_6: 5006765406374992379
+      spr_GuraSharkSpecial_12_7: 6720744389367894716
+      spr_GuraSharkSpecial_12_8: -5145553487100851533
+      spr_GuraSharkSpecial_12_9: 785399733778836558
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

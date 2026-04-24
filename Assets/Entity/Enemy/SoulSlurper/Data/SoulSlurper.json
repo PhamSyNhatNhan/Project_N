@@ -1,0 +1,29 @@
+﻿{
+  "stat": {
+    "baseHealth": 10000,
+    "baseDefense": 50,
+    "baseAttack": 150,
+    "baseAttackSpeed": 100,
+    "baseCritRate": 0,
+    "baseCritDamage": 0,
+    "baseResistantPhysical": 10,
+    "baseResistantMagic": 10
+  },
+  "move": {
+    "baseMoveSpeed": 100.0
+  },
+  "skill": {
+    "skills": [
+      {
+        "skillId": "SoulSlurperBullet",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [300],
+        "damageType": "Magic",
+        "iconPath": "",
+        "maxCharge": 1,
+        "chargeMode": "PerStack"
+      }
+    ]
+  }
+}

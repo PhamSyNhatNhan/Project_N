@@ -1,0 +1,35 @@
+﻿{
+  "stat": {
+    "baseHealth": 8000,
+    "baseDefense": 20,
+    "baseAttack": 0,
+    "baseAttackSpeed": 100,
+    "baseCritRate": 5,
+    "baseCritDamage": 50,
+    "baseResistantPhysical": 0,
+    "baseResistantMagic": 0
+  },
+  "move": {
+    "baseMoveSpeed": 150.0
+  },
+  "skill": {
+    "skills": [
+      {
+        "skillId": "CalamityEyeDash",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [400],
+        "damageType": "Physical",
+        "iconPath": "",
+        "maxCharge": 1,
+        "chargeMode": "PerStack",
+        "orbitRadius": 2.8,
+        "orbitSpeed": 100.0,
+        "dashSpeed": 800.0,
+        "dashTime": 0.2,
+        "dashCooldown": 2.0,
+        "resetSpeed": 500.0
+      }
+    ]
+  }
+}

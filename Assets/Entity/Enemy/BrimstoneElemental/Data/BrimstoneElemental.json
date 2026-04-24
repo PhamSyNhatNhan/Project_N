@@ -1,0 +1,139 @@
+﻿{
+  "stat": {
+    "baseHealth": 150000,
+    "baseDefense": 150,
+    "baseAttack": 0,
+    "baseAttackSpeed": 100,
+    "baseCritRate": 5,
+    "baseCritDamage": 50,
+    "baseResistantPhysical": 30,
+    "baseResistantMagic": 50
+  },
+  "move": {
+    "baseMoveSpeed": 70
+  },
+  "skill": {
+    "skills": [
+      {
+        "skillId": "BrimstoneAttack1",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [300],
+        "damageType": "Magic",
+        "iconPath": "",
+        "maxCharge": 1,
+        "chargeMode": "PerStack"
+      },
+      {
+        "skillId": "BrimstoneAttack2Hellblast",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [350],
+        "damageType": "Magic",
+        "iconPath": "",
+        "maxCharge": 1,
+        "chargeMode": "PerStack"
+      },
+      {
+        "skillId": "BrimstoneAttack2Fireball",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [280],
+        "damageType": "Magic",
+        "iconPath": "",
+        "maxCharge": 1,
+        "chargeMode": "PerStack"
+      },
+      {
+        "skillId": "BrimstoneAttack2Dart",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [200],
+        "damageType": "Magic",
+        "iconPath": "",
+        "maxCharge": 1,
+        "chargeMode": "PerStack"
+      },
+      {
+        "skillId": "BrimstoneAttack3Hellblast",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [400],
+        "damageType": "Magic",
+        "iconPath": "",
+        "maxCharge": 1,
+        "chargeMode": "PerStack"
+      },
+      {
+        "skillId": "BrimstoneAttack3Hellfire",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [320],
+        "damageType": "Magic",
+        "iconPath": "",
+        "maxCharge": 1,
+        "chargeMode": "PerStack"
+      },
+      {
+        "skillId": "BrimroseNova",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [250],
+        "damageType": "Magic",
+        "iconPath": "",
+        "maxCharge": 1,
+        "chargeMode": "PerStack"
+      },
+      {
+        "skillId": "BrimroseLaser",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [700],
+        "damageType": "Magic",
+        "iconPath": "",
+        "maxCharge": 1,
+        "chargeMode": "PerStack"
+      },
+      {
+        "skillId": "BrimroseRingDart",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [150],
+        "damageType": "Magic",
+        "iconPath": "",
+        "maxCharge": 1,
+        "chargeMode": "PerStack"
+      },
+      {
+        "skillId": "BrimroseDart",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [150],
+        "damageType": "Magic",
+        "iconPath": "",
+        "maxCharge": 1,
+        "chargeMode": "PerStack"
+      },
+      {
+        "skillId": "BrimroseHellblast",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [300],
+        "damageType": "Magic",
+        "iconPath": "",
+        "maxCharge": 1,
+        "chargeMode": "PerStack"
+      },
+      {
+        "skillId": "BrimstoneAttack4Rose",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [180],
+        "damageType": "Magic",
+        "iconPath": "",
+        "maxCharge": 1,
+        "chargeMode": "PerStack"
+      }
+    ]
+  }
+}

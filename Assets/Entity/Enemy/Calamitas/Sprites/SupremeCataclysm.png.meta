@@ -1,0 +1,728 @@
+fileFormatVersion: 2
+guid: dacf89abaa84b6a4aabefac3e31a9a4d
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -8876529655507118343
+    second: SupremeCataclysm_0
+  - first:
+      213: 7312105122712622867
+    second: SupremeCataclysm_1
+  - first:
+      213: -7772626618590984749
+    second: SupremeCataclysm_2
+  - first:
+      213: -1301042020284069188
+    second: SupremeCataclysm_3
+  - first:
+      213: -7285577360139014308
+    second: SupremeCataclysm_4
+  - first:
+      213: 1063802673772467730
+    second: SupremeCataclysm_5
+  - first:
+      213: 2940281099806599748
+    second: SupremeCataclysm_6
+  - first:
+      213: -1785394310693632907
+    second: SupremeCataclysm_7
+  - first:
+      213: 1634405205357887779
+    second: SupremeCataclysm_8
+  - first:
+      213: 5388130745032866686
+    second: SupremeCataclysm_9
+  - first:
+      213: 7036615471500039752
+    second: SupremeCataclysm_10
+  - first:
+      213: -4658680669884122618
+    second: SupremeCataclysm_11
+  - first:
+      213: 6319336300788304090
+    second: SupremeCataclysm_12
+  - first:
+      213: -2037002855879301455
+    second: SupremeCataclysm_13
+  - first:
+      213: 3373018707674053577
+    second: SupremeCataclysm_14
+  - first:
+      213: 7001957726672453440
+    second: SupremeCataclysm_15
+  - first:
+      213: -6728187630629979649
+    second: SupremeCataclysm_16
+  - first:
+      213: -5928778867205882159
+    second: SupremeCataclysm_17
+  - first:
+      213: 3195304369729318033
+    second: SupremeCataclysm_18
+  - first:
+      213: 4891672628545444934
+    second: SupremeCataclysm_19
+  - first:
+      213: 9017348160432356559
+    second: SupremeCataclysm_20
+  - first:
+      213: -2595931322033257897
+    second: SupremeCataclysm_21
+  - first:
+      213: 8766036498311144035
+    second: SupremeCataclysm_22
+  - first:
+      213: 7458345840365561083
+    second: SupremeCataclysm_23
+  - first:
+      213: 724919908163027747
+    second: SupremeCataclysm_24
+  - first:
+      213: 982813069409824487
+    second: SupremeCataclysm_25
+  - first:
+      213: 3142413505078577218
+    second: SupremeCataclysm_26
+  - first:
+      213: -7325553856103197746
+    second: SupremeCataclysm_27
+  - first:
+      213: -6304813229126673600
+    second: SupremeCataclysm_28
+  - first:
+      213: -8548577582784002125
+    second: SupremeCataclysm_29
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: SupremeCataclysm_0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 1664
+        width: 212
+        height: 208
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9f61745ee4b30d480800000000000000
+      internalID: -8876529655507118343
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SupremeCataclysm_1
+      rect:
+        serializedVersion: 2
+        x: 212
+        y: 1664
+        width: 212
+        height: 208
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 317999f2ed0d97560800000000000000
+      internalID: 7312105122712622867
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SupremeCataclysm_2
+      rect:
+        serializedVersion: 2
+        x: 424
+        y: 1664
+        width: 212
+        height: 208
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3d583238545122490800000000000000
+      internalID: -7772626618590984749
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SupremeCataclysm_3
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 1456
+        width: 212
+        height: 208
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cba8c1ffc25c1fde0800000000000000
+      internalID: -1301042020284069188
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SupremeCataclysm_4
+      rect:
+        serializedVersion: 2
+        x: 212
+        y: 1456
+        width: 212
+        height: 208
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c5f2949ddfd64ea90800000000000000
+      internalID: -7285577360139014308
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SupremeCataclysm_5
+      rect:
+        serializedVersion: 2
+        x: 424
+        y: 1456
+        width: 212
+        height: 208
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 216915145e263ce00800000000000000
+      internalID: 1063802673772467730
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SupremeCataclysm_6
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 1248
+        width: 212
+        height: 208
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 44a64cdf41afdc820800000000000000
+      internalID: 2940281099806599748
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SupremeCataclysm_7
+      rect:
+        serializedVersion: 2
+        x: 212
+        y: 1248
+        width: 212
+        height: 208
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5744a1775510937e0800000000000000
+      internalID: -1785394310693632907
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SupremeCataclysm_8
+      rect:
+        serializedVersion: 2
+        x: 424
+        y: 1248
+        width: 212
+        height: 208
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3210864ffd29ea610800000000000000
+      internalID: 1634405205357887779
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SupremeCataclysm_9
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 1040
+        width: 212
+        height: 208
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e7b7b057d5c76ca40800000000000000
+      internalID: 5388130745032866686
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SupremeCataclysm_10
+      rect:
+        serializedVersion: 2
+        x: 212
+        y: 1040
+        width: 212
+        height: 208
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 84617cf5d7417a160800000000000000
+      internalID: 7036615471500039752
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SupremeCataclysm_11
+      rect:
+        serializedVersion: 2
+        x: 424
+        y: 1040
+        width: 212
+        height: 208
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 60af39d0d9a095fb0800000000000000
+      internalID: -4658680669884122618
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SupremeCataclysm_12
+      rect:
+        serializedVersion: 2
+        x: 212
+        y: 832
+        width: 212
+        height: 208
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ad8c7b062eac2b750800000000000000
+      internalID: 6319336300788304090
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SupremeCataclysm_13
+      rect:
+        serializedVersion: 2
+        x: 424
+        y: 832
+        width: 212
+        height: 208
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1b6abd0f1bc1bb3e0800000000000000
+      internalID: -2037002855879301455
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SupremeCataclysm_14
+      rect:
+        serializedVersion: 2
+        x: 212
+        y: 624
+        width: 212
+        height: 208
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9cbb8a3c4ae5fce20800000000000000
+      internalID: 3373018707674053577
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SupremeCataclysm_15
+      rect:
+        serializedVersion: 2
+        x: 424
+        y: 624
+        width: 212
+        height: 208
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 04ffc965473fb2160800000000000000
+      internalID: 7001957726672453440
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SupremeCataclysm_16
+      rect:
+        serializedVersion: 2
+        x: 212
+        y: 416
+        width: 212
+        height: 208
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ff97f165ffca0a2a0800000000000000
+      internalID: -6728187630629979649
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SupremeCataclysm_17
+      rect:
+        serializedVersion: 2
+        x: 424
+        y: 416
+        width: 212
+        height: 208
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1deb954480fb8bda0800000000000000
+      internalID: -5928778867205882159
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SupremeCataclysm_18
+      rect:
+        serializedVersion: 2
+        x: 212
+        y: 208
+        width: 212
+        height: 208
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 19c28f21560085c20800000000000000
+      internalID: 3195304369729318033
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SupremeCataclysm_19
+      rect:
+        serializedVersion: 2
+        x: 424
+        y: 208
+        width: 212
+        height: 208
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 64cd3f5a656b2e340800000000000000
+      internalID: 4891672628545444934
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SupremeCataclysm_20
+      rect:
+        serializedVersion: 2
+        x: 212
+        y: 0
+        width: 212
+        height: 208
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: fccb79e306e042d70800000000000000
+      internalID: 9017348160432356559
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: SupremeCataclysm_21
+      rect:
+        serializedVersion: 2
+        x: 424
+        y: 0
+        width: 212
+        height: 208
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 752c5e8673669fbd0800000000000000
+      internalID: -2595931322033257897
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 81a18f47d62c6e6459983d28a51cd6ce
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries:
+      - key: SpriteEditor.SliceSettings
+        value: '{"sliceOnImport":false,"gridCellCount":{"x":3.0,"y":9.0},"gridSpriteSize":{"x":212.0,"y":208.0},"gridSpriteOffset":{"x":0.0,"y":0.0},"gridSpritePadding":{"x":0.0,"y":0.0},"pivot":{"x":0.5,"y":0.5},"pivotPixels":{"x":0.0,"y":0.0},"autoSlicingMethod":0,"spriteAlignment":0,"pivotUnitMode":0,"slicingType":2,"keepEmptyRects":false,"isAlternate":false}'
+    nameFileIdTable:
+      SupremeCataclysm_0: -8876529655507118343
+      SupremeCataclysm_1: 7312105122712622867
+      SupremeCataclysm_10: 7036615471500039752
+      SupremeCataclysm_11: -4658680669884122618
+      SupremeCataclysm_12: 6319336300788304090
+      SupremeCataclysm_13: -2037002855879301455
+      SupremeCataclysm_14: 3373018707674053577
+      SupremeCataclysm_15: 7001957726672453440
+      SupremeCataclysm_16: -6728187630629979649
+      SupremeCataclysm_17: -5928778867205882159
+      SupremeCataclysm_18: 3195304369729318033
+      SupremeCataclysm_19: 4891672628545444934
+      SupremeCataclysm_2: -7772626618590984749
+      SupremeCataclysm_20: 9017348160432356559
+      SupremeCataclysm_21: -2595931322033257897
+      SupremeCataclysm_3: -1301042020284069188
+      SupremeCataclysm_4: -7285577360139014308
+      SupremeCataclysm_5: 1063802673772467730
+      SupremeCataclysm_6: 2940281099806599748
+      SupremeCataclysm_7: -1785394310693632907
+      SupremeCataclysm_8: 1634405205357887779
+      SupremeCataclysm_9: 5388130745032866686
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

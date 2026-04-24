@@ -1,0 +1,29 @@
+﻿{
+  "stat": {
+    "baseHealth": 5000,
+    "baseDefense": 50,
+    "baseAttack": 150,
+    "baseAttackSpeed": 100,
+    "baseCritRate": 0,
+    "baseCritDamage": 0,
+    "baseResistantPhysical": 0,
+    "baseResistantMagic": 0
+  },
+  "move": {
+    "baseMoveSpeed": 100.0
+  },
+  "skill": {
+    "skills": [
+      {
+        "skillId": "HeatSpiritBomb",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [550],
+        "damageType": "Magic",
+        "iconPath": "",
+        "maxCharge": 1,
+        "chargeMode": "PerStack"
+      }
+    ]
+  }
+}

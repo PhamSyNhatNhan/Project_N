@@ -1,0 +1,159 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &8952729821492048713
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2079184353387420646}
+  - component: {fileID: 5324947707449032692}
+  - component: {fileID: 8065137228238144420}
+  - component: {fileID: 8677288524753928982}
+  - component: {fileID: 7214381003763460744}
+  - component: {fileID: 916166310139122260}
+  - component: {fileID: 4467590867321298587}
+  - component: {fileID: 286387777248924019}
+  - component: {fileID: 4377721822788159496}
+  m_Layer: 0
+  m_Name: WarriorBuff
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2079184353387420646
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8952729821492048713}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &5324947707449032692
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8952729821492048713}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2d6fc77fb17265a4587c3caba1c89810, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::RogueBuffGroup
+  groupId: 0
+  groupDisplayName: Bloodbound Vanguard
+  groupDescription: "Nh\xF3m buff n\xE0y gia t\u0103ng sinh l\u1EF1c, s\u1EE9c ch\u1ED1ng
+    ch\u1ECBu v\xE0 kh\u1EA3 n\u0103ng ph\u1EE5c h\u1ED3i, gi\xFAp b\u1EA1n tr\u1EDF
+    th\xE0nh b\u1EE9c t\u01B0\u1EDDng th\xE0nh kh\xF4ng th\u1EC3 b\u1ECB x\xF4 \u0111\u1ED5."
+  groupIcon: {fileID: 21300000, guid: 0ad115f04ee153f458e4e1fede79d7fd, type: 3}
+  minorBuffs:
+  - {fileID: 8065137228238144420}
+  - {fileID: 8677288524753928982}
+  - {fileID: 7214381003763460744}
+  - {fileID: 916166310139122260}
+  - {fileID: 4467590867321298587}
+  - {fileID: 286387777248924019}
+  majorBuff: {fileID: 4377721822788159496}
+  requiredMinorToUnlockMajor: 3
+--- !u!114 &8065137228238144420
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8952729821492048713}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7c410fbb9c7df5a449ae91b0666d2e64, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WarriorAttack1
+  icon: {fileID: 21300000, guid: 0ad115f04ee153f458e4e1fede79d7fd, type: 3}
+--- !u!114 &8677288524753928982
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8952729821492048713}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e0c958b38914bbb42b5dee25c45d814a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WarriorAttack2
+  icon: {fileID: 21300000, guid: 0ad115f04ee153f458e4e1fede79d7fd, type: 3}
+--- !u!114 &7214381003763460744
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8952729821492048713}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c62a4248f2e26d94a871c7dc10ab3251, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WarriorCrit1
+  icon: {fileID: 21300000, guid: 0ad115f04ee153f458e4e1fede79d7fd, type: 3}
+--- !u!114 &916166310139122260
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8952729821492048713}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 661c8e27190cc1b48b3d7cae6c0c36e5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WarriorVitality1
+  icon: {fileID: 21300000, guid: 0ad115f04ee153f458e4e1fede79d7fd, type: 3}
+--- !u!114 &4467590867321298587
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8952729821492048713}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3ce604b838d433e408e0a6a95094784f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WarriorVitality2
+  icon: {fileID: 21300000, guid: 0ad115f04ee153f458e4e1fede79d7fd, type: 3}
+--- !u!114 &286387777248924019
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8952729821492048713}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 95254ad6218acab4bbbe2053717068f8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WarriorBulletStrike
+  icon: {fileID: 21300000, guid: 0ad115f04ee153f458e4e1fede79d7fd, type: 3}
+--- !u!114 &4377721822788159496
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8952729821492048713}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 721d89bbc1714cb4881bdad663602435, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WarriorMajor
+  icon: {fileID: 21300000, guid: 0ad115f04ee153f458e4e1fede79d7fd, type: 3}

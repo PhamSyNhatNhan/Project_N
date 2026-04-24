@@ -1,0 +1,598 @@
+fileFormatVersion: 2
+guid: e0edbbeca17b95c46b12512a7b6514e8
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: 1502403434816303735
+    second: airbender_7_laser_1-2_startFX_4_0
+  - first:
+      213: 9207144509632062370
+    second: airbender_7_laser_1-2_startFX_4_1
+  - first:
+      213: 5550003200676304985
+    second: airbender_7_laser_1-2_startFX_4_2
+  - first:
+      213: 102400408433627908
+    second: airbender_7_laser_1-2_startFX_4_3
+  - first:
+      213: 5384757245706138105
+    second: airbender_7_laser_1-2_startFX_4_4
+  - first:
+      213: 4374581930900895053
+    second: airbender_7_laser_1-2_startFX_4_5
+  - first:
+      213: 7687934320369109586
+    second: airbender_7_laser_1-2_startFX_4_6
+  - first:
+      213: -515795735954303350
+    second: airbender_7_laser_1-2_startFX_4_7
+  - first:
+      213: -5219265787114229979
+    second: airbender_7_laser_1-2_startFX_4_8
+  - first:
+      213: 3913672511804473949
+    second: airbender_7_laser_1-2_startFX_4_9
+  - first:
+      213: -4484974512017198724
+    second: airbender_7_laser_1-2_startFX_4_10
+  - first:
+      213: 4021717646261439986
+    second: airbender_7_laser_1-2_startFX_4_11
+  - first:
+      213: 3797331100787670658
+    second: airbender_7_laser_1-2_startFX_4_12
+  - first:
+      213: 6719756697887147223
+    second: airbender_7_laser_1-2_startFX_4_13
+  - first:
+      213: -2876567575560750888
+    second: airbender_7_laser_1-2_startFX_4_14
+  - first:
+      213: -4082489820024515524
+    second: airbender_7_laser_1-2_startFX_4_15
+  - first:
+      213: 3042038508832125525
+    second: airbender_7_laser_1-2_startFX_4_16
+  - first:
+      213: -3943181996323657994
+    second: airbender_7_laser_1-2_startFX_4_17
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 1
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 4
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: airbender_7_laser_1-2_startFX_4_0
+      rect:
+        serializedVersion: 2
+        x: 1
+        y: 49
+        width: 20
+        height: 50
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7727d81c6fb99d410800000000000000
+      internalID: 1502403434816303735
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: airbender_7_laser_1-2_startFX_4_1
+      rect:
+        serializedVersion: 2
+        x: 18
+        y: 98
+        width: 30
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2a3ae44662956cf70800000000000000
+      internalID: 9207144509632062370
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: airbender_7_laser_1-2_startFX_4_2
+      rect:
+        serializedVersion: 2
+        x: 23
+        y: 93
+        width: 7
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 958979e7182950d40800000000000000
+      internalID: 5550003200676304985
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: airbender_7_laser_1-2_startFX_4_3
+      rect:
+        serializedVersion: 2
+        x: 39
+        y: 95
+        width: 14
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4039a8101accb6100800000000000000
+      internalID: 102400408433627908
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: airbender_7_laser_1-2_startFX_4_4
+      rect:
+        serializedVersion: 2
+        x: 47
+        y: 92
+        width: 21
+        height: 15
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9f176007f208aba40800000000000000
+      internalID: 5384757245706138105
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: airbender_7_laser_1-2_startFX_4_5
+      rect:
+        serializedVersion: 2
+        x: 16
+        y: 86
+        width: 8
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d45b030b613a5bc30800000000000000
+      internalID: 4374581930900895053
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: airbender_7_laser_1-2_startFX_4_6
+      rect:
+        serializedVersion: 2
+        x: 54
+        y: 41
+        width: 17
+        height: 54
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 25a822e288701ba60800000000000000
+      internalID: 7687934320369109586
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: airbender_7_laser_1-2_startFX_4_7
+      rect:
+        serializedVersion: 2
+        x: 67
+        y: 86
+        width: 7
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a8658cdc28687d8f0800000000000000
+      internalID: -515795735954303350
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: airbender_7_laser_1-2_startFX_4_8
+      rect:
+        serializedVersion: 2
+        x: 68
+        y: 19
+        width: 14
+        height: 68
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 52fe4b26b617197b0800000000000000
+      internalID: -5219265787114229979
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: airbender_7_laser_1-2_startFX_4_9
+      rect:
+        serializedVersion: 2
+        x: 1
+        y: 28
+        width: 7
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d520159f968205630800000000000000
+      internalID: 3913672511804473949
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: airbender_7_laser_1-2_startFX_4_10
+      rect:
+        serializedVersion: 2
+        x: 5
+        y: 17
+        width: 11
+        height: 16
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c71b888917b22c1c0800000000000000
+      internalID: -4484974512017198724
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: airbender_7_laser_1-2_startFX_4_11
+      rect:
+        serializedVersion: 2
+        x: 7
+        y: 33
+        width: 7
+        height: 43
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2fd455c24e200d730800000000000000
+      internalID: 4021717646261439986
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: airbender_7_laser_1-2_startFX_4_12
+      rect:
+        serializedVersion: 2
+        x: 56
+        y: 17
+        width: 15
+        height: 25
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 28efdfc5484d2b430800000000000000
+      internalID: 3797331100787670658
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: airbender_7_laser_1-2_startFX_4_13
+      rect:
+        serializedVersion: 2
+        x: 14
+        y: 9
+        width: 7
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7d48d9a2d1f514d50800000000000000
+      internalID: 6719756697887147223
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: airbender_7_laser_1-2_startFX_4_14
+      rect:
+        serializedVersion: 2
+        x: 15
+        y: 2
+        width: 20
+        height: 25
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8d87b4ed7016418d0800000000000000
+      internalID: -2876567575560750888
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: airbender_7_laser_1-2_startFX_4_15
+      rect:
+        serializedVersion: 2
+        x: 34
+        y: 1
+        width: 28
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c345a4e73251857c0800000000000000
+      internalID: -4082489820024515524
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: airbender_7_laser_1-2_startFX_4_16
+      rect:
+        serializedVersion: 2
+        x: 48
+        y: 12
+        width: 9
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5527ff708ed773a20800000000000000
+      internalID: 3042038508832125525
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: airbender_7_laser_1-2_startFX_4_17
+      rect:
+        serializedVersion: 2
+        x: 59
+        y: 8
+        width: 11
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6f6a960cdd00749c0800000000000000
+      internalID: -3943181996323657994
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 5e97eb03825dee720800000000000000
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      airbender_7_laser_1-2_startFX_4_0: 1502403434816303735
+      airbender_7_laser_1-2_startFX_4_1: 9207144509632062370
+      airbender_7_laser_1-2_startFX_4_10: -4484974512017198724
+      airbender_7_laser_1-2_startFX_4_11: 4021717646261439986
+      airbender_7_laser_1-2_startFX_4_12: 3797331100787670658
+      airbender_7_laser_1-2_startFX_4_13: 6719756697887147223
+      airbender_7_laser_1-2_startFX_4_14: -2876567575560750888
+      airbender_7_laser_1-2_startFX_4_15: -4082489820024515524
+      airbender_7_laser_1-2_startFX_4_16: 3042038508832125525
+      airbender_7_laser_1-2_startFX_4_17: -3943181996323657994
+      airbender_7_laser_1-2_startFX_4_2: 5550003200676304985
+      airbender_7_laser_1-2_startFX_4_3: 102400408433627908
+      airbender_7_laser_1-2_startFX_4_4: 5384757245706138105
+      airbender_7_laser_1-2_startFX_4_5: 4374581930900895053
+      airbender_7_laser_1-2_startFX_4_6: 7687934320369109586
+      airbender_7_laser_1-2_startFX_4_7: -515795735954303350
+      airbender_7_laser_1-2_startFX_4_8: -5219265787114229979
+      airbender_7_laser_1-2_startFX_4_9: 3913672511804473949
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

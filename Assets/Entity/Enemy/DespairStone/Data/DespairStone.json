@@ -1,0 +1,37 @@
+﻿{
+  "stat": {
+    "baseHealth": 15000,
+    "baseDefense": 50,
+    "baseAttack": 150,
+    "baseAttackSpeed": 100,
+    "baseCritRate": 0,
+    "baseCritDamage": 0,
+    "baseResistantPhysical": 0,
+    "baseResistantMagic": 0
+  },
+  "move": {
+    "baseMoveSpeed": 150.0
+  },
+  "skill": {
+    "skills": [
+      {
+        "skillId": "DespairDash",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [500],
+        "damageType": "Magic",
+        "iconPath": "",
+        "maxCharge": 1,
+        "chargeMode": "PerStack",
+        "chaseRange": 8.0,
+        "dashRange": 2.5,
+        "spinDuration": 1.5,
+        "dashSpeed": 500.0,
+        "dashTime": 0.4,
+        "idleDuration": 2.5,
+        "chaseMaxDuration": 2.5,
+        "chaseIdleDuration": 1.5
+      }
+    ]
+  }
+}

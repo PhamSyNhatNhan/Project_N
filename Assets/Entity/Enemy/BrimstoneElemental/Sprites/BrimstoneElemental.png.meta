@@ -1,0 +1,624 @@
+fileFormatVersion: 2
+guid: 08fcde290c0c0144f9f48a8906d261f4
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: 693285816278931144
+    second: BrimstoneElemental_0
+  - first:
+      213: 1436019377147738322
+    second: BrimstoneElemental_1
+  - first:
+      213: -2207813545113308294
+    second: BrimstoneElemental_2
+  - first:
+      213: 4656683120997608033
+    second: BrimstoneElemental_3
+  - first:
+      213: 115397225961214133
+    second: BrimstoneElemental_4
+  - first:
+      213: 535670961966077683
+    second: BrimstoneElemental_5
+  - first:
+      213: -3212575048273480926
+    second: BrimstoneElemental_6
+  - first:
+      213: 1807005442061299716
+    second: BrimstoneElemental_7
+  - first:
+      213: -572151529998951849
+    second: BrimstoneElemental_8
+  - first:
+      213: -3580070599353885748
+    second: BrimstoneElemental_9
+  - first:
+      213: -6965714170047890580
+    second: BrimstoneElemental_10
+  - first:
+      213: -3943031145292957653
+    second: BrimstoneElemental_11
+  - first:
+      213: -6778773561752045629
+    second: BrimstoneElemental_12
+  - first:
+      213: 3189502470352097264
+    second: BrimstoneElemental_13
+  - first:
+      213: -5238924645571953419
+    second: BrimstoneElemental_14
+  - first:
+      213: -8875636392243131501
+    second: BrimstoneElemental_15
+  - first:
+      213: 3355690396556554734
+    second: BrimstoneElemental_16
+  - first:
+      213: 5470228316978355275
+    second: BrimstoneElemental_17
+  - first:
+      213: 5474849351037573907
+    second: BrimstoneElemental_18
+  - first:
+      213: -7645568532962847192
+    second: BrimstoneElemental_19
+  - first:
+      213: 8015534297268009606
+    second: BrimstoneElemental_20
+  - first:
+      213: -973450176546434076
+    second: BrimstoneElemental_21
+  - first:
+      213: 2008190529541162973
+    second: BrimstoneElemental_22
+  - first:
+      213: 2752236622100675933
+    second: BrimstoneElemental_23
+  - first:
+      213: 6041450145182048301
+    second: BrimstoneElemental_24
+  - first:
+      213: 8829209331409972923
+    second: BrimstoneElemental_25
+  - first:
+      213: 3970412319343380907
+    second: BrimstoneElemental_26
+  - first:
+      213: 6615057077325684861
+    second: BrimstoneElemental_27
+  - first:
+      213: -2137595694461102333
+    second: BrimstoneElemental_28
+  - first:
+      213: 6472978677685213801
+    second: BrimstoneElemental_29
+  - first:
+      213: -3415106711594918162
+    second: BrimstoneElemental_30
+  - first:
+      213: 8030272572031458108
+    second: BrimstoneElemental_31
+  - first:
+      213: -7055942812575139730
+    second: BrimstoneElemental_32
+  - first:
+      213: 1744526897247582451
+    second: BrimstoneElemental_33
+  - first:
+      213: -3570620357795261046
+    second: BrimstoneElemental_34
+  - first:
+      213: -5310691474848187930
+    second: BrimstoneElemental_35
+  - first:
+      213: -3148325036875250038
+    second: BrimstoneElemental_36
+  - first:
+      213: -2985837621102780925
+    second: BrimstoneElemental_37
+  - first:
+      213: 6101832348816839927
+    second: BrimstoneElemental_38
+  - first:
+      213: 3940335379759152651
+    second: BrimstoneElemental_39
+  - first:
+      213: 792025251703694299
+    second: BrimstoneElemental_40
+  - first:
+      213: 1295294559984169444
+    second: BrimstoneElemental_41
+  - first:
+      213: 7278020840185578875
+    second: BrimstoneElemental_42
+  - first:
+      213: 8014992009513689922
+    second: BrimstoneElemental_43
+  - first:
+      213: -2167685514454513319
+    second: BrimstoneElemental_44
+  - first:
+      213: 7146406370078466284
+    second: BrimstoneElemental_45
+  - first:
+      213: -7225635648603730463
+    second: BrimstoneElemental_46
+  - first:
+      213: 3913840487753522519
+    second: BrimstoneElemental_47
+  - first:
+      213: 533352189006670208
+    second: BrimstoneElemental_48
+  - first:
+      213: -410252952606674820
+    second: BrimstoneElemental_49
+  - first:
+      213: -3446954412015108341
+    second: BrimstoneElemental_50
+  - first:
+      213: 3906944599460579183
+    second: BrimstoneElemental_51
+  - first:
+      213: -3899913537251011151
+    second: BrimstoneElemental_52
+  - first:
+      213: 2151277360598084283
+    second: BrimstoneElemental_53
+  - first:
+      213: -334031197250301364
+    second: BrimstoneElemental_54
+  - first:
+      213: 8225520192061681027
+    second: BrimstoneElemental_55
+  - first:
+      213: -2665836343051834452
+    second: BrimstoneElemental_56
+  - first:
+      213: -3171546998910871254
+    second: BrimstoneElemental_57
+  - first:
+      213: 6469760813682683578
+    second: BrimstoneElemental_58
+  - first:
+      213: -8899107339707980380
+    second: BrimstoneElemental_59
+  - first:
+      213: -203364412792518269
+    second: BrimstoneElemental_60
+  - first:
+      213: -8618693135731253085
+    second: BrimstoneElemental_61
+  - first:
+      213: -1407105386191660217
+    second: BrimstoneElemental_62
+  - first:
+      213: 2203293407325790322
+    second: BrimstoneElemental_63
+  - first:
+      213: -7458872285841343745
+    second: BrimstoneElemental_64
+  - first:
+      213: 8507970495754072526
+    second: BrimstoneElemental_65
+  - first:
+      213: -1498030269895937757
+    second: BrimstoneElemental_66
+  - first:
+      213: -295998748642115036
+    second: BrimstoneElemental_67
+  - first:
+      213: 6272065572011872029
+    second: BrimstoneElemental_68
+  - first:
+      213: -4463654810434848190
+    second: BrimstoneElemental_69
+  - first:
+      213: 4692505498770868371
+    second: BrimstoneElemental_70
+  - first:
+      213: 1529047844071316805
+    second: BrimstoneElemental_71
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: BrimstoneElemental_0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 1980
+        width: 150
+        height: 180
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8c65f17d6cb0f9900800000000000000
+      internalID: 693285816278931144
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BrimstoneElemental_1
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 1800
+        width: 150
+        height: 180
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2d8f771e304cde310800000000000000
+      internalID: 1436019377147738322
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BrimstoneElemental_2
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 1620
+        width: 150
+        height: 180
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a73b93937454c51e0800000000000000
+      internalID: -2207813545113308294
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BrimstoneElemental_3
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 1440
+        width: 150
+        height: 180
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 16aae9a50acdf9040800000000000000
+      internalID: 4656683120997608033
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BrimstoneElemental_4
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 1260
+        width: 150
+        height: 180
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5b0db756a29f99100800000000000000
+      internalID: 115397225961214133
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BrimstoneElemental_5
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 1080
+        width: 150
+        height: 180
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3f6da7cd6e51f6700800000000000000
+      internalID: 535670961966077683
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BrimstoneElemental_6
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 900
+        width: 150
+        height: 180
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2233069b304aa63d0800000000000000
+      internalID: -3212575048273480926
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BrimstoneElemental_7
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 720
+        width: 150
+        height: 180
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 400f24920e5c31910800000000000000
+      internalID: 1807005442061299716
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BrimstoneElemental_8
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 540
+        width: 150
+        height: 180
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 75a57b0073f4f08f0800000000000000
+      internalID: -572151529998951849
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BrimstoneElemental_9
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 360
+        width: 150
+        height: 180
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ccb11b602c8015ec0800000000000000
+      internalID: -3580070599353885748
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BrimstoneElemental_10
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 180
+        width: 150
+        height: 180
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c6bf3674edfc45f90800000000000000
+      internalID: -6965714170047890580
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BrimstoneElemental_11
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 150
+        height: 180
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b28f28e701a8749c0800000000000000
+      internalID: -3943031145292957653
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 0aa0560fbc01aac419891e3dc9f10f42
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries:
+      - key: SpriteEditor.SliceSettings
+        value: '{"sliceOnImport":false,"gridCellCount":{"x":1.0,"y":12.0},"gridSpriteSize":{"x":150.0,"y":180.0},"gridSpriteOffset":{"x":0.0,"y":0.0},"gridSpritePadding":{"x":0.0,"y":0.0},"pivot":{"x":0.5,"y":0.5},"pivotPixels":{"x":0.0,"y":0.0},"autoSlicingMethod":0,"spriteAlignment":0,"pivotUnitMode":0,"slicingType":2,"keepEmptyRects":false,"isAlternate":false}'
+    nameFileIdTable:
+      BrimstoneElemental_0: 693285816278931144
+      BrimstoneElemental_1: 1436019377147738322
+      BrimstoneElemental_10: -6965714170047890580
+      BrimstoneElemental_11: -3943031145292957653
+      BrimstoneElemental_2: -2207813545113308294
+      BrimstoneElemental_3: 4656683120997608033
+      BrimstoneElemental_4: 115397225961214133
+      BrimstoneElemental_5: 535670961966077683
+      BrimstoneElemental_6: -3212575048273480926
+      BrimstoneElemental_7: 1807005442061299716
+      BrimstoneElemental_8: -572151529998951849
+      BrimstoneElemental_9: -3580070599353885748
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

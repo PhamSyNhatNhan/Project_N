@@ -1,0 +1,49 @@
+﻿{
+  "stat": {
+    "baseHealth": 100000,
+    "baseDefense": 100,
+    "baseAttack": 0,
+    "baseAttackSpeed": 100,
+    "baseCritRate": 5,
+    "baseCritDamage": 50,
+    "baseResistantPhysical": 20,
+    "baseResistantMagic": 20
+  },
+  "move": {
+    "baseMoveSpeed": 0
+  },
+  "skill": {
+    "skills": [
+      {
+        "skillId": "Boss1Attack1",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [200, 350],
+        "damageType": "Physical",
+        "iconPath": "",
+        "maxCharge": 1,
+        "chargeMode": "PerStack"
+      },
+      {
+        "skillId": "Boss1Attack2",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [700],
+        "damageType": "Physical",
+        "iconPath": "",
+        "maxCharge": 1,
+        "chargeMode": "PerStack"
+      },
+      {
+        "skillId": "Boss1Attack3",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [750],
+        "damageType": "Physical",
+        "iconPath": "",
+        "maxCharge": 1,
+        "chargeMode": "PerStack"
+      }
+    ]
+  }
+}

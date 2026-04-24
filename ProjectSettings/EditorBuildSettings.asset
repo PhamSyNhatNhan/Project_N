@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1045 &1
+EditorBuildSettings:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Scenes:
+  - enabled: 1
+    path: Assets/Scenes/Start.unity
+    guid: 25826d22d17edda44b0bdb785e783c4c
+  - enabled: 1
+    path: Assets/Scenes/Hall.unity
+    guid: 8e61a26249f77214dacbdfc9117cdd05
+  - enabled: 1
+    path: Assets/Scenes/ErMode.unity
+    guid: 8c9cfa26abfee488c85f1582747f6a02
+  - enabled: 1
+    path: Assets/Scenes/Calamity/ErNormalScene.unity
+    guid: 23fb6e2e8bff9654998060eb62899395
+  - enabled: 1
+    path: Assets/Scenes/Calamity/ErShopScene.unity
+    guid: 7ca5e7754158c914e9808a10cf3271ec
+  - enabled: 1
+    path: Assets/Scenes/Calamity/ErBoss_1Scene.unity
+    guid: 9464e603a0c707f409bc6576881359c0
+  - enabled: 1
+    path: Assets/Scenes/Calamity/ErBrimstoneScene.unity
+    guid: 6af78812910ac8245af6037ec005d32b
+  - enabled: 1
+    path: Assets/Scenes/Calamity/ErCalamitasScene.unity
+    guid: 62e3e9bb4466b9b48b9c5781185847c6
+  m_configObjects:
+    com.unity.adaptivePerformance.basic.provider_settings: {fileID: 11400000, guid: f939a44e2b7475e4e98b0546c321f990, type: 2}
+    com.unity.adaptiveperformance.loader_settings: {fileID: 11400000, guid: 71a28cb38729e964c9dd2fde0686ffcf, type: 2}
+    com.unity.adaptiveperformance.simulator.provider_settings: {fileID: 11400000, guid: 40e68668872b10840a98ca77d44480db, type: 2}
+  m_UseUCBPForAssetBundles: 0

@@ -1,0 +1,39 @@
+﻿{
+  "stat": {
+    "baseHealth": 10000,
+    "baseDefense": 50,
+    "baseAttack": 150,
+    "baseAttackSpeed": 100,
+    "baseCritRate": 0,
+    "baseCritDamage": 0,
+    "baseResistantPhysical": 10,
+    "baseResistantMagic": 10
+  },
+  "move": {
+    "baseMoveSpeed": 100.0
+  },
+  "skill": {
+    "skills": [
+      {
+        "skillId": "ScryllarDash",
+        "skillType": "Dash",
+        "cooldown": 0,
+        "damage": [0],
+        "damageType": "True",
+        "iconPath": "",
+        "maxCharge": 1,
+        "chargeMode": "PerStack"
+      },
+      {
+        "skillId": "ScryllarSlash",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [300, 300, 550],
+        "damageType": "Physical",
+        "iconPath": "",
+        "maxCharge": 1,
+        "chargeMode": "PerStack"
+      }
+    ]
+  }
+}

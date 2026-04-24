@@ -1,0 +1,702 @@
+fileFormatVersion: 2
+guid: 588fecf27837ad243b903cab2aa8e1f0
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -1101453315771584619
+    second: arcane_explode_s4_7_0
+  - first:
+      213: 1964273505002127731
+    second: arcane_explode_s4_7_1
+  - first:
+      213: 1556808936390165780
+    second: arcane_explode_s4_7_2
+  - first:
+      213: -7976562599077556277
+    second: arcane_explode_s4_7_3
+  - first:
+      213: 7723842610585256717
+    second: arcane_explode_s4_7_4
+  - first:
+      213: 6986488929178778193
+    second: arcane_explode_s4_7_5
+  - first:
+      213: -2182156816683217089
+    second: arcane_explode_s4_7_6
+  - first:
+      213: 5869478329898334480
+    second: arcane_explode_s4_7_7
+  - first:
+      213: -1946857620995169654
+    second: arcane_explode_s4_7_8
+  - first:
+      213: -407014978944711797
+    second: arcane_explode_s4_7_9
+  - first:
+      213: 288636663514258002
+    second: arcane_explode_s4_7_10
+  - first:
+      213: 5885561000605536881
+    second: arcane_explode_s4_7_11
+  - first:
+      213: -4141380818174663055
+    second: arcane_explode_s4_7_12
+  - first:
+      213: 3401200776958901698
+    second: arcane_explode_s4_7_13
+  - first:
+      213: 2749719683625370981
+    second: arcane_explode_s4_7_14
+  - first:
+      213: 5222772845277684364
+    second: arcane_explode_s4_7_15
+  - first:
+      213: -7663130807110893688
+    second: arcane_explode_s4_7_16
+  - first:
+      213: -6526785780262464888
+    second: arcane_explode_s4_7_17
+  - first:
+      213: 154755801852589668
+    second: arcane_explode_s4_7_18
+  - first:
+      213: 4540916263722426776
+    second: arcane_explode_s4_7_19
+  - first:
+      213: 7636898714535936001
+    second: arcane_explode_s4_7_20
+  - first:
+      213: -7464714415594518320
+    second: arcane_explode_s4_7_21
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 1
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: arcane_explode_s4_7_0
+      rect:
+        serializedVersion: 2
+        x: 18
+        y: 91
+        width: 10
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 59f22c88b0ad6b0f0800000000000000
+      internalID: -1101453315771584619
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arcane_explode_s4_7_1
+      rect:
+        serializedVersion: 2
+        x: 27
+        y: 91
+        width: 29
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3710d5b7850824b10800000000000000
+      internalID: 1964273505002127731
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arcane_explode_s4_7_2
+      rect:
+        serializedVersion: 2
+        x: 57
+        y: 95
+        width: 6
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 41580b4ba75ea9510800000000000000
+      internalID: 1556808936390165780
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arcane_explode_s4_7_3
+      rect:
+        serializedVersion: 2
+        x: 73
+        y: 83
+        width: 12
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: bcfc059e39e8d4190800000000000000
+      internalID: -7976562599077556277
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arcane_explode_s4_7_4
+      rect:
+        serializedVersion: 2
+        x: 33
+        y: 79
+        width: 7
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d03c5f08ee9903b60800000000000000
+      internalID: 7723842610585256717
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arcane_explode_s4_7_5
+      rect:
+        serializedVersion: 2
+        x: 62
+        y: 86
+        width: 8
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 15a76e24aaef4f060800000000000000
+      internalID: 6986488929178778193
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arcane_explode_s4_7_6
+      rect:
+        serializedVersion: 2
+        x: 84
+        y: 63
+        width: 17
+        height: 26
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f3f4661dfeb67b1e0800000000000000
+      internalID: -2182156816683217089
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arcane_explode_s4_7_7
+      rect:
+        serializedVersion: 2
+        x: 17
+        y: 73
+        width: 7
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 01971767173947150800000000000000
+      internalID: 5869478329898334480
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arcane_explode_s4_7_8
+      rect:
+        serializedVersion: 2
+        x: 57
+        y: 77
+        width: 8
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a8222500f4f5bf4e0800000000000000
+      internalID: -1946857620995169654
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arcane_explode_s4_7_9
+      rect:
+        serializedVersion: 2
+        x: 4
+        y: 68
+        width: 8
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b83ccb9780ef95af0800000000000000
+      internalID: -407014978944711797
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arcane_explode_s4_7_10
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 33
+        width: 16
+        height: 29
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 25adbe52481710400800000000000000
+      internalID: 288636663514258002
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arcane_explode_s4_7_11
+      rect:
+        serializedVersion: 2
+        x: 19
+        y: 46
+        width: 8
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1725cf80c86bda150800000000000000
+      internalID: 5885561000605536881
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arcane_explode_s4_7_12
+      rect:
+        serializedVersion: 2
+        x: 69
+        y: 51
+        width: 8
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 176251d761cd686c0800000000000000
+      internalID: -4141380818174663055
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arcane_explode_s4_7_13
+      rect:
+        serializedVersion: 2
+        x: 95
+        y: 37
+        width: 15
+        height: 25
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2cdfa68161e733f20800000000000000
+      internalID: 3401200776958901698
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arcane_explode_s4_7_14
+      rect:
+        serializedVersion: 2
+        x: 12
+        y: 24
+        width: 8
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 565c36ecb77f82620800000000000000
+      internalID: 2749719683625370981
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arcane_explode_s4_7_15
+      rect:
+        serializedVersion: 2
+        x: 55
+        y: 26
+        width: 10
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c8225593b340b7840800000000000000
+      internalID: 5222772845277684364
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arcane_explode_s4_7_16
+      rect:
+        serializedVersion: 2
+        x: 81
+        y: 24
+        width: 8
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 88f7dc6c12717a590800000000000000
+      internalID: -7663130807110893688
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arcane_explode_s4_7_17
+      rect:
+        serializedVersion: 2
+        x: 94
+        y: 25
+        width: 8
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 882926ac9e23c65a0800000000000000
+      internalID: -6526785780262464888
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arcane_explode_s4_7_18
+      rect:
+        serializedVersion: 2
+        x: 26
+        y: 3
+        width: 14
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 466ba54f49dc52200800000000000000
+      internalID: 154755801852589668
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arcane_explode_s4_7_19
+      rect:
+        serializedVersion: 2
+        x: 56
+        y: 7
+        width: 17
+        height: 16
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 89128f57843940f30800000000000000
+      internalID: 4540916263722426776
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arcane_explode_s4_7_20
+      rect:
+        serializedVersion: 2
+        x: 74
+        y: 11
+        width: 10
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1004d893be6bbf960800000000000000
+      internalID: 7636898714535936001
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: arcane_explode_s4_7_21
+      rect:
+        serializedVersion: 2
+        x: 41
+        y: 1
+        width: 7
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0d840cce9c1086890800000000000000
+      internalID: -7464714415594518320
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 5e97eb03825dee720800000000000000
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      arcane_explode_s4_7_0: -1101453315771584619
+      arcane_explode_s4_7_1: 1964273505002127731
+      arcane_explode_s4_7_10: 288636663514258002
+      arcane_explode_s4_7_11: 5885561000605536881
+      arcane_explode_s4_7_12: -4141380818174663055
+      arcane_explode_s4_7_13: 3401200776958901698
+      arcane_explode_s4_7_14: 2749719683625370981
+      arcane_explode_s4_7_15: 5222772845277684364
+      arcane_explode_s4_7_16: -7663130807110893688
+      arcane_explode_s4_7_17: -6526785780262464888
+      arcane_explode_s4_7_18: 154755801852589668
+      arcane_explode_s4_7_19: 4540916263722426776
+      arcane_explode_s4_7_2: 1556808936390165780
+      arcane_explode_s4_7_20: 7636898714535936001
+      arcane_explode_s4_7_21: -7464714415594518320
+      arcane_explode_s4_7_3: -7976562599077556277
+      arcane_explode_s4_7_4: 7723842610585256717
+      arcane_explode_s4_7_5: 6986488929178778193
+      arcane_explode_s4_7_6: -2182156816683217089
+      arcane_explode_s4_7_7: 5869478329898334480
+      arcane_explode_s4_7_8: -1946857620995169654
+      arcane_explode_s4_7_9: -407014978944711797
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

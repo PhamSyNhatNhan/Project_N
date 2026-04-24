@@ -1,0 +1,29 @@
+﻿{
+  "stat": {
+    "baseHealth": 6000,
+    "baseDefense": 30,
+    "baseAttack": 0,
+    "baseAttackSpeed": 100,
+    "baseCritRate": 0,
+    "baseCritDamage": 0,
+    "baseResistantPhysical": 5,
+    "baseResistantMagic": 0
+  },
+  "move": {
+    "baseMoveSpeed": 80.0
+  },
+  "skill": {
+    "skills": [
+      {
+        "skillId": "InfernalCongealmentJump",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [250],
+        "damageType": "Physical",
+        "iconPath": "",
+        "maxCharge": 1,
+        "chargeMode": "PerStack"
+      }
+    ]
+  }
+}

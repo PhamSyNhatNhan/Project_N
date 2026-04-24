@@ -1,0 +1,51 @@
+﻿{
+  "stat": {
+    "baseHealth": 45000,
+    "baseDefense": 100,
+    "baseAttack": 0,
+    "baseAttackSpeed": 100,
+    "baseCritRate": 5,
+    "baseCritDamage": 50,
+    "baseResistantPhysical": 20,
+    "baseResistantMagic": 40
+  },
+  "move": {
+    "baseMoveSpeed": 50
+  },
+  "skill": {
+    "skills": [
+      {
+        "skillId": "SupremeCataclysmNormal",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [ 180 ],
+        "damageType": "Magic",
+        "iconPath": ""
+      },
+      {
+        "skillId": "SupremeCataclysmAlt",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [ 300 ],
+        "damageType": "Magic",
+        "iconPath": ""
+      },
+      {
+        "skillId": "SupremeCataclysmDash",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [ 400 ],
+        "damageType": "Magic",
+        "iconPath": ""
+      },
+      {
+        "skillId": "SupremeCataclysmArrow",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [ 200 ],
+        "damageType": "Magic",
+        "iconPath": ""
+      }
+    ]
+  }
+}

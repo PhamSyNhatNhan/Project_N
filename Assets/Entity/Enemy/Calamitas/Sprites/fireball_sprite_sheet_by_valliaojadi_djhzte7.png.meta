@@ -1,0 +1,679 @@
+fileFormatVersion: 2
+guid: 5999cd4c76ed9694e98f4c2a08599547
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: 7504038031161476187
+    second: fireball_sprite_sheet_by_valliaojadi_djhzte7_0
+  - first:
+      213: 514617541396902313
+    second: fireball_sprite_sheet_by_valliaojadi_djhzte7_1
+  - first:
+      213: -4262976558139673646
+    second: fireball_sprite_sheet_by_valliaojadi_djhzte7_2
+  - first:
+      213: -5703598578865616867
+    second: fireball_sprite_sheet_by_valliaojadi_djhzte7_3
+  - first:
+      213: -5311328568101026679
+    second: fireball_sprite_sheet_by_valliaojadi_djhzte7_4
+  - first:
+      213: 1307656624086816114
+    second: fireball_sprite_sheet_by_valliaojadi_djhzte7_5
+  - first:
+      213: -7674722605580540474
+    second: fireball_sprite_sheet_by_valliaojadi_djhzte7_6
+  - first:
+      213: -2444137075853686725
+    second: fireball_sprite_sheet_by_valliaojadi_djhzte7_7
+  - first:
+      213: -9039109427586818044
+    second: fireball_sprite_sheet_by_valliaojadi_djhzte7_8
+  - first:
+      213: 5864716062457841088
+    second: fireball_sprite_sheet_by_valliaojadi_djhzte7_9
+  - first:
+      213: -4705686584867064012
+    second: fireball_sprite_sheet_by_valliaojadi_djhzte7_10
+  - first:
+      213: 1572581726845853154
+    second: fireball_sprite_sheet_by_valliaojadi_djhzte7_11
+  - first:
+      213: 8759949865850573713
+    second: fireball_sprite_sheet_by_valliaojadi_djhzte7_12
+  - first:
+      213: 4148801258729404175
+    second: fireball_sprite_sheet_by_valliaojadi_djhzte7_13
+  - first:
+      213: 5293209709534219955
+    second: fireball_sprite_sheet_by_valliaojadi_djhzte7_14
+  - first:
+      213: 1639284599556348322
+    second: fireball_sprite_sheet_by_valliaojadi_djhzte7_15
+  - first:
+      213: -8565085931254961462
+    second: fireball_sprite_sheet_by_valliaojadi_djhzte7_16
+  - first:
+      213: -7010135150563474604
+    second: fireball_sprite_sheet_by_valliaojadi_djhzte7_17
+  - first:
+      213: 4576980130097592115
+    second: fireball_sprite_sheet_by_valliaojadi_djhzte7_18
+  - first:
+      213: -1348142119710060290
+    second: fireball_sprite_sheet_by_valliaojadi_djhzte7_19
+  - first:
+      213: -783127890986124281
+    second: fireball_sprite_sheet_by_valliaojadi_djhzte7_20
+  - first:
+      213: -4752718816023559216
+    second: fireball_sprite_sheet_by_valliaojadi_djhzte7_21
+  - first:
+      213: -7343656345774711789
+    second: fireball_sprite_sheet_by_valliaojadi_djhzte7_22
+  - first:
+      213: 4377844585620926762
+    second: fireball_sprite_sheet_by_valliaojadi_djhzte7_23
+  - first:
+      213: 5855126769345980116
+    second: fireball_sprite_sheet_by_valliaojadi_djhzte7_24
+  - first:
+      213: -3051712570932002571
+    second: fireball_sprite_sheet_by_valliaojadi_djhzte7_25
+  - first:
+      213: 7490080507964492960
+    second: fireball_sprite_sheet_by_valliaojadi_djhzte7_26
+  - first:
+      213: 3630935484553578207
+    second: fireball_sprite_sheet_by_valliaojadi_djhzte7_27
+  - first:
+      213: 8816257329433101383
+    second: fireball_sprite_sheet_by_valliaojadi_djhzte7_28
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: fireball_sprite_sheet_by_valliaojadi_djhzte7_0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 990
+        width: 330
+        height: 330
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b54c66cc4d2b32860800000000000000
+      internalID: 7504038031161476187
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: fireball_sprite_sheet_by_valliaojadi_djhzte7_1
+      rect:
+        serializedVersion: 2
+        x: 330
+        y: 990
+        width: 330
+        height: 330
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9a1b5266de9442700800000000000000
+      internalID: 514617541396902313
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: fireball_sprite_sheet_by_valliaojadi_djhzte7_2
+      rect:
+        serializedVersion: 2
+        x: 660
+        y: 990
+        width: 330
+        height: 330
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2d37446186dd6d4c0800000000000000
+      internalID: -4262976558139673646
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: fireball_sprite_sheet_by_valliaojadi_djhzte7_3
+      rect:
+        serializedVersion: 2
+        x: 990
+        y: 990
+        width: 330
+        height: 330
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d18ca4dbf4fb8d0b0800000000000000
+      internalID: -5703598578865616867
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: fireball_sprite_sheet_by_valliaojadi_djhzte7_4
+      rect:
+        serializedVersion: 2
+        x: 1320
+        y: 990
+        width: 330
+        height: 330
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 98444f4dece5a46b0800000000000000
+      internalID: -5311328568101026679
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: fireball_sprite_sheet_by_valliaojadi_djhzte7_5
+      rect:
+        serializedVersion: 2
+        x: 1650
+        y: 990
+        width: 330
+        height: 330
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 27591e675cab52210800000000000000
+      internalID: 1307656624086816114
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: fireball_sprite_sheet_by_valliaojadi_djhzte7_6
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 660
+        width: 330
+        height: 330
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6c526b0e378ed7590800000000000000
+      internalID: -7674722605580540474
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: fireball_sprite_sheet_by_valliaojadi_djhzte7_7
+      rect:
+        serializedVersion: 2
+        x: 330
+        y: 660
+        width: 330
+        height: 330
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b380163774ea41ed0800000000000000
+      internalID: -2444137075853686725
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: fireball_sprite_sheet_by_valliaojadi_djhzte7_8
+      rect:
+        serializedVersion: 2
+        x: 660
+        y: 660
+        width: 330
+        height: 330
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 400adcaedd1ae8280800000000000000
+      internalID: -9039109427586818044
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: fireball_sprite_sheet_by_valliaojadi_djhzte7_9
+      rect:
+        serializedVersion: 2
+        x: 990
+        y: 660
+        width: 330
+        height: 330
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0c5c35baf28a36150800000000000000
+      internalID: 5864716062457841088
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: fireball_sprite_sheet_by_valliaojadi_djhzte7_10
+      rect:
+        serializedVersion: 2
+        x: 1320
+        y: 660
+        width: 330
+        height: 330
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4377dac9bfa02beb0800000000000000
+      internalID: -4705686584867064012
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: fireball_sprite_sheet_by_valliaojadi_djhzte7_11
+      rect:
+        serializedVersion: 2
+        x: 1650
+        y: 660
+        width: 330
+        height: 330
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2eddae8afbee2d510800000000000000
+      internalID: 1572581726845853154
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: fireball_sprite_sheet_by_valliaojadi_djhzte7_12
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 330
+        width: 330
+        height: 330
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1931144adf7919970800000000000000
+      internalID: 8759949865850573713
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: fireball_sprite_sheet_by_valliaojadi_djhzte7_13
+      rect:
+        serializedVersion: 2
+        x: 330
+        y: 330
+        width: 330
+        height: 330
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f07724673c0839930800000000000000
+      internalID: 4148801258729404175
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: fireball_sprite_sheet_by_valliaojadi_djhzte7_14
+      rect:
+        serializedVersion: 2
+        x: 660
+        y: 330
+        width: 330
+        height: 330
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3be8f6aaf22457940800000000000000
+      internalID: 5293209709534219955
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: fireball_sprite_sheet_by_valliaojadi_djhzte7_15
+      rect:
+        serializedVersion: 2
+        x: 990
+        y: 330
+        width: 330
+        height: 330
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2a9135278a8efb610800000000000000
+      internalID: 1639284599556348322
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: fireball_sprite_sheet_by_valliaojadi_djhzte7_16
+      rect:
+        serializedVersion: 2
+        x: 1320
+        y: 330
+        width: 330
+        height: 330
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: aca2adca9b3b22980800000000000000
+      internalID: -8565085931254961462
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: fireball_sprite_sheet_by_valliaojadi_djhzte7_17
+      rect:
+        serializedVersion: 2
+        x: 1650
+        y: 330
+        width: 330
+        height: 330
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4534f2bc83ff6be90800000000000000
+      internalID: -7010135150563474604
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: fireball_sprite_sheet_by_valliaojadi_djhzte7_18
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 330
+        height: 330
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 337fc7ead23b48f30800000000000000
+      internalID: 4576980130097592115
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: fireball_sprite_sheet_by_valliaojadi_djhzte7_19
+      rect:
+        serializedVersion: 2
+        x: 330
+        y: 0
+        width: 330
+        height: 330
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ef090f782ef6a4de0800000000000000
+      internalID: -1348142119710060290
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 0b328b474ab63b44eaf0c06031e824a4
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries:
+      - key: SpriteEditor.SliceSettings
+        value: '{"sliceOnImport":false,"gridCellCount":{"x":6.0,"y":4.0},"gridSpriteSize":{"x":330.0,"y":330.0},"gridSpriteOffset":{"x":0.0,"y":0.0},"gridSpritePadding":{"x":0.0,"y":0.0},"pivot":{"x":0.5,"y":0.5},"pivotPixels":{"x":0.0,"y":0.0},"autoSlicingMethod":0,"spriteAlignment":0,"pivotUnitMode":0,"slicingType":2,"keepEmptyRects":false,"isAlternate":false}'
+    nameFileIdTable:
+      fireball_sprite_sheet_by_valliaojadi_djhzte7_0: 7504038031161476187
+      fireball_sprite_sheet_by_valliaojadi_djhzte7_1: 514617541396902313
+      fireball_sprite_sheet_by_valliaojadi_djhzte7_10: -4705686584867064012
+      fireball_sprite_sheet_by_valliaojadi_djhzte7_11: 1572581726845853154
+      fireball_sprite_sheet_by_valliaojadi_djhzte7_12: 8759949865850573713
+      fireball_sprite_sheet_by_valliaojadi_djhzte7_13: 4148801258729404175
+      fireball_sprite_sheet_by_valliaojadi_djhzte7_14: 5293209709534219955
+      fireball_sprite_sheet_by_valliaojadi_djhzte7_15: 1639284599556348322
+      fireball_sprite_sheet_by_valliaojadi_djhzte7_16: -8565085931254961462
+      fireball_sprite_sheet_by_valliaojadi_djhzte7_17: -7010135150563474604
+      fireball_sprite_sheet_by_valliaojadi_djhzte7_18: 4576980130097592115
+      fireball_sprite_sheet_by_valliaojadi_djhzte7_19: -1348142119710060290
+      fireball_sprite_sheet_by_valliaojadi_djhzte7_2: -4262976558139673646
+      fireball_sprite_sheet_by_valliaojadi_djhzte7_3: -5703598578865616867
+      fireball_sprite_sheet_by_valliaojadi_djhzte7_4: -5311328568101026679
+      fireball_sprite_sheet_by_valliaojadi_djhzte7_5: 1307656624086816114
+      fireball_sprite_sheet_by_valliaojadi_djhzte7_6: -7674722605580540474
+      fireball_sprite_sheet_by_valliaojadi_djhzte7_7: -2444137075853686725
+      fireball_sprite_sheet_by_valliaojadi_djhzte7_8: -9039109427586818044
+      fireball_sprite_sheet_by_valliaojadi_djhzte7_9: 5864716062457841088
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

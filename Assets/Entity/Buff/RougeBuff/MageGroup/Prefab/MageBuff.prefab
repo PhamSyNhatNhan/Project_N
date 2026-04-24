@@ -1,0 +1,158 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &5887678506877840612
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 4515655909224483500}
+  - component: {fileID: 2708417232262378373}
+  - component: {fileID: 1180386920888370796}
+  - component: {fileID: 1858607936855184693}
+  - component: {fileID: 2349134834866724150}
+  - component: {fileID: 6980747205594376589}
+  - component: {fileID: 9140805993846299615}
+  - component: {fileID: 7725976743246544514}
+  - component: {fileID: 6270837844591112791}
+  m_Layer: 0
+  m_Name: MageBuff
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &4515655909224483500
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5887678506877840612}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2708417232262378373
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5887678506877840612}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2d6fc77fb17265a4587c3caba1c89810, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::RogueBuffGroup
+  groupId: 1
+  groupDisplayName: Arcane Brilliance
+  groupDescription: "Cung c\u1EA5p l\u01B0\u1EE3ng l\u1EDBn Magic damage v\xE0 ch\xED
+    m\u1EA1ng."
+  groupIcon: {fileID: 21300000, guid: 5078d5996745e6041a6a86f0ba07d330, type: 3}
+  minorBuffs:
+  - {fileID: 1180386920888370796}
+  - {fileID: 1858607936855184693}
+  - {fileID: 2349134834866724150}
+  - {fileID: 6980747205594376589}
+  - {fileID: 9140805993846299615}
+  - {fileID: 7725976743246544514}
+  majorBuff: {fileID: 6270837844591112791}
+  requiredMinorToUnlockMajor: 3
+--- !u!114 &1180386920888370796
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5887678506877840612}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ecaddf977fef5d14a88b06a8c603413f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MageBonusMagic1
+  icon: {fileID: 21300000, guid: 5078d5996745e6041a6a86f0ba07d330, type: 3}
+--- !u!114 &1858607936855184693
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5887678506877840612}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 069835f99b62671488e363d7f5892c85, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MageBonusMagic2
+  icon: {fileID: 21300000, guid: 5078d5996745e6041a6a86f0ba07d330, type: 3}
+--- !u!114 &2349134834866724150
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5887678506877840612}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d225d9bd986df7a479012490fd51c7a6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MageBonusDamage1
+  icon: {fileID: 21300000, guid: 5078d5996745e6041a6a86f0ba07d330, type: 3}
+--- !u!114 &6980747205594376589
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5887678506877840612}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b9fa496620096694c951c36414f4fe7f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MageBonusDamage2
+  icon: {fileID: 21300000, guid: 5078d5996745e6041a6a86f0ba07d330, type: 3}
+--- !u!114 &9140805993846299615
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5887678506877840612}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1ce0351efcefb8648bdc69a6c045dab4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MageCritDamage1
+  icon: {fileID: 21300000, guid: 5078d5996745e6041a6a86f0ba07d330, type: 3}
+--- !u!114 &7725976743246544514
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5887678506877840612}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f1291c892d5d9b648a7e0ff45b9b2234, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MageCritRate1
+  icon: {fileID: 21300000, guid: 5078d5996745e6041a6a86f0ba07d330, type: 3}
+--- !u!114 &6270837844591112791
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5887678506877840612}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d115560cdb8cae44dbd5e836e34a326d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MageMajor
+  icon: {fileID: 21300000, guid: 5078d5996745e6041a6a86f0ba07d330, type: 3}

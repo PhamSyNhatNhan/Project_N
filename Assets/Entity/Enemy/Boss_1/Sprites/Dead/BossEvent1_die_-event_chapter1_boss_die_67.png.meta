@@ -1,0 +1,520 @@
+fileFormatVersion: 2
+guid: 39c61c03e0f8c904cb2a910f15ef97a8
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -9186206697537871855
+    second: BossEvent1_die_-event_chapter1_boss_die_67_0
+  - first:
+      213: -9142149739349416301
+    second: BossEvent1_die_-event_chapter1_boss_die_67_1
+  - first:
+      213: -302582715386980573
+    second: BossEvent1_die_-event_chapter1_boss_die_67_2
+  - first:
+      213: 1239812235162857312
+    second: BossEvent1_die_-event_chapter1_boss_die_67_3
+  - first:
+      213: -3315235732915795540
+    second: BossEvent1_die_-event_chapter1_boss_die_67_4
+  - first:
+      213: -1147727600634917541
+    second: BossEvent1_die_-event_chapter1_boss_die_67_5
+  - first:
+      213: -1282786345422316362
+    second: BossEvent1_die_-event_chapter1_boss_die_67_6
+  - first:
+      213: -5556712433747349275
+    second: BossEvent1_die_-event_chapter1_boss_die_67_7
+  - first:
+      213: 3843070440052953472
+    second: BossEvent1_die_-event_chapter1_boss_die_67_8
+  - first:
+      213: 6043759834920444831
+    second: BossEvent1_die_-event_chapter1_boss_die_67_9
+  - first:
+      213: 8286408847527166284
+    second: BossEvent1_die_-event_chapter1_boss_die_67_10
+  - first:
+      213: 7398560450531304553
+    second: BossEvent1_die_-event_chapter1_boss_die_67_11
+  - first:
+      213: 8401475151100231155
+    second: BossEvent1_die_-event_chapter1_boss_die_67_12
+  - first:
+      213: 3827713977703376795
+    second: BossEvent1_die_-event_chapter1_boss_die_67_13
+  - first:
+      213: 8638944076726089703
+    second: BossEvent1_die_-event_chapter1_boss_die_67_14
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 1
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 7
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: BossEvent1_die_-event_chapter1_boss_die_67_0
+      rect:
+        serializedVersion: 2
+        x: 1
+        y: 198
+        width: 27
+        height: 46
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 110e0ffdda9048080800000000000000
+      internalID: -9186206697537871855
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BossEvent1_die_-event_chapter1_boss_die_67_1
+      rect:
+        serializedVersion: 2
+        x: 26
+        y: 193
+        width: 22
+        height: 27
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 396e5aecf3f802180800000000000000
+      internalID: -9142149739349416301
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BossEvent1_die_-event_chapter1_boss_die_67_2
+      rect:
+        serializedVersion: 2
+        x: 51
+        y: 203
+        width: 12
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3279f2e9f920dcbf0800000000000000
+      internalID: -302582715386980573
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BossEvent1_die_-event_chapter1_boss_die_67_3
+      rect:
+        serializedVersion: 2
+        x: 86
+        y: 218
+        width: 22
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 06fa019b8a2b43110800000000000000
+      internalID: 1239812235162857312
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BossEvent1_die_-event_chapter1_boss_die_67_4
+      rect:
+        serializedVersion: 2
+        x: 136
+        y: 208
+        width: 12
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ca94fd07aaaedf1d0800000000000000
+      internalID: -3315235732915795540
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BossEvent1_die_-event_chapter1_boss_die_67_5
+      rect:
+        serializedVersion: 2
+        x: 151
+        y: 208
+        width: 22
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b5d8e3104d37210f0800000000000000
+      internalID: -1147727600634917541
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BossEvent1_die_-event_chapter1_boss_die_67_6
+      rect:
+        serializedVersion: 2
+        x: 76
+        y: 203
+        width: 17
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6bc91668d90a23ee0800000000000000
+      internalID: -1282786345422316362
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BossEvent1_die_-event_chapter1_boss_die_67_7
+      rect:
+        serializedVersion: 2
+        x: 101
+        y: 198
+        width: 12
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5e03e737b7792e2b0800000000000000
+      internalID: -5556712433747349275
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BossEvent1_die_-event_chapter1_boss_die_67_8
+      rect:
+        serializedVersion: 2
+        x: 116
+        y: 173
+        width: 47
+        height: 37
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 081192a2434555530800000000000000
+      internalID: 3843070440052953472
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BossEvent1_die_-event_chapter1_boss_die_67_9
+      rect:
+        serializedVersion: 2
+        x: 46
+        y: 158
+        width: 42
+        height: 42
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f93e4347c8fbfd350800000000000000
+      internalID: 6043759834920444831
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BossEvent1_die_-event_chapter1_boss_die_67_10
+      rect:
+        serializedVersion: 2
+        x: 101
+        y: 183
+        width: 12
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c41c28c81fc3ff270800000000000000
+      internalID: 8286408847527166284
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BossEvent1_die_-event_chapter1_boss_die_67_11
+      rect:
+        serializedVersion: 2
+        x: 121
+        y: 170
+        width: 12
+        height: 15
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9642c2fc787fca660800000000000000
+      internalID: 7398560450531304553
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BossEvent1_die_-event_chapter1_boss_die_67_12
+      rect:
+        serializedVersion: 2
+        x: 91
+        y: 148
+        width: 22
+        height: 27
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3fdb9921329089470800000000000000
+      internalID: 8401475151100231155
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BossEvent1_die_-event_chapter1_boss_die_67_13
+      rect:
+        serializedVersion: 2
+        x: 112
+        y: 133
+        width: 13
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b97aec62595ce1530800000000000000
+      internalID: 3827713977703376795
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BossEvent1_die_-event_chapter1_boss_die_67_14
+      rect:
+        serializedVersion: 2
+        x: 1
+        y: 1
+        width: 186
+        height: 58
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7e739bfddd1b3e770800000000000000
+      internalID: 8638944076726089703
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 5e97eb03825dee720800000000000000
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      BossEvent1_die_-event_chapter1_boss_die_67_0: -9186206697537871855
+      BossEvent1_die_-event_chapter1_boss_die_67_1: -9142149739349416301
+      BossEvent1_die_-event_chapter1_boss_die_67_10: 8286408847527166284
+      BossEvent1_die_-event_chapter1_boss_die_67_11: 7398560450531304553
+      BossEvent1_die_-event_chapter1_boss_die_67_12: 8401475151100231155
+      BossEvent1_die_-event_chapter1_boss_die_67_13: 3827713977703376795
+      BossEvent1_die_-event_chapter1_boss_die_67_14: 8638944076726089703
+      BossEvent1_die_-event_chapter1_boss_die_67_2: -302582715386980573
+      BossEvent1_die_-event_chapter1_boss_die_67_3: 1239812235162857312
+      BossEvent1_die_-event_chapter1_boss_die_67_4: -3315235732915795540
+      BossEvent1_die_-event_chapter1_boss_die_67_5: -1147727600634917541
+      BossEvent1_die_-event_chapter1_boss_die_67_6: -1282786345422316362
+      BossEvent1_die_-event_chapter1_boss_die_67_7: -5556712433747349275
+      BossEvent1_die_-event_chapter1_boss_die_67_8: 3843070440052953472
+      BossEvent1_die_-event_chapter1_boss_die_67_9: 6043759834920444831
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

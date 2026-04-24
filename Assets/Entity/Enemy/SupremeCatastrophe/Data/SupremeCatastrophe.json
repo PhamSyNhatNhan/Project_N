@@ -1,0 +1,43 @@
+﻿{
+  "stat": {
+    "baseHealth": 40000,
+    "baseDefense": 100,
+    "baseAttack": 0,
+    "baseAttackSpeed": 100,
+    "baseCritRate": 5,
+    "baseCritDamage": 50,
+    "baseResistantPhysical": 20,
+    "baseResistantMagic": 40
+  },
+  "move": {
+    "baseMoveSpeed": 50
+  },
+  "skill": {
+    "skills": [
+      {
+        "skillId": "SupremeCatastropheSlash1",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [ 280 ],
+        "damageType": "Magic",
+        "iconPath": ""
+      },
+      {
+        "skillId": "SupremeCatastropheSlash2",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [ 420 ],
+        "damageType": "Magic",
+        "iconPath": ""
+      },
+      {
+        "skillId": "SupremeCatastropheArrow",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [ 200 ],
+        "damageType": "Magic",
+        "iconPath": ""
+      }
+    ]
+  }
+}

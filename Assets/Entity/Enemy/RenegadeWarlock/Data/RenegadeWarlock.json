@@ -1,0 +1,39 @@
+﻿{
+  "stat": {
+    "baseHealth": 25000,
+    "baseDefense": 50,
+    "baseAttack": 150,
+    "baseAttackSpeed": 100,
+    "baseCritRate": 0,
+    "baseCritDamage": 0,
+    "baseResistantPhysical": 10,
+    "baseResistantMagic": 10
+  },
+  "move": {
+    "baseMoveSpeed": 100.0
+  },
+  "skill": {
+    "skills": [
+      {
+        "skillId": "RenegadeWarlockInfernoBullet",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [500],
+        "damageType": "Magic",
+        "iconPath": "",
+        "maxCharge": 1,
+        "chargeMode": "PerStack"
+      },
+      {
+        "skillId": "RenegadeWarlockMeteor",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [500, 550, 600, 650, 700],
+        "damageType": "Magic",
+        "iconPath": "",
+        "maxCharge": 1,
+        "chargeMode": "PerStack"
+      }
+    ]
+  }
+}

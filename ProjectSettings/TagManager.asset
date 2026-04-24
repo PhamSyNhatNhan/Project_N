@@ -1,0 +1,69 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!78 &1
+TagManager:
+  serializedVersion: 3
+  tags:
+  - Enemy
+  - Projectile
+  - PlayerSpawnPoint
+  layers:
+  - Default
+  - TransparentFX
+  - Ignore Raycast
+  - 
+  - Water
+  - UI
+  - Player
+  - Enemy
+  - Projectile
+  - Wall
+  - Boundary
+  - Void
+  - ArenaWall
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  m_SortingLayers:
+  - name: Enviroment
+    uniqueID: 3440093263
+    locked: 0
+  - name: Back3
+    uniqueID: 1551513471
+    locked: 0
+  - name: back2
+    uniqueID: 3285349979
+    locked: 0
+  - name: back1
+    uniqueID: 1505624913
+    locked: 0
+  - name: Default
+    uniqueID: 0
+    locked: 0
+  - name: Pre1
+    uniqueID: 262040243
+    locked: 0
+  - name: Pre2
+    uniqueID: 139100629
+    locked: 0
+  - name: Pre2
+    uniqueID: 1702052479
+    locked: 0
+  m_RenderingLayers:
+  - Default

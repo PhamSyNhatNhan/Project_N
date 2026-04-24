@@ -1,0 +1,296 @@
+﻿{
+  "stat": {
+    "baseHealth": 200000,
+    "baseDefense": 200,
+    "baseAttack": 0,
+    "baseAttackSpeed": 100,
+    "baseCritRate": 5,
+    "baseCritDamage": 50,
+    "baseResistantPhysical": 30,
+    "baseResistantMagic": 50
+  },
+  "move": {
+    "baseMoveSpeed": 60
+  },
+  "skill": {
+    "skills": [
+      {
+        "skillId": "CalamitasImmortal0Hellblast",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [200],
+        "damageType": "Magic",
+        "iconPath": ""
+      },
+      {
+        "skillId": "CalamitasImmortal0Hellfire",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [250],
+        "damageType": "Magic",
+        "iconPath": ""
+      },
+      {
+        "skillId": "CalamitasPhase1Hellfire",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [280],
+        "damageType": "Magic",
+        "iconPath": ""
+      },
+      {
+        "skillId": "CalamitasPhase1CondemnationArrow",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [520],
+        "damageType": "Magic",
+        "iconPath": ""
+      },
+      {
+        "skillId": "CalamitasPhase1Hellblast",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [
+          260
+        ],
+        "damageType": "Magic",
+        "iconPath": ""
+      },
+      {
+        "skillId": "CalamitasPhase1Dash",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [
+          350
+        ],
+        "damageType": "Magic",
+        "iconPath": ""
+      },
+      {
+        "skillId": "CalamitasImmortal1Hellfire",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [
+          280
+        ],
+        "damageType": "Magic",
+        "iconPath": ""
+      },
+      {
+        "skillId": "CalamitasImmortal1Dagger",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [
+          220
+        ],
+        "damageType": "Magic",
+        "iconPath": ""
+      },
+      {
+        "skillId": "CalamitasImmortal1Dash",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [
+          600
+        ],
+        "damageType": "Magic",
+        "iconPath": ""
+      },
+      {
+        "skillId": "CalamitasPhase2Hellfire",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [
+          300
+        ],
+        "damageType": "Magic",
+        "iconPath": ""
+      },
+      {
+        "skillId": "CalamitasPhase2Hellblast",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [
+          320
+        ],
+        "damageType": "Magic",
+        "iconPath": ""
+      },
+      {
+        "skillId": "CalamitasPhase2Dagger",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [
+          280
+        ],
+        "damageType": "Magic",
+        "iconPath": ""
+      },
+      {
+        "skillId": "CalamitasPhase2DarkSoul",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [
+          250
+        ],
+        "damageType": "Magic",
+        "iconPath": ""
+      },
+      {
+        "skillId": "CalamitasPhase2SuicideBomber",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [
+          450
+        ],
+        "damageType": "Magic",
+        "iconPath": ""
+      },
+      {
+        "skillId": "CalamitasPhase2Bomb",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [
+          380
+        ],
+        "damageType": "Magic",
+        "iconPath": ""
+      },
+      {
+        "skillId": "CalamitasPhase2Sun",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [
+          220
+        ],
+        "damageType": "Magic",
+        "iconPath": ""
+      },
+      {
+        "skillId": "CalamitasPhase3Hellfire",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [
+          320
+        ],
+        "damageType": "Magic",
+        "iconPath": ""
+      },
+      {
+        "skillId": "CalamitasPhase3Hellblast",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [
+          340
+        ],
+        "damageType": "Magic",
+        "iconPath": ""
+      },
+      {
+        "skillId": "CalamitasPhase3CondemnationArrow",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [
+          360
+        ],
+        "damageType": "Magic",
+        "iconPath": ""
+      },
+      {
+        "skillId": "CalamitasPhase3Dart",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [
+          300
+        ],
+        "damageType": "Magic",
+        "iconPath": ""
+      },
+      {
+        "skillId": "CalamitasPhase3DarkSoul",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [
+          280
+        ],
+        "damageType": "Magic",
+        "iconPath": ""
+      },
+      {
+        "skillId": "CalamitasPhase3Bomb",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [
+          420
+        ],
+        "damageType": "Magic",
+        "iconPath": ""
+      },
+      {
+        "skillId": "CalamitasPhase3Dash",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [
+          400
+        ],
+        "damageType": "Magic",
+        "iconPath": ""
+      }
+    ,
+      {
+        "skillId": "CalamitasPhase3Dart",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [
+          150
+        ],
+        "damageType": "Magic",
+        "iconPath": ""
+      },
+      {
+        "skillId": "CalamitasSubPhase3Dagger",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [ 240 ],
+        "damageType": "Magic",
+        "iconPath": ""
+      },
+      {
+        "skillId": "CalamitasSubPhase3Dart",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [ 260 ],
+        "damageType": "Magic",
+        "iconPath": ""
+      },
+      {
+        "skillId": "CalamitasSubPhase3Bomb",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [ 400 ],
+        "damageType": "Magic",
+        "iconPath": ""
+      },
+      {
+        "skillId": "CalamitasImmortal3Dagger",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [
+          240
+        ],
+        "damageType": "Magic",
+        "iconPath": ""
+      },
+      {
+        "skillId": "CalamitasImmortal3Dart",
+        "skillType": "Attack",
+        "cooldown": 0,
+        "damage": [
+          200
+        ],
+        "damageType": "Magic",
+        "iconPath": ""
+      }
+    ]
+  }
+}
