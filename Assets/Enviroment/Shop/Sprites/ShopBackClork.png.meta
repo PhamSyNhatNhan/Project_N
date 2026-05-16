@@ -1,0 +1,2808 @@
+fileFormatVersion: 2
+guid: 1b4da76f2667bd44c823735ba3640c97
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -5857099050555360210
+    second: ShopBackClork_0
+  - first:
+      213: 2764481125986392624
+    second: ShopBackClork_1
+  - first:
+      213: 2083438860141305911
+    second: ShopBackClork_2
+  - first:
+      213: 264748849723246658
+    second: ShopBackClork_3
+  - first:
+      213: 5602009041191004010
+    second: ShopBackClork_4
+  - first:
+      213: 7187624782912995174
+    second: ShopBackClork_5
+  - first:
+      213: -7495049722182243450
+    second: ShopBackClork_6
+  - first:
+      213: -3511229596015071524
+    second: ShopBackClork_7
+  - first:
+      213: -1447165633973386922
+    second: ShopBackClork_8
+  - first:
+      213: 6667339902169801255
+    second: ShopBackClork_9
+  - first:
+      213: 1080173967003640248
+    second: ShopBackClork_10
+  - first:
+      213: -3816756591096033390
+    second: ShopBackClork_11
+  - first:
+      213: -3040511622097560216
+    second: ShopBackClork_12
+  - first:
+      213: 8293150446775660677
+    second: ShopBackClork_13
+  - first:
+      213: -7324730677656264623
+    second: ShopBackClork_14
+  - first:
+      213: 4136883604477903142
+    second: ShopBackClork_15
+  - first:
+      213: -6798800671379606000
+    second: ShopBackClork_16
+  - first:
+      213: -4287355107919663280
+    second: ShopBackClork_17
+  - first:
+      213: 6798957598852336884
+    second: ShopBackClork_18
+  - first:
+      213: 7284789967456972051
+    second: ShopBackClork_19
+  - first:
+      213: 2139371092228005994
+    second: ShopBackClork_20
+  - first:
+      213: 2625267955065271084
+    second: ShopBackClork_21
+  - first:
+      213: -4279930709822059960
+    second: ShopBackClork_22
+  - first:
+      213: -5063961897155969756
+    second: ShopBackClork_23
+  - first:
+      213: 72371834893139029
+    second: ShopBackClork_24
+  - first:
+      213: 3334872942642352840
+    second: ShopBackClork_25
+  - first:
+      213: 3064083726031136207
+    second: ShopBackClork_26
+  - first:
+      213: -466743969790345073
+    second: ShopBackClork_27
+  - first:
+      213: 601585695574366935
+    second: ShopBackClork_28
+  - first:
+      213: -6759302293495202405
+    second: ShopBackClork_29
+  - first:
+      213: -9072051244209294095
+    second: ShopBackClork_30
+  - first:
+      213: -2310111795135106895
+    second: ShopBackClork_31
+  - first:
+      213: 323775477711760536
+    second: ShopBackClork_32
+  - first:
+      213: 4742963710656635260
+    second: ShopBackClork_33
+  - first:
+      213: 3161020233857656791
+    second: ShopBackClork_34
+  - first:
+      213: -2388948828267727130
+    second: ShopBackClork_35
+  - first:
+      213: -7127300667679643687
+    second: ShopBackClork_36
+  - first:
+      213: -1474764073338345843
+    second: ShopBackClork_37
+  - first:
+      213: 8761749713341918606
+    second: ShopBackClork_38
+  - first:
+      213: -1113030366428987813
+    second: ShopBackClork_39
+  - first:
+      213: -7614277795677078905
+    second: ShopBackClork_40
+  - first:
+      213: 6663049432248336940
+    second: ShopBackClork_41
+  - first:
+      213: 3001636370700868259
+    second: ShopBackClork_42
+  - first:
+      213: -8948265020999171567
+    second: ShopBackClork_43
+  - first:
+      213: 6806192541168692674
+    second: ShopBackClork_44
+  - first:
+      213: 8738455495308012479
+    second: ShopBackClork_45
+  - first:
+      213: -842149664280883280
+    second: ShopBackClork_46
+  - first:
+      213: 9120039865952323942
+    second: ShopBackClork_47
+  - first:
+      213: -5051537645611992282
+    second: ShopBackClork_48
+  - first:
+      213: -2222972693013455847
+    second: ShopBackClork_49
+  - first:
+      213: 4677653283015014219
+    second: ShopBackClork_50
+  - first:
+      213: -1802793077066007233
+    second: ShopBackClork_51
+  - first:
+      213: 7906861782147178220
+    second: ShopBackClork_52
+  - first:
+      213: 8968504256397578958
+    second: ShopBackClork_53
+  - first:
+      213: 8480431835779193734
+    second: ShopBackClork_54
+  - first:
+      213: 1255762837385628108
+    second: ShopBackClork_55
+  - first:
+      213: -4167946650558366356
+    second: ShopBackClork_56
+  - first:
+      213: -6211523701167756933
+    second: ShopBackClork_57
+  - first:
+      213: 9204977436062342412
+    second: ShopBackClork_58
+  - first:
+      213: 1549311269273711564
+    second: ShopBackClork_59
+  - first:
+      213: 3879768227754863394
+    second: ShopBackClork_60
+  - first:
+      213: 8444271824459593808
+    second: ShopBackClork_61
+  - first:
+      213: -2206432757894333758
+    second: ShopBackClork_62
+  - first:
+      213: 9122103066329150742
+    second: ShopBackClork_63
+  - first:
+      213: 4523835105999573199
+    second: ShopBackClork_64
+  - first:
+      213: -2828266112664822342
+    second: ShopBackClork_65
+  - first:
+      213: -3713589097394877796
+    second: ShopBackClork_66
+  - first:
+      213: -7771240329656389734
+    second: ShopBackClork_67
+  - first:
+      213: -6128001841622174572
+    second: ShopBackClork_68
+  - first:
+      213: 8161023494243984110
+    second: ShopBackClork_69
+  - first:
+      213: -9186856592664581761
+    second: ShopBackClork_70
+  - first:
+      213: -2855344058147863006
+    second: ShopBackClork_71
+  - first:
+      213: 636056901702107868
+    second: ShopBackClork_72
+  - first:
+      213: -5757951431176441331
+    second: ShopBackClork_73
+  - first:
+      213: 6380871668009772316
+    second: ShopBackClork_74
+  - first:
+      213: 7159809707143420215
+    second: ShopBackClork_75
+  - first:
+      213: -4124600095053931474
+    second: ShopBackClork_76
+  - first:
+      213: -7782346686696593546
+    second: ShopBackClork_77
+  - first:
+      213: 9010248303734250557
+    second: ShopBackClork_78
+  - first:
+      213: -6924741097667133089
+    second: ShopBackClork_79
+  - first:
+      213: -1753261407438340804
+    second: ShopBackClork_80
+  - first:
+      213: -3724983393649755770
+    second: ShopBackClork_81
+  - first:
+      213: -8013218348704198756
+    second: ShopBackClork_82
+  - first:
+      213: -5348821902429912189
+    second: ShopBackClork_83
+  - first:
+      213: 7559407778505233546
+    second: ShopBackClork_84
+  - first:
+      213: 7993965120957477856
+    second: ShopBackClork_85
+  - first:
+      213: 2939599824639525623
+    second: ShopBackClork_86
+  - first:
+      213: 5745612897488101468
+    second: ShopBackClork_87
+  - first:
+      213: -6684110134553448405
+    second: ShopBackClork_88
+  - first:
+      213: -4006760531168677960
+    second: ShopBackClork_89
+  - first:
+      213: -6910439520240233494
+    second: ShopBackClork_90
+  - first:
+      213: -6945126567071092840
+    second: ShopBackClork_91
+  - first:
+      213: -5389226466397313554
+    second: ShopBackClork_92
+  - first:
+      213: -1753426673873476588
+    second: ShopBackClork_93
+  - first:
+      213: 8230795647902899198
+    second: ShopBackClork_94
+  - first:
+      213: 5615614090812831637
+    second: ShopBackClork_95
+  - first:
+      213: -2265288805538090172
+    second: ShopBackClork_96
+  - first:
+      213: 1293484642602168951
+    second: ShopBackClork_97
+  - first:
+      213: -301164682185762862
+    second: ShopBackClork_98
+  - first:
+      213: 528607559386252804
+    second: ShopBackClork_99
+  - first:
+      213: -272461333830037172
+    second: ShopBackClork_100
+  - first:
+      213: 8319933641704772483
+    second: ShopBackClork_101
+  - first:
+      213: -8395839770163562789
+    second: ShopBackClork_102
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 1
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: ShopBackClork_0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 1315
+        width: 131
+        height: 221
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e2cbe5d127767bea0800000000000000
+      internalID: -5857099050555360210
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_1
+      rect:
+        serializedVersion: 2
+        x: 927
+        y: 1501
+        width: 16
+        height: 34
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 03ad0beefe86d5620800000000000000
+      internalID: 2764481125986392624
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_2
+      rect:
+        serializedVersion: 2
+        x: 928
+        y: 568
+        width: 267
+        height: 967
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 730a7f1da9cd9ec10800000000000000
+      internalID: 2083438860141305911
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_3
+      rect:
+        serializedVersion: 2
+        x: 943
+        y: 1501
+        width: 16
+        height: 35
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 24882761da39ca300800000000000000
+      internalID: 264748849723246658
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_4
+      rect:
+        serializedVersion: 2
+        x: 959
+        y: 1523
+        width: 18
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a6767b0da855ebd40800000000000000
+      internalID: 5602009041191004010
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_5
+      rect:
+        serializedVersion: 2
+        x: 1201
+        y: 922
+        width: 250
+        height: 614
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 66fb25c88a29fb360800000000000000
+      internalID: 7187624782912995174
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_6
+      rect:
+        serializedVersion: 2
+        x: 1411
+        y: 1503
+        width: 28
+        height: 33
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 68bef67fcfb3cf790800000000000000
+      internalID: -7495049722182243450
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_7
+      rect:
+        serializedVersion: 2
+        x: 1455
+        y: 1515
+        width: 20
+        height: 20
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cdeeea4294b954fc0800000000000000
+      internalID: -3511229596015071524
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_8
+      rect:
+        serializedVersion: 2
+        x: 1473
+        y: 1524
+        width: 14
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6510dd7f582aaebe0800000000000000
+      internalID: -1447165633973386922
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_9
+      rect:
+        serializedVersion: 2
+        x: 1483
+        y: 1494
+        width: 40
+        height: 42
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7226e91e056278c50800000000000000
+      internalID: 6667339902169801255
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_10
+      rect:
+        serializedVersion: 2
+        x: 1496
+        y: 1106
+        width: 207
+        height: 430
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8b160eeff7c8dfe00800000000000000
+      internalID: 1080173967003640248
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_11
+      rect:
+        serializedVersion: 2
+        x: 1515
+        y: 1517
+        width: 12
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 29f07993a18280bc0800000000000000
+      internalID: -3816756591096033390
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_12
+      rect:
+        serializedVersion: 2
+        x: 1592
+        y: 241
+        width: 935
+        height: 1295
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 86d9d6df9ceedc5d0800000000000000
+      internalID: -3040511622097560216
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_13
+      rect:
+        serializedVersion: 2
+        x: 1711
+        y: 1405
+        width: 107
+        height: 130
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5807fe07460371370800000000000000
+      internalID: 8293150446775660677
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_14
+      rect:
+        serializedVersion: 2
+        x: 2191
+        y: 1531
+        width: 16
+        height: 5
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 15064eab144595a90800000000000000
+      internalID: -7324730677656264623
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_15
+      rect:
+        serializedVersion: 2
+        x: 2195
+        y: 1523
+        width: 8
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6210b0a58b9296930800000000000000
+      internalID: 4136883604477903142
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_16
+      rect:
+        serializedVersion: 2
+        x: 2200
+        y: 1514
+        width: 23
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0163bbb9fcec5a1a0800000000000000
+      internalID: -6798800671379606000
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_17
+      rect:
+        serializedVersion: 2
+        x: 2212
+        y: 1509
+        width: 19
+        height: 26
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 05fed76ae314084c0800000000000000
+      internalID: -4287355107919663280
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_18
+      rect:
+        serializedVersion: 2
+        x: 2560
+        y: 237
+        width: 192
+        height: 1299
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4fc498ae9efba5e50800000000000000
+      internalID: 6798957598852336884
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_19
+      rect:
+        serializedVersion: 2
+        x: 2592
+        y: 1510
+        width: 83
+        height: 26
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 31d2a9101e5c81560800000000000000
+      internalID: 7284789967456972051
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_20
+      rect:
+        serializedVersion: 2
+        x: 2672
+        y: 1465
+        width: 51
+        height: 71
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a606dfa6ca290bd10800000000000000
+      internalID: 2139371092228005994
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_21
+      rect:
+        serializedVersion: 2
+        x: 389
+        y: 1507
+        width: 8
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c23b1edbb43de6420800000000000000
+      internalID: 2625267955065271084
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_22
+      rect:
+        serializedVersion: 2
+        x: 399
+        y: 1507
+        width: 8
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 84a45c902b1aa94c0800000000000000
+      internalID: -4279930709822059960
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_23
+      rect:
+        serializedVersion: 2
+        x: 640
+        y: 913
+        width: 323
+        height: 608
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 42db7eb0c7139b9b0800000000000000
+      internalID: -5063961897155969756
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_24
+      rect:
+        serializedVersion: 2
+        x: 959
+        y: 1494
+        width: 18
+        height: 29
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 55c7c86eccd110100800000000000000
+      internalID: 72371834893139029
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_25
+      rect:
+        serializedVersion: 2
+        x: 1325
+        y: 1496
+        width: 50
+        height: 25
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8c2524db549d74e20800000000000000
+      internalID: 3334872942642352840
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_26
+      rect:
+        serializedVersion: 2
+        x: 1400
+        y: 1511
+        width: 26
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: fc524242aefc58a20800000000000000
+      internalID: 3064083726031136207
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_27
+      rect:
+        serializedVersion: 2
+        x: 1463
+        y: 1503
+        width: 20
+        height: 20
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f80479715dac589f0800000000000000
+      internalID: -466743969790345073
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_28
+      rect:
+        serializedVersion: 2
+        x: 2188
+        y: 1285
+        width: 163
+        height: 244
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7da9aa6b003495800800000000000000
+      internalID: 601585695574366935
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_29
+      rect:
+        serializedVersion: 2
+        x: 2229
+        y: 1519
+        width: 6
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b9d3cba50622232a0800000000000000
+      internalID: -6759302293495202405
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_30
+      rect:
+        serializedVersion: 2
+        x: 2372
+        y: 1050
+        width: 243
+        height: 479
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1f4b3cc8579991280800000000000000
+      internalID: -9072051244209294095
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_31
+      rect:
+        serializedVersion: 2
+        x: 2678
+        y: 1510
+        width: 6
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1b03883df85d0ffd0800000000000000
+      internalID: -2310111795135106895
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_32
+      rect:
+        serializedVersion: 2
+        x: 136
+        y: 922
+        width: 251
+        height: 593
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 89cedffd4184e7400800000000000000
+      internalID: 323775477711760536
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_33
+      rect:
+        serializedVersion: 2
+        x: 164
+        y: 35
+        width: 731
+        height: 1480
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c71e1449d5462d140800000000000000
+      internalID: 4742963710656635260
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_34
+      rect:
+        serializedVersion: 2
+        x: 899
+        y: 1503
+        width: 10
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7d768e6a7233edb20800000000000000
+      internalID: 3161020233857656791
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_35
+      rect:
+        serializedVersion: 2
+        x: 1404
+        y: 1370
+        width: 79
+        height: 145
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6e63488a2bfb8ded0800000000000000
+      internalID: -2388948828267727130
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_36
+      rect:
+        serializedVersion: 2
+        x: 2175
+        y: 1503
+        width: 16
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9d7ec870ecdb61d90800000000000000
+      internalID: -7127300667679643687
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_37
+      rect:
+        serializedVersion: 2
+        x: 2659
+        y: 1503
+        width: 12
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d86e82193e5988be0800000000000000
+      internalID: -1474764073338345843
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_38
+      rect:
+        serializedVersion: 2
+        x: 2711
+        y: 1455
+        width: 10
+        height: 20
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e8d20aa41fcf79970800000000000000
+      internalID: 8761749713341918606
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_39
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 1147
+        width: 51
+        height: 169
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b5ef6c067c8bd80f0800000000000000
+      internalID: -1113030366428987813
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_40
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 1171
+        width: 5
+        height: 30
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 78af58fdfa6a45690800000000000000
+      internalID: -7614277795677078905
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_41
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 1158
+        width: 5
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c22c7020828e77c50800000000000000
+      internalID: 6663049432248336940
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_42
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 312
+        width: 95
+        height: 844
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3aa94843064f7a920800000000000000
+      internalID: 3001636370700868259
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_43
+      rect:
+        serializedVersion: 2
+        x: 927
+        y: 933
+        width: 162
+        height: 295
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1128a439f5061d380800000000000000
+      internalID: -8948265020999171567
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_44
+      rect:
+        serializedVersion: 2
+        x: 1608
+        y: 934
+        width: 204
+        height: 293
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2cde5413e04747e50800000000000000
+      internalID: 6806192541168692674
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_45
+      rect:
+        serializedVersion: 2
+        x: 1679
+        y: 1179
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: fbbe46389fa354970800000000000000
+      internalID: 8738455495308012479
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_46
+      rect:
+        serializedVersion: 2
+        x: 1063
+        y: 1115
+        width: 8
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0bfc2dc97551054f0800000000000000
+      internalID: -842149664280883280
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_47
+      rect:
+        serializedVersion: 2
+        x: 1670
+        y: 1113
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6694d7320f3e09e70800000000000000
+      internalID: 9120039865952323942
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_48
+      rect:
+        serializedVersion: 2
+        x: 1675
+        y: 1109
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 62bb8c7864555e9b0800000000000000
+      internalID: -5051537645611992282
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_49
+      rect:
+        serializedVersion: 2
+        x: 918
+        y: 1087
+        width: 15
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 91c1a8f0d1a6621e0800000000000000
+      internalID: -2222972693013455847
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_50
+      rect:
+        serializedVersion: 2
+        x: 927
+        y: 1104
+        width: 8
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b47bc8ca0ec5ae040800000000000000
+      internalID: 4677653283015014219
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_51
+      rect:
+        serializedVersion: 2
+        x: 931
+        y: 1096
+        width: 7
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f3d72fd7f313bf6e0800000000000000
+      internalID: -1802793077066007233
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_52
+      rect:
+        serializedVersion: 2
+        x: 1448
+        y: 772
+        width: 211
+        height: 333
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cee9ef406e0dabd60800000000000000
+      internalID: 7906861782147178220
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_53
+      rect:
+        serializedVersion: 2
+        x: 918
+        y: 1071
+        width: 17
+        height: 20
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ec21821aa17867c70800000000000000
+      internalID: 8968504256397578958
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_54
+      rect:
+        serializedVersion: 2
+        x: 1671
+        y: 1091
+        width: 12
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 68b5889c2db80b570800000000000000
+      internalID: 8480431835779193734
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_55
+      rect:
+        serializedVersion: 2
+        x: 1672
+        y: 1085
+        width: 12
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cc9c184b5ad5d6110800000000000000
+      internalID: 1255762837385628108
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_56
+      rect:
+        serializedVersion: 2
+        x: 915
+        y: 1034
+        width: 22
+        height: 39
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c6d70b2aa9a7826c0800000000000000
+      internalID: -4167946650558366356
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_57
+      rect:
+        serializedVersion: 2
+        x: 931
+        y: 1073
+        width: 12
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b79e9f59a1c3cc9a0800000000000000
+      internalID: -6211523701167756933
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_58
+      rect:
+        serializedVersion: 2
+        x: 1062
+        y: 1065
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c0d5bf14536aebf70800000000000000
+      internalID: 9204977436062342412
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_59
+      rect:
+        serializedVersion: 2
+        x: 1063
+        y: 1070
+        width: 6
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cc3b19b0462408510800000000000000
+      internalID: 1549311269273711564
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_60
+      rect:
+        serializedVersion: 2
+        x: 1063
+        y: 1058
+        width: 9
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 22bec22b5a4b7d530800000000000000
+      internalID: 3879768227754863394
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_61
+      rect:
+        serializedVersion: 2
+        x: 1667
+        y: 1053
+        width: 16
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 058f0c31c74103570800000000000000
+      internalID: 8444271824459593808
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_62
+      rect:
+        serializedVersion: 2
+        x: 1672
+        y: 1074
+        width: 8
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2ca3cecc81d2161e0800000000000000
+      internalID: -2206432757894333758
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_63
+      rect:
+        serializedVersion: 2
+        x: 1673
+        y: 1068
+        width: 6
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 615fc096868389e70800000000000000
+      internalID: 9122103066329150742
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_64
+      rect:
+        serializedVersion: 2
+        x: 1679
+        y: 1073
+        width: 6
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: fc0db838f04e7ce30800000000000000
+      internalID: 4523835105999573199
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_65
+      rect:
+        serializedVersion: 2
+        x: 1819
+        y: 1065
+        width: 9
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: abd965094faffb8d0800000000000000
+      internalID: -2828266112664822342
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_66
+      rect:
+        serializedVersion: 2
+        x: 1827
+        y: 1069
+        width: 14
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c9ac300346ea67cc0800000000000000
+      internalID: -3713589097394877796
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_67
+      rect:
+        serializedVersion: 2
+        x: 935
+        y: 1055
+        width: 6
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a9f24ae0812072490800000000000000
+      internalID: -7771240329656389734
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_68
+      rect:
+        serializedVersion: 2
+        x: 1055
+        y: 1033
+        width: 14
+        height: 25
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 494bb27eac6f4faa0800000000000000
+      internalID: -6128001841622174572
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_69
+      rect:
+        serializedVersion: 2
+        x: 1675
+        y: 1045
+        width: 8
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ee2a70a01a7c14170800000000000000
+      internalID: 8161023494243984110
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_70
+      rect:
+        serializedVersion: 2
+        x: 1683
+        y: 1058
+        width: 14
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f79a5cf5a9ab18080800000000000000
+      internalID: -9186856592664581761
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_71
+      rect:
+        serializedVersion: 2
+        x: 1823
+        y: 1050
+        width: 6
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 226039615b7cf58d0800000000000000
+      internalID: -2855344058147863006
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_72
+      rect:
+        serializedVersion: 2
+        x: 1068
+        y: 1042
+        width: 7
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cd2c3e2d16ab3d800800000000000000
+      internalID: 636056901702107868
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_73
+      rect:
+        serializedVersion: 2
+        x: 1667
+        y: 1043
+        width: 8
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d02b6c62ea5a710b0800000000000000
+      internalID: -5757951431176441331
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_74
+      rect:
+        serializedVersion: 2
+        x: 1811
+        y: 1037
+        width: 12
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c15a31989f86d8850800000000000000
+      internalID: 6380871668009772316
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_75
+      rect:
+        serializedVersion: 2
+        x: 1817
+        y: 1047
+        width: 7
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7395dad8ef0cc5360800000000000000
+      internalID: 7159809707143420215
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_76
+      rect:
+        serializedVersion: 2
+        x: 915
+        y: 1021
+        width: 20
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e2c94cd011a72c6c0800000000000000
+      internalID: -4124600095053931474
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_77
+      rect:
+        serializedVersion: 2
+        x: 1668
+        y: 1033
+        width: 12
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 677e28ccbec8ff390800000000000000
+      internalID: -7782346686696593546
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_78
+      rect:
+        serializedVersion: 2
+        x: 1671
+        y: 1027
+        width: 17
+        height: 16
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d3c552a0815da0d70800000000000000
+      internalID: 9010248303734250557
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_79
+      rect:
+        serializedVersion: 2
+        x: 1684
+        y: 1026
+        width: 6
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f51800819a066ef90800000000000000
+      internalID: -6924741097667133089
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_80
+      rect:
+        serializedVersion: 2
+        x: 1679
+        y: 1021
+        width: 9
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c3d7c330a0a2ba7e0800000000000000
+      internalID: -1753261407438340804
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_81
+      rect:
+        serializedVersion: 2
+        x: 939
+        y: 991
+        width: 13
+        height: 20
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 689f64bd6533e4cc0800000000000000
+      internalID: -3724983393649755770
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_82
+      rect:
+        serializedVersion: 2
+        x: 1712
+        y: 981
+        width: 24
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c9f08d12e545bc090800000000000000
+      internalID: -8013218348704198756
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_83
+      rect:
+        serializedVersion: 2
+        x: 1790
+        y: 992
+        width: 22
+        height: 23
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 38306daa1da25c5b0800000000000000
+      internalID: -5348821902429912189
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_84
+      rect:
+        serializedVersion: 2
+        x: 1803
+        y: 984
+        width: 10
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a841126b25968e860800000000000000
+      internalID: 7559407778505233546
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_85
+      rect:
+        serializedVersion: 2
+        x: 1807
+        y: 997
+        width: 9
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0e378857ce440fe60800000000000000
+      internalID: 7993965120957477856
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_86
+      rect:
+        serializedVersion: 2
+        x: 943
+        y: 982
+        width: 10
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7f28071477e8bc820800000000000000
+      internalID: 2939599824639525623
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_87
+      rect:
+        serializedVersion: 2
+        x: 955
+        y: 989
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c506eab1d748cbf40800000000000000
+      internalID: 5745612897488101468
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_88
+      rect:
+        serializedVersion: 2
+        x: 1732
+        y: 981
+        width: 12
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b207a5e1f354d33a0800000000000000
+      internalID: -6684110134553448405
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_89
+      rect:
+        serializedVersion: 2
+        x: 1739
+        y: 984
+        width: 8
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8bfa2af86802568c0800000000000000
+      internalID: -4006760531168677960
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_90
+      rect:
+        serializedVersion: 2
+        x: 1731
+        y: 981
+        width: 9
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ae392429edf2910a0800000000000000
+      internalID: -6910439520240233494
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_91
+      rect:
+        serializedVersion: 2
+        x: 1739
+        y: 975
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 89f69912f24fd9f90800000000000000
+      internalID: -6945126567071092840
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_92
+      rect:
+        serializedVersion: 2
+        x: 2735
+        y: 833
+        width: 8
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ee52148051f9535b0800000000000000
+      internalID: -5389226466397313554
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_93
+      rect:
+        serializedVersion: 2
+        x: 2715
+        y: 807
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 414a31ceab39aa7e0800000000000000
+      internalID: -1753426673873476588
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_94
+      rect:
+        serializedVersion: 2
+        x: 2732
+        y: 781
+        width: 7
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: efb551c7809a93270800000000000000
+      internalID: 8230795647902899198
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_95
+      rect:
+        serializedVersion: 2
+        x: 2353
+        y: 393
+        width: 6
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 597b396434baeed40800000000000000
+      internalID: 5615614090812831637
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_96
+      rect:
+        serializedVersion: 2
+        x: 2353
+        y: 383
+        width: 6
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 443bb3855d31090e0800000000000000
+      internalID: -2265288805538090172
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_97
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 256
+        width: 31
+        height: 59
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 772b9b4ed6163f110800000000000000
+      internalID: 1293484642602168951
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_98
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 225
+        width: 16
+        height: 30
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2d79c63315c02dbf0800000000000000
+      internalID: -301164682185762862
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_99
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 241
+        width: 5
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 406cdca46cdf55700800000000000000
+      internalID: 528607559386252804
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_100
+      rect:
+        serializedVersion: 2
+        x: 899
+        y: 0
+        width: 1853
+        height: 241
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c4118064cd5083cf0800000000000000
+      internalID: -272461333830037172
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_101
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 75
+        width: 31
+        height: 148
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 38392a4f097567370800000000000000
+      internalID: 8319933641704772483
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBackClork_102
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 913
+        height: 38
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: bd6bd4c463cfb7b80800000000000000
+      internalID: -8395839770163562789
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 5e97eb03825dee720800000000000000
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      ShopBackClork_0: -5857099050555360210
+      ShopBackClork_1: 2764481125986392624
+      ShopBackClork_10: 1080173967003640248
+      ShopBackClork_100: -272461333830037172
+      ShopBackClork_101: 8319933641704772483
+      ShopBackClork_102: -8395839770163562789
+      ShopBackClork_11: -3816756591096033390
+      ShopBackClork_12: -3040511622097560216
+      ShopBackClork_13: 8293150446775660677
+      ShopBackClork_14: -7324730677656264623
+      ShopBackClork_15: 4136883604477903142
+      ShopBackClork_16: -6798800671379606000
+      ShopBackClork_17: -4287355107919663280
+      ShopBackClork_18: 6798957598852336884
+      ShopBackClork_19: 7284789967456972051
+      ShopBackClork_2: 2083438860141305911
+      ShopBackClork_20: 2139371092228005994
+      ShopBackClork_21: 2625267955065271084
+      ShopBackClork_22: -4279930709822059960
+      ShopBackClork_23: -5063961897155969756
+      ShopBackClork_24: 72371834893139029
+      ShopBackClork_25: 3334872942642352840
+      ShopBackClork_26: 3064083726031136207
+      ShopBackClork_27: -466743969790345073
+      ShopBackClork_28: 601585695574366935
+      ShopBackClork_29: -6759302293495202405
+      ShopBackClork_3: 264748849723246658
+      ShopBackClork_30: -9072051244209294095
+      ShopBackClork_31: -2310111795135106895
+      ShopBackClork_32: 323775477711760536
+      ShopBackClork_33: 4742963710656635260
+      ShopBackClork_34: 3161020233857656791
+      ShopBackClork_35: -2388948828267727130
+      ShopBackClork_36: -7127300667679643687
+      ShopBackClork_37: -1474764073338345843
+      ShopBackClork_38: 8761749713341918606
+      ShopBackClork_39: -1113030366428987813
+      ShopBackClork_4: 5602009041191004010
+      ShopBackClork_40: -7614277795677078905
+      ShopBackClork_41: 6663049432248336940
+      ShopBackClork_42: 3001636370700868259
+      ShopBackClork_43: -8948265020999171567
+      ShopBackClork_44: 6806192541168692674
+      ShopBackClork_45: 8738455495308012479
+      ShopBackClork_46: -842149664280883280
+      ShopBackClork_47: 9120039865952323942
+      ShopBackClork_48: -5051537645611992282
+      ShopBackClork_49: -2222972693013455847
+      ShopBackClork_5: 7187624782912995174
+      ShopBackClork_50: 4677653283015014219
+      ShopBackClork_51: -1802793077066007233
+      ShopBackClork_52: 7906861782147178220
+      ShopBackClork_53: 8968504256397578958
+      ShopBackClork_54: 8480431835779193734
+      ShopBackClork_55: 1255762837385628108
+      ShopBackClork_56: -4167946650558366356
+      ShopBackClork_57: -6211523701167756933
+      ShopBackClork_58: 9204977436062342412
+      ShopBackClork_59: 1549311269273711564
+      ShopBackClork_6: -7495049722182243450
+      ShopBackClork_60: 3879768227754863394
+      ShopBackClork_61: 8444271824459593808
+      ShopBackClork_62: -2206432757894333758
+      ShopBackClork_63: 9122103066329150742
+      ShopBackClork_64: 4523835105999573199
+      ShopBackClork_65: -2828266112664822342
+      ShopBackClork_66: -3713589097394877796
+      ShopBackClork_67: -7771240329656389734
+      ShopBackClork_68: -6128001841622174572
+      ShopBackClork_69: 8161023494243984110
+      ShopBackClork_7: -3511229596015071524
+      ShopBackClork_70: -9186856592664581761
+      ShopBackClork_71: -2855344058147863006
+      ShopBackClork_72: 636056901702107868
+      ShopBackClork_73: -5757951431176441331
+      ShopBackClork_74: 6380871668009772316
+      ShopBackClork_75: 7159809707143420215
+      ShopBackClork_76: -4124600095053931474
+      ShopBackClork_77: -7782346686696593546
+      ShopBackClork_78: 9010248303734250557
+      ShopBackClork_79: -6924741097667133089
+      ShopBackClork_8: -1447165633973386922
+      ShopBackClork_80: -1753261407438340804
+      ShopBackClork_81: -3724983393649755770
+      ShopBackClork_82: -8013218348704198756
+      ShopBackClork_83: -5348821902429912189
+      ShopBackClork_84: 7559407778505233546
+      ShopBackClork_85: 7993965120957477856
+      ShopBackClork_86: 2939599824639525623
+      ShopBackClork_87: 5745612897488101468
+      ShopBackClork_88: -6684110134553448405
+      ShopBackClork_89: -4006760531168677960
+      ShopBackClork_9: 6667339902169801255
+      ShopBackClork_90: -6910439520240233494
+      ShopBackClork_91: -6945126567071092840
+      ShopBackClork_92: -5389226466397313554
+      ShopBackClork_93: -1753426673873476588
+      ShopBackClork_94: 8230795647902899198
+      ShopBackClork_95: 5615614090812831637
+      ShopBackClork_96: -2265288805538090172
+      ShopBackClork_97: 1293484642602168951
+      ShopBackClork_98: -301164682185762862
+      ShopBackClork_99: 528607559386252804
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

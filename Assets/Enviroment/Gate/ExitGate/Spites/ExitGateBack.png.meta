@@ -1,0 +1,2600 @@
+fileFormatVersion: 2
+guid: a10b130127b39bf458677ca3230676f6
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: 7959402269227159345
+    second: ExitGateBack_0
+  - first:
+      213: 8651849189790406204
+    second: ExitGateBack_1
+  - first:
+      213: 8069468350539332482
+    second: ExitGateBack_2
+  - first:
+      213: -637109536747584282
+    second: ExitGateBack_3
+  - first:
+      213: -1262637159124819580
+    second: ExitGateBack_4
+  - first:
+      213: 2229084115318709379
+    second: ExitGateBack_5
+  - first:
+      213: -2155344414732935752
+    second: ExitGateBack_6
+  - first:
+      213: 7477134453055362468
+    second: ExitGateBack_7
+  - first:
+      213: 5317925736653854166
+    second: ExitGateBack_8
+  - first:
+      213: -5890419004900601098
+    second: ExitGateBack_9
+  - first:
+      213: 4120199262605222476
+    second: ExitGateBack_10
+  - first:
+      213: 7673426744083141786
+    second: ExitGateBack_11
+  - first:
+      213: -4968422028860789175
+    second: ExitGateBack_12
+  - first:
+      213: 2570828148217985163
+    second: ExitGateBack_13
+  - first:
+      213: -4926013981751051416
+    second: ExitGateBack_14
+  - first:
+      213: 2628835172275768770
+    second: ExitGateBack_15
+  - first:
+      213: -6517520746310145317
+    second: ExitGateBack_16
+  - first:
+      213: 6214973518729003746
+    second: ExitGateBack_17
+  - first:
+      213: -5215066078071313983
+    second: ExitGateBack_18
+  - first:
+      213: -6208214152252684751
+    second: ExitGateBack_19
+  - first:
+      213: -299756402917335032
+    second: ExitGateBack_20
+  - first:
+      213: 1926029590957143452
+    second: ExitGateBack_21
+  - first:
+      213: -7550290466010230023
+    second: ExitGateBack_22
+  - first:
+      213: 606218169091630865
+    second: ExitGateBack_23
+  - first:
+      213: -6714026635606276303
+    second: ExitGateBack_24
+  - first:
+      213: -7212368015606430152
+    second: ExitGateBack_25
+  - first:
+      213: 4210528581694732222
+    second: ExitGateBack_26
+  - first:
+      213: 7561363971937856141
+    second: ExitGateBack_27
+  - first:
+      213: 4419636771683231424
+    second: ExitGateBack_28
+  - first:
+      213: -5270551933779498942
+    second: ExitGateBack_29
+  - first:
+      213: 6877946653869235147
+    second: ExitGateBack_30
+  - first:
+      213: -608854733648051025
+    second: ExitGateBack_31
+  - first:
+      213: -2585560366768039874
+    second: ExitGateBack_32
+  - first:
+      213: 4373149611281865580
+    second: ExitGateBack_33
+  - first:
+      213: -5374208440856896770
+    second: ExitGateBack_34
+  - first:
+      213: -484212746184875368
+    second: ExitGateBack_35
+  - first:
+      213: 9070491672755030629
+    second: ExitGateBack_36
+  - first:
+      213: -4998500541976305172
+    second: ExitGateBack_37
+  - first:
+      213: 5532382193809034022
+    second: ExitGateBack_38
+  - first:
+      213: 2421287424040725584
+    second: ExitGateBack_39
+  - first:
+      213: -8011133535407343386
+    second: ExitGateBack_40
+  - first:
+      213: -2214036662158654883
+    second: ExitGateBack_41
+  - first:
+      213: -3214061943765727291
+    second: ExitGateBack_42
+  - first:
+      213: -3755173337147041204
+    second: ExitGateBack_43
+  - first:
+      213: 2669182258195197196
+    second: ExitGateBack_44
+  - first:
+      213: 573760594731326012
+    second: ExitGateBack_45
+  - first:
+      213: -6014792406282035516
+    second: ExitGateBack_46
+  - first:
+      213: -4020345063413665092
+    second: ExitGateBack_47
+  - first:
+      213: -8533039162945116525
+    second: ExitGateBack_48
+  - first:
+      213: -8104893526506463044
+    second: ExitGateBack_49
+  - first:
+      213: 5935093406976822960
+    second: ExitGateBack_50
+  - first:
+      213: 7285095073771750984
+    second: ExitGateBack_51
+  - first:
+      213: -8970455350599909132
+    second: ExitGateBack_52
+  - first:
+      213: -7633618239629014271
+    second: ExitGateBack_53
+  - first:
+      213: 2014610631962639981
+    second: ExitGateBack_54
+  - first:
+      213: 127563795871115675
+    second: ExitGateBack_55
+  - first:
+      213: -6145179055340629948
+    second: ExitGateBack_56
+  - first:
+      213: 7853460660103469998
+    second: ExitGateBack_57
+  - first:
+      213: -3567498994524204500
+    second: ExitGateBack_58
+  - first:
+      213: 176738150243774326
+    second: ExitGateBack_59
+  - first:
+      213: -5972706655165309947
+    second: ExitGateBack_60
+  - first:
+      213: 7318755925671211542
+    second: ExitGateBack_61
+  - first:
+      213: -390421544953180288
+    second: ExitGateBack_62
+  - first:
+      213: -4378585101599467968
+    second: ExitGateBack_63
+  - first:
+      213: 1865782970721060871
+    second: ExitGateBack_64
+  - first:
+      213: -5693380360353512055
+    second: ExitGateBack_65
+  - first:
+      213: 4243370403945353915
+    second: ExitGateBack_66
+  - first:
+      213: -319778408956671610
+    second: ExitGateBack_67
+  - first:
+      213: -5894766340066751100
+    second: ExitGateBack_68
+  - first:
+      213: -6758058903411049475
+    second: ExitGateBack_69
+  - first:
+      213: 630945698766600
+    second: ExitGateBack_70
+  - first:
+      213: -1417925579517986142
+    second: ExitGateBack_71
+  - first:
+      213: 3672609085203171902
+    second: ExitGateBack_72
+  - first:
+      213: -913134409401473172
+    second: ExitGateBack_73
+  - first:
+      213: -2253574642183504445
+    second: ExitGateBack_74
+  - first:
+      213: -8325219785038859853
+    second: ExitGateBack_75
+  - first:
+      213: 3683948422956608074
+    second: ExitGateBack_76
+  - first:
+      213: -5696549477111646898
+    second: ExitGateBack_77
+  - first:
+      213: 3009614951133099744
+    second: ExitGateBack_78
+  - first:
+      213: 498111191604986218
+    second: ExitGateBack_79
+  - first:
+      213: 4377008913150538843
+    second: ExitGateBack_80
+  - first:
+      213: 2091682652727117179
+    second: ExitGateBack_81
+  - first:
+      213: 7038775869852313722
+    second: ExitGateBack_82
+  - first:
+      213: 2074710312181541219
+    second: ExitGateBack_83
+  - first:
+      213: -5011003366352138378
+    second: ExitGateBack_84
+  - first:
+      213: 3550919172459335042
+    second: ExitGateBack_85
+  - first:
+      213: 1537086163253817007
+    second: ExitGateBack_86
+  - first:
+      213: 7294058677352693505
+    second: ExitGateBack_87
+  - first:
+      213: -8017010299927486683
+    second: ExitGateBack_88
+  - first:
+      213: -4224391486089482740
+    second: ExitGateBack_89
+  - first:
+      213: 8935011127422602610
+    second: ExitGateBack_90
+  - first:
+      213: -1608209532550864565
+    second: ExitGateBack_91
+  - first:
+      213: -9063204010579993855
+    second: ExitGateBack_92
+  - first:
+      213: 5803597034408328913
+    second: ExitGateBack_93
+  - first:
+      213: 5082726551703066280
+    second: ExitGateBack_94
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 1
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: ExitGateBack_0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 2048
+        height: 2048
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 13f09b1713a757e60800000000000000
+      internalID: 7959402269227159345
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_1
+      rect:
+        serializedVersion: 2
+        x: 51
+        y: 2021
+        width: 24
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c3655b7affa811870800000000000000
+      internalID: 8651849189790406204
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_2
+      rect:
+        serializedVersion: 2
+        x: 63
+        y: 2031
+        width: 8
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 28b772006b28cff60800000000000000
+      internalID: 8069468350539332482
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_3
+      rect:
+        serializedVersion: 2
+        x: 79
+        y: 2033
+        width: 6
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6e4852b70488827f0800000000000000
+      internalID: -637109536747584282
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_4
+      rect:
+        serializedVersion: 2
+        x: 83
+        y: 2037
+        width: 7
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 481282a81363a7ee0800000000000000
+      internalID: -1262637159124819580
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_5
+      rect:
+        serializedVersion: 2
+        x: 95
+        y: 2025
+        width: 14
+        height: 16
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 38c9904513c4fee10800000000000000
+      internalID: 2229084115318709379
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_6
+      rect:
+        serializedVersion: 2
+        x: 111
+        y: 2031
+        width: 8
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8bd983f9cada612e0800000000000000
+      internalID: -2155344414732935752
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_7
+      rect:
+        serializedVersion: 2
+        x: 127
+        y: 2033
+        width: 8
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4a513346b2e14c760800000000000000
+      internalID: 7477134453055362468
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_8
+      rect:
+        serializedVersion: 2
+        x: 143
+        y: 2029
+        width: 12
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6d5192b28411dc940800000000000000
+      internalID: 5317925736653854166
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_9
+      rect:
+        serializedVersion: 2
+        x: 191
+        y: 2033
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6f290b2bf17014ea0800000000000000
+      internalID: -5890419004900601098
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_10
+      rect:
+        serializedVersion: 2
+        x: 1747
+        y: 2003
+        width: 42
+        height: 45
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c42296b4663ed2930800000000000000
+      internalID: 4120199262605222476
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_11
+      rect:
+        serializedVersion: 2
+        x: 31
+        y: 2003
+        width: 18
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a94de0bd7fc7d7a60800000000000000
+      internalID: 7673426744083141786
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_12
+      rect:
+        serializedVersion: 2
+        x: 39
+        y: 2016
+        width: 16
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 94ee6831d7e9c0bb0800000000000000
+      internalID: -4968422028860789175
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_13
+      rect:
+        serializedVersion: 2
+        x: 75
+        y: 2017
+        width: 14
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b88bb19749a6da320800000000000000
+      internalID: 2570828148217985163
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_14
+      rect:
+        serializedVersion: 2
+        x: 83
+        y: 2023
+        width: 12
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 86bfe1bf16843abb0800000000000000
+      internalID: -4926013981751051416
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_15
+      rect:
+        serializedVersion: 2
+        x: 93
+        y: 2015
+        width: 6
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2cdcc8839af7b7420800000000000000
+      internalID: 2628835172275768770
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_16
+      rect:
+        serializedVersion: 2
+        x: 109
+        y: 2021
+        width: 6
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: bdae1fb996d1d85a0800000000000000
+      internalID: -6517520746310145317
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_17
+      rect:
+        serializedVersion: 2
+        x: 110
+        y: 2016
+        width: 9
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2e24d48ac75004650800000000000000
+      internalID: 6214973518729003746
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_18
+      rect:
+        serializedVersion: 2
+        x: 119
+        y: 2025
+        width: 8
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1c9ae58580d50a7b0800000000000000
+      internalID: -5215066078071313983
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_19
+      rect:
+        serializedVersion: 2
+        x: 119
+        y: 2009
+        width: 16
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1360d6dfe1ef7d9a0800000000000000
+      internalID: -6208214152252684751
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_20
+      rect:
+        serializedVersion: 2
+        x: 131
+        y: 2025
+        width: 12
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 800a6f4c32d07dbf0800000000000000
+      internalID: -299756402917335032
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_21
+      rect:
+        serializedVersion: 2
+        x: 141
+        y: 2019
+        width: 10
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c9534eb55b1aaba10800000000000000
+      internalID: 1926029590957143452
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_22
+      rect:
+        serializedVersion: 2
+        x: 151
+        y: 2025
+        width: 8
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9f2117603daf73790800000000000000
+      internalID: -7550290466010230023
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_23
+      rect:
+        serializedVersion: 2
+        x: 157
+        y: 2017
+        width: 10
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 11728118638b96800800000000000000
+      internalID: 606218169091630865
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_24
+      rect:
+        serializedVersion: 2
+        x: 173
+        y: 2015
+        width: 12
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1374d2ce85cf2d2a0800000000000000
+      internalID: -6714026635606276303
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_25
+      rect:
+        serializedVersion: 2
+        x: 23
+        y: 2001
+        width: 16
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 836c368a08588eb90800000000000000
+      internalID: -7212368015606430152
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_26
+      rect:
+        serializedVersion: 2
+        x: 55
+        y: 2001
+        width: 17
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: eb73b8ccf6dce6a30800000000000000
+      internalID: 4210528581694732222
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_27
+      rect:
+        serializedVersion: 2
+        x: 71
+        y: 2009
+        width: 6
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d8aeacc787c5fe860800000000000000
+      internalID: 7561363971937856141
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_28
+      rect:
+        serializedVersion: 2
+        x: 83
+        y: 2003
+        width: 6
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0c6ee644a34b55d30800000000000000
+      internalID: 4419636771683231424
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_29
+      rect:
+        serializedVersion: 2
+        x: 87
+        y: 2000
+        width: 16
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 24823d8d0fc3bd6b0800000000000000
+      internalID: -5270551933779498942
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_30
+      rect:
+        serializedVersion: 2
+        x: 99
+        y: 2007
+        width: 10
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: bcb56ff6a00637f50800000000000000
+      internalID: 6877946653869235147
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_31
+      rect:
+        serializedVersion: 2
+        x: 135
+        y: 2009
+        width: 6
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: fa4c71978d9ec87f0800000000000000
+      internalID: -608854733648051025
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_32
+      rect:
+        serializedVersion: 2
+        x: 139
+        y: 2013
+        width: 8
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e3856799b8e3e1cd0800000000000000
+      internalID: -2585560366768039874
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_33
+      rect:
+        serializedVersion: 2
+        x: 183
+        y: 2009
+        width: 6
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c6bd71ac66c80bc30800000000000000
+      internalID: 4373149611281865580
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_34
+      rect:
+        serializedVersion: 2
+        x: 199
+        y: 2009
+        width: 6
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: efa91d595e9fa65b0800000000000000
+      internalID: -5374208440856896770
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_35
+      rect:
+        serializedVersion: 2
+        x: 231
+        y: 2009
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8922fe3a21bb749f0800000000000000
+      internalID: -484212746184875368
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_36
+      rect:
+        serializedVersion: 2
+        x: 247
+        y: 2001
+        width: 12
+        height: 16
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 56ac3bc6e1cd0ed70800000000000000
+      internalID: 9070491672755030629
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_37
+      rect:
+        serializedVersion: 2
+        x: 279
+        y: 2005
+        width: 8
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ce1a7e18d32c1aab0800000000000000
+      internalID: -4998500541976305172
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_38
+      rect:
+        serializedVersion: 2
+        x: 1671
+        y: 2009
+        width: 8
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 62b0faf1b48f6cc40800000000000000
+      internalID: 5532382193809034022
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_39
+      rect:
+        serializedVersion: 2
+        x: 1719
+        y: 2009
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 05c611965142a9120800000000000000
+      internalID: 2421287424040725584
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_40
+      rect:
+        serializedVersion: 2
+        x: 1725
+        y: 1999
+        width: 6
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6e873dd8e7cb2d090800000000000000
+      internalID: -8011133535407343386
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_41
+      rect:
+        serializedVersion: 2
+        x: 15
+        y: 2001
+        width: 10
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d528750e2692641e0800000000000000
+      internalID: -2214036662158654883
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_42
+      rect:
+        serializedVersion: 2
+        x: 45
+        y: 1999
+        width: 10
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5c70eb3e0bb5563d0800000000000000
+      internalID: -3214061943765727291
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_43
+      rect:
+        serializedVersion: 2
+        x: 77
+        y: 2001
+        width: 6
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c4a1551eeb1f2ebc0800000000000000
+      internalID: -3755173337147041204
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_44
+      rect:
+        serializedVersion: 2
+        x: 103
+        y: 1997
+        width: 7
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c0def743f17da0520800000000000000
+      internalID: 2669182258195197196
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_45
+      rect:
+        serializedVersion: 2
+        x: 109
+        y: 2001
+        width: 6
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c3ad313983866f700800000000000000
+      internalID: 573760594731326012
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_46
+      rect:
+        serializedVersion: 2
+        x: 123
+        y: 2001
+        width: 8
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4ce97d99c2a278ca0800000000000000
+      internalID: -6014792406282035516
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_47
+      rect:
+        serializedVersion: 2
+        x: 141
+        y: 2002
+        width: 6
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cb2bbbc277dd438c0800000000000000
+      internalID: -4020345063413665092
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_48
+      rect:
+        serializedVersion: 2
+        x: 157
+        y: 2005
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 396e82e571e849980800000000000000
+      internalID: -8533039162945116525
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_49
+      rect:
+        serializedVersion: 2
+        x: 173
+        y: 2005
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cb0283a7742a58f80800000000000000
+      internalID: -8104893526506463044
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_50
+      rect:
+        serializedVersion: 2
+        x: 173
+        y: 2001
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0becd971200bd5250800000000000000
+      internalID: 5935093406976822960
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_51
+      rect:
+        serializedVersion: 2
+        x: 189
+        y: 2005
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8460d1b1f5bd91560800000000000000
+      internalID: 7285095073771750984
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_52
+      rect:
+        serializedVersion: 2
+        x: 191
+        y: 2001
+        width: 10
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4f08df9d26a828380800000000000000
+      internalID: -8970455350599909132
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_53
+      rect:
+        serializedVersion: 2
+        x: 205
+        y: 2001
+        width: 6
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 10b48fbd7a0ff0690800000000000000
+      internalID: -7633618239629014271
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_54
+      rect:
+        serializedVersion: 2
+        x: 221
+        y: 2001
+        width: 10
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d6ebbd622b555fb10800000000000000
+      internalID: 2014610631962639981
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_55
+      rect:
+        serializedVersion: 2
+        x: 271
+        y: 2001
+        width: 8
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b992913b89235c100800000000000000
+      internalID: 127563795871115675
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_56
+      rect:
+        serializedVersion: 2
+        x: 287
+        y: 2003
+        width: 8
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 440504d2530f7baa0800000000000000
+      internalID: -6145179055340629948
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_57
+      rect:
+        serializedVersion: 2
+        x: 1655
+        y: 1995
+        width: 6
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: eabd8f66cd81dfc60800000000000000
+      internalID: 7853460660103469998
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_58
+      rect:
+        serializedVersion: 2
+        x: 1663
+        y: 2001
+        width: 8
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c2252ded092bd7ec0800000000000000
+      internalID: -3567498994524204500
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_59
+      rect:
+        serializedVersion: 2
+        x: 1693
+        y: 2003
+        width: 6
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 67f2a874966e37200800000000000000
+      internalID: 176738150243774326
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_60
+      rect:
+        serializedVersion: 2
+        x: 19
+        y: 1985
+        width: 6
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 50c924f11feac1da0800000000000000
+      internalID: -5972706655165309947
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_61
+      rect:
+        serializedVersion: 2
+        x: 23
+        y: 1985
+        width: 22
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 612fa6becb1719560800000000000000
+      internalID: 7318755925671211542
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_62
+      rect:
+        serializedVersion: 2
+        x: 55
+        y: 1993
+        width: 8
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 08f08646ca1f49af0800000000000000
+      internalID: -390421544953180288
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_63
+      rect:
+        serializedVersion: 2
+        x: 61
+        y: 1985
+        width: 6
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 04698508c042c33c0800000000000000
+      internalID: -4378585101599467968
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_64
+      rect:
+        serializedVersion: 2
+        x: 71
+        y: 1993
+        width: 6
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7084dcdf9b794e910800000000000000
+      internalID: 1865782970721060871
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_65
+      rect:
+        serializedVersion: 2
+        x: 77
+        y: 1985
+        width: 6
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 98581f12abc0df0b0800000000000000
+      internalID: -5693380360353512055
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_66
+      rect:
+        serializedVersion: 2
+        x: 78
+        y: 1995
+        width: 7
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: bb2919966ea73ea30800000000000000
+      internalID: 4243370403945353915
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_67
+      rect:
+        serializedVersion: 2
+        x: 87
+        y: 1993
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6894c473b3bef8bf0800000000000000
+      internalID: -319778408956671610
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_68
+      rect:
+        serializedVersion: 2
+        x: 125
+        y: 1989
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 48d446ade35913ea0800000000000000
+      internalID: -5894766340066751100
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_69
+      rect:
+        serializedVersion: 2
+        x: 139
+        y: 1989
+        width: 8
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: dfbb40bab3d8632a0800000000000000
+      internalID: -6758058903411049475
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_70
+      rect:
+        serializedVersion: 2
+        x: 157
+        y: 1989
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 80f5f3e77dd320000800000000000000
+      internalID: 630945698766600
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_71
+      rect:
+        serializedVersion: 2
+        x: 173
+        y: 1989
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2aaf3eaa234825ce0800000000000000
+      internalID: -1417925579517986142
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_72
+      rect:
+        serializedVersion: 2
+        x: 182
+        y: 1991
+        width: 7
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e3a4862318ab7f230800000000000000
+      internalID: 3672609085203171902
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_73
+      rect:
+        serializedVersion: 2
+        x: 189
+        y: 1985
+        width: 6
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c676077b715e353f0800000000000000
+      internalID: -913134409401473172
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_74
+      rect:
+        serializedVersion: 2
+        x: 199
+        y: 1993
+        width: 6
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3cdf2d98dc1b9b0e0800000000000000
+      internalID: -2253574642183504445
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_75
+      rect:
+        serializedVersion: 2
+        x: 205
+        y: 1987
+        width: 6
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3b174b3e6b0e67c80800000000000000
+      internalID: -8325219785038859853
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_76
+      rect:
+        serializedVersion: 2
+        x: 215
+        y: 1993
+        width: 6
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a4a60318293002330800000000000000
+      internalID: 3683948422956608074
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_77
+      rect:
+        serializedVersion: 2
+        x: 221
+        y: 1985
+        width: 6
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e45b253ae6ac1f0b0800000000000000
+      internalID: -5696549477111646898
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_78
+      rect:
+        serializedVersion: 2
+        x: 231
+        y: 1993
+        width: 6
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0e63ef83adc44c920800000000000000
+      internalID: 3009614951133099744
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_79
+      rect:
+        serializedVersion: 2
+        x: 237
+        y: 1987
+        width: 6
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a61034a5d75a9e600800000000000000
+      internalID: 498111191604986218
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_80
+      rect:
+        serializedVersion: 2
+        x: 1639
+        y: 1991
+        width: 12
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b547e078a624ebc30800000000000000
+      internalID: 4377008913150538843
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_81
+      rect:
+        serializedVersion: 2
+        x: 1645
+        y: 1989
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b7585aa5a46270d10800000000000000
+      internalID: 2091682652727117179
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_82
+      rect:
+        serializedVersion: 2
+        x: 1661
+        y: 1987
+        width: 6
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a7863205c51cea160800000000000000
+      internalID: 7038775869852313722
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_83
+      rect:
+        serializedVersion: 2
+        x: 45
+        y: 1985
+        width: 10
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 369ab61690adacc10800000000000000
+      internalID: 2074710312181541219
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_84
+      rect:
+        serializedVersion: 2
+        x: 179
+        y: 1987
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 67f4b4cdcf6557ab0800000000000000
+      internalID: -5011003366352138378
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_85
+      rect:
+        serializedVersion: 2
+        x: 31
+        y: 1969
+        width: 10
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 28d009c7c26674130800000000000000
+      internalID: 3550919172459335042
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_86
+      rect:
+        serializedVersion: 2
+        x: 39
+        y: 1977
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: fae69edb8b3d45510800000000000000
+      internalID: 1537086163253817007
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_87
+      rect:
+        serializedVersion: 2
+        x: 45
+        y: 1973
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 10f7672b8b3b93560800000000000000
+      internalID: 7294058677352693505
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_88
+      rect:
+        serializedVersion: 2
+        x: 61
+        y: 1972
+        width: 6
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 52f9c20bb9bddb090800000000000000
+      internalID: -8017010299927486683
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_89
+      rect:
+        serializedVersion: 2
+        x: 139
+        y: 1975
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c0ea37f3352ff55c0800000000000000
+      internalID: -4224391486089482740
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_90
+      rect:
+        serializedVersion: 2
+        x: 159
+        y: 1969
+        width: 8
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 27dcf2ad7498ffb70800000000000000
+      internalID: 8935011127422602610
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_91
+      rect:
+        serializedVersion: 2
+        x: 1639
+        y: 1977
+        width: 6
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b41a8e763fd7ea9e0800000000000000
+      internalID: -1608209532550864565
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_92
+      rect:
+        serializedVersion: 2
+        x: 1647
+        y: 1971
+        width: 8
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 10bdb76a8f7093280800000000000000
+      internalID: -9063204010579993855
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_93
+      rect:
+        serializedVersion: 2
+        x: 1335
+        y: 1963
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1de3b6701c48a8050800000000000000
+      internalID: 5803597034408328913
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ExitGateBack_94
+      rect:
+        serializedVersion: 2
+        x: 1951
+        y: 1969
+        width: 8
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8a615bc8ed8798640800000000000000
+      internalID: 5082726551703066280
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 5e97eb03825dee720800000000000000
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      ExitGateBack_0: 7959402269227159345
+      ExitGateBack_1: 8651849189790406204
+      ExitGateBack_10: 4120199262605222476
+      ExitGateBack_11: 7673426744083141786
+      ExitGateBack_12: -4968422028860789175
+      ExitGateBack_13: 2570828148217985163
+      ExitGateBack_14: -4926013981751051416
+      ExitGateBack_15: 2628835172275768770
+      ExitGateBack_16: -6517520746310145317
+      ExitGateBack_17: 6214973518729003746
+      ExitGateBack_18: -5215066078071313983
+      ExitGateBack_19: -6208214152252684751
+      ExitGateBack_2: 8069468350539332482
+      ExitGateBack_20: -299756402917335032
+      ExitGateBack_21: 1926029590957143452
+      ExitGateBack_22: -7550290466010230023
+      ExitGateBack_23: 606218169091630865
+      ExitGateBack_24: -6714026635606276303
+      ExitGateBack_25: -7212368015606430152
+      ExitGateBack_26: 4210528581694732222
+      ExitGateBack_27: 7561363971937856141
+      ExitGateBack_28: 4419636771683231424
+      ExitGateBack_29: -5270551933779498942
+      ExitGateBack_3: -637109536747584282
+      ExitGateBack_30: 6877946653869235147
+      ExitGateBack_31: -608854733648051025
+      ExitGateBack_32: -2585560366768039874
+      ExitGateBack_33: 4373149611281865580
+      ExitGateBack_34: -5374208440856896770
+      ExitGateBack_35: -484212746184875368
+      ExitGateBack_36: 9070491672755030629
+      ExitGateBack_37: -4998500541976305172
+      ExitGateBack_38: 5532382193809034022
+      ExitGateBack_39: 2421287424040725584
+      ExitGateBack_4: -1262637159124819580
+      ExitGateBack_40: -8011133535407343386
+      ExitGateBack_41: -2214036662158654883
+      ExitGateBack_42: -3214061943765727291
+      ExitGateBack_43: -3755173337147041204
+      ExitGateBack_44: 2669182258195197196
+      ExitGateBack_45: 573760594731326012
+      ExitGateBack_46: -6014792406282035516
+      ExitGateBack_47: -4020345063413665092
+      ExitGateBack_48: -8533039162945116525
+      ExitGateBack_49: -8104893526506463044
+      ExitGateBack_5: 2229084115318709379
+      ExitGateBack_50: 5935093406976822960
+      ExitGateBack_51: 7285095073771750984
+      ExitGateBack_52: -8970455350599909132
+      ExitGateBack_53: -7633618239629014271
+      ExitGateBack_54: 2014610631962639981
+      ExitGateBack_55: 127563795871115675
+      ExitGateBack_56: -6145179055340629948
+      ExitGateBack_57: 7853460660103469998
+      ExitGateBack_58: -3567498994524204500
+      ExitGateBack_59: 176738150243774326
+      ExitGateBack_6: -2155344414732935752
+      ExitGateBack_60: -5972706655165309947
+      ExitGateBack_61: 7318755925671211542
+      ExitGateBack_62: -390421544953180288
+      ExitGateBack_63: -4378585101599467968
+      ExitGateBack_64: 1865782970721060871
+      ExitGateBack_65: -5693380360353512055
+      ExitGateBack_66: 4243370403945353915
+      ExitGateBack_67: -319778408956671610
+      ExitGateBack_68: -5894766340066751100
+      ExitGateBack_69: -6758058903411049475
+      ExitGateBack_7: 7477134453055362468
+      ExitGateBack_70: 630945698766600
+      ExitGateBack_71: -1417925579517986142
+      ExitGateBack_72: 3672609085203171902
+      ExitGateBack_73: -913134409401473172
+      ExitGateBack_74: -2253574642183504445
+      ExitGateBack_75: -8325219785038859853
+      ExitGateBack_76: 3683948422956608074
+      ExitGateBack_77: -5696549477111646898
+      ExitGateBack_78: 3009614951133099744
+      ExitGateBack_79: 498111191604986218
+      ExitGateBack_8: 5317925736653854166
+      ExitGateBack_80: 4377008913150538843
+      ExitGateBack_81: 2091682652727117179
+      ExitGateBack_82: 7038775869852313722
+      ExitGateBack_83: 2074710312181541219
+      ExitGateBack_84: -5011003366352138378
+      ExitGateBack_85: 3550919172459335042
+      ExitGateBack_86: 1537086163253817007
+      ExitGateBack_87: 7294058677352693505
+      ExitGateBack_88: -8017010299927486683
+      ExitGateBack_89: -4224391486089482740
+      ExitGateBack_9: -5890419004900601098
+      ExitGateBack_90: 8935011127422602610
+      ExitGateBack_91: -1608209532550864565
+      ExitGateBack_92: -9063204010579993855
+      ExitGateBack_93: 5803597034408328913
+      ExitGateBack_94: 5082726551703066280
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

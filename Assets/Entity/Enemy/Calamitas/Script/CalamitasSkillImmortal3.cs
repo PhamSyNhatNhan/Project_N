@@ -219,6 +219,13 @@ public class CalamitasSkillImmortal3 : MonoBehaviour
         entityKey = GetInstanceID().ToString();
         bossStat  = GetComponent<Stat>();
         timeScale = GetComponent<TimeScale>();
+        
+        if (arenaWallManager == null)
+        {
+            arenaWallManager = FindObjectOfType<ArenaWallManager>();
+            if (arenaWallManager == null)
+                Debug.LogWarning("[Immortal3] ArenaWallManager không tìm thấy trong scene!");
+        }
     }
 
     private void OnEnable()

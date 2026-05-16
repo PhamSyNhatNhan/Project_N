@@ -1,0 +1,622 @@
+fileFormatVersion: 2
+guid: 9166b41161827fc4bb8f7db0d92af4cc
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -6183368386349921058
+    second: hall_0
+  - first:
+      213: -5444148224969478382
+    second: hall_1
+  - first:
+      213: 8414910718935663423
+    second: hall_2
+  - first:
+      213: -1688228343478527479
+    second: hall_3
+  - first:
+      213: 2309823612057439181
+    second: hall_4
+  - first:
+      213: -4956971738611986075
+    second: hall_5
+  - first:
+      213: 8690194205159511219
+    second: hall_6
+  - first:
+      213: -6217833423794734712
+    second: hall_7
+  - first:
+      213: 4024285153991156930
+    second: hall_8
+  - first:
+      213: -5791466642431295024
+    second: hall_9
+  - first:
+      213: -3214128256744283177
+    second: hall_10
+  - first:
+      213: -272576674353537107
+    second: hall_11
+  - first:
+      213: 4494221660299755237
+    second: hall_12
+  - first:
+      213: -3078439388709345187
+    second: hall_13
+  - first:
+      213: -7103594046949974461
+    second: hall_14
+  - first:
+      213: -1918861659777499687
+    second: hall_15
+  - first:
+      213: -8328097098463688362
+    second: hall_16
+  - first:
+      213: -8287023867253889477
+    second: hall_17
+  - first:
+      213: 7844696556734464479
+    second: hall_18
+  - first:
+      213: 2132280931343688136
+    second: hall_19
+  - first:
+      213: 7858632964822535169
+    second: hall_20
+  - first:
+      213: -4696910035557145186
+    second: hall_21
+  - first:
+      213: 50973164346219918
+    second: hall_22
+  - first:
+      213: 7798853665403029075
+    second: hall_23
+  - first:
+      213: 5260892845401275953
+    second: hall_24
+  - first:
+      213: -666587544210106395
+    second: hall_25
+  - first:
+      213: -5334653862120320802
+    second: hall_26
+  - first:
+      213: -6360322033347710446
+    second: hall_27
+  - first:
+      213: 6493048659762430645
+    second: hall_28
+  - first:
+      213: -1736091165732508938
+    second: hall_29
+  - first:
+      213: 2808535359436766944
+    second: hall_30
+  - first:
+      213: 2976244834709716495
+    second: hall_31
+  - first:
+      213: -8520912881933808370
+    second: hall_32
+  - first:
+      213: 8161971496376884077
+    second: hall_33
+  - first:
+      213: -2431923025014185234
+    second: hall_34
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: hall_0
+      rect:
+        serializedVersion: 2
+        x: 177
+        y: 1278
+        width: 407
+        height: 181
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: edc8b38a633403aa0800000000000000
+      internalID: -6183368386349921058
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hall_1
+      rect:
+        serializedVersion: 2
+        x: 928
+        y: 1298
+        width: 308
+        height: 151
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 21fee12a8008274b0800000000000000
+      internalID: -5444148224969478382
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hall_2
+      rect:
+        serializedVersion: 2
+        x: 1469
+        y: 819
+        width: 593
+        height: 615
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f3389caf6b4c7c470800000000000000
+      internalID: 8414910718935663423
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hall_4
+      rect:
+        serializedVersion: 2
+        x: 2124
+        y: 897
+        width: 528
+        height: 507
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: dcb4e7256542e0020800000000000000
+      internalID: 2309823612057439181
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hall_9
+      rect:
+        serializedVersion: 2
+        x: 94
+        y: 954
+        width: 603
+        height: 303
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0d1cb51f5c390afa0800000000000000
+      internalID: -5791466642431295024
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hall_10
+      rect:
+        serializedVersion: 2
+        x: 797
+        y: 965
+        width: 301
+        height: 293
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7d32632316f1563d0800000000000000
+      internalID: -3214128256744283177
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hall_11
+      rect:
+        serializedVersion: 2
+        x: 1167
+        y: 970
+        width: 249
+        height: 288
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: daf991775fc973cf0800000000000000
+      internalID: -272576674353537107
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hall_21
+      rect:
+        serializedVersion: 2
+        x: 779
+        y: 453
+        width: 171
+        height: 405
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e9526ac353931deb0800000000000000
+      internalID: -4696910035557145186
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hall_22
+      rect:
+        serializedVersion: 2
+        x: 1254
+        y: 458
+        width: 158
+        height: 402
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e8d1fe9a2d715b000800000000000000
+      internalID: 50973164346219918
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hall_26
+      rect:
+        serializedVersion: 2
+        x: 1032
+        y: 514
+        width: 126
+        height: 317
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ed017ac939087f5b0800000000000000
+      internalID: -5334653862120320802
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hall_27
+      rect:
+        serializedVersion: 2
+        x: 2129
+        y: 631
+        width: 439
+        height: 214
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 21238312fc89bb7a0800000000000000
+      internalID: -6360322033347710446
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hall_29
+      rect:
+        serializedVersion: 2
+        x: 2398
+        y: 439
+        width: 254
+        height: 130
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6fae1d0784a28e7e0800000000000000
+      internalID: -1736091165732508938
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hall_30
+      rect:
+        serializedVersion: 2
+        x: 107
+        y: 108
+        width: 639
+        height: 625
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0ee3a56770ce9f620800000000000000
+      internalID: 2808535359436766944
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hall_31
+      rect:
+        serializedVersion: 2
+        x: 789
+        y: 55
+        width: 646
+        height: 352
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f0eb67988eebd4920800000000000000
+      internalID: 2976244834709716495
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hall_32
+      rect:
+        serializedVersion: 2
+        x: 1468
+        y: 215
+        width: 594
+        height: 506
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e0d094e21e2afb980800000000000000
+      internalID: -8520912881933808370
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: hall_34
+      rect:
+        serializedVersion: 2
+        x: 2141
+        y: 239
+        width: 334
+        height: 179
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ee2afe4c4e2104ed0800000000000000
+      internalID: -2431923025014185234
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 8afa826b14cd9dc4f9fd7aa06a8aa143
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      hall_0: -6183368386349921058
+      hall_1: -5444148224969478382
+      hall_10: -3214128256744283177
+      hall_11: -272576674353537107
+      hall_12: 4494221660299755237
+      hall_13: -3078439388709345187
+      hall_14: -7103594046949974461
+      hall_15: -1918861659777499687
+      hall_16: -8328097098463688362
+      hall_17: -8287023867253889477
+      hall_18: 7844696556734464479
+      hall_19: 2132280931343688136
+      hall_2: 8414910718935663423
+      hall_20: 7858632964822535169
+      hall_21: -4696910035557145186
+      hall_22: 50973164346219918
+      hall_23: 7798853665403029075
+      hall_24: 5260892845401275953
+      hall_25: -666587544210106395
+      hall_26: -5334653862120320802
+      hall_27: -6360322033347710446
+      hall_28: 6493048659762430645
+      hall_29: -1736091165732508938
+      hall_3: -1688228343478527479
+      hall_30: 2808535359436766944
+      hall_31: 2976244834709716495
+      hall_32: -8520912881933808370
+      hall_33: 8161971496376884077
+      hall_34: -2431923025014185234
+      hall_4: 2309823612057439181
+      hall_5: -4956971738611986075
+      hall_6: 8690194205159511219
+      hall_7: -6217833423794734712
+      hall_8: 4024285153991156930
+      hall_9: -5791466642431295024
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

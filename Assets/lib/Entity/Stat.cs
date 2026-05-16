@@ -95,7 +95,6 @@ public class Stat : MonoBehaviour, ILoadable<StatData>
     [SerializeField] private float bonusMultiplierCritDamage;
 
     // ── Buff / Debuff tạm thời (StatBonus) ───────────────────────────
-    // Không dùng SerializeField vì đây là runtime data, không cần lưu trong Inspector
     protected StatBonus buffHealth                  = new StatBonus();
     protected StatBonus buffDefense                 = new StatBonus();
     protected StatBonus buffResistantPhysical       = new StatBonus();
@@ -110,22 +109,32 @@ public class Stat : MonoBehaviour, ILoadable<StatData>
     protected StatBonus buffCritRate                = new StatBonus();
     protected StatBonus buffCritDamage              = new StatBonus();
 
-    [Header("DamageCaculation")] 
+    // ── IFrame ────────────────────────────────────────────────────────
+    [Header("IFrame")]
     [SerializeField] private bool canDamge = true;
-    private float lastDamageTime  = -100.0f;
-    [SerializeField] private float iFrame = 0.02f;
+
+    [SerializeField] private IFrameMode iFrameMode = IFrameMode.Gradual;
+
+    // ── Legacy (Player) ───────────────────────────────────────────
+    [SerializeField] private float iFrame         = 0.02f;
+    private float lastDamageTime = -100.0f;
+
+    // ── Gradual (Enemy/Boss) ──────────────────────────────────────
+    [SerializeField] private float iFrameDamageMult = 0.3f;
+    [SerializeField] private float curIFrameTime    = 0f;  
+
+    // ── Popup ─────────────────────────────────────────────────────────
+    [Header("Popup")]
     [SerializeField] private GameObject popupTextPrefab;
     protected EasyPoolingList popupTextPool = new EasyPoolingList();
 
     protected string entityKey => $"{nameCharacter}_{GetInstanceID()}";
-
     protected StatData rawStatData;
     
     public event System.Func<float, DamageType, float> OnBeforeTakeDamage;
-
     public event System.Action<float, DamageType> OnAfterTakeDamage;
 
-
+    // ── Lifecycle ─────────────────────────────────────────────────────
     protected virtual void Awake()
     {
         popupTextPool.SetPrefab(popupTextPrefab);
@@ -137,7 +146,13 @@ public class Stat : MonoBehaviour, ILoadable<StatData>
             setStartStat();
     }
 
-    // ── ILoadable ─────────────────────────────────────────────────
+    protected virtual void Update()
+    {
+        if (iFrameMode == IFrameMode.Gradual && curIFrameTime > 0f)
+            curIFrameTime = Mathf.Max(0f, curIFrameTime - Time.deltaTime);
+    }
+
+    // ── ILoadable ─────────────────────────────────────────────────────
     public void LoadRawData(StatData data)
     {
         rawStatData           = data;
@@ -167,7 +182,6 @@ public class Stat : MonoBehaviour, ILoadable<StatData>
 
     protected virtual void setStartStat()
     {
-        // max* = chỉ số cố định (base + bonus equipment)
         maxHealth            = baseHealth            * (1.0f + (bonusMultiplierHealth / 100.0f))            + bonusFlatHealth;
         maxDefense           = baseDefense           * (1.0f + (bonusMultiplierDefense / 100.0f))           + bonusFlatDefense;
         maxResistantPhysical = baseResistantPhysical * (1.0f + (bonusMultiplierResistantPhysical / 100.0f)) + bonusFlatResistantPhysical;
@@ -182,13 +196,11 @@ public class Stat : MonoBehaviour, ILoadable<StatData>
         maxCritRate                    = baseCritRate                + bonusMultiplierCritRate;
         maxCritDamage                  = baseCritDamage              + bonusMultiplierCritDamage;
 
-        // cur* = max* + buff/debuff tạm thời từ StatBonus
-        // ── Health: restore từ save nếu có, ngược lại full HP ────
         float buffedMaxHealth = buffHealth.GetFinalValue(maxHealth);
         curHealth = (_savedCurHealth > 0f)
             ? Mathf.Min(_savedCurHealth, buffedMaxHealth)
             : buffedMaxHealth;
-        _savedCurHealth = -1f; // reset sau khi dùng, tránh ảnh hưởng RecalculateStat
+        _savedCurHealth = -1f;
 
         curDefense               = buffDefense.GetFinalValue(maxDefense);
         curResistantPhysical     = buffResistantPhysical.GetFinalValue(maxResistantPhysical);
@@ -216,9 +228,7 @@ public class Stat : MonoBehaviour, ILoadable<StatData>
 
     /// <summary>
     /// Khởi tạo chỉ số với hệ số scale (dùng cho quái ở tầng cao).
-    /// Ghi đè các bonusMultiplier rồi recalculate toàn bộ stat.
     /// </summary>
-    /// <param name="config">Cấu hình scale theo từng nhóm chỉ số.</param>
     public virtual void Initialize(ScalingConfig config)
     {
         bonusMultiplierHealth                += config.healthMultiplier;
@@ -238,57 +248,102 @@ public class Stat : MonoBehaviour, ILoadable<StatData>
         setStartStat();
     }
 
-    public virtual void TakeDamage(DamageType type , float damage, float _critRate, float _critDamage)
+    // ── TakeDamage ────────────────────────────────────────────────────
+    
+    public virtual void TakeDamage(DamageType type, float damage, float _critRate, float _critDamage)
     {
-        //Debug.Log(entityKey + " take dmg");
-        if ((Time.time >= lastDamageTime + iFrame) && canDamge)
+        TakeDamage(type, damage, _critRate, _critDamage, iFrame);
+    }
+
+    public virtual void TakeDamage(DamageType type, float damage, float _critRate, float _critDamage, float iframeDuration)
+    {
+        if (!canDamge) return;
+
+        if (iFrameMode == IFrameMode.Legacy)
         {
+            // ── Legacy: timestamp, block hoàn toàn ───────────────
+            if (Time.time < lastDamageTime + iFrame) return;
+
             lastDamageTime = Time.time;
-            float tmpDmgTake = 0.0f;
-
-            if (type == DamageType.True)
-            {
-                tmpDmgTake = damage * (1.0f + curMultiplierDamageTaken / 100f);
-            }
-            else if (type == DamageType.Physical)
-            {
-                tmpDmgTake = damage * (CaculateResistant(type)) * (CaculateDefense()) *
-                             (1.0f + curMultiplierDamageTaken / 100f);
-            }
-            else if (type == DamageType.Magic)
-            {
-                tmpDmgTake = damage * (CaculateResistant(type)) *
-                             (1.0f + curMultiplierDamageTaken / 100f);
-            }
-
-            bool isCrit = false;
-            if (UnityEngine.Random.Range(0f, 100f) <= _critRate)
-            {
-                isCrit = true;
-                tmpDmgTake *= (1.0f + _critDamage / 100.0f);
-            }
-
-            // Nhân hệ số ngẫu nhiên 0.8 - 1.2
-            tmpDmgTake *= UnityEngine.Random.Range(0.8f, 1.2f);
-
-            if (popupTextPrefab)
-                PopupTextShow(type, tmpDmgTake, isCrit);
-
-            // Hook trước khi trừ HP — buff có thể modify damage
-            if (OnBeforeTakeDamage != null)
-                foreach (System.Func<float, DamageType, float> hook in OnBeforeTakeDamage.GetInvocationList())
-                    tmpDmgTake = hook(tmpDmgTake, type);
-
-            tmpDmgTake = Mathf.Max(0f, tmpDmgTake);
-            curHealth -= tmpDmgTake;
-
-            // Hook sau khi trừ HP
-            OnAfterTakeDamage?.Invoke(tmpDmgTake, type);
-
-            float buffedMaxHealth = buffHealth.GetFinalValue(maxHealth);
-            EventManager.Entity.OnEntityHealthChanged.Get(entityKey).Invoke(this, buffedMaxHealth > 0f ? curHealth / buffedMaxHealth : 0f);
-            if (curHealth <= 0) OnDead();
+            ProcessDamage(type, damage, _critRate, _critDamage, iFrameMult: 1f);
         }
+        else
+        {
+            // ── Gradual ───────────────────────────
+            float iFrameMult;
+
+            if (curIFrameTime <= 0f)
+            {
+                // Không trong iframe → full damage, cộng |iframeDuration| vào curIFrameTime
+                iFrameMult     = 1f;
+                curIFrameTime += Mathf.Abs(iframeDuration);
+            }
+            else
+            {
+                // Đang trong iframe → damage * iFrameDamageMult (flat, tunable trong Inspector)
+                iFrameMult    = iFrameDamageMult;
+                curIFrameTime = Mathf.Max(0f, curIFrameTime - iframeDuration);
+            }
+
+            ProcessDamage(type, damage, _critRate, _critDamage, iFrameMult);
+        }
+    }
+
+    /// <summary>
+    /// Xử lý tính toán và áp dụng damage — dùng chung cho cả 2 chế độ iframe.
+    /// </summary>
+    private void ProcessDamage(DamageType type, float damage, float _critRate, float _critDamage, float iFrameMult)
+    {
+        float tmpDmgTake = 0f;
+
+        if (type == DamageType.True)
+        {
+            tmpDmgTake = damage * (1.0f + curMultiplierDamageTaken / 100f);
+        }
+        else if (type == DamageType.Physical)
+        {
+            tmpDmgTake = damage * CaculateResistant(type) * CaculateDefense()
+                       * (1.0f + curMultiplierDamageTaken / 100f);
+        }
+        else if (type == DamageType.Magic)
+        {
+            tmpDmgTake = damage * CaculateResistant(type)
+                       * (1.0f + curMultiplierDamageTaken / 100f);
+        }
+
+        // Crit
+        bool isCrit = false;
+        if (UnityEngine.Random.Range(0f, 100f) <= _critRate)
+        {
+            isCrit      = true;
+            tmpDmgTake *= (1.0f + _critDamage / 100.0f);
+        }
+
+        // Random variance
+        tmpDmgTake *= UnityEngine.Random.Range(0.8f, 1.2f);
+
+        // Áp hệ số iframe (1f = full, iFrameDamageMult = giảm)
+        tmpDmgTake *= iFrameMult;
+
+        if (popupTextPrefab)
+            PopupTextShow(type, tmpDmgTake, isCrit);
+
+        // Hook trước khi trừ HP
+        if (OnBeforeTakeDamage != null)
+            foreach (System.Func<float, DamageType, float> hook in OnBeforeTakeDamage.GetInvocationList())
+                tmpDmgTake = hook(tmpDmgTake, type);
+
+        tmpDmgTake = Mathf.Max(0f, tmpDmgTake);
+        curHealth -= tmpDmgTake;
+
+        // Hook sau khi trừ HP
+        OnAfterTakeDamage?.Invoke(tmpDmgTake, type);
+
+        float buffedMaxHealth = buffHealth.GetFinalValue(maxHealth);
+        EventManager.Entity.OnEntityHealthChanged.Get(entityKey).Invoke(
+            this, buffedMaxHealth > 0f ? curHealth / buffedMaxHealth : 0f);
+
+        if (curHealth <= 0f) OnDead();
     }
 
     protected virtual void OnDead()
@@ -307,57 +362,38 @@ public class Stat : MonoBehaviour, ILoadable<StatData>
         if (type == DamageType.Physical)
         {
             if ((curResistantPhysical / 100.0f) < 0)
-            {
                 return 1.0f - ((curResistantPhysical / 100.0f) * 0.5f);
-            }
-            else if ((curResistantPhysical / 100.0f) >= 0.0f && (curResistantPhysical / 100.0f) <= 0.3f)
-            {
+            else if ((curResistantPhysical / 100.0f) <= 0.3f)
                 return 1.0f - (curResistantPhysical / 100.0f);
-            }
             else
-            {
                 return 0.3f + (1.0f / (4.0f * (curResistantPhysical / 100.0f) + 1.0f));
-            }
         }
         else if (type == DamageType.Magic)
         {
             if ((curResistantMagic / 100.0f) < 0)
-            {
                 return 1.0f - ((curResistantMagic / 100.0f) * 0.5f);
-            }
-            else if ((curResistantMagic / 100.0f) >= 0.0f && (curResistantMagic / 100.0f) <= 0.7f)
-            {
+            else if ((curResistantMagic / 100.0f) <= 0.7f)
                 return 1.0f - (curResistantMagic / 100.0f);
-            }
             else
-            {
                 return 0.7f + (1.0f / (4.0f * (curResistantMagic / 100.0f) + 1.0f));
-            }
         }
-        else
-        {
-            return 0.0f;
-        }
+        return 0.0f;
     }
 
     protected virtual float CaculateDefense()
     {
         return 1.0f - curDefense / (curDefense * 2.0f + 500);
     }
-    
 
     private void PopupTextShow(DamageType type, float damage, bool isCrit)
     {
         GameObject popText = popupTextPool.GetGameObject();
         if (popText == null) return;
 
-        // Set position trước, parent null sau để tránh bị flip theo nhân vật
-        popText.transform.position   = transform.position;
-        popText.transform.rotation   = Quaternion.identity;
-        //popText.transform.localScale = Vector3.one;
+        popText.transform.position = transform.position;
+        popText.transform.rotation = Quaternion.identity;
         popText.transform.SetParent(null);
 
-        // Truyền TimeScale trước khi active
         popText.GetComponent<PopupText>()?.SetTimeScale(GetComponent<TimeScale>());
         popText.SetActive(true);
 
@@ -386,27 +422,22 @@ public class Stat : MonoBehaviour, ILoadable<StatData>
             ? "\u2728" + Mathf.RoundToInt(damage)
             : Mathf.RoundToInt(damage).ToString();
     }
-    
+
     public float CaculateDamage(DamageType type, float damage)
     {
         float tmpDamage = 0.0f;
-        
+
         if (type == DamageType.True)
-        {
             tmpDamage = damage * (1.0f + curBonusDamage / 100.0f) * (1.0f + curMultiplierDamageBonus / 100.0f);
-        }
         else if (type == DamageType.Physical)
-        {
             tmpDamage = damage * (1.0f + (curBonusDamage + curBonusPhysical) / 100.0f) * (1.0f + curMultiplierDamageBonus / 100.0f);
-        }
         else if (type == DamageType.Magic)
-        {
             tmpDamage = damage * (1.0f + (curBonusDamage + curBonusMagic) / 100.0f) * (1.0f + curMultiplierDamageBonus / 100.0f);
-        }
-        
+
         return tmpDamage;
     }
 
+    // ── Properties ────────────────────────────────────────────────────
 
     public float BaseHealth
     {
@@ -437,7 +468,7 @@ public class Stat : MonoBehaviour, ILoadable<StatData>
         get => bonusMultiplierHealth;
         set => bonusMultiplierHealth = value;
     }
-    
+
     public float BaseDefense
     {
         get => baseDefense;
@@ -747,13 +778,11 @@ public class Stat : MonoBehaviour, ILoadable<StatData>
     public float CurAttackSpeed
     {
         get => curAttackSpeed;
-        set 
+        set
         {
             curAttackSpeed = value;
             if (EventManager.Player.OnPlayerAttackSpeedChange != null)
-            {
                 EventManager.Player.OnPlayerAttackSpeedChange.Get(nameCharacter).Invoke(this, curAttackSpeed);
-            }
         }
     }
 
@@ -762,11 +791,23 @@ public class Stat : MonoBehaviour, ILoadable<StatData>
         get => bonusMultiplierAttackSpeed;
         set => bonusMultiplierAttackSpeed = value;
     }
-    
+
     public String NameCharacter
     {
         get => nameCharacter;
         set => nameCharacter = value;
+    }
+
+    public float CurIFrameTime
+    {
+        get => curIFrameTime;
+        set => curIFrameTime = value;
+    }
+
+    public IFrameMode IFrameMode
+    {
+        get => iFrameMode;
+        set => iFrameMode = value;
     }
 
     // ── StatBonus Properties ──────────────────────────────────────────

@@ -1,0 +1,2808 @@
+fileFormatVersion: 2
+guid: f908714c45200a8498597a225eead88e
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: 2980920845144767155
+    second: ShopBack_0
+  - first:
+      213: -1051986961582609693
+    second: ShopBack_1
+  - first:
+      213: 198180717823514151
+    second: ShopBack_2
+  - first:
+      213: -4265853850329190728
+    second: ShopBack_3
+  - first:
+      213: 3523787082480306618
+    second: ShopBack_4
+  - first:
+      213: -8840556370852844537
+    second: ShopBack_5
+  - first:
+      213: 7263055183489023663
+    second: ShopBack_6
+  - first:
+      213: -741104944738676753
+    second: ShopBack_7
+  - first:
+      213: 8674438564351607966
+    second: ShopBack_8
+  - first:
+      213: 3295902562332674570
+    second: ShopBack_9
+  - first:
+      213: -655431656867007392
+    second: ShopBack_10
+  - first:
+      213: 3511201168746427232
+    second: ShopBack_11
+  - first:
+      213: 1170196257468694224
+    second: ShopBack_12
+  - first:
+      213: 5879507013285502771
+    second: ShopBack_13
+  - first:
+      213: 8566214669878900458
+    second: ShopBack_14
+  - first:
+      213: 3126419268056674461
+    second: ShopBack_15
+  - first:
+      213: -3115640408458273292
+    second: ShopBack_16
+  - first:
+      213: -1179898884794127238
+    second: ShopBack_17
+  - first:
+      213: -5506657291669422635
+    second: ShopBack_18
+  - first:
+      213: 4055220825244320639
+    second: ShopBack_19
+  - first:
+      213: 7630343871090286321
+    second: ShopBack_20
+  - first:
+      213: 6435394972708987063
+    second: ShopBack_21
+  - first:
+      213: 3433331704561184852
+    second: ShopBack_22
+  - first:
+      213: -7760565748988128426
+    second: ShopBack_23
+  - first:
+      213: -1930086752361584214
+    second: ShopBack_24
+  - first:
+      213: 8848164736195462444
+    second: ShopBack_25
+  - first:
+      213: 8004824102962251167
+    second: ShopBack_26
+  - first:
+      213: 2888949279250967647
+    second: ShopBack_27
+  - first:
+      213: -7041280628626666808
+    second: ShopBack_28
+  - first:
+      213: -5960983316365776744
+    second: ShopBack_29
+  - first:
+      213: -2054559568038361596
+    second: ShopBack_30
+  - first:
+      213: 5869759366545045138
+    second: ShopBack_31
+  - first:
+      213: 3492571653457735713
+    second: ShopBack_32
+  - first:
+      213: 1376676507169744114
+    second: ShopBack_33
+  - first:
+      213: 3762039190447488172
+    second: ShopBack_34
+  - first:
+      213: -670856668201418222
+    second: ShopBack_35
+  - first:
+      213: 4333818452938410708
+    second: ShopBack_36
+  - first:
+      213: 4318434608087734123
+    second: ShopBack_37
+  - first:
+      213: -8912726156883911241
+    second: ShopBack_38
+  - first:
+      213: 552984453145723163
+    second: ShopBack_39
+  - first:
+      213: -6673430923547171
+    second: ShopBack_40
+  - first:
+      213: 1473650198150002578
+    second: ShopBack_41
+  - first:
+      213: 3673138967882848916
+    second: ShopBack_42
+  - first:
+      213: 2857487575238367966
+    second: ShopBack_43
+  - first:
+      213: 843439611016592151
+    second: ShopBack_44
+  - first:
+      213: 6194743586656191323
+    second: ShopBack_45
+  - first:
+      213: -9110052464333670513
+    second: ShopBack_46
+  - first:
+      213: -1037285337429813754
+    second: ShopBack_47
+  - first:
+      213: 1429268812630699135
+    second: ShopBack_48
+  - first:
+      213: 2026374847786706814
+    second: ShopBack_49
+  - first:
+      213: 3648577050350964499
+    second: ShopBack_50
+  - first:
+      213: 6341338309780890544
+    second: ShopBack_51
+  - first:
+      213: -859599439404103822
+    second: ShopBack_52
+  - first:
+      213: -5320830979363832733
+    second: ShopBack_53
+  - first:
+      213: 6743889855110353540
+    second: ShopBack_54
+  - first:
+      213: -5116032111519488432
+    second: ShopBack_55
+  - first:
+      213: -5180088152330774026
+    second: ShopBack_56
+  - first:
+      213: 4633970726623228949
+    second: ShopBack_57
+  - first:
+      213: -2172736184420404629
+    second: ShopBack_58
+  - first:
+      213: 4217907927018395029
+    second: ShopBack_59
+  - first:
+      213: -918798339270984059
+    second: ShopBack_60
+  - first:
+      213: 7156959871658041299
+    second: ShopBack_61
+  - first:
+      213: 9104992783452476207
+    second: ShopBack_62
+  - first:
+      213: 45723619272298057
+    second: ShopBack_63
+  - first:
+      213: -5169375959567369327
+    second: ShopBack_64
+  - first:
+      213: -5561914235565499881
+    second: ShopBack_65
+  - first:
+      213: -5845234346431122104
+    second: ShopBack_66
+  - first:
+      213: 8582719986723974075
+    second: ShopBack_67
+  - first:
+      213: -7801090349393602436
+    second: ShopBack_68
+  - first:
+      213: -219195578656514066
+    second: ShopBack_69
+  - first:
+      213: -7672714484791261252
+    second: ShopBack_70
+  - first:
+      213: 5944771631075175671
+    second: ShopBack_71
+  - first:
+      213: 4988343144361844483
+    second: ShopBack_72
+  - first:
+      213: 2265985272201734405
+    second: ShopBack_73
+  - first:
+      213: 6820145627850798386
+    second: ShopBack_74
+  - first:
+      213: 3838838395634998792
+    second: ShopBack_75
+  - first:
+      213: -1484920457431754913
+    second: ShopBack_76
+  - first:
+      213: 3679431302605393565
+    second: ShopBack_77
+  - first:
+      213: 669607785151157245
+    second: ShopBack_78
+  - first:
+      213: 2018404226951764287
+    second: ShopBack_79
+  - first:
+      213: -3626010820611471175
+    second: ShopBack_80
+  - first:
+      213: -7092914470280316109
+    second: ShopBack_81
+  - first:
+      213: -531268777586839794
+    second: ShopBack_82
+  - first:
+      213: 1590942638436584601
+    second: ShopBack_83
+  - first:
+      213: 962187777509996065
+    second: ShopBack_84
+  - first:
+      213: -6886600437177509986
+    second: ShopBack_85
+  - first:
+      213: -2001240419319292917
+    second: ShopBack_86
+  - first:
+      213: 4222274425160180402
+    second: ShopBack_87
+  - first:
+      213: -1346858816995830360
+    second: ShopBack_88
+  - first:
+      213: 5053917278668907597
+    second: ShopBack_89
+  - first:
+      213: 5736458875044141838
+    second: ShopBack_90
+  - first:
+      213: 1074891393727595268
+    second: ShopBack_91
+  - first:
+      213: -1865289900678975492
+    second: ShopBack_92
+  - first:
+      213: 3114180925856191494
+    second: ShopBack_93
+  - first:
+      213: 8468542611614507470
+    second: ShopBack_94
+  - first:
+      213: -8145280986548438849
+    second: ShopBack_95
+  - first:
+      213: -7471268464391642338
+    second: ShopBack_96
+  - first:
+      213: 2512120789397506447
+    second: ShopBack_97
+  - first:
+      213: 9027062423401854743
+    second: ShopBack_98
+  - first:
+      213: 3639797143922890580
+    second: ShopBack_99
+  - first:
+      213: -5429904414251823947
+    second: ShopBack_100
+  - first:
+      213: 7517010416676700372
+    second: ShopBack_101
+  - first:
+      213: 6779898329085935651
+    second: ShopBack_102
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 1
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: ShopBack_0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 2623
+        height: 1536
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3ba396e07bb5e5920800000000000000
+      internalID: 2980920845144767155
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_1
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 1343
+        width: 63
+        height: 191
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3eaa68e9e679661f0800000000000000
+      internalID: -1051986961582609693
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_2
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 1165
+        width: 43
+        height: 178
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 726d337105410c200800000000000000
+      internalID: 198180717823514151
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_3
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 856
+        width: 43
+        height: 307
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8be656b4684acc4c0800000000000000
+      internalID: -4265853850329190728
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_4
+      rect:
+        serializedVersion: 2
+        x: 13
+        y: 1091
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ab949538ea107e030800000000000000
+      internalID: 3523787082480306618
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_5
+      rect:
+        serializedVersion: 2
+        x: 27
+        y: 19
+        width: 6
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 70cef7ae1d8005580800000000000000
+      internalID: -8840556370852844537
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_6
+      rect:
+        serializedVersion: 2
+        x: 168
+        y: 1173
+        width: 12
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: fae3ce3453e8bc460800000000000000
+      internalID: 7263055183489023663
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_7
+      rect:
+        serializedVersion: 2
+        x: 175
+        y: 1275
+        width: 10
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: fefc093baf017b5f0800000000000000
+      internalID: -741104944738676753
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_8
+      rect:
+        serializedVersion: 2
+        x: 175
+        y: 1075
+        width: 8
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e9480264aebc16870800000000000000
+      internalID: 8674438564351607966
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_9
+      rect:
+        serializedVersion: 2
+        x: 179
+        y: 853
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a0a83220be56dbd20800000000000000
+      internalID: 3295902562332674570
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_10
+      rect:
+        serializedVersion: 2
+        x: 199
+        y: 975
+        width: 6
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 06475e5716077e6f0800000000000000
+      internalID: -655431656867007392
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_11
+      rect:
+        serializedVersion: 2
+        x: 207
+        y: 1077
+        width: 10
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 063311e1cda4ab030800000000000000
+      internalID: 3511201168746427232
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_12
+      rect:
+        serializedVersion: 2
+        x: 209
+        y: 1187
+        width: 6
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0deb9e3db4f5d3010800000000000000
+      internalID: 1170196257468694224
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_13
+      rect:
+        serializedVersion: 2
+        x: 211
+        y: 869
+        width: 8
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 33fdc454a74389150800000000000000
+      internalID: 5879507013285502771
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_14
+      rect:
+        serializedVersion: 2
+        x: 213
+        y: 755
+        width: 6
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ae63fd34bde41e670800000000000000
+      internalID: 8566214669878900458
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_15
+      rect:
+        serializedVersion: 2
+        x: 215
+        y: 973
+        width: 10
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d90747382c5436b20800000000000000
+      internalID: 3126419268056674461
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_16
+      rect:
+        serializedVersion: 2
+        x: 216
+        y: 1076
+        width: 9
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4fdddfd4e8503c4d0800000000000000
+      internalID: -3115640408458273292
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_17
+      rect:
+        serializedVersion: 2
+        x: 217
+        y: 1298
+        width: 8
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a7c67f4373820afe0800000000000000
+      internalID: -1179898884794127238
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_18
+      rect:
+        serializedVersion: 2
+        x: 221
+        y: 1310
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5ddba366e5c6493b0800000000000000
+      internalID: -5506657291669422635
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_19
+      rect:
+        serializedVersion: 2
+        x: 230
+        y: 1311
+        width: 11
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f734476ead9074830800000000000000
+      internalID: 4055220825244320639
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_20
+      rect:
+        serializedVersion: 2
+        x: 231
+        y: 1087
+        width: 10
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1fe5a6ec25d64e960800000000000000
+      internalID: 7630343871090286321
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_21
+      rect:
+        serializedVersion: 2
+        x: 239
+        y: 978
+        width: 10
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7b067a9a1ad1f4950800000000000000
+      internalID: 6435394972708987063
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_22
+      rect:
+        serializedVersion: 2
+        x: 247
+        y: 979
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 450b476aef4a5af20800000000000000
+      internalID: 3433331704561184852
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_23
+      rect:
+        serializedVersion: 2
+        x: 253
+        y: 761
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 653df7b819eec4490800000000000000
+      internalID: -7760565748988128426
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_24
+      rect:
+        serializedVersion: 2
+        x: 263
+        y: 759
+        width: 8
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: aa9ecc32354f635e0800000000000000
+      internalID: -1930086752361584214
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_25
+      rect:
+        serializedVersion: 2
+        x: 275
+        y: 462
+        width: 16
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c25811fa2fefaca70800000000000000
+      internalID: 8848164736195462444
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_26
+      rect:
+        serializedVersion: 2
+        x: 411
+        y: 7
+        width: 8
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f95cc8a3c19d61f60800000000000000
+      internalID: 8004824102962251167
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_27
+      rect:
+        serializedVersion: 2
+        x: 463
+        y: 7
+        width: 8
+        height: 16
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f5cefdb201c971820800000000000000
+      internalID: 2888949279250967647
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_28
+      rect:
+        serializedVersion: 2
+        x: 675
+        y: 10
+        width: 30
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8ca4ed61398584e90800000000000000
+      internalID: -7041280628626666808
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_29
+      rect:
+        serializedVersion: 2
+        x: 855
+        y: 4
+        width: 10
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 898ecf3a145564da0800000000000000
+      internalID: -5960983316365776744
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_30
+      rect:
+        serializedVersion: 2
+        x: 1152
+        y: 25
+        width: 7
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 406813955fcbc73e0800000000000000
+      internalID: -2054559568038361596
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_31
+      rect:
+        serializedVersion: 2
+        x: 1205
+        y: 25
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 29670f76b03957150800000000000000
+      internalID: 5869759366545045138
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_32
+      rect:
+        serializedVersion: 2
+        x: 1239
+        y: 7
+        width: 8
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 12072f41a6b187030800000000000000
+      internalID: 3492571653457735713
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_33
+      rect:
+        serializedVersion: 2
+        x: 1275
+        y: 7
+        width: 8
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2f46a744dffea1310800000000000000
+      internalID: 1376676507169744114
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_34
+      rect:
+        serializedVersion: 2
+        x: 1335
+        y: 15
+        width: 8
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cac78b926b2753430800000000000000
+      internalID: 3762039190447488172
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_35
+      rect:
+        serializedVersion: 2
+        x: 1445
+        y: 15
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 21207a42a63a0b6f0800000000000000
+      internalID: -670856668201418222
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_36
+      rect:
+        serializedVersion: 2
+        x: 1455
+        y: 15
+        width: 8
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4da4d60ebe0d42c30800000000000000
+      internalID: 4333818452938410708
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_37
+      rect:
+        serializedVersion: 2
+        x: 1475
+        y: 9
+        width: 8
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b6792d065692eeb30800000000000000
+      internalID: 4318434608087734123
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_38
+      rect:
+        serializedVersion: 2
+        x: 1481
+        y: 9
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7bd1a9e28c2af4480800000000000000
+      internalID: -8912726156883911241
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_39
+      rect:
+        serializedVersion: 2
+        x: 1521
+        y: 12
+        width: 10
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b1180182e689ca700800000000000000
+      internalID: 552984453145723163
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_40
+      rect:
+        serializedVersion: 2
+        x: 1795
+        y: 5
+        width: 8
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ddd6e58cc8a48eff0800000000000000
+      internalID: -6673430923547171
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_41
+      rect:
+        serializedVersion: 2
+        x: 2239
+        y: 7
+        width: 8
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2973ae72c05737410800000000000000
+      internalID: 1473650198150002578
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_42
+      rect:
+        serializedVersion: 2
+        x: 2347
+        y: 17
+        width: 6
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 49a5d4f1e6c99f230800000000000000
+      internalID: 3673138967882848916
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_43
+      rect:
+        serializedVersion: 2
+        x: 2448
+        y: 669
+        width: 14
+        height: 25
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: edadc206fc5d7a720800000000000000
+      internalID: 2857487575238367966
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_44
+      rect:
+        serializedVersion: 2
+        x: 2463
+        y: 15
+        width: 8
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 71b33248bdf74bb00800000000000000
+      internalID: 843439611016592151
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_45
+      rect:
+        serializedVersion: 2
+        x: 2475
+        y: 15
+        width: 8
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b53854d887628f550800000000000000
+      internalID: 6194743586656191323
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_46
+      rect:
+        serializedVersion: 2
+        x: 2495
+        y: 7
+        width: 8
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f8738320d87929180800000000000000
+      internalID: -9110052464333670513
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_47
+      rect:
+        serializedVersion: 2
+        x: 2503
+        y: 7
+        width: 8
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 60656cb3b72da91f0800000000000000
+      internalID: -1037285337429813754
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_48
+      rect:
+        serializedVersion: 2
+        x: 2511
+        y: 1061
+        width: 6
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f7ca5699968c5d310800000000000000
+      internalID: 1429268812630699135
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_49
+      rect:
+        serializedVersion: 2
+        x: 2517
+        y: 1289
+        width: 6
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e77ec1810312f1c10800000000000000
+      internalID: 2026374847786706814
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_50
+      rect:
+        serializedVersion: 2
+        x: 2527
+        y: 1183
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 31fcfcd0f7952a230800000000000000
+      internalID: 3648577050350964499
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_51
+      rect:
+        serializedVersion: 2
+        x: 2527
+        y: 1065
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0b3e01b4895f00850800000000000000
+      internalID: 6341338309780890544
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_52
+      rect:
+        serializedVersion: 2
+        x: 2527
+        y: 1057
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 277813d3dd61214f0800000000000000
+      internalID: -859599439404103822
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_53
+      rect:
+        serializedVersion: 2
+        x: 2535
+        y: 1
+        width: 217
+        height: 1535
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 36cff1d4a6c9826b0800000000000000
+      internalID: -5320830979363832733
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_54
+      rect:
+        serializedVersion: 2
+        x: 2538
+        y: 1185
+        width: 7
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4829632b71c179d50800000000000000
+      internalID: 6743889855110353540
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_55
+      rect:
+        serializedVersion: 2
+        x: 2542
+        y: 1393
+        width: 9
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 056a36586e33009b0800000000000000
+      internalID: -5116032111519488432
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_56
+      rect:
+        serializedVersion: 2
+        x: 2543
+        y: 1401
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6f95d1f4541ac18b0800000000000000
+      internalID: -5180088152330774026
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_57
+      rect:
+        serializedVersion: 2
+        x: 2543
+        y: 1171
+        width: 19
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 514bfe3f2db2f4040800000000000000
+      internalID: 4633970726623228949
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_58
+      rect:
+        serializedVersion: 2
+        x: 2544
+        y: 853
+        width: 7
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b62fbf0b3f3e8d1e0800000000000000
+      internalID: -2172736184420404629
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_59
+      rect:
+        serializedVersion: 2
+        x: 2547
+        y: 973
+        width: 10
+        height: 15
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5955c3589e4098a30800000000000000
+      internalID: 4217907927018395029
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_60
+      rect:
+        serializedVersion: 2
+        x: 2549
+        y: 1295
+        width: 8
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 58eb88747c5cf33f0800000000000000
+      internalID: -918798339270984059
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_61
+      rect:
+        serializedVersion: 2
+        x: 2555
+        y: 967
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3df17e58511a25360800000000000000
+      internalID: 7156959871658041299
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_62
+      rect:
+        serializedVersion: 2
+        x: 2556
+        y: 1183
+        width: 15
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f231e2c32be6b5e70800000000000000
+      internalID: 9104992783452476207
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_63
+      rect:
+        serializedVersion: 2
+        x: 2557
+        y: 1087
+        width: 8
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 94e0294b36172a000800000000000000
+      internalID: 45723619272298057
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_64
+      rect:
+        serializedVersion: 2
+        x: 2558
+        y: 873
+        width: 7
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 19bfa8b04ffa248b0800000000000000
+      internalID: -5169375959567369327
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_65
+      rect:
+        serializedVersion: 2
+        x: 2559
+        y: 854
+        width: 10
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 71a1ee5987c10d2b0800000000000000
+      internalID: -5561914235565499881
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_66
+      rect:
+        serializedVersion: 2
+        x: 2560
+        y: 979
+        width: 13
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8457f00d45e81eea0800000000000000
+      internalID: -5845234346431122104
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_67
+      rect:
+        serializedVersion: 2
+        x: 2561
+        y: 1073
+        width: 8
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: bbbe35fca52fb1770800000000000000
+      internalID: 8582719986723974075
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_68
+      rect:
+        serializedVersion: 2
+        x: 2561
+        y: 963
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c789aafb8a5fcb390800000000000000
+      internalID: -7801090349393602436
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_69
+      rect:
+        serializedVersion: 2
+        x: 2563
+        y: 1197
+        width: 32
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: eef97d558c245fcf0800000000000000
+      internalID: -219195578656514066
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_70
+      rect:
+        serializedVersion: 2
+        x: 2564
+        y: 1297
+        width: 9
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cb7c50fe3da058590800000000000000
+      internalID: -7672714484791261252
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_71
+      rect:
+        serializedVersion: 2
+        x: 2564
+        y: 966
+        width: 8
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7fc2e0d3d42108250800000000000000
+      internalID: 5944771631075175671
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_72
+      rect:
+        serializedVersion: 2
+        x: 2566
+        y: 1088
+        width: 17
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 30f517119a72a3540800000000000000
+      internalID: 4988343144361844483
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_73
+      rect:
+        serializedVersion: 2
+        x: 2567
+        y: 1071
+        width: 16
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 509e9df6995627f10800000000000000
+      internalID: 2265985272201734405
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_74
+      rect:
+        serializedVersion: 2
+        x: 2567
+        y: 763
+        width: 10
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 235fa78505606ae50800000000000000
+      internalID: 6820145627850798386
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_75
+      rect:
+        serializedVersion: 2
+        x: 2567
+        y: 417
+        width: 10
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 80e54f98e2b464530800000000000000
+      internalID: 3838838395634998792
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_76
+      rect:
+        serializedVersion: 2
+        x: 2570
+        y: 1310
+        width: 17
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f57d11f16b0846be0800000000000000
+      internalID: -1484920457431754913
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_77
+      rect:
+        serializedVersion: 2
+        x: 2571
+        y: 1193
+        width: 6
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d9e4f377647ff0330800000000000000
+      internalID: 3679431302605393565
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_78
+      rect:
+        serializedVersion: 2
+        x: 2571
+        y: 975
+        width: 8
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: df355cc9bbcea4900800000000000000
+      internalID: 669607785151157245
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_79
+      rect:
+        serializedVersion: 2
+        x: 2571
+        y: 869
+        width: 12
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f395b9053ffc20c10800000000000000
+      internalID: 2018404226951764287
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_80
+      rect:
+        serializedVersion: 2
+        x: 2571
+        y: 853
+        width: 12
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9b80bbdbe52ddadc0800000000000000
+      internalID: -3626010820611471175
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_81
+      rect:
+        serializedVersion: 2
+        x: 2580
+        y: 1187
+        width: 7
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 33bb6b08ed7e09d90800000000000000
+      internalID: -7092914470280316109
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_82
+      rect:
+        serializedVersion: 2
+        x: 2583
+        y: 1081
+        width: 8
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e0f2eaf8cdd80a8f0800000000000000
+      internalID: -531268777586839794
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_83
+      rect:
+        serializedVersion: 2
+        x: 2583
+        y: 967
+        width: 10
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 99c090686e9241610800000000000000
+      internalID: 1590942638436584601
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_84
+      rect:
+        serializedVersion: 2
+        x: 2584
+        y: 1091
+        width: 8
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 126b4bd8fa06a5d00800000000000000
+      internalID: 962187777509996065
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_85
+      rect:
+        serializedVersion: 2
+        x: 2587
+        y: 975
+        width: 8
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e971cff9361ed60a0800000000000000
+      internalID: -6886600437177509986
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_86
+      rect:
+        serializedVersion: 2
+        x: 2595
+        y: 981
+        width: 10
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b0cd150117a2a34e0800000000000000
+      internalID: -2001240419319292917
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_87
+      rect:
+        serializedVersion: 2
+        x: 2596
+        y: 1209
+        width: 7
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2b2a3e71838889a30800000000000000
+      internalID: 4222274425160180402
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_88
+      rect:
+        serializedVersion: 2
+        x: 2597
+        y: 989
+        width: 8
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8a55c5aba0ffe4de0800000000000000
+      internalID: -1346858816995830360
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_89
+      rect:
+        serializedVersion: 2
+        x: 2600
+        y: 1085
+        width: 7
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d44e447fcfe132640800000000000000
+      internalID: 5053917278668907597
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_90
+      rect:
+        serializedVersion: 2
+        x: 2603
+        y: 753
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e0b94ab24fefb9f40800000000000000
+      internalID: 5736458875044141838
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_91
+      rect:
+        serializedVersion: 2
+        x: 2609
+        y: 867
+        width: 8
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 403024f0708caee00800000000000000
+      internalID: 1074891393727595268
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_92
+      rect:
+        serializedVersion: 2
+        x: 2620
+        y: 1310
+        width: 7
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cffe7e2d7b82d16e0800000000000000
+      internalID: -1865289900678975492
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_93
+      rect:
+        serializedVersion: 2
+        x: 2622
+        y: 0
+        width: 130
+        height: 21
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 60494fb6d0bc73b20800000000000000
+      internalID: 3114180925856191494
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_94
+      rect:
+        serializedVersion: 2
+        x: 2627
+        y: 1319
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ec1aa8213ae468570800000000000000
+      internalID: 8468542611614507470
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_95
+      rect:
+        serializedVersion: 2
+        x: 2703
+        y: 945
+        width: 8
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: fb87909291626fe80800000000000000
+      internalID: -8145280986548438849
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_96
+      rect:
+        serializedVersion: 2
+        x: 2703
+        y: 15
+        width: 6
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e13ab568ae8b05890800000000000000
+      internalID: -7471268464391642338
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_97
+      rect:
+        serializedVersion: 2
+        x: 2721
+        y: 60
+        width: 6
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f8989e45c88dcd220800000000000000
+      internalID: 2512120789397506447
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_98
+      rect:
+        serializedVersion: 2
+        x: 2725
+        y: 1375
+        width: 6
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 717f4285271964d70800000000000000
+      internalID: 9027062423401854743
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_99
+      rect:
+        serializedVersion: 2
+        x: 2725
+        y: 67
+        width: 10
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 457510ac738238230800000000000000
+      internalID: 3639797143922890580
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_100
+      rect:
+        serializedVersion: 2
+        x: 2725
+        y: 29
+        width: 10
+        height: 23
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5bcc13044ba15a4b0800000000000000
+      internalID: -5429904414251823947
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_101
+      rect:
+        serializedVersion: 2
+        x: 2731
+        y: 1279
+        width: 6
+        height: 84
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4d00deaa529c15860800000000000000
+      internalID: 7517010416676700372
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ShopBack_102
+      rect:
+        serializedVersion: 2
+        x: 2743
+        y: 1281
+        width: 9
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3208e6edb99071e50800000000000000
+      internalID: 6779898329085935651
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 5e97eb03825dee720800000000000000
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      ShopBack_0: 2980920845144767155
+      ShopBack_1: -1051986961582609693
+      ShopBack_10: -655431656867007392
+      ShopBack_100: -5429904414251823947
+      ShopBack_101: 7517010416676700372
+      ShopBack_102: 6779898329085935651
+      ShopBack_11: 3511201168746427232
+      ShopBack_12: 1170196257468694224
+      ShopBack_13: 5879507013285502771
+      ShopBack_14: 8566214669878900458
+      ShopBack_15: 3126419268056674461
+      ShopBack_16: -3115640408458273292
+      ShopBack_17: -1179898884794127238
+      ShopBack_18: -5506657291669422635
+      ShopBack_19: 4055220825244320639
+      ShopBack_2: 198180717823514151
+      ShopBack_20: 7630343871090286321
+      ShopBack_21: 6435394972708987063
+      ShopBack_22: 3433331704561184852
+      ShopBack_23: -7760565748988128426
+      ShopBack_24: -1930086752361584214
+      ShopBack_25: 8848164736195462444
+      ShopBack_26: 8004824102962251167
+      ShopBack_27: 2888949279250967647
+      ShopBack_28: -7041280628626666808
+      ShopBack_29: -5960983316365776744
+      ShopBack_3: -4265853850329190728
+      ShopBack_30: -2054559568038361596
+      ShopBack_31: 5869759366545045138
+      ShopBack_32: 3492571653457735713
+      ShopBack_33: 1376676507169744114
+      ShopBack_34: 3762039190447488172
+      ShopBack_35: -670856668201418222
+      ShopBack_36: 4333818452938410708
+      ShopBack_37: 4318434608087734123
+      ShopBack_38: -8912726156883911241
+      ShopBack_39: 552984453145723163
+      ShopBack_4: 3523787082480306618
+      ShopBack_40: -6673430923547171
+      ShopBack_41: 1473650198150002578
+      ShopBack_42: 3673138967882848916
+      ShopBack_43: 2857487575238367966
+      ShopBack_44: 843439611016592151
+      ShopBack_45: 6194743586656191323
+      ShopBack_46: -9110052464333670513
+      ShopBack_47: -1037285337429813754
+      ShopBack_48: 1429268812630699135
+      ShopBack_49: 2026374847786706814
+      ShopBack_5: -8840556370852844537
+      ShopBack_50: 3648577050350964499
+      ShopBack_51: 6341338309780890544
+      ShopBack_52: -859599439404103822
+      ShopBack_53: -5320830979363832733
+      ShopBack_54: 6743889855110353540
+      ShopBack_55: -5116032111519488432
+      ShopBack_56: -5180088152330774026
+      ShopBack_57: 4633970726623228949
+      ShopBack_58: -2172736184420404629
+      ShopBack_59: 4217907927018395029
+      ShopBack_6: 7263055183489023663
+      ShopBack_60: -918798339270984059
+      ShopBack_61: 7156959871658041299
+      ShopBack_62: 9104992783452476207
+      ShopBack_63: 45723619272298057
+      ShopBack_64: -5169375959567369327
+      ShopBack_65: -5561914235565499881
+      ShopBack_66: -5845234346431122104
+      ShopBack_67: 8582719986723974075
+      ShopBack_68: -7801090349393602436
+      ShopBack_69: -219195578656514066
+      ShopBack_7: -741104944738676753
+      ShopBack_70: -7672714484791261252
+      ShopBack_71: 5944771631075175671
+      ShopBack_72: 4988343144361844483
+      ShopBack_73: 2265985272201734405
+      ShopBack_74: 6820145627850798386
+      ShopBack_75: 3838838395634998792
+      ShopBack_76: -1484920457431754913
+      ShopBack_77: 3679431302605393565
+      ShopBack_78: 669607785151157245
+      ShopBack_79: 2018404226951764287
+      ShopBack_8: 8674438564351607966
+      ShopBack_80: -3626010820611471175
+      ShopBack_81: -7092914470280316109
+      ShopBack_82: -531268777586839794
+      ShopBack_83: 1590942638436584601
+      ShopBack_84: 962187777509996065
+      ShopBack_85: -6886600437177509986
+      ShopBack_86: -2001240419319292917
+      ShopBack_87: 4222274425160180402
+      ShopBack_88: -1346858816995830360
+      ShopBack_89: 5053917278668907597
+      ShopBack_9: 3295902562332674570
+      ShopBack_90: 5736458875044141838
+      ShopBack_91: 1074891393727595268
+      ShopBack_92: -1865289900678975492
+      ShopBack_93: 3114180925856191494
+      ShopBack_94: 8468542611614507470
+      ShopBack_95: -8145280986548438849
+      ShopBack_96: -7471268464391642338
+      ShopBack_97: 2512120789397506447
+      ShopBack_98: 9027062423401854743
+      ShopBack_99: 3639797143922890580
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

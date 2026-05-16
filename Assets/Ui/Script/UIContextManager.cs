@@ -32,6 +32,7 @@ public class UIContextManager : MonoBehaviour
 
         SceneManager.sceneLoaded += OnSceneLoaded;
         EventManager.Gm.OnRoomCleared.Get().AddListener(HandleRoomCleared);
+        EventManager.Gm.OnStartCombat.Get().AddListener(HandleStartCombat);
     }
 
     private void OnDestroy()
@@ -39,56 +40,36 @@ public class UIContextManager : MonoBehaviour
         SceneManager.sceneLoaded -= OnSceneLoaded;
         EventManager.Ui.TriggerLoadingScene.Get().RemoveListener(HandleLoadingScene);
         EventManager.Gm.OnRoomCleared.Get().RemoveListener(HandleRoomCleared);
+        EventManager.Gm.OnStartCombat.Get().RemoveListener(HandleStartCombat);
     }
 
     private void Start()
     {
-        UpdateContext();
+        SetCombatGroup(false);
     }
 
     // ── Scene Loaded ──────────────────────────────────────────────
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
         _isLoading = false;
-        UpdateContext();
 
-        // Ở Start scene — nhường việc load cho StartUIManager
+        SetCombatGroup(false);
+
         if (scene.name == "Start")
             EventManager.Ui.TriggerLoadingScene.Get().RemoveListener(HandleLoadingScene);
         else
             EventManager.Ui.TriggerLoadingScene.Get().AddListener(HandleLoadingScene);
 
-        // Continue run nếu có flag
         if (scene.name == "Hall" && HallController.ShouldContinue)
         {
             HallController.ShouldContinue = false;
             DungeonFlowManager.Instance?.ContinueRun();
         }
     }
-
-    // ── Context ───────────────────────────────────────────────────
-    private void UpdateContext()
+    
+    private void HandleStartCombat(Component sender, object data)
     {
-        bool isCombat = IsCombatScene();
-        SetCombatGroup(isCombat);
-    }
-
-    private bool IsCombatScene()
-    {
-        if (DungeonFlowManager.Instance == null) return false;
-
-        FloorConfig floor = DungeonFlowManager.Instance.CurrentFloor;
-        if (floor == null) return false;
-
-        return floor.roomType == RoomType.NormalCombat
-            || floor.roomType == RoomType.Boss;
-    }
-
-    private void SetCombatGroup(bool active)
-    {
-        if (combatGroup == null) return;
-        foreach (var go in combatGroup)
-            if (go != null) go.SetActive(active);
+        SetCombatGroup(true);
     }
 
     // ── Room Cleared ──────────────────────────────────────────────
@@ -96,6 +77,8 @@ public class UIContextManager : MonoBehaviour
     {
         SetCombatGroup(false);
     }
+
+    // ── Loading Scene ─────────────────────────────────────────────
     private void HandleLoadingScene(Component sender, object data)
     {
         if (_isLoading) return;
@@ -129,5 +112,13 @@ public class UIContextManager : MonoBehaviour
 
         if (loadingScreenUI != null)
             loadingScreenUI.SetActive(false);
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────
+    private void SetCombatGroup(bool active)
+    {
+        if (combatGroup == null) return;
+        foreach (var go in combatGroup)
+            if (go != null) go.SetActive(active);
     }
 }

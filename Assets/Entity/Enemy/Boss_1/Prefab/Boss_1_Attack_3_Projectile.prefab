@@ -178,7 +178,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EasyBulletWithoutExplosionObject
   objectSkillType: 1
-  type: 0
+  type: 1
   damage:
   - 1000
   critRate: 0

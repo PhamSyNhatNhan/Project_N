@@ -1,11 +1,10 @@
-using System.IO;
 using UnityEngine;
 using Newtonsoft.Json;
 
 /// <summary>
-/// Load JSON data từ:
-/// - Assets/Entity/Character/Name/Name.json  (layer = Player)
-/// - Assets/Entity/Enemy/Name/Name.json      (layer = Enemy)
+/// Load JSON data từ Resources:
+/// - Resources/Entity/Character/Name/Name  (layer = Player)
+/// - Resources/Entity/Enemy/Name/Name      (layer = Enemy)
 /// Phân phát cho Stat, Move, Skill trong Awake → Apply trong Start → tự Destroy
 /// </summary>
 public class EntityLoader : MonoBehaviour
@@ -26,29 +25,27 @@ public class EntityLoader : MonoBehaviour
             return;
         }
 
-        string path = BuildPath();
+        string resourcePath = BuildResourcePath();
+        if (string.IsNullOrEmpty(resourcePath)) return;
 
-        if (!File.Exists(path))
+        TextAsset textAsset = Resources.Load<TextAsset>(resourcePath);
+        if (textAsset == null)
         {
-            Debug.LogError($"[EntityLoader] Không tìm thấy file: {path}", this);
+            Debug.LogError($"[EntityLoader] Không tìm thấy file: Resources/{resourcePath}.json", this);
             return;
         }
 
-        string json = File.ReadAllText(path);
-        entityData  = JsonConvert.DeserializeObject<EntityData>(json);
-
+        entityData = JsonConvert.DeserializeObject<EntityData>(textAsset.text);
         if (entityData == null)
         {
-            Debug.LogError($"[EntityLoader] Parse JSON thất bại: {path}", this);
+            Debug.LogError($"[EntityLoader] Parse JSON thất bại: {resourcePath}", this);
             return;
         }
 
-        // Thu thập components qua interface — tự tìm đúng class (Player hay Enemy)
         stat  = GetComponent<ILoadable<StatData>>();
         move  = GetComponent<ILoadable<MoveData>>();
         skill = GetComponent<ILoadable<SkillListData>>();
 
-        // Phase 1 — Load raw data
         if (stat  != null && entityData.stat  != null) stat .LoadRawData(entityData.stat);
         if (move  != null && entityData.move  != null) move .LoadRawData(entityData.move);
         if (skill != null && entityData.skill != null) skill.LoadRawData(entityData.skill);
@@ -59,24 +56,22 @@ public class EntityLoader : MonoBehaviour
     {
         if (entityData == null) return;
 
-        // Phase 2 — Apply (tất cả Awake đã xong)
         if (stat  != null && entityData.stat  != null) stat .ApplyData();
         if (move  != null && entityData.move  != null) move .ApplyData();
         if (skill != null && entityData.skill != null) skill.ApplyData();
 
-        // Load xong, không cần nữa
         Destroy(this);
     }
 
-    // ── Build path — dựa vào layer ────────────────────────────────
-    private string BuildPath()
+    // ── Build resource path ───────────────────────────────────────
+    private string BuildResourcePath()
     {
         string layerName = LayerMask.LayerToName(gameObject.layer);
 
         string folder = layerName switch
         {
-            "Player" => Path.Combine(Application.dataPath, "Entity", "Character", entityName, "Data"),
-            "Enemy"  => Path.Combine(Application.dataPath, "Entity", "Enemy",     entityName, "Data"),
+            "Player" => $"Entity/Character/{entityName}/Data",
+            "Enemy"  => $"Entity/Enemy/{entityName}/Data",
             _        => ""
         };
 
@@ -86,6 +81,6 @@ public class EntityLoader : MonoBehaviour
             return "";
         }
 
-        return Path.Combine(folder, $"{entityName}.json");
+        return $"{folder}/{entityName}";
     }
 }

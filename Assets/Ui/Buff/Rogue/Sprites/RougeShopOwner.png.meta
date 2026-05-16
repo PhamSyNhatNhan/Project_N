@@ -1,0 +1,1196 @@
+fileFormatVersion: 2
+guid: 1c433056a1dd6af44a23b53eeaa520eb
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -8797604466721148420
+    second: RougeShopOwner_0
+  - first:
+      213: 4178989342465603408
+    second: RougeShopOwner_1
+  - first:
+      213: 5107233167359165047
+    second: RougeShopOwner_2
+  - first:
+      213: 5303860021231110298
+    second: RougeShopOwner_3
+  - first:
+      213: -6947096891458750326
+    second: RougeShopOwner_4
+  - first:
+      213: -8197232572118181891
+    second: RougeShopOwner_5
+  - first:
+      213: -1839655881690952297
+    second: RougeShopOwner_6
+  - first:
+      213: -2036949723297324355
+    second: RougeShopOwner_7
+  - first:
+      213: -6873080074893472354
+    second: RougeShopOwner_8
+  - first:
+      213: -1675536293386381947
+    second: RougeShopOwner_9
+  - first:
+      213: 5695955819416371790
+    second: RougeShopOwner_10
+  - first:
+      213: -3296130639201962480
+    second: RougeShopOwner_11
+  - first:
+      213: 6993127083408297245
+    second: RougeShopOwner_12
+  - first:
+      213: -8030986349258325139
+    second: RougeShopOwner_13
+  - first:
+      213: -4412044109322212026
+    second: RougeShopOwner_14
+  - first:
+      213: -4607709477417538241
+    second: RougeShopOwner_15
+  - first:
+      213: -7274739614057622461
+    second: RougeShopOwner_16
+  - first:
+      213: -5693563966983038614
+    second: RougeShopOwner_17
+  - first:
+      213: 6613522492047935484
+    second: RougeShopOwner_18
+  - first:
+      213: 5278186952638026186
+    second: RougeShopOwner_19
+  - first:
+      213: 7980095070336465539
+    second: RougeShopOwner_20
+  - first:
+      213: -8918554790799603251
+    second: RougeShopOwner_21
+  - first:
+      213: -6778172887421598262
+    second: RougeShopOwner_22
+  - first:
+      213: 5666315257870338521
+    second: RougeShopOwner_23
+  - first:
+      213: 8260752814286187185
+    second: RougeShopOwner_24
+  - first:
+      213: -4581005691884171509
+    second: RougeShopOwner_25
+  - first:
+      213: 6722925518933781960
+    second: RougeShopOwner_26
+  - first:
+      213: 1795765001167829077
+    second: RougeShopOwner_27
+  - first:
+      213: 2316738569340963942
+    second: RougeShopOwner_28
+  - first:
+      213: 381167956729365061
+    second: RougeShopOwner_29
+  - first:
+      213: -8037798233585924420
+    second: RougeShopOwner_30
+  - first:
+      213: -528113634633114777
+    second: RougeShopOwner_31
+  - first:
+      213: -4693348402389863970
+    second: RougeShopOwner_32
+  - first:
+      213: 3245781024512722694
+    second: RougeShopOwner_33
+  - first:
+      213: 4393111577452892178
+    second: RougeShopOwner_34
+  - first:
+      213: -1053685933689859382
+    second: RougeShopOwner_35
+  - first:
+      213: -7199117222331564668
+    second: RougeShopOwner_36
+  - first:
+      213: 6340518777900102138
+    second: RougeShopOwner_37
+  - first:
+      213: 592125371884352861
+    second: RougeShopOwner_38
+  - first:
+      213: 3545700477146343646
+    second: RougeShopOwner_39
+  - first:
+      213: 5568443907137541811
+    second: RougeShopOwner_40
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 1
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: RougeShopOwner_0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 1242
+        height: 1536
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cf132b66951a8e580800000000000000
+      internalID: -8797604466721148420
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RougeShopOwner_1
+      rect:
+        serializedVersion: 2
+        x: 347
+        y: 1520
+        width: 50
+        height: 16
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0573ecd6aa0cef930800000000000000
+      internalID: 4178989342465603408
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RougeShopOwner_2
+      rect:
+        serializedVersion: 2
+        x: 462
+        y: 1520
+        width: 15
+        height: 16
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7724985a18980e640800000000000000
+      internalID: 5107233167359165047
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RougeShopOwner_3
+      rect:
+        serializedVersion: 2
+        x: 480
+        y: 1524
+        width: 34
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a9840e796981b9940800000000000000
+      internalID: 5303860021231110298
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RougeShopOwner_4
+      rect:
+        serializedVersion: 2
+        x: 591
+        y: 1523
+        width: 7
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a88716c3f24f69f90800000000000000
+      internalID: -6947096891458750326
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RougeShopOwner_5
+      rect:
+        serializedVersion: 2
+        x: 596
+        y: 1523
+        width: 9
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: df752ad08649d3e80800000000000000
+      internalID: -8197232572118181891
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RougeShopOwner_6
+      rect:
+        serializedVersion: 2
+        x: 606
+        y: 1531
+        width: 8
+        height: 5
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 79d4ad6f8ba3876e0800000000000000
+      internalID: -1839655881690952297
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RougeShopOwner_7
+      rect:
+        serializedVersion: 2
+        x: 636
+        y: 1531
+        width: 9
+        height: 5
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: db26885d40d4bb3e0800000000000000
+      internalID: -2036949723297324355
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RougeShopOwner_8
+      rect:
+        serializedVersion: 2
+        x: 645
+        y: 1525
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e9dc827461aed90a0800000000000000
+      internalID: -6873080074893472354
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RougeShopOwner_9
+      rect:
+        serializedVersion: 2
+        x: 649
+        y: 1530
+        width: 12
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5851e685e9c4fb8e0800000000000000
+      internalID: -1675536293386381947
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RougeShopOwner_10
+      rect:
+        serializedVersion: 2
+        x: 664
+        y: 1531
+        width: 8
+        height: 5
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e42c1a8a3a91c0f40800000000000000
+      internalID: 5695955819416371790
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RougeShopOwner_11
+      rect:
+        serializedVersion: 2
+        x: 704
+        y: 1528
+        width: 44
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 016f515b5aac142d0800000000000000
+      internalID: -3296130639201962480
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RougeShopOwner_12
+      rect:
+        serializedVersion: 2
+        x: 798
+        y: 1528
+        width: 122
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d1d07bbf7049c0160800000000000000
+      internalID: 6993127083408297245
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RougeShopOwner_13
+      rect:
+        serializedVersion: 2
+        x: 508
+        y: 1504
+        width: 7
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d63427027743c8090800000000000000
+      internalID: -8030986349258325139
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RougeShopOwner_14
+      rect:
+        serializedVersion: 2
+        x: 1158
+        y: 1109
+        width: 16
+        height: 16
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 64dae72324545c2c0800000000000000
+      internalID: -4412044109322212026
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RougeShopOwner_15
+      rect:
+        serializedVersion: 2
+        x: 1173
+        y: 1117
+        width: 17
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f3da35a94a02e00c0800000000000000
+      internalID: -4607709477417538241
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RougeShopOwner_16
+      rect:
+        serializedVersion: 2
+        x: 1174
+        y: 1113
+        width: 8
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 34412ae3ddeea0b90800000000000000
+      internalID: -7274739614057622461
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RougeShopOwner_17
+      rect:
+        serializedVersion: 2
+        x: 1166
+        y: 1100
+        width: 7
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a691302ecb56cf0b0800000000000000
+      internalID: -5693563966983038614
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RougeShopOwner_18
+      rect:
+        serializedVersion: 2
+        x: 1182
+        y: 1104
+        width: 13
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cf7c294aaa3f7cb50800000000000000
+      internalID: 6613522492047935484
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RougeShopOwner_19
+      rect:
+        serializedVersion: 2
+        x: 1169
+        y: 1088
+        width: 8
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ac157128113ef3940800000000000000
+      internalID: 5278186952638026186
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RougeShopOwner_20
+      rect:
+        serializedVersion: 2
+        x: 1173
+        y: 1084
+        width: 8
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 38a3045af2efebe60800000000000000
+      internalID: 7980095070336465539
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RougeShopOwner_21
+      rect:
+        serializedVersion: 2
+        x: 1194
+        y: 1085
+        width: 7
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: dc908889badea3480800000000000000
+      internalID: -8918554790799603251
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RougeShopOwner_22
+      rect:
+        serializedVersion: 2
+        x: 1218
+        y: 1064
+        width: 8
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ac54d03dba71fe1a0800000000000000
+      internalID: -6778172887421598262
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RougeShopOwner_23
+      rect:
+        serializedVersion: 2
+        x: 1170
+        y: 1007
+        width: 7
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9d9ccb2a4bbc2ae40800000000000000
+      internalID: 5666315257870338521
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RougeShopOwner_24
+      rect:
+        serializedVersion: 2
+        x: 1159
+        y: 990
+        width: 19
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1ba26d0dae614a270800000000000000
+      internalID: 8260752814286187185
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RougeShopOwner_25
+      rect:
+        serializedVersion: 2
+        x: 1219
+        y: 953
+        width: 6
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b0f833d289ffc60c0800000000000000
+      internalID: -4581005691884171509
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RougeShopOwner_26
+      rect:
+        serializedVersion: 2
+        x: 1217
+        y: 933
+        width: 9
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8cde47fc321ac4d50800000000000000
+      internalID: 6722925518933781960
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RougeShopOwner_27
+      rect:
+        serializedVersion: 2
+        x: 1225
+        y: 937
+        width: 13
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 558ffa211c6dbe810800000000000000
+      internalID: 1795765001167829077
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RougeShopOwner_28
+      rect:
+        serializedVersion: 2
+        x: 1161
+        y: 873
+        width: 10
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 66cc3074475b62020800000000000000
+      internalID: 2316738569340963942
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RougeShopOwner_29
+      rect:
+        serializedVersion: 2
+        x: 1169
+        y: 871
+        width: 13
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5428d94bc3e2a4500800000000000000
+      internalID: 381167956729365061
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RougeShopOwner_30
+      rect:
+        serializedVersion: 2
+        x: 1165
+        y: 856
+        width: 15
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cb649d6b711047090800000000000000
+      internalID: -8037798233585924420
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RougeShopOwner_31
+      rect:
+        serializedVersion: 2
+        x: 1177
+        y: 857
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 76b17a68273cba8f0800000000000000
+      internalID: -528113634633114777
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RougeShopOwner_32
+      rect:
+        serializedVersion: 2
+        x: 1213
+        y: 841
+        width: 21
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ed1b7649e70eddeb0800000000000000
+      internalID: -4693348402389863970
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RougeShopOwner_33
+      rect:
+        serializedVersion: 2
+        x: 1195
+        y: 771
+        width: 7
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 607c8c815a45b0d20800000000000000
+      internalID: 3245781024512722694
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RougeShopOwner_34
+      rect:
+        serializedVersion: 2
+        x: 1177
+        y: 637
+        width: 33
+        height: 34
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2105cb834b777fc30800000000000000
+      internalID: 4393111577452892178
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RougeShopOwner_35
+      rect:
+        serializedVersion: 2
+        x: 1163
+        y: 555
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ac21799d93e8061f0800000000000000
+      internalID: -1053685933689859382
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RougeShopOwner_36
+      rect:
+        serializedVersion: 2
+        x: 45
+        y: 513
+        width: 8
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 48db7826709971c90800000000000000
+      internalID: -7199117222331564668
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RougeShopOwner_37
+      rect:
+        serializedVersion: 2
+        x: 51
+        y: 515
+        width: 8
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: af1fd682c3c0ef750800000000000000
+      internalID: 6340518777900102138
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RougeShopOwner_38
+      rect:
+        serializedVersion: 2
+        x: 39
+        y: 183
+        width: 7
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d55b9a573e6a73800800000000000000
+      internalID: 592125371884352861
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RougeShopOwner_39
+      rect:
+        serializedVersion: 2
+        x: 1228
+        y: 183
+        width: 7
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ed8ad3c4ccbd43130800000000000000
+      internalID: 3545700477146343646
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: RougeShopOwner_40
+      rect:
+        serializedVersion: 2
+        x: 1172
+        y: 113
+        width: 7
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3b61f9c0b36174d40800000000000000
+      internalID: 5568443907137541811
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 5e97eb03825dee720800000000000000
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      RougeShopOwner_0: -8797604466721148420
+      RougeShopOwner_1: 4178989342465603408
+      RougeShopOwner_10: 5695955819416371790
+      RougeShopOwner_11: -3296130639201962480
+      RougeShopOwner_12: 6993127083408297245
+      RougeShopOwner_13: -8030986349258325139
+      RougeShopOwner_14: -4412044109322212026
+      RougeShopOwner_15: -4607709477417538241
+      RougeShopOwner_16: -7274739614057622461
+      RougeShopOwner_17: -5693563966983038614
+      RougeShopOwner_18: 6613522492047935484
+      RougeShopOwner_19: 5278186952638026186
+      RougeShopOwner_2: 5107233167359165047
+      RougeShopOwner_20: 7980095070336465539
+      RougeShopOwner_21: -8918554790799603251
+      RougeShopOwner_22: -6778172887421598262
+      RougeShopOwner_23: 5666315257870338521
+      RougeShopOwner_24: 8260752814286187185
+      RougeShopOwner_25: -4581005691884171509
+      RougeShopOwner_26: 6722925518933781960
+      RougeShopOwner_27: 1795765001167829077
+      RougeShopOwner_28: 2316738569340963942
+      RougeShopOwner_29: 381167956729365061
+      RougeShopOwner_3: 5303860021231110298
+      RougeShopOwner_30: -8037798233585924420
+      RougeShopOwner_31: -528113634633114777
+      RougeShopOwner_32: -4693348402389863970
+      RougeShopOwner_33: 3245781024512722694
+      RougeShopOwner_34: 4393111577452892178
+      RougeShopOwner_35: -1053685933689859382
+      RougeShopOwner_36: -7199117222331564668
+      RougeShopOwner_37: 6340518777900102138
+      RougeShopOwner_38: 592125371884352861
+      RougeShopOwner_39: 3545700477146343646
+      RougeShopOwner_4: -6947096891458750326
+      RougeShopOwner_40: 5568443907137541811
+      RougeShopOwner_5: -8197232572118181891
+      RougeShopOwner_6: -1839655881690952297
+      RougeShopOwner_7: -2036949723297324355
+      RougeShopOwner_8: -6873080074893472354
+      RougeShopOwner_9: -1675536293386381947
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

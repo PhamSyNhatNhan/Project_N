@@ -9,10 +9,18 @@ public class PopupText : MonoBehaviour
 
     private TimeScale timeScale;
 
-    /// <summary>Gọi từ Stat trước khi SetParent(null) để cache TimeScale</summary>
     public void SetTimeScale(TimeScale ts)
     {
         timeScale = ts;
+    }
+
+    private void Awake()
+    {
+        Renderer r = GetComponent<Renderer>();
+        if (r != null)
+        {
+            r.sortingOrder = 100;
+        }
     }
 
     private void OnEnable()
@@ -23,7 +31,6 @@ public class PopupText : MonoBehaviour
 
     private void RandomizePosition()
     {
-        // Dùng world position vì parent là null
         transform.position += new Vector3(
             Random.Range(-randomIntensity.x, randomIntensity.x),
             Random.Range(0.3f, 0.3f + randomIntensity.y),

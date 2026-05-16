@@ -1,0 +1,481 @@
+fileFormatVersion: 2
+guid: fab1b5ff5ce01d144a356cd3bf9d97c5
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -7334324043879615844
+    second: combat_skill_0
+  - first:
+      213: -3803282796281279420
+    second: combat_skill_1
+  - first:
+      213: 4445583408298049710
+    second: combat_skill_2
+  - first:
+      213: -1939598312196136326
+    second: combat_skill_3
+  - first:
+      213: -8909628953450195149
+    second: combat_skill_4
+  - first:
+      213: 3813642939428790709
+    second: combat_skill_5
+  - first:
+      213: -85358391894453033
+    second: combat_skill_6
+  - first:
+      213: -5600784215668224069
+    second: combat_skill_7
+  - first:
+      213: 3318230750152094315
+    second: combat_skill_8
+  - first:
+      213: 1093772126261475661
+    second: combat_skill_9
+  - first:
+      213: 519411332802515218
+    second: combat_skill_10
+  - first:
+      213: -2686466791641237519
+    second: combat_skill_11
+  - first:
+      213: -1006179951567276730
+    second: combat_skill_12
+  - first:
+      213: -8336326922654656175
+    second: combat_skill_13
+  - first:
+      213: 2918209352989953169
+    second: combat_skill_14
+  - first:
+      213: -1456198133504123168
+    second: combat_skill_15
+  - first:
+      213: 5788057035356718369
+    second: combat_skill_16
+  - first:
+      213: -685353335794165477
+    second: combat_skill_17
+  - first:
+      213: 1659682773824078985
+    second: combat_skill_18
+  - first:
+      213: -2714436957940141042
+    second: combat_skill_19
+  - first:
+      213: 3580747860379594396
+    second: combat_skill_20
+  - first:
+      213: 7708257216166108624
+    second: combat_skill_21
+  - first:
+      213: 7634104785593666903
+    second: combat_skill_22
+  - first:
+      213: 560273551758663316
+    second: combat_skill_23
+  - first:
+      213: 4981770877198408915
+    second: combat_skill_24
+  - first:
+      213: -4301750086230098991
+    second: combat_skill_25
+  - first:
+      213: 6948955245358063142
+    second: combat_skill_26
+  - first:
+      213: 3379365388318910678
+    second: combat_skill_27
+  - first:
+      213: 4169316418222799573
+    second: combat_skill_28
+  - first:
+      213: -4004815292933628220
+    second: combat_skill_29
+  - first:
+      213: 6806834045988809877
+    second: combat_skill_30
+  - first:
+      213: 3542786441968413562
+    second: combat_skill_31
+  - first:
+      213: 2742595891061075464
+    second: combat_skill_32
+  - first:
+      213: -7901545678190327158
+    second: combat_skill_33
+  - first:
+      213: -2042790388628210411
+    second: combat_skill_34
+  - first:
+      213: -926948322119817438
+    second: combat_skill_35
+  - first:
+      213: 819037570195603296
+    second: combat_skill_36
+  - first:
+      213: 7368167704003227516
+    second: combat_skill_37
+  - first:
+      213: -1138426759485806665
+    second: combat_skill_38
+  - first:
+      213: -3973830892460718153
+    second: combat_skill_39
+  - first:
+      213: -323723160765950920
+    second: combat_skill_40
+  - first:
+      213: -2140220863280597293
+    second: combat_skill_41
+  - first:
+      213: -4756093708040542136
+    second: combat_skill_42
+  - first:
+      213: -1675534259088155439
+    second: combat_skill_43
+  - first:
+      213: 1442089587984178477
+    second: combat_skill_44
+  - first:
+      213: 5030715634223255059
+    second: combat_skill_45
+  - first:
+      213: 4210400512457740564
+    second: combat_skill_46
+  - first:
+      213: 2666787576406776221
+    second: combat_skill_47
+  - first:
+      213: -7132791446108887377
+    second: combat_skill_48
+  - first:
+      213: -375039961709988298
+    second: combat_skill_49
+  - first:
+      213: 5995182891611009460
+    second: combat_skill_50
+  - first:
+      213: -5306401263316391457
+    second: combat_skill_51
+  - first:
+      213: 4425201001031912357
+    second: combat_skill_52
+  - first:
+      213: 3536562450001379593
+    second: combat_skill_53
+  - first:
+      213: -45960000411277064
+    second: combat_skill_54
+  - first:
+      213: 875090756643510953
+    second: combat_skill_55
+  - first:
+      213: -1885260558003158058
+    second: combat_skill_56
+  - first:
+      213: -8549405289540237014
+    second: combat_skill_57
+  - first:
+      213: -2644267793753710748
+    second: combat_skill_58
+  - first:
+      213: -5637167663698117595
+    second: combat_skill_59
+  - first:
+      213: -3549617609293048498
+    second: combat_skill_60
+  - first:
+      213: -2698949513434650901
+    second: combat_skill_61
+  - first:
+      213: 3764094929857939036
+    second: combat_skill_62
+  - first:
+      213: 6604968832055053135
+    second: combat_skill_63
+  - first:
+      213: 3771006747012871813
+    second: combat_skill_64
+  - first:
+      213: -6185570078517802574
+    second: combat_skill_65
+  - first:
+      213: -5172859237861246888
+    second: combat_skill_66
+  - first:
+      213: 8113206189993108436
+    second: combat_skill_67
+  - first:
+      213: 945668361425094710
+    second: combat_skill_68
+  - first:
+      213: -1276214908257942679
+    second: combat_skill_69
+  - first:
+      213: -5784675942939448305
+    second: combat_skill_70
+  - first:
+      213: -3488517433892355382
+    second: combat_skill_71
+  - first:
+      213: 6340837184333645050
+    second: combat_skill_72
+  - first:
+      213: 4566583768724092769
+    second: combat_skill_73
+  - first:
+      213: 7389155104292121985
+    second: combat_skill_74
+  - first:
+      213: -5268706496709613226
+    second: combat_skill_75
+  - first:
+      213: 3382335613169037701
+    second: combat_skill_76
+  - first:
+      213: -617432773000805369
+    second: combat_skill_77
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: combat_skill_0
+      rect:
+        serializedVersion: 2
+        x: 74
+        y: 574
+        width: 386
+        height: 380
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c92f2f8142f373a90800000000000000
+      internalID: -7334324043879615844
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: combat_skill_1
+      rect:
+        serializedVersion: 2
+        x: 485
+        y: 590
+        width: 391
+        height: 355
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 44ccc4b8276083bc0800000000000000
+      internalID: -3803282796281279420
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: combat_skill_2
+      rect:
+        serializedVersion: 2
+        x: 902
+        y: 583
+        width: 383
+        height: 371
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ea0c9fe5e82e1bd30800000000000000
+      internalID: 4445583408298049710
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: combat_skill_3
+      rect:
+        serializedVersion: 2
+        x: 1288
+        y: 503
+        width: 538
+        height: 528
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a722a9a8c992515e0800000000000000
+      internalID: -1939598312196136326
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: combat_skill_4
+      rect:
+        serializedVersion: 2
+        x: 1834
+        y: 363
+        width: 818
+        height: 814
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 337d01d0ca3aa5480800000000000000
+      internalID: -8909628953450195149
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: df9fd19544d59574e8246d18b37dfb22
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries:
+      - key: SpriteEditor.SliceSettings
+        value: '{"sliceOnImport":false,"gridCellCount":{"x":5.0,"y":1.0},"gridSpriteSize":{"x":550.0,"y":1536.0},"gridSpriteOffset":{"x":0.0,"y":0.0},"gridSpritePadding":{"x":0.0,"y":0.0},"pivot":{"x":0.5,"y":0.5},"pivotPixels":{"x":0.0,"y":0.0},"autoSlicingMethod":0,"spriteAlignment":0,"pivotUnitMode":0,"slicingType":2,"keepEmptyRects":false,"isAlternate":false}'
+    nameFileIdTable:
+      combat_skill_0: -7334324043879615844
+      combat_skill_1: -3803282796281279420
+      combat_skill_2: 4445583408298049710
+      combat_skill_3: -1939598312196136326
+      combat_skill_4: -8909628953450195149
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

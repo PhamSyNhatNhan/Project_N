@@ -137,15 +137,33 @@ public class SakuyaSkill : PlayerSkill
 
     protected override void HoldAttack()
     {
-        if (canInput)
+        if (!canInput) return;
+        if (!IsReady("NormalKnife") || isAttack || isSkill || isUlti || isDash) return;
+
+        sakuyaController.CanFlip = false;
+        EventManager.Player.OnPlayerAttack.Get(sakuyaStat.NameCharacter).Invoke(this, null);
+        isAttack = true;
+
+        var enemies = hitbox.detectObject(enemyLayer);
+        bool isFacingRight = enemies != null && enemies.Count > 0
+            ? enemies[0].transform.position.x > transform.position.x
+            : sakuyaController.FlipDirect == 1;
+
+        var data = skillData["NormalKnife"];
+
+        for (int i = 0; i < 10; i++)
         {
-            if (canDash && skillCd["NormalKnife"].IsReady && !isAttack && !isSkill && !isUlti && !isDash)
-            {
-                buffManager.ActivateMinor(BuffGroupId.Warrior, 1);
-                buffManager.ActivateMinor(BuffGroupId.Warrior, 2);
-                buffManager.ActivateMinor(BuffGroupId.Warrior, 4);
-            }
+            GameObject knife = testList.GetGameObject();
+            knife.transform.position = transform.position;
+            knife.transform.rotation = Quaternion.Euler(0f, isFacingRight ? 0f : 180f, 0f);
+            knife.GetComponent<SakuyaKnife>().FlipDirect = isFacingRight ? 1 : -1;
+            knife.GetComponent<SakuyaKnife>().SetUp(DamageType.Physical, data.damage, 50.0f, 50.0f);
+            knife.SetActive(true);
+            knife.transform.parent = null;
         }
+
+        skillCd["NormalKnife"].Use();
+        StartCoroutine(EndAttack());
     }
 
     protected override void SlowTapAttack()

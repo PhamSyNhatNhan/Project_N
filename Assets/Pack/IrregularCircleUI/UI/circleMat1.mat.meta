@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: 5e26dfddda2b6964897048ffe376671c
+timeCreated: 1581904552
+licenseType: Store
+NativeFormatImporter:
+  mainObjectFileID: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 373994
+  packageName: Irregular Circle UI animation@
+  packageVersion: 1.0
+  assetPath: Assets/IrregularCircleUI/UI/circleMat1.mat
+  uploadId: 900838

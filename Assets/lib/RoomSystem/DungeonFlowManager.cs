@@ -1,7 +1,7 @@
-using System.IO;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using Newtonsoft.Json;
+using System.IO;
 
 /// <summary>
 /// Bộ não điều phối dungeon — DontDestroyOnLoad duy nhất.
@@ -218,14 +218,15 @@ public class DungeonFlowManager : MonoBehaviour
             if (_dungeonConfig != null) return;
         }
 
-        // Fallback: tự load từ file
-        string path = Path.Combine(Application.dataPath, "Data", "Dungeon", $"{groupId}.json");
-        if (!File.Exists(path))
+        // Fallback: load từ Resources
+        string resourcePath = $"Data/Dungeon/{groupId}";
+        TextAsset textAsset = Resources.Load<TextAsset>(resourcePath);
+        if (textAsset == null)
         {
-            Debug.LogError($"[DungeonFlowManager] Không tìm thấy DungeonConfig: {path}");
+            Debug.LogError($"[DungeonFlowManager] Không tìm thấy DungeonConfig: Resources/{resourcePath}.json");
             return;
         }
-        _dungeonConfig = JsonConvert.DeserializeObject<DungeonConfig>(File.ReadAllText(path));
+        _dungeonConfig = JsonConvert.DeserializeObject<DungeonConfig>(textAsset.text);
     }
 
     private void SaveRunData()

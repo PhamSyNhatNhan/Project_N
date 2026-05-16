@@ -1,0 +1,2028 @@
+fileFormatVersion: 2
+guid: d5e6fab579084de42a93ec547c0b041d
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: 4522460437179080907
+    second: ArenaCala_0
+  - first:
+      213: 9147833640214018532
+    second: ArenaCala_1
+  - first:
+      213: 2718358936525359113
+    second: ArenaCala_2
+  - first:
+      213: 7884456303314845534
+    second: ArenaCala_3
+  - first:
+      213: 3186731383963361303
+    second: ArenaCala_4
+  - first:
+      213: 954201391027732775
+    second: ArenaCala_5
+  - first:
+      213: 9052170980958430793
+    second: ArenaCala_6
+  - first:
+      213: 7327734102369781426
+    second: ArenaCala_7
+  - first:
+      213: 7964963571446232601
+    second: ArenaCala_8
+  - first:
+      213: -5126924545027649015
+    second: ArenaCala_9
+  - first:
+      213: -8865329828571656880
+    second: ArenaCala_10
+  - first:
+      213: -4438063633674970525
+    second: ArenaCala_11
+  - first:
+      213: -7597786382397268454
+    second: ArenaCala_12
+  - first:
+      213: 772298376608051972
+    second: ArenaCala_13
+  - first:
+      213: -3345487103927148470
+    second: ArenaCala_14
+  - first:
+      213: 5036817369135623926
+    second: ArenaCala_15
+  - first:
+      213: -5624671787429581304
+    second: ArenaCala_16
+  - first:
+      213: -1857609990128632693
+    second: ArenaCala_17
+  - first:
+      213: 3668052603111020210
+    second: ArenaCala_18
+  - first:
+      213: 6447412566804422433
+    second: ArenaCala_19
+  - first:
+      213: -3445890711719696242
+    second: ArenaCala_20
+  - first:
+      213: -6718823930687682854
+    second: ArenaCala_21
+  - first:
+      213: -5927315140877316299
+    second: ArenaCala_22
+  - first:
+      213: 7197912123133354637
+    second: ArenaCala_23
+  - first:
+      213: -7089142852310962602
+    second: ArenaCala_24
+  - first:
+      213: 6910500190668658752
+    second: ArenaCala_25
+  - first:
+      213: -5989477979433192118
+    second: ArenaCala_26
+  - first:
+      213: 4076220133450276787
+    second: ArenaCala_27
+  - first:
+      213: 6804559072957975804
+    second: ArenaCala_28
+  - first:
+      213: -7774430068664546865
+    second: ArenaCala_29
+  - first:
+      213: 6413090817536700450
+    second: ArenaCala_30
+  - first:
+      213: 442238021974556151
+    second: ArenaCala_31
+  - first:
+      213: -856577587861573102
+    second: ArenaCala_32
+  - first:
+      213: -5972229911710603523
+    second: ArenaCala_33
+  - first:
+      213: -5925250985345959993
+    second: ArenaCala_34
+  - first:
+      213: 4847470341390984208
+    second: ArenaCala_35
+  - first:
+      213: 2148561860533345021
+    second: ArenaCala_36
+  - first:
+      213: -5034798775970288941
+    second: ArenaCala_37
+  - first:
+      213: 2451784665929991422
+    second: ArenaCala_38
+  - first:
+      213: 6804230788795796174
+    second: ArenaCala_39
+  - first:
+      213: 3786589652778050624
+    second: ArenaCala_40
+  - first:
+      213: 5846653294042904619
+    second: ArenaCala_41
+  - first:
+      213: 3196854739802372774
+    second: ArenaCala_42
+  - first:
+      213: -574198163043664974
+    second: ArenaCala_43
+  - first:
+      213: -759939631751029520
+    second: ArenaCala_44
+  - first:
+      213: 8815172820949981410
+    second: ArenaCala_45
+  - first:
+      213: -3117302079116754045
+    second: ArenaCala_46
+  - first:
+      213: 3747515142416384436
+    second: ArenaCala_47
+  - first:
+      213: 5442718269158149267
+    second: ArenaCala_48
+  - first:
+      213: 5093018416743859664
+    second: ArenaCala_49
+  - first:
+      213: 3137644642606637538
+    second: ArenaCala_50
+  - first:
+      213: -3136600054067427780
+    second: ArenaCala_51
+  - first:
+      213: 3008072202989265267
+    second: ArenaCala_52
+  - first:
+      213: 4790293157235823151
+    second: ArenaCala_53
+  - first:
+      213: 2096222283130478600
+    second: ArenaCala_54
+  - first:
+      213: -5255900554546535501
+    second: ArenaCala_55
+  - first:
+      213: -4396322093535664128
+    second: ArenaCala_56
+  - first:
+      213: -3458348008167001370
+    second: ArenaCala_57
+  - first:
+      213: 2847884220959904912
+    second: ArenaCala_58
+  - first:
+      213: 2098314996468029011
+    second: ArenaCala_59
+  - first:
+      213: -5452720540907481276
+    second: ArenaCala_60
+  - first:
+      213: 7410895446121514253
+    second: ArenaCala_61
+  - first:
+      213: 8833249746671203795
+    second: ArenaCala_62
+  - first:
+      213: -5959183991297241193
+    second: ArenaCala_63
+  - first:
+      213: -5574058818897459034
+    second: ArenaCala_64
+  - first:
+      213: 424316839851441259
+    second: ArenaCala_65
+  - first:
+      213: -3472637820699856199
+    second: ArenaCala_66
+  - first:
+      213: -3952258084107331278
+    second: ArenaCala_67
+  - first:
+      213: 526370796152558032
+    second: ArenaCala_68
+  - first:
+      213: 4405890393278941048
+    second: ArenaCala_69
+  - first:
+      213: -1603419917044339477
+    second: ArenaCala_70
+  - first:
+      213: 9057731271013496947
+    second: ArenaCala_71
+  - first:
+      213: -2811399326260348014
+    second: ArenaCala_72
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 1
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: ArenaCala_0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 2752
+        height: 1536
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: bc021dc7ec103ce30800000000000000
+      internalID: 4522460437179080907
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_1
+      rect:
+        serializedVersion: 2
+        x: 335
+        y: 1501
+        width: 52
+        height: 35
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4e9335d7a32a3fe70800000000000000
+      internalID: 9147833640214018532
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_2
+      rect:
+        serializedVersion: 2
+        x: 991
+        y: 1501
+        width: 68
+        height: 35
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9084a9fdc0d89b520800000000000000
+      internalID: 2718358936525359113
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_3
+      rect:
+        serializedVersion: 2
+        x: 1135
+        y: 1501
+        width: 50
+        height: 35
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e5fbb26fb373b6d60800000000000000
+      internalID: 7884456303314845534
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_4
+      rect:
+        serializedVersion: 2
+        x: 1345
+        y: 1501
+        width: 86
+        height: 35
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 710a9b74f4b893c20800000000000000
+      internalID: 3186731383963361303
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_5
+      rect:
+        serializedVersion: 2
+        x: 1507
+        y: 1489
+        width: 45
+        height: 47
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 721446c0c110e3d00800000000000000
+      internalID: 954201391027732775
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_6
+      rect:
+        serializedVersion: 2
+        x: 1601
+        y: 1515
+        width: 6
+        height: 21
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9466026fb85cf9d70800000000000000
+      internalID: 9052170980958430793
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_7
+      rect:
+        serializedVersion: 2
+        x: 1757
+        y: 1501
+        width: 66
+        height: 35
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2b64444975751b560800000000000000
+      internalID: 7327734102369781426
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_8
+      rect:
+        serializedVersion: 2
+        x: 2109
+        y: 1499
+        width: 38
+        height: 37
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 916baf40b2c398e60800000000000000
+      internalID: 7964963571446232601
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_9
+      rect:
+        serializedVersion: 2
+        x: 2173
+        y: 1501
+        width: 70
+        height: 35
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 90255673a4189d8b0800000000000000
+      internalID: -5126924545027649015
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_10
+      rect:
+        serializedVersion: 2
+        x: 2243
+        y: 1531
+        width: 12
+        height: 5
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 05dcf4fcd7508f480800000000000000
+      internalID: -8865329828571656880
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_11
+      rect:
+        serializedVersion: 2
+        x: 2711
+        y: 1527
+        width: 39
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 36a593893a4d862c0800000000000000
+      internalID: -4438063633674970525
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_12
+      rect:
+        serializedVersion: 2
+        x: 1563
+        y: 1497
+        width: 8
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a1e19ed3a8d3f8690800000000000000
+      internalID: -7597786382397268454
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_13
+      rect:
+        serializedVersion: 2
+        x: 2147
+        y: 1501
+        width: 14
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 403755e1841c7ba00800000000000000
+      internalID: 772298376608051972
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_14
+      rect:
+        serializedVersion: 2
+        x: 1519
+        y: 1481
+        width: 8
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a40a5c144317291d0800000000000000
+      internalID: -3345487103927148470
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_15
+      rect:
+        serializedVersion: 2
+        x: 1527
+        y: 1485
+        width: 8
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6fea8d506be56e540800000000000000
+      internalID: 5036817369135623926
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_16
+      rect:
+        serializedVersion: 2
+        x: 1536
+        y: 1485
+        width: 7
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 80e29146fc621f1b0800000000000000
+      internalID: -5624671787429581304
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_17
+      rect:
+        serializedVersion: 2
+        x: 1547
+        y: 1485
+        width: 6
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b8c7a275e817836e0800000000000000
+      internalID: -1857609990128632693
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_18
+      rect:
+        serializedVersion: 2
+        x: 1561
+        y: 1487
+        width: 6
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2b611e9886a87e230800000000000000
+      internalID: 3668052603111020210
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_19
+      rect:
+        serializedVersion: 2
+        x: 2103
+        y: 1487
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 12f54c4d19fc97950800000000000000
+      internalID: 6447412566804422433
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_20
+      rect:
+        serializedVersion: 2
+        x: 2717
+        y: 1491
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e882121a7acbd20d0800000000000000
+      internalID: -3445890711719696242
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_21
+      rect:
+        serializedVersion: 2
+        x: 2746
+        y: 1460
+        width: 6
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ad687fe9b31f1c2a0800000000000000
+      internalID: -6718823930687682854
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_22
+      rect:
+        serializedVersion: 2
+        x: 439
+        y: 1433
+        width: 8
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 53f863c9842fdbda0800000000000000
+      internalID: -5927315140877316299
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_23
+      rect:
+        serializedVersion: 2
+        x: 2663
+        y: 1439
+        width: 8
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d8267d790fe14e360800000000000000
+      internalID: 7197912123133354637
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_24
+      rect:
+        serializedVersion: 2
+        x: 411
+        y: 1419
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 65e610eb22e4e9d90800000000000000
+      internalID: -7089142852310962602
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_25
+      rect:
+        serializedVersion: 2
+        x: 436
+        y: 1423
+        width: 7
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 048131d5f4707ef50800000000000000
+      internalID: 6910500190668658752
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_26
+      rect:
+        serializedVersion: 2
+        x: 795
+        y: 1419
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a453cd5e28911eca0800000000000000
+      internalID: -5989477979433192118
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_27
+      rect:
+        serializedVersion: 2
+        x: 816
+        y: 1419
+        width: 7
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3bf59985d94a19830800000000000000
+      internalID: 4076220133450276787
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_28
+      rect:
+        serializedVersion: 2
+        x: 986
+        y: 1419
+        width: 7
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cfc42dcbc66ae6e50800000000000000
+      internalID: 6804559072957975804
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_29
+      rect:
+        serializedVersion: 2
+        x: 995
+        y: 1405
+        width: 8
+        height: 20
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: fc942221b0dab1490800000000000000
+      internalID: -7774430068664546865
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_30
+      rect:
+        serializedVersion: 2
+        x: 1185
+        y: 1413
+        width: 8
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 220389bde10eff850800000000000000
+      internalID: 6413090817536700450
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_31
+      rect:
+        serializedVersion: 2
+        x: 1196
+        y: 1419
+        width: 8
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7fdf6fd4325232600800000000000000
+      internalID: 442238021974556151
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_32
+      rect:
+        serializedVersion: 2
+        x: 1207
+        y: 1418
+        width: 9
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 21233f0e833dc14f0800000000000000
+      internalID: -856577587861573102
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_33
+      rect:
+        serializedVersion: 2
+        x: 1979
+        y: 1417
+        width: 17
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: df6e68b99806e1da0800000000000000
+      internalID: -5972229911710603523
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_34
+      rect:
+        serializedVersion: 2
+        x: 2195
+        y: 1417
+        width: 6
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7c7bb654f9745cda0800000000000000
+      internalID: -5925250985345959993
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_35
+      rect:
+        serializedVersion: 2
+        x: 2216
+        y: 1421
+        width: 7
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 014e9dda79ca54340800000000000000
+      internalID: 4847470341390984208
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_36
+      rect:
+        serializedVersion: 2
+        x: 2379
+        y: 1419
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: dfada0be0a931dd10800000000000000
+      internalID: 2148561860533345021
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_37
+      rect:
+        serializedVersion: 2
+        x: 399
+        y: 1407
+        width: 9
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3da28b2503dc02ab0800000000000000
+      internalID: -5034798775970288941
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_38
+      rect:
+        serializedVersion: 2
+        x: 794
+        y: 1407
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ef4c18ed92d760220800000000000000
+      internalID: 2451784665929991422
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_39
+      rect:
+        serializedVersion: 2
+        x: 1011
+        y: 1407
+        width: 8
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: eca03ff1adb7d6e50800000000000000
+      internalID: 6804230788795796174
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_40
+      rect:
+        serializedVersion: 2
+        x: 1181
+        y: 1405
+        width: 9
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 044610c1a3bac8430800000000000000
+      internalID: 3786589652778050624
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_41
+      rect:
+        serializedVersion: 2
+        x: 1187
+        y: 1407
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b287b4ca13c732150800000000000000
+      internalID: 5846653294042904619
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_42
+      rect:
+        serializedVersion: 2
+        x: 1207
+        y: 1406
+        width: 11
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6aab17cb2728d5c20800000000000000
+      internalID: 3196854739802372774
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_43
+      rect:
+        serializedVersion: 2
+        x: 1377
+        y: 1405
+        width: 7
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2bbb91d10d90808f0800000000000000
+      internalID: -574198163043664974
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_44
+      rect:
+        serializedVersion: 2
+        x: 1392
+        y: 1406
+        width: 17
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0fc1db66ee62475f0800000000000000
+      internalID: -759939631751029520
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_45
+      rect:
+        serializedVersion: 2
+        x: 1748
+        y: 1386
+        width: 23
+        height: 21
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2e8d662d9f8c55a70800000000000000
+      internalID: 8815172820949981410
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_46
+      rect:
+        serializedVersion: 2
+        x: 1771
+        y: 1403
+        width: 9
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 383c8a4764e1db4d0800000000000000
+      internalID: -3117302079116754045
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_47
+      rect:
+        serializedVersion: 2
+        x: 1778
+        y: 1403
+        width: 15
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4b14026ba29d10430800000000000000
+      internalID: 3747515142416384436
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_48
+      rect:
+        serializedVersion: 2
+        x: 2165
+        y: 1405
+        width: 7
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 39c43b5dd6b688b40800000000000000
+      internalID: 5442718269158149267
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_49
+      rect:
+        serializedVersion: 2
+        x: 2185
+        y: 1407
+        width: 10
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0d54a8c14490ea640800000000000000
+      internalID: 5093018416743859664
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_50
+      rect:
+        serializedVersion: 2
+        x: 2357
+        y: 1403
+        width: 14
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2e1e9f1bd272b8b20800000000000000
+      internalID: 3137644642606637538
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_51
+      rect:
+        serializedVersion: 2
+        x: 2379
+        y: 1407
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c3607d68ede8874d0800000000000000
+      internalID: -3136600054067427780
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_52
+      rect:
+        serializedVersion: 2
+        x: 2743
+        y: 1403
+        width: 6
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 371e6ed2bb1deb920800000000000000
+      internalID: 3008072202989265267
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_53
+      rect:
+        serializedVersion: 2
+        x: 383
+        y: 1393
+        width: 18
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f2296071f3a8a7240800000000000000
+      internalID: 4790293157235823151
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_54
+      rect:
+        serializedVersion: 2
+        x: 583
+        y: 1393
+        width: 18
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 800204c6f07471d10800000000000000
+      internalID: 2096222283130478600
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_55
+      rect:
+        serializedVersion: 2
+        x: 1164
+        y: 1391
+        width: 16
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3b3a977ea4a4f07b0800000000000000
+      internalID: -5255900554546535501
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_56
+      rect:
+        serializedVersion: 2
+        x: 1179
+        y: 1393
+        width: 7
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 008ea9049502df2c0800000000000000
+      internalID: -4396322093535664128
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_57
+      rect:
+        serializedVersion: 2
+        x: 1355
+        y: 1389
+        width: 8
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6e2b6874fca7100d0800000000000000
+      internalID: -3458348008167001370
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_58
+      rect:
+        serializedVersion: 2
+        x: 1362
+        y: 1391
+        width: 6
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 09451c73c97b58720800000000000000
+      internalID: 2847884220959904912
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_59
+      rect:
+        serializedVersion: 2
+        x: 1370
+        y: 1389
+        width: 9
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3561a573f56be1d10800000000000000
+      internalID: 2098314996468029011
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_60
+      rect:
+        serializedVersion: 2
+        x: 1379
+        y: 1393
+        width: 10
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 447dbbbce8b0454b0800000000000000
+      internalID: -5452720540907481276
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_61
+      rect:
+        serializedVersion: 2
+        x: 1711
+        y: 1391
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d0502a5c42ac8d660800000000000000
+      internalID: 7410895446121514253
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_62
+      rect:
+        serializedVersion: 2
+        x: 1723
+        y: 1389
+        width: 13
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3d575a218d1069a70800000000000000
+      internalID: 8833249746671203795
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_63
+      rect:
+        serializedVersion: 2
+        x: 1735
+        y: 1389
+        width: 20
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 79f8887abb9bc4da0800000000000000
+      internalID: -5959183991297241193
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_64
+      rect:
+        serializedVersion: 2
+        x: 1786
+        y: 1391
+        width: 9
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6a8cb7e6907f4a2b0800000000000000
+      internalID: -5574058818897459034
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_65
+      rect:
+        serializedVersion: 2
+        x: 1935
+        y: 1393
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b6cbf8feae973e500800000000000000
+      internalID: 424316839851441259
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_66
+      rect:
+        serializedVersion: 2
+        x: 1941
+        y: 1393
+        width: 12
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9b239970d46becfc0800000000000000
+      internalID: -3472637820699856199
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_67
+      rect:
+        serializedVersion: 2
+        x: 1957
+        y: 1391
+        width: 6
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 239dd146632c629c0800000000000000
+      internalID: -3952258084107331278
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_68
+      rect:
+        serializedVersion: 2
+        x: 2149
+        y: 1393
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0d110d4437b0e4700800000000000000
+      internalID: 526370796152558032
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_69
+      rect:
+        serializedVersion: 2
+        x: 2341
+        y: 1391
+        width: 20
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 87782b228fdd42d30800000000000000
+      internalID: 4405890393278941048
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_70
+      rect:
+        serializedVersion: 2
+        x: 2360
+        y: 1393
+        width: 18
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: bec29caa4128fb9e0800000000000000
+      internalID: -1603419917044339477
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_71
+      rect:
+        serializedVersion: 2
+        x: 2539
+        y: 1391
+        width: 13
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 378f4bfd99683bd70800000000000000
+      internalID: 9057731271013496947
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: ArenaCala_72
+      rect:
+        serializedVersion: 2
+        x: 2739
+        y: 1386
+        width: 8
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 29bba7c4537ebf8d0800000000000000
+      internalID: -2811399326260348014
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 5e97eb03825dee720800000000000000
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      ArenaCala_0: 4522460437179080907
+      ArenaCala_1: 9147833640214018532
+      ArenaCala_10: -8865329828571656880
+      ArenaCala_11: -4438063633674970525
+      ArenaCala_12: -7597786382397268454
+      ArenaCala_13: 772298376608051972
+      ArenaCala_14: -3345487103927148470
+      ArenaCala_15: 5036817369135623926
+      ArenaCala_16: -5624671787429581304
+      ArenaCala_17: -1857609990128632693
+      ArenaCala_18: 3668052603111020210
+      ArenaCala_19: 6447412566804422433
+      ArenaCala_2: 2718358936525359113
+      ArenaCala_20: -3445890711719696242
+      ArenaCala_21: -6718823930687682854
+      ArenaCala_22: -5927315140877316299
+      ArenaCala_23: 7197912123133354637
+      ArenaCala_24: -7089142852310962602
+      ArenaCala_25: 6910500190668658752
+      ArenaCala_26: -5989477979433192118
+      ArenaCala_27: 4076220133450276787
+      ArenaCala_28: 6804559072957975804
+      ArenaCala_29: -7774430068664546865
+      ArenaCala_3: 7884456303314845534
+      ArenaCala_30: 6413090817536700450
+      ArenaCala_31: 442238021974556151
+      ArenaCala_32: -856577587861573102
+      ArenaCala_33: -5972229911710603523
+      ArenaCala_34: -5925250985345959993
+      ArenaCala_35: 4847470341390984208
+      ArenaCala_36: 2148561860533345021
+      ArenaCala_37: -5034798775970288941
+      ArenaCala_38: 2451784665929991422
+      ArenaCala_39: 6804230788795796174
+      ArenaCala_4: 3186731383963361303
+      ArenaCala_40: 3786589652778050624
+      ArenaCala_41: 5846653294042904619
+      ArenaCala_42: 3196854739802372774
+      ArenaCala_43: -574198163043664974
+      ArenaCala_44: -759939631751029520
+      ArenaCala_45: 8815172820949981410
+      ArenaCala_46: -3117302079116754045
+      ArenaCala_47: 3747515142416384436
+      ArenaCala_48: 5442718269158149267
+      ArenaCala_49: 5093018416743859664
+      ArenaCala_5: 954201391027732775
+      ArenaCala_50: 3137644642606637538
+      ArenaCala_51: -3136600054067427780
+      ArenaCala_52: 3008072202989265267
+      ArenaCala_53: 4790293157235823151
+      ArenaCala_54: 2096222283130478600
+      ArenaCala_55: -5255900554546535501
+      ArenaCala_56: -4396322093535664128
+      ArenaCala_57: -3458348008167001370
+      ArenaCala_58: 2847884220959904912
+      ArenaCala_59: 2098314996468029011
+      ArenaCala_6: 9052170980958430793
+      ArenaCala_60: -5452720540907481276
+      ArenaCala_61: 7410895446121514253
+      ArenaCala_62: 8833249746671203795
+      ArenaCala_63: -5959183991297241193
+      ArenaCala_64: -5574058818897459034
+      ArenaCala_65: 424316839851441259
+      ArenaCala_66: -3472637820699856199
+      ArenaCala_67: -3952258084107331278
+      ArenaCala_68: 526370796152558032
+      ArenaCala_69: 4405890393278941048
+      ArenaCala_7: 7327734102369781426
+      ArenaCala_70: -1603419917044339477
+      ArenaCala_71: 9057731271013496947
+      ArenaCala_72: -2811399326260348014
+      ArenaCala_8: 7964963571446232601
+      ArenaCala_9: -5126924545027649015
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using UnityEngine;
 using Newtonsoft.Json;
 
@@ -30,30 +29,27 @@ public class MapRegistry : MonoBehaviour
     // ── Load ──────────────────────────────────────────────────────
     private void LoadGroup(string groupId)
     {
-        string path = Path.Combine(Application.dataPath, "Data", "Dungeon", $"{groupId}.json");
+        string resourcePath = $"Data/Dungeon/{groupId}";
+        TextAsset textAsset = Resources.Load<TextAsset>(resourcePath);
 
-        if (!File.Exists(path))
+        if (textAsset == null)
         {
-            Debug.LogError($"[MapRegistry] Không tìm thấy file: {path}");
+            Debug.LogError($"[MapRegistry] Không tìm thấy file: Resources/{resourcePath}.json");
             return;
         }
 
         try
         {
-            DungeonConfig config = JsonConvert.DeserializeObject<DungeonConfig>(
-                File.ReadAllText(path)
-            );
+            DungeonConfig config = JsonConvert.DeserializeObject<DungeonConfig>(textAsset.text);
 
             if (config == null)
             {
-                Debug.LogError($"[MapRegistry] Parse JSON thất bại: {path}");
+                Debug.LogError($"[MapRegistry] Parse JSON thất bại: {resourcePath}");
                 return;
             }
 
-            // Cache config
             _configMap[groupId] = config;
 
-            // Build display data
             var display = new MapDisplayData
             {
                 dungeonGroupId = groupId,
@@ -73,7 +69,7 @@ public class MapRegistry : MonoBehaviour
         }
         catch (Exception ex)
         {
-            Debug.LogError($"[MapRegistry] Lỗi parse '{path}': {ex.Message}");
+            Debug.LogError($"[MapRegistry] Lỗi parse '{resourcePath}': {ex.Message}");
         }
     }
 

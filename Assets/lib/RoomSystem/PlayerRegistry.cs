@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using UnityEngine;
 using Newtonsoft.Json;
 
@@ -40,8 +39,8 @@ public class PlayerRegistry : MonoBehaviour
     // ── Load display data từ JSON ─────────────────────────────────
     private PlayerDisplayData LoadDisplayData(Talent talent, GameObject prefab)
     {
-        string name = talent.ToString();
-        string path = Path.Combine(Application.dataPath, "Entity", "Character", name, "Data", $"{name}.json");
+        string name         = talent.ToString();
+        string resourcePath = $"Entity/Character/{name}/Data/{name}";
 
         var data = new PlayerDisplayData
         {
@@ -53,16 +52,16 @@ public class PlayerRegistry : MonoBehaviour
             portrait    = null,
         };
 
-        if (!File.Exists(path))
+        TextAsset textAsset = Resources.Load<TextAsset>(resourcePath);
+        if (textAsset == null)
         {
-            Debug.LogWarning($"[PlayerRegistry] Không tìm thấy JSON: {path}");
+            Debug.LogWarning($"[PlayerRegistry] Không tìm thấy file: Resources/{resourcePath}.json");
             return data;
         }
 
         try
         {
-            string     json       = File.ReadAllText(path);
-            EntityData entityData = JsonConvert.DeserializeObject<EntityData>(json);
+            EntityData entityData = JsonConvert.DeserializeObject<EntityData>(textAsset.text);
 
             if (entityData?.stat != null)
             {
@@ -88,7 +87,7 @@ public class PlayerRegistry : MonoBehaviour
         }
         catch (Exception ex)
         {
-            Debug.LogError($"[PlayerRegistry] Lỗi parse JSON '{path}': {ex.Message}");
+            Debug.LogError($"[PlayerRegistry] Lỗi parse '{resourcePath}': {ex.Message}");
         }
 
         return data;

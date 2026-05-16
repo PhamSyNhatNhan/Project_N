@@ -1,0 +1,5 @@
+F:/unity/Project_N/.utmp/Debug/4r1m3i28/arm64-v8a/CMakeFiles/edit_cache.dir
+F:/unity/Project_N/.utmp/Debug/4r1m3i28/arm64-v8a/CMakeFiles/rebuild_cache.dir
+F:/unity/Project_N/.utmp/Debug/4r1m3i28/arm64-v8a/GameActivity/CMakeFiles/game.dir
+F:/unity/Project_N/.utmp/Debug/4r1m3i28/arm64-v8a/GameActivity/CMakeFiles/edit_cache.dir
+F:/unity/Project_N/.utmp/Debug/4r1m3i28/arm64-v8a/GameActivity/CMakeFiles/rebuild_cache.dir

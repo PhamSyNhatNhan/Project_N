@@ -345,9 +345,9 @@ public class CalamitasSkillImmortal2 : MonoBehaviour
             cataclysm = go.GetComponent<SupremeCataclysm>();
             if (cataclysm != null)
             {
+                InjectBossStat(go);
                 cataclysm.LoadData(playerTransform, condemnArrowPool);
                 cataclysm.SetOrbitSide(1);
-                
                 cataclysm.OnDashSkillComplete   = OnCataclysmDashComplete;
                 cataclysm.OnChainAttackComplete = OnUniqueSkillComplete;
                 go.SetActive(true);
@@ -360,6 +360,7 @@ public class CalamitasSkillImmortal2 : MonoBehaviour
             catastrophe = go.GetComponent<SupremeCatastrophe>();
             if (catastrophe != null)
             {
+                InjectBossStat(go);
                 catastrophe.LoadData(playerTransform, condemnArrowPool);
                 catastrophe.SetOrbitSide(-1);
                 catastrophe.OnTeleSkillComplete   = OnUniqueSkillComplete;
@@ -367,6 +368,29 @@ public class CalamitasSkillImmortal2 : MonoBehaviour
                 go.SetActive(true);
             }
         }
+    }
+
+    // Copy bonusMultiplier từ bossStat sang minion — giống InjectScaling trong RoomSpawner.
+    // Gọi trước SetActive để Stat.setStartStat() tính đúng khi Awake/Start chạy.
+    private void InjectBossStat(GameObject minion)
+    {
+        if (bossStat == null) return;
+        var stat = minion.GetComponent<Stat>();
+        if (stat == null) return;
+
+        stat.BonusMultiplierHealth                += bossStat.BonusMultiplierHealth;
+        stat.BonusMultiplierDefense               += bossStat.BonusMultiplierDefense;
+        stat.BonusMultiplierResistantPhysical     += bossStat.BonusMultiplierResistantPhysical;
+        stat.BonusMultiplierResistantMagic        += bossStat.BonusMultiplierResistantMagic;
+        stat.BonusMultiplierAttack                += bossStat.BonusMultiplierAttack;
+        stat.BonusMultiplierAttackSpeed           += bossStat.BonusMultiplierAttackSpeed;
+        stat.BonusMultiplierBonusDamage           += bossStat.BonusMultiplierBonusDamage;
+        stat.BonusMultiplierBonusPhysical         += bossStat.BonusMultiplierBonusPhysical;
+        stat.BonusMultiplierBonusMagic            += bossStat.BonusMultiplierBonusMagic;
+        stat.BonusMultiplierCritRate              += bossStat.BonusMultiplierCritRate;
+        stat.BonusMultiplierCritDamage            += bossStat.BonusMultiplierCritDamage;
+        stat.BonusMultiplierMultiplierDamageBonus += bossStat.BonusMultiplierMultiplierDamageBonus;
+        stat.BonusMultiplierMultiplierDamageTaken += bossStat.BonusMultiplierMultiplierDamageTaken;
     }
     
     private void SwapMinionSides()

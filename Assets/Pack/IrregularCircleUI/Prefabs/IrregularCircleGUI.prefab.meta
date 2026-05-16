@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: 521ee56b55e55de4ca255c0a886ab4f9
+timeCreated: 1581908949
+licenseType: Store
+NativeFormatImporter:
+  mainObjectFileID: 100100000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 373994
+  packageName: Irregular Circle UI animation@
+  packageVersion: 1.0
+  assetPath: Assets/IrregularCircleUI/Prefabs/IrregularCircleGUI.prefab
+  uploadId: 900838

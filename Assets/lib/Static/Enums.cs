@@ -15,6 +15,12 @@ public enum DamageType
     Magic
 }
 
+public enum IFrameMode
+{
+    Legacy,    
+    Gradual   
+}
+
 public enum HoldMode { None, Hold, SlowTap, Repeat }
 
 public enum EnemyType

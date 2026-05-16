@@ -115,6 +115,7 @@ public class CalamitasSkillPhase2 : MonoBehaviour
     // ── FSM ───────────────────────────────────────────────────────
     private enum S
     {
+        Intro,
         Idle,
         S1Start, S1Top, S1Right, S1Left, S1BomberSpawn,
         S2Teleport, S2LaserWait, S2Ring, S2DaggerWarn, S2DaggerFire, S2Hellblast,
@@ -184,11 +185,11 @@ public class CalamitasSkillPhase2 : MonoBehaviour
 
     private void OnEnable()
     {
-        rotIdx   = -1;
+        rotIdx    = -1;
         orbitSide = 1;
         bossStat.CanDamge = true;
         FindPlayer();
-        NextRot();
+        Enter(S.Intro);
     }
 
     private void OnDisable()
@@ -244,12 +245,24 @@ public class CalamitasSkillPhase2 : MonoBehaviour
                 break;
         }
     }
+
     // ── Enter ─────────────────────────────────────────────────────
     private void Enter(S state)
     {
         cur = state;
         switch (state)
         {
+            case S.Intro:
+                // Teleport về tâm trước khi bắt đầu phase
+                bossMove.ResetAll();
+                bossMove.CanMove = false;
+                s3Cycles         = 0;
+                shadow?.PlayDepartShadow(transform.position);
+                shadow?.PlayArriveShadow(Vector2.zero);
+                if (bossRenderer != null) bossRenderer.enabled = false;
+                timer = shadow != null ? Mathf.Max(0f, shadow.FadeDuration - 0.1f) : 0f;
+                break;
+
             case S.Idle:
                 timer         = idleDuration;
                 s1FireTimer   = idleFireInterval;
@@ -293,11 +306,11 @@ public class CalamitasSkillPhase2 : MonoBehaviour
             case S.S2LaserWait:
                 bossMove.ResetAll();
                 bossMove.CanMove = false;
-                // Lock nhìn phải để laser không bị flip
+
                 if (bossMove.FlipDirect != 1)
                 {
-                    bossMove.FlipDirect = 1;
-                    transform.Rotate(0f, 180f, 0f);
+                    bossMove.FlipDirect    = 1;
+                    transform.rotation     = Quaternion.Euler(0f, 0f, 0f);
                 }
                 timer = s2LaserStartDelay;
                 break;
@@ -750,8 +763,6 @@ public class CalamitasSkillPhase2 : MonoBehaviour
     private Vector2 s3TeleportDest;
     private bool    s3TeleportDone;
 
-    // Override UpdateS3Teleport to wait for shadow then teleport
-    // (handled via timer field + special flag)
     private void UpdateS3Teleport_Tick()
     {
         timer -= DeltaTime;
@@ -785,7 +796,6 @@ public class CalamitasSkillPhase2 : MonoBehaviour
     {
         if (index >= s3WarnLines.Count || playerTransform == null) return;
 
-        // Spread đều quanh player theo trục X
         float offset = (index - (s3LineCount - 1) * 0.5f)
                      * (s3LineOffsetX / Mathf.Max(1, s3LineCount - 1));
         Vector2 start = new Vector2(
@@ -793,13 +803,12 @@ public class CalamitasSkillPhase2 : MonoBehaviour
             playerTransform.position.y + s3LineHighY
         );
 
-        // Hướng từ điểm spawn về phía player
         Vector2 dir      = ((Vector2)playerTransform.position - start).normalized;
         float   lineLen  = s3LineHighY + s3LineLowY;
         Vector2 end      = start + dir * lineLen;
         float   fireAngle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
 
-        s3LinePos[index]   = new Vector2(start.x, start.y);
+        s3LinePos[index]    = new Vector2(start.x, start.y);
         s3LineAngles[index] = fireAngle;
 
         var lr = s3WarnLines[index];
@@ -821,21 +830,22 @@ public class CalamitasSkillPhase2 : MonoBehaviour
             SpawnBulletAngle(daggerPool, dmgDagger, s3LinePos[i], s3LineAngles[i]);
     }
 
-    // Update override for S3Teleport
+    // ── Update ────────────────────────────────────────────────────
     private void Update()
     {
-        FacePlayer();
+
         switch (cur)
         {
+            case S.Intro:         UpdateIntro();            break;
             case S.Idle:          UpdateIdle();             break;
             case S.S1Start:       /* instant → S1Top */     break;
             case S.S1Top:         UpdateS1Top();            break;
             case S.S1Right:       UpdateS1Right();          break;
             case S.S1Left:        UpdateS1Left();           break;
             case S.S1BomberSpawn: UpdateS1BomberSpawn();    break;
-            case S.S2Teleport:    UpdateS2Teleport();      break;
-            case S.S2LaserWait:   UpdateS2LaserWait();     break;
-            case S.S2Ring:        UpdateS2Ring();          break;
+            case S.S2Teleport:    UpdateS2Teleport();       break;
+            case S.S2LaserWait:   UpdateS2LaserWait();      break;
+            case S.S2Ring:        UpdateS2Ring();           break;
             case S.S2DaggerWarn:  UpdateS2DaggerWarn();     break;
             case S.S2DaggerFire:  /* instant */             break;
             case S.S2Hellblast:   UpdateS2Hellblast();      break;
@@ -844,6 +854,17 @@ public class CalamitasSkillPhase2 : MonoBehaviour
             case S.S3LockOn:      UpdateS3LockOn();         break;
             case S.S3Fire:        /* instant */             break;
         }
+    }
+
+    private void UpdateIntro()
+    {
+        timer -= DeltaTime;
+        if (timer > 0f) return;
+
+        transform.position = Vector3.zero;
+        if (bossRenderer != null) bossRenderer.enabled = true;
+        bossMove.CanMove = true;
+        NextRot();
     }
 
     // ── Fire Helpers ──────────────────────────────────────────────
@@ -877,28 +898,11 @@ public class CalamitasSkillPhase2 : MonoBehaviour
         Vector2 d = ((Vector2)playerTransform.position - (Vector2)transform.position).normalized;
         return Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg;
     }
-
-    public bool LockFacing { get; private set; }
-
-    private void FacePlayer()
-    {
-        if (playerTransform == null) return;
-        if (cur == S.S2LaserWait || cur == S.S2Ring ||
-            cur == S.S2DaggerWarn || cur == S.S2DaggerFire || cur == S.S2Hellblast)
-        {
-            LockFacing = true;
-            return;
-        }
-        LockFacing = false;
-        float toPlayerX  = playerTransform.position.x - transform.position.x;
-        int   wantedFlip = toPlayerX >= 0f ? 1 : -1;
-        if (wantedFlip != bossMove.FlipDirect)
-        {
-            bossMove.FlipDirect = wantedFlip;
-            // ĐÃ SỬA THÀNH:
-            transform.rotation = Quaternion.Euler(0f, wantedFlip == 1 ? 0f : 180f, 0f);
-        }
-    }
+    
+    public bool LockFacing =>
+        cur == S.Intro        ||
+        cur == S.S2LaserWait  || cur == S.S2Ring       ||
+        cur == S.S2DaggerWarn || cur == S.S2DaggerFire || cur == S.S2Hellblast;
 
     private void FindPlayer()
     {
@@ -907,8 +911,17 @@ public class CalamitasSkillPhase2 : MonoBehaviour
     }
 
     // ── Line Helpers ──────────────────────────────────────────────
+    private static Material s_lineMat;
+
     private LineRenderer CreateLineRenderer(string name, Color color, float width)
     {
+        if (s_lineMat == null)
+        {
+            var shader = Shader.Find("Sprites/Default") ?? Shader.Find("UI/Default");
+            if (shader != null)
+                s_lineMat = new Material(shader) { hideFlags = HideFlags.HideAndDontSave };
+        }
+
         var go = new GameObject(name);
         go.transform.SetParent(null);
         var lr = go.AddComponent<LineRenderer>();
@@ -918,7 +931,7 @@ public class CalamitasSkillPhase2 : MonoBehaviour
         lr.useWorldSpace    = true;
         lr.sortingLayerName = "Default";
         lr.sortingOrder     = 10;
-        lr.material         = new Material(Shader.Find("Sprites/Default") ?? Shader.Find("UI/Default"));
+        lr.sharedMaterial   = s_lineMat;
         lr.startColor       = color;
         lr.endColor         = color;
         go.SetActive(false);

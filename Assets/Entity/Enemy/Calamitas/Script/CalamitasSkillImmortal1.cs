@@ -126,6 +126,8 @@ public class CalamitasSkillImmortal1 : MonoBehaviour
         bossRenderer = GetComponent<SpriteRenderer>()
                     ?? GetComponentInChildren<SpriteRenderer>();
 
+        EnsureLineMat();
+
         warnLineGo = new GameObject("Immortal1WarnLine");
         warnLineGo.transform.SetParent(null);
         warnLine                  = warnLineGo.AddComponent<LineRenderer>();
@@ -135,11 +137,19 @@ public class CalamitasSkillImmortal1 : MonoBehaviour
         warnLine.useWorldSpace    = true;
         warnLine.sortingLayerName = "Default";
         warnLine.sortingOrder     = 10;
-        warnLine.material         = new Material(
-            Shader.Find("Sprites/Default") ?? Shader.Find("UI/Default"));
-        warnLine.startColor = warnLineColor;
-        warnLine.endColor   = warnLineColor;
+        warnLine.sharedMaterial   = s_lineMat;
+        warnLine.startColor       = warnLineColor;
+        warnLine.endColor         = warnLineColor;
         warnLineGo.SetActive(false);
+    }
+
+    private static Material s_lineMat;
+    private static void EnsureLineMat()
+    {
+        if (s_lineMat != null) return;
+        var shader = Shader.Find("Sprites/Default") ?? Shader.Find("UI/Default");
+        if (shader != null)
+            s_lineMat = new Material(shader) { hideFlags = HideFlags.HideAndDontSave };
     }
 
     private void OnEnable()
@@ -528,6 +538,7 @@ public class CalamitasSkillImmortal1 : MonoBehaviour
     {
         while (patternWarnLines.Count <= index)
         {
+            EnsureLineMat();
             var go = new GameObject("Immortal1PatWarn_" + patternWarnLines.Count);
             go.transform.SetParent(null);
             var lr = go.AddComponent<LineRenderer>();
@@ -535,10 +546,9 @@ public class CalamitasSkillImmortal1 : MonoBehaviour
             lr.useWorldSpace    = true;
             lr.sortingLayerName = "Default";
             lr.sortingOrder     = 10;
-            lr.material         = new Material(
-                Shader.Find("Sprites/Default") ?? Shader.Find("UI/Default"));
-            lr.startColor = warnLineColor;
-            lr.endColor   = warnLineColor;
+            lr.sharedMaterial   = s_lineMat;
+            lr.startColor       = warnLineColor;
+            lr.endColor         = warnLineColor;
             go.SetActive(false);
             patternWarnLines.Add(lr);
         }

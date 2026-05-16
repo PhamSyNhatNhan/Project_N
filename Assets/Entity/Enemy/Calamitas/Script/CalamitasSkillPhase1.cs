@@ -109,9 +109,19 @@ public class CalamitasSkillPhase1 : MonoBehaviour
     private bool    tpWaiting;
     private float   tpPreTimer;
 
-    // Warning lines
-    private readonly List<LineRenderer> warnLines    = new List<LineRenderer>();
+    // ── Warning lines — pre-allocated pool ───────────────────────
+    // FIX: không Instantiate/Destroy mỗi cycle nữa.
+    // Toàn bộ LineRenderer được tạo 1 lần trong Awake(),
+    // ShowWarnLines() chỉ SetActive(true) + cập nhật position,
+    // ClearWarnLines() chỉ SetActive(false).
+    private readonly List<LineRenderer> warnLines = new List<LineRenderer>();
     private          GameObject         warnLineRoot;
+
+    // Cache hướng mỗi line (hằng số, tính 1 lần khi build pool)
+    private Vector3[] warnLineDirs;
+
+    // Shared material — tránh tạo Material instance mới mỗi LineRenderer
+    private static Material s_warnLineMat;
 
     private float DeltaTime => timeScale.DeltaTime;
 
@@ -128,6 +138,8 @@ public class CalamitasSkillPhase1 : MonoBehaviour
 
         warnLineRoot = new GameObject("Skill1WarnLines");
         warnLineRoot.transform.SetParent(null);
+
+        BuildWarnLinePool();
     }
 
     private void OnEnable()
@@ -214,9 +226,6 @@ public class CalamitasSkillPhase1 : MonoBehaviour
                 ShowWarnLines();
                 break;
 
-            // S1Ring không có trong enum — xử lý inline khi S1Warning hết timer
-            // → gọi FireS1Ring() rồi chuyển state trong UpdateS1Warning
-
             case S.S1Switch:
                 orbitSide *= -1;
                 timer      = skill1SwitchDelay;
@@ -233,7 +242,6 @@ public class CalamitasSkillPhase1 : MonoBehaviour
                     bossMove.MoveSnap = dir;
                     bossMove.MoveTo(dashVelocity, dashTime);
                 }
-                // Bắn ngay khi bắt đầu dash
                 FireHellfire(AngleToPlayer(), hellfireExtraPairs2, hellfireAngleStep2);
                 timer = dashTime;
                 break;
@@ -292,18 +300,15 @@ public class CalamitasSkillPhase1 : MonoBehaviour
         timer -= DeltaTime;
         if (timer > 0f) return;
 
-        // Warning hết → bắn ring + hellfire rồi chuyển ngay
         ClearWarnLines();
         FireS1Ring();
     }
 
     private void FireS1Ring()
     {
-        // Ring
         for (int i = 0; i < ringBulletCount; i++)
             FireCondemn(360f / ringBulletCount * i);
 
-        // Hellfire
         FireHellfire(AngleToPlayer(), hellfireExtraPairs1, hellfireAngleStep1);
 
         skill1Left--;
@@ -348,7 +353,6 @@ public class CalamitasSkillPhase1 : MonoBehaviour
         bossMove.StopMovement();
         if (dashFxObject != null) dashFxObject.SetActive(false);
 
-        // Cập nhật orbitSide theo vị trí thực sau khi dash
         if (playerTransform != null)
             orbitSide = transform.position.x >= playerTransform.position.x ? 1 : -1;
 
@@ -402,7 +406,6 @@ public class CalamitasSkillPhase1 : MonoBehaviour
         timer -= DeltaTime;
         if (timer > 0f) return;
 
-        // Teleport xong → bắn
         float half = teleportSpreadAngle * 0.5f;
         float ang  = AngleToPlayer() + UnityEngine.Random.Range(-half, half);
         FireHellfire(ang, hellfireExtraPairs3, hellfireAngleStep3);
@@ -480,58 +483,75 @@ public class CalamitasSkillPhase1 : MonoBehaviour
     }
 
     // ── Warning Lines ─────────────────────────────────────────────
-    private void ShowWarnLines()
+    private void BuildWarnLinePool()
     {
-        ClearWarnLines();
-        float step = 360f / ringBulletCount;
+        if (s_warnLineMat == null)
+        {
+            var shader = Shader.Find("Sprites/Default")
+                      ?? Shader.Find("UI/Default")
+                      ?? Shader.Find("Unlit/Color");
+            if (shader != null)
+                s_warnLineMat = new Material(shader) { hideFlags = HideFlags.HideAndDontSave };
+        }
+
+        warnLineDirs = new Vector3[ringBulletCount];
+        float step   = 360f / ringBulletCount;
+
         for (int i = 0; i < ringBulletCount; i++)
         {
-            float   a   = step * i;
-            Vector2 dir = new Vector2(Mathf.Cos(a * Mathf.Deg2Rad), Mathf.Sin(a * Mathf.Deg2Rad));
+            float   a   = step * i * Mathf.Deg2Rad;
+            warnLineDirs[i] = new Vector3(Mathf.Cos(a), Mathf.Sin(a), 0f);
 
             var go = new GameObject($"WL_{i}");
             go.transform.SetParent(warnLineRoot.transform);
 
-            var lr             = go.AddComponent<LineRenderer>();
-            lr.positionCount   = 2;
-            lr.startWidth      = warningLineWidth;
-            lr.endWidth        = warningLineWidth;
-            lr.useWorldSpace   = true;
+            var lr              = go.AddComponent<LineRenderer>();
+            lr.positionCount    = 2;
+            lr.startWidth       = warningLineWidth;
+            lr.endWidth         = warningLineWidth;
+            lr.useWorldSpace    = true;
             lr.sortingLayerName = "Default";
-            lr.sortingOrder    = 10;
-            lr.material        = new Material(Shader.Find("Sprites/Default")
-                                 ?? Shader.Find("UI/Default")
-                                 ?? Shader.Find("Unlit/Color"));
-            lr.startColor      = warningLineColor;
-            lr.endColor        = new Color(warningLineColor.r, warningLineColor.g,
-                                           warningLineColor.b, 0f);
-
-            Vector3 s = transform.position;
-            lr.SetPosition(0, s);
-            lr.SetPosition(1, s + new Vector3(dir.x, dir.y, 0f) * warningLineLength);
+            lr.sortingOrder     = 10;
+            lr.sharedMaterial   = s_warnLineMat;
+            lr.startColor       = warningLineColor;
+            lr.endColor         = new Color(warningLineColor.r, warningLineColor.g,
+                                            warningLineColor.b, 0f);
+            go.SetActive(false);
             warnLines.Add(lr);
         }
     }
-
-    private void UpdateWarnLines()
+    
+    private void ShowWarnLines()
     {
-        float step = 360f / ringBulletCount;
+        Vector3 origin = transform.position;
         for (int i = 0; i < warnLines.Count; i++)
         {
-            if (warnLines[i] == null) continue;
-            float   a   = step * i;
-            Vector2 dir = new Vector2(Mathf.Cos(a * Mathf.Deg2Rad), Mathf.Sin(a * Mathf.Deg2Rad));
-            Vector3 s   = transform.position;
-            warnLines[i].SetPosition(0, s);
-            warnLines[i].SetPosition(1, s + new Vector3(dir.x, dir.y, 0f) * warningLineLength);
+            var lr = warnLines[i];
+            if (lr == null) continue;
+            lr.SetPosition(0, origin);
+            lr.SetPosition(1, origin + warnLineDirs[i] * warningLineLength);
+            lr.gameObject.SetActive(true);
+        }
+    }
+
+    // UpdateWarnLines chỉ cập nhật origin (boss có thể đang move).
+    // Không cần tính lại dir vì warnLineDirs đã cache.
+    private void UpdateWarnLines()
+    {
+        Vector3 origin = transform.position;
+        for (int i = 0; i < warnLines.Count; i++)
+        {
+            var lr = warnLines[i];
+            if (lr == null) continue;
+            lr.SetPosition(0, origin);
+            lr.SetPosition(1, origin + warnLineDirs[i] * warningLineLength);
         }
     }
 
     private void ClearWarnLines()
     {
         foreach (var lr in warnLines)
-            if (lr != null) Destroy(lr.gameObject);
-        warnLines.Clear();
+            if (lr != null) lr.gameObject.SetActive(false);
     }
 
     // ── Gizmos ────────────────────────────────────────────────────
