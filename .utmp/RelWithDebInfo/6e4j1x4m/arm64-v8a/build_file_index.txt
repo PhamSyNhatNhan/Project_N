@@ -1,2 +1,0 @@
-F:\unity\Nhonn_Nhonn_S\Library\Bee\Android\Prj\IL2CPP\Gradle\unityLibrary\src\main\cpp\CMakeLists.txt
-F:\unity\Nhonn_Nhonn_S\Library\Bee\Android\Prj\IL2CPP\Gradle\unityLibrary\src\main\cpp\GameActivity\CMakeLists.txt

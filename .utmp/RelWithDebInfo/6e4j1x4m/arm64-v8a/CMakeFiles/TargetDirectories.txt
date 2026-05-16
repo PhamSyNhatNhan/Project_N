@@ -1,5 +1,0 @@
-F:/unity/Nhonn_Nhonn_S/.utmp/RelWithDebInfo/6e4j1x4m/arm64-v8a/CMakeFiles/edit_cache.dir
-F:/unity/Nhonn_Nhonn_S/.utmp/RelWithDebInfo/6e4j1x4m/arm64-v8a/CMakeFiles/rebuild_cache.dir
-F:/unity/Nhonn_Nhonn_S/.utmp/RelWithDebInfo/6e4j1x4m/arm64-v8a/GameActivity/CMakeFiles/game.dir
-F:/unity/Nhonn_Nhonn_S/.utmp/RelWithDebInfo/6e4j1x4m/arm64-v8a/GameActivity/CMakeFiles/edit_cache.dir
-F:/unity/Nhonn_Nhonn_S/.utmp/RelWithDebInfo/6e4j1x4m/arm64-v8a/GameActivity/CMakeFiles/rebuild_cache.dir
