@@ -1,0 +1,884 @@
+fileFormatVersion: 2
+guid: 75d7be129672c2849a88057d4652b28c
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: 4295242833984380888
+    second: HallAvaNews_0
+  - first:
+      213: -2985863046910707844
+    second: HallAvaNews_1
+  - first:
+      213: -6249522274095690701
+    second: HallAvaNews_2
+  - first:
+      213: 6282895851931948872
+    second: HallAvaNews_3
+  - first:
+      213: -4179171161467630009
+    second: HallAvaNews_4
+  - first:
+      213: -2430296142056315404
+    second: HallAvaNews_5
+  - first:
+      213: 8461871405793818105
+    second: HallAvaNews_6
+  - first:
+      213: 555106761627901982
+    second: HallAvaNews_7
+  - first:
+      213: 7484402877796164288
+    second: HallAvaNews_8
+  - first:
+      213: 5614887392055905236
+    second: HallAvaNews_9
+  - first:
+      213: -2132704252061808834
+    second: HallAvaNews_10
+  - first:
+      213: -5573102728620216975
+    second: HallAvaNews_11
+  - first:
+      213: -6762786291048260416
+    second: HallAvaNews_12
+  - first:
+      213: 7344280603637204431
+    second: HallAvaNews_13
+  - first:
+      213: -3890475357986936354
+    second: HallAvaNews_14
+  - first:
+      213: -3715392789078084713
+    second: HallAvaNews_15
+  - first:
+      213: 5936982409076552153
+    second: HallAvaNews_16
+  - first:
+      213: -1862321967759428544
+    second: HallAvaNews_17
+  - first:
+      213: -2910015756479366279
+    second: HallAvaNews_18
+  - first:
+      213: 456212772601095904
+    second: HallAvaNews_19
+  - first:
+      213: 936624978150388147
+    second: HallAvaNews_20
+  - first:
+      213: -7042356181885920582
+    second: HallAvaNews_21
+  - first:
+      213: -909535493969409369
+    second: HallAvaNews_22
+  - first:
+      213: -7793959947892577200
+    second: HallAvaNews_23
+  - first:
+      213: 4099553059165152484
+    second: HallAvaNews_24
+  - first:
+      213: -8487010268852657347
+    second: HallAvaNews_25
+  - first:
+      213: -5352772732136073712
+    second: HallAvaNews_26
+  - first:
+      213: 1832360001024740199
+    second: HallAvaNews_27
+  - first:
+      213: -3413149942239453910
+    second: HallAvaNews_28
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 1
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: HallAvaNews_0
+      rect:
+        serializedVersion: 2
+        x: 9
+        y: 19
+        width: 1168
+        height: 994
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8df5eafa994cb9b30800000000000000
+      internalID: 4295242833984380888
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HallAvaNews_1
+      rect:
+        serializedVersion: 2
+        x: 22
+        y: 856
+        width: 27
+        height: 50
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c77fbece0651096d0800000000000000
+      internalID: -2985863046910707844
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HallAvaNews_2
+      rect:
+        serializedVersion: 2
+        x: 48
+        y: 899
+        width: 13
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 33c82a46a9c3549a0800000000000000
+      internalID: -6249522274095690701
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HallAvaNews_3
+      rect:
+        serializedVersion: 2
+        x: 1
+        y: 844
+        width: 39
+        height: 48
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 847dd273d74513750800000000000000
+      internalID: 6282895851931948872
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HallAvaNews_4
+      rect:
+        serializedVersion: 2
+        x: 18
+        y: 826
+        width: 16
+        height: 24
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 74e4a2988f99006c0800000000000000
+      internalID: -4179171161467630009
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HallAvaNews_5
+      rect:
+        serializedVersion: 2
+        x: 1165
+        y: 762
+        width: 7
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4f52bb9f88ad54ed0800000000000000
+      internalID: -2430296142056315404
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HallAvaNews_6
+      rect:
+        serializedVersion: 2
+        x: 45
+        y: 744
+        width: 7
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9f5306de53b9e6570800000000000000
+      internalID: 8461871405793818105
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HallAvaNews_7
+      rect:
+        serializedVersion: 2
+        x: 46
+        y: 740
+        width: 12
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e10af3b98a224b700800000000000000
+      internalID: 555106761627901982
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HallAvaNews_8
+      rect:
+        serializedVersion: 2
+        x: 1142
+        y: 699
+        width: 22
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0c2a3f663c0fdd760800000000000000
+      internalID: 7484402877796164288
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HallAvaNews_9
+      rect:
+        serializedVersion: 2
+        x: 47
+        y: 676
+        width: 7
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4dbcf4985561ced40800000000000000
+      internalID: 5614887392055905236
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HallAvaNews_10
+      rect:
+        serializedVersion: 2
+        x: 1141
+        y: 670
+        width: 7
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e3704e448cc1762e0800000000000000
+      internalID: -2132704252061808834
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HallAvaNews_11
+      rect:
+        serializedVersion: 2
+        x: 1149
+        y: 664
+        width: 12
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 17de4db889c58a2b0800000000000000
+      internalID: -5573102728620216975
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HallAvaNews_12
+      rect:
+        serializedVersion: 2
+        x: 1168
+        y: 674
+        width: 9
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0ccdf26f2b1c522a0800000000000000
+      internalID: -6762786291048260416
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HallAvaNews_13
+      rect:
+        serializedVersion: 2
+        x: 1149
+        y: 659
+        width: 9
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: fc5469e1c402ce560800000000000000
+      internalID: 7344280603637204431
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HallAvaNews_14
+      rect:
+        serializedVersion: 2
+        x: 45
+        y: 213
+        width: 11
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ed927c74641420ac0800000000000000
+      internalID: -3890475357986936354
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HallAvaNews_15
+      rect:
+        serializedVersion: 2
+        x: 48
+        y: 220
+        width: 9
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 793f3fd71f5407cc0800000000000000
+      internalID: -3715392789078084713
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HallAvaNews_16
+      rect:
+        serializedVersion: 2
+        x: 48
+        y: 159
+        width: 6
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9d130caab06646250800000000000000
+      internalID: 5936982409076552153
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HallAvaNews_17
+      rect:
+        serializedVersion: 2
+        x: 35
+        y: 146
+        width: 6
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 044fa4e8904b726e0800000000000000
+      internalID: -1862321967759428544
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HallAvaNews_18
+      rect:
+        serializedVersion: 2
+        x: 47
+        y: 137
+        width: 19
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 97bf140661c8d97d0800000000000000
+      internalID: -2910015756479366279
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HallAvaNews_19
+      rect:
+        serializedVersion: 2
+        x: 250
+        y: 64
+        width: 27
+        height: 23
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0e662ec791bc45600800000000000000
+      internalID: 456212772601095904
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HallAvaNews_20
+      rect:
+        serializedVersion: 2
+        x: 457
+        y: 67
+        width: 9
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3b17966847f8ffc00800000000000000
+      internalID: 936624978150388147
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HallAvaNews_21
+      rect:
+        serializedVersion: 2
+        x: 477
+        y: 73
+        width: 6
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: abad9e45d56844e90800000000000000
+      internalID: -7042356181885920582
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HallAvaNews_22
+      rect:
+        serializedVersion: 2
+        x: 490
+        y: 65
+        width: 6
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7aa0853894ea063f0800000000000000
+      internalID: -909535493969409369
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HallAvaNews_23
+      rect:
+        serializedVersion: 2
+        x: 444
+        y: 64
+        width: 7
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 05cad38b8ba46d390800000000000000
+      internalID: -7793959947892577200
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HallAvaNews_24
+      rect:
+        serializedVersion: 2
+        x: 490
+        y: 59
+        width: 6
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4e4a76579c984e830800000000000000
+      internalID: 4099553059165152484
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HallAvaNews_25
+      rect:
+        serializedVersion: 2
+        x: 452
+        y: 29
+        width: 31
+        height: 31
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d33e1f76025183a80800000000000000
+      internalID: -8487010268852657347
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HallAvaNews_26
+      rect:
+        serializedVersion: 2
+        x: 490
+        y: 19
+        width: 12
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 016d1a17f8127b5b0800000000000000
+      internalID: -5352772732136073712
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HallAvaNews_27
+      rect:
+        serializedVersion: 2
+        x: 444
+        y: 19
+        width: 11
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 76bc6b176b9dd6910800000000000000
+      internalID: 1832360001024740199
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HallAvaNews_28
+      rect:
+        serializedVersion: 2
+        x: 480
+        y: 20
+        width: 11
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a2d1caf063e02a0d0800000000000000
+      internalID: -3413149942239453910
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 5e97eb03825dee720800000000000000
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      HallAvaNews_0: 4295242833984380888
+      HallAvaNews_1: -2985863046910707844
+      HallAvaNews_10: -2132704252061808834
+      HallAvaNews_11: -5573102728620216975
+      HallAvaNews_12: -6762786291048260416
+      HallAvaNews_13: 7344280603637204431
+      HallAvaNews_14: -3890475357986936354
+      HallAvaNews_15: -3715392789078084713
+      HallAvaNews_16: 5936982409076552153
+      HallAvaNews_17: -1862321967759428544
+      HallAvaNews_18: -2910015756479366279
+      HallAvaNews_19: 456212772601095904
+      HallAvaNews_2: -6249522274095690701
+      HallAvaNews_20: 936624978150388147
+      HallAvaNews_21: -7042356181885920582
+      HallAvaNews_22: -909535493969409369
+      HallAvaNews_23: -7793959947892577200
+      HallAvaNews_24: 4099553059165152484
+      HallAvaNews_25: -8487010268852657347
+      HallAvaNews_26: -5352772732136073712
+      HallAvaNews_27: 1832360001024740199
+      HallAvaNews_28: -3413149942239453910
+      HallAvaNews_3: 6282895851931948872
+      HallAvaNews_4: -4179171161467630009
+      HallAvaNews_5: -2430296142056315404
+      HallAvaNews_6: 8461871405793818105
+      HallAvaNews_7: 555106761627901982
+      HallAvaNews_8: 7484402877796164288
+      HallAvaNews_9: 5614887392055905236
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

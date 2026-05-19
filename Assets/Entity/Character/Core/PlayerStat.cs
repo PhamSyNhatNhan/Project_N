@@ -6,6 +6,21 @@ public class PlayerStat : Stat
     {
         base.ApplyData();
         LoadAvatar();
+        FireHealthEvent();
+    }
+
+    protected override void OnDead()
+    {
+        CanDamge = false;
+        EventManager.Gm.OnPlayerDead.Get().Invoke(this, null);
+    }
+
+    private void FireHealthEvent()
+    {
+        float buffedMax = BuffHealth.GetFinalValue(MaxHealth);
+        EventManager.Entity.OnEntityHealthChanged
+            .Get(entityKey)
+            .Invoke(this, buffedMax > 0f ? CurHealth / buffedMax : 0f);
     }
 
     private void LoadAvatar()

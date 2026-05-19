@@ -3,9 +3,10 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// Gắn lên prefab BuffIcon
+/// Gắn lên prefab BuffIcon.
 /// Stack text — dưới trái
 /// CD text    — dưới phải
+/// Value text — trên phải
 /// </summary>
 public class BuffIconUI : MonoBehaviour
 {
@@ -13,17 +14,18 @@ public class BuffIconUI : MonoBehaviour
     [SerializeField] private Image            iconImage;
     [SerializeField] private TextMeshProUGUI  stackText;  // dưới trái
     [SerializeField] private TextMeshProUGUI  cdText;     // dưới phải
+    [SerializeField] private TextMeshProUGUI  valueText;  // trên phải
 
     // ── Lifecycle ─────────────────────────────────────────────────
     private void Awake()
     {
-        // Auto-find nếu chưa gán trong Inspector
-        if (iconImage  == null) iconImage  = GetComponentInChildren<Image>();
-        if (stackText  == null || cdText == null)
+        if (iconImage == null) iconImage = GetComponentInChildren<Image>();
+        if (stackText == null || cdText == null || valueText == null)
         {
             var texts = GetComponentsInChildren<TextMeshProUGUI>();
             if (texts.Length >= 1 && stackText == null) stackText = texts[0];
             if (texts.Length >= 2 && cdText    == null) cdText    = texts[1];
+            if (texts.Length >= 3 && valueText == null) valueText = texts[2];
         }
     }
 
@@ -43,6 +45,7 @@ public class BuffIconUI : MonoBehaviour
             iconImage.sprite = data.Icon;
 
         UpdateStackText(data.CurStacks, data.MaxStacks);
+        UpdateValueText(data.Value);
         UpdateCdText(timeLeft);
     }
 
@@ -52,7 +55,11 @@ public class BuffIconUI : MonoBehaviour
         timeLeft    = data.Duration;
         hasDuration = data.Duration > 0f;
 
+        if (iconImage != null)
+            iconImage.sprite = data.Icon;
+
         UpdateStackText(data.CurStacks, data.MaxStacks);
+        UpdateValueText(data.Value);
         UpdateCdText(timeLeft);
     }
 
@@ -70,6 +77,21 @@ public class BuffIconUI : MonoBehaviour
     {
         if (stackText == null) return;
         stackText.text = (max > 0 && cur > 1) ? cur.ToString() : "";
+    }
+
+    /// <summary>
+    /// Hiện Value nếu >= 0. Ẩn nếu -1 (không dùng).
+    /// Backward compatible — effect không set Value thì text tự ẩn.
+    /// </summary>
+    private void UpdateValueText(float value)
+    {
+        if (valueText == null) return;
+        if (value < 0f)
+        {
+            valueText.text = "";
+            return;
+        }
+        valueText.text = Mathf.RoundToInt(value).ToString();
     }
 
     private void UpdateCdText(float time)

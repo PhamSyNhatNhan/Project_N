@@ -16,6 +16,9 @@ public class SkillIconUI : MonoBehaviour
     [SerializeField] private TextMeshProUGUI cdText;       // dưới phải
     [SerializeField] private TextMeshProUGUI counterText;  // trên phải
 
+    [Header("Fallback")]
+    [SerializeField] private Sprite placeholderIcon;
+
     // ── Runtime ───────────────────────────────────────────────────
     private SkillCdReadyData curData;
     private float            cdTimeLeft;
@@ -29,7 +32,7 @@ public class SkillIconUI : MonoBehaviour
         hasCd      = !data.IsInfinite && data.BaseCd > 0f;
 
         if (iconImage != null)
-            iconImage.sprite = data.Icon;
+            iconImage.sprite = data.Icon != null ? data.Icon : placeholderIcon;
 
         UpdateCharge(data);
         UpdateCounter(data);
@@ -67,7 +70,7 @@ public class SkillIconUI : MonoBehaviour
     private void UpdateCounter(SkillCdReadyData data)
     {
         if (counterText == null) return;
-        counterText.text = data.MaxCounter > 1 ? data.Counter.ToString() : "";
+        counterText.text = data.MaxCounter > 0 ? data.Counter.ToString() : "";
     }
 
     private void UpdateCd(float time)
@@ -80,5 +83,7 @@ public class SkillIconUI : MonoBehaviour
                     : "";
     }
 
-    public string SkillId => curData?.SkillId;
+    // ── Properties ────────────────────────────────────────────────
+    public string SkillId      => curData?.SkillId;
+    public int    DisplayOrder => curData?.DisplayOrder ?? 0;
 }

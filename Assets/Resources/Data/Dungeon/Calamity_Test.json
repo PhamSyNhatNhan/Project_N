@@ -1,0 +1,130 @@
+﻿{
+  "displayName": "Calamity_Test",
+  "description": "Chỉ dùng để test, nhớ gõ sau khi đã test xong",
+  
+  "previewPath": "Maps/Calamity_Preview",
+  "floors": [
+    {
+      "floorId": 1,
+      "roomType": "NormalCombat",
+      "bossId": null,
+      "sceneName": "ErNormalScene",
+      "scaling": {
+        "healthMultiplier": 0.0,
+        "defenseMultiplier": 0.0,
+        "resistantPhysicalMultiplier": 0.0,
+        "resistantMagicMultiplier": 0.0,
+        "attackMultiplier": 0.0,
+        "attackSpeedMultiplier": 0.0,
+        "bonusDamageMultiplier": 0.0,
+        "bonusPhysicalMultiplier": 0.0,
+        "bonusMagicMultiplier": 0.0,
+        "critRateMultiplier": 0.0,
+        "critDamageMultiplier": 0.0,
+        "multiplierDamageBonusMultiplier": 0.0,
+        "multiplierDamageTakenMultiplier": 0.0
+      },
+      "waves": [
+        { "enemyPool": ["CalamityEye", "CalamityEye"], "spawnDelay": 3.0 },
+        { "enemyPool": ["CalamityEye", "DespairStone", "DespairStone", "DespairStone"], "spawnDelay": 3.0 }
+      ]
+    },
+    {
+      "floorId": 2,
+      "roomType": "NormalCombat",
+      "bossId": null,
+      "sceneName": "ErNormalScene",
+      "scaling": {
+        "healthMultiplier": 20.0,
+        "defenseMultiplier": 15.0,
+        "resistantPhysicalMultiplier": 0.0,
+        "resistantMagicMultiplier": 0.0,
+        "attackMultiplier": 10.0,
+        "attackSpeedMultiplier": 0.0,
+        "bonusDamageMultiplier": 0.0,
+        "bonusPhysicalMultiplier": 0.0,
+        "bonusMagicMultiplier": 0.0,
+        "critRateMultiplier": 0.0,
+        "critDamageMultiplier": 0.0,
+        "multiplierDamageBonusMultiplier": 0.0,
+        "multiplierDamageTakenMultiplier": 0.0
+      },
+      "waves": [
+        { "enemyPool": ["DespairStone", "DespairStone", "DespairStone", "CalamityEye"], "spawnDelay": 3.0 },
+        { "enemyPool": ["HeatSpirit", "HeatSpirit", "HeatSpirit", "CalamityEye"], "spawnDelay": 3.0 }
+      ]
+    },
+    {
+      "floorId": 3,
+      "roomType": "NormalCombat",
+      "bossId": null,
+      "sceneName": "ErNormalScene",
+      "scaling": {
+        "healthMultiplier": 40.0,
+        "defenseMultiplier": 30.0,
+        "resistantPhysicalMultiplier": 0.0,
+        "resistantMagicMultiplier": 0.0,
+        "attackMultiplier": 15.0,
+        "attackSpeedMultiplier": 0.0,
+        "bonusDamageMultiplier": 0.0,
+        "bonusPhysicalMultiplier": 0.0,
+        "bonusMagicMultiplier": 0.0,
+        "critRateMultiplier": 0.0,
+        "critDamageMultiplier": 0.0,
+        "multiplierDamageBonusMultiplier": 0.0,
+        "multiplierDamageTakenMultiplier": 0.0
+      },
+      "waves": [
+        { "enemyPool": ["HeatSpirit", "HeatSpirit", "HeatSpirit", "DespairStone", "DespairStone", "DespairStone"], "spawnDelay": 3.0 },
+        { "enemyPool": ["RenegadeWarlock", "CalamityEye", "CalamityEye", "HeatSpirit", "HeatSpirit", "HeatSpirit"], "spawnDelay": 4.0 },
+        { "enemyPool": ["RenegadeWarlock", "DespairStone", "DespairStone", "DespairStone", "CalamityEye"], "spawnDelay": 4.0 }
+      ]
+    },
+    {
+      "floorId": 4,
+      "roomType": "Shop",
+      "bossId": null,
+      "sceneName": "ErShopScene",
+      "scaling": {
+        "healthMultiplier": 0.0,
+        "defenseMultiplier": 0.0,
+        "resistantPhysicalMultiplier": 0.0,
+        "resistantMagicMultiplier": 0.0,
+        "attackMultiplier": 0.0,
+        "attackSpeedMultiplier": 0.0,
+        "bonusDamageMultiplier": 0.0,
+        "bonusPhysicalMultiplier": 0.0,
+        "bonusMagicMultiplier": 0.0,
+        "critRateMultiplier": 0.0,
+        "critDamageMultiplier": 0.0,
+        "multiplierDamageBonusMultiplier": 0.0,
+        "multiplierDamageTakenMultiplier": 0.0
+      },
+      "waves": null
+    },
+    {
+      "floorId": 5,
+      "roomType": "Boss",
+      "bossId": "Boss_1",
+      "sceneName": "ErBoss_1Scene",
+      "scaling": {
+        "healthMultiplier": 60.0,
+        "defenseMultiplier": 45.0,
+        "resistantPhysicalMultiplier": 0.0,
+        "resistantMagicMultiplier": 0.0,
+        "attackMultiplier": 20.0,
+        "attackSpeedMultiplier": 0.0,
+        "bonusDamageMultiplier": 0.0,
+        "bonusPhysicalMultiplier": 0.0,
+        "bonusMagicMultiplier": 0.0,
+        "critRateMultiplier": 0.0,
+        "critDamageMultiplier": 0.0,
+        "multiplierDamageBonusMultiplier": 0.0,
+        "multiplierDamageTakenMultiplier": 0.0
+      },
+      "waves": [
+        { "enemyPool": ["Boss_1"], "spawnDelay": 3.0 }
+      ]
+    }
+  ]
+}

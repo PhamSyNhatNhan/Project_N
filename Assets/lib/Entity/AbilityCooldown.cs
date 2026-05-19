@@ -1,11 +1,18 @@
 using UnityEngine;
 
+/// <summary>
+/// Quản lý cooldown và charge cho skill.
+/// Hỗ trợ 2 chế độ: PerStack (hồi từng charge) và AllAtOnce (hồi cả cụm).
+/// Reduce CD qua flat (giây) và percent (%).
+/// Fire OnEntitySkillCdReady mỗi khi trạng thái thay đổi để UI cập nhật.
+/// </summary>
 public class AbilityCooldown
 {
     // ── Config ────────────────────────────────────────────────────
     private readonly string     skillId;
     private readonly string     entityKey;
     private readonly Sprite     icon;
+    private readonly bool       showOnUI;
     private          float      baseCd;
     private          int        maxCharge;
     private          ChargeMode chargeMode;
@@ -27,6 +34,7 @@ public class AbilityCooldown
     public bool   IsOnCd    => isOnCd;
     public float  CdLeft    => isOnCd ? timer : 0f;
     public Sprite Icon      => icon;
+    public bool   ShowOnUI  => showOnUI;
 
     /// <summary>CD thực tế sau khi apply reduce</summary>
     public float ActualCd
@@ -43,7 +51,8 @@ public class AbilityCooldown
     public AbilityCooldown(string skillId, string entityKey, float baseCd,
                            int        maxCharge  = 1,
                            ChargeMode chargeMode = ChargeMode.PerStack,
-                           Sprite     icon       = null)
+                           Sprite     icon       = null,
+                           bool       showOnUI   = false)
     {
         this.skillId    = skillId;
         this.entityKey  = entityKey;
@@ -51,6 +60,7 @@ public class AbilityCooldown
         this.maxCharge  = maxCharge;
         this.chargeMode = chargeMode;
         this.icon       = icon;
+        this.showOnUI   = showOnUI;
 
         curCharge = maxCharge;
         timer     = 0f;
@@ -78,7 +88,7 @@ public class AbilityCooldown
             {
                 isOnCd = false;
                 timer  = 0f;
-                FireEvent(); // fire sau khi isOnCd = false → IsRemoved tính đúng
+                FireEvent();
             }
         }
         else // AllAtOnce
@@ -91,19 +101,19 @@ public class AbilityCooldown
     }
 
     // ── Use ───────────────────────────────────────────────────────
-    /// <summary>
-    /// Kích hoạt CD — gọi lúc đầu hoặc cuối skill tùy người dùng quyết định.
-    /// Trả về false nếu không còn charge.
-    /// </summary>
-    /// <summary>Fire event lần đầu khi khởi tạo — dùng cho skill có charge > 1</summary>
-    public void FireInitialEvent() => FireEvent();
+    /// <summary>Fire event lần đầu khi khởi tạo — dùng cho skill có showOnUI = true</summary>
+    public void FireInitialEvent()
+    {
+        if (!showOnUI) return;
+        FireEvent();
+    }
 
     public bool Use()
     {
         if (curCharge <= 0) return false;
         curCharge--;
         StartCdIfNeeded();
-        FireEvent(); // fire ngay khi dùng để UI bắt đầu đếm CD
+        FireEvent();
         return true;
     }
 
@@ -137,28 +147,29 @@ public class AbilityCooldown
 
     private void FireEvent()
     {
-        // IsRemoved = true khi skill không có charge (maxCharge <= 1) và không đang CD
-        bool isRemoved = maxCharge <= 1 && !isOnCd;
+        bool isRemoved = maxCharge <= 1 && !isOnCd && !showOnUI;
 
         EventManager.Entity.OnEntitySkillCdReady
             .Get(entityKey)
             .Invoke(null, new SkillCdReadyData
             {
-                SkillId    = skillId,
-                Icon       = icon,
-                CurCharge  = curCharge,
-                MaxCharge  = maxCharge,
-                CdLeft     = CdLeft,
-                BaseCd     = ActualCd,
-                Counter    = 0,
-                MaxCounter = 0,
-                IsInfinite = false,
-                IsRemoved  = isRemoved
+                SkillId      = skillId,
+                Icon         = icon,
+                CurCharge    = curCharge,
+                MaxCharge    = maxCharge,
+                CdLeft       = CdLeft,
+                BaseCd       = ActualCd,
+                Counter      = 0,
+                MaxCounter   = 0,
+                IsInfinite   = false,
+                ShowOnUI     = showOnUI,
+                DisplayOrder = 0,
+                IsRemoved    = isRemoved
             });
     }
 }
 
-/// <summary>Data kèm theo event khi charge hồi xong</summary>
+/// <summary>Data kèm theo event khi CD/counter/state thay đổi</summary>
 public class SkillCdReadyData
 {
     public string SkillId    { get; set; }
@@ -166,7 +177,7 @@ public class SkillCdReadyData
 
     // ── Charge ────────────────────────────────────────────────────
     public int   CurCharge  { get; set; }
-    public int   MaxCharge  { get; set; }  
+    public int   MaxCharge  { get; set; }
 
     // ── CD ────────────────────────────────────────────────────────
     public float CdLeft     { get; set; }
@@ -174,10 +185,14 @@ public class SkillCdReadyData
 
     // ── Counter ───────────────────────────────────────────────────
     public int   Counter    { get; set; }
-    public int   MaxCounter { get; set; }  
+    public int   MaxCounter { get; set; }
 
     // ── Infinite ──────────────────────────────────────────────────
     public bool  IsInfinite { get; set; }
+
+    // ── Display ───────────────────────────────────────────────────
+    public bool  ShowOnUI     { get; set; }
+    public int   DisplayOrder { get; set; }
 
     // ── State ─────────────────────────────────────────────────────
     public bool  IsRemoved  { get; set; }

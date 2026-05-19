@@ -33,7 +33,7 @@ public class InfernoBulletExplosion : ProjectileObject
             var em = Enemy[i].GetComponent<StatusEffectManager>();
             if (em == null) continue;
 
-            em.AddStack(new BurnEffect(), stat, duration: 5f, tickInterval: 0.5f, maxStacks: 5);
+            em.AddStack(EffectType.Burn, stat);
         }
     }
     

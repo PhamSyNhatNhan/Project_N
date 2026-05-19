@@ -17,7 +17,6 @@ public class RunSaveData
     public float curHealth;
 
     // ── Bonus Flat ────────────────────────────────────────────────
-    // Chỉ các chỉ số có base value lớn, có ý nghĩa khi cộng flat
     public float bonusFlatHealth;
     public float bonusFlatDefense;
     public float bonusFlatResistantPhysical;
@@ -41,4 +40,10 @@ public class RunSaveData
 
     // ── RogueBuff ─────────────────────────────────────────────────
     public RogueBuffSaveData rogueBuffData;
+
+    // ── Run Stats ─────────────────────────────────────────────────
+    public float runTime;
+    public int   normalRoomsCleared;
+    public int   shopRoomsCleared;
+    public int   bossRoomsCleared;
 }

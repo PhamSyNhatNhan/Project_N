@@ -132,9 +132,15 @@ public class EasyRotate : MonoBehaviour
     void SetAngle(float angle)
     {
         if (useLocalRotation)
-            transform.localRotation = Quaternion.Euler(0f, 0f, angle);
+        {
+            Vector3 e = transform.localEulerAngles;
+            transform.localRotation = Quaternion.Euler(e.x, e.y, angle);
+        }
         else
-            transform.rotation = Quaternion.Euler(0f, 0f, angle);
+        {
+            Vector3 e = transform.eulerAngles;
+            transform.rotation = Quaternion.Euler(e.x, e.y, angle);
+        }
     }
 
     // ── API công khai ─────────────────────────────────────────────────────

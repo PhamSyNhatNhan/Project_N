@@ -44,6 +44,11 @@ public class ExitGate : InteractiveObject
         EventManager.Ui.TriggerInteractiveUiEvent.Get()
             .Invoke(this, new InteractiveUiData(false, nameObject));
 
+        // Fire OnRoomCleared nếu chưa clear (Shop room)
+        var run = DungeonFlowManager.Instance.CurrentRun;
+        if (run != null && !run.isRoomCleared)
+            EventManager.Gm.OnRoomCleared.Get().Invoke(this, null);
+
         if (IsFinalFloor())
         {
             // Tầng cuối — save rồi về Start, không chọn buff
@@ -52,7 +57,7 @@ public class ExitGate : InteractiveObject
         else
         {
             // Hiện màn chọn buff
-            EventManager.Gm.OnRogueBuffSelectOpen.Get().Invoke(this, null);
+            EventManager.Gm.OnRogueBuffSelectOpen.Get().Invoke(this, BuffSelectSource.ExitGate);
         }
 
         Destroy(gameObject);

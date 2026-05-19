@@ -1,9 +1,11 @@
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 /// <summary>
 /// Quản lý skill icon — subscribe OnEntitySkillCdReady
 /// Mặc định tự tìm Player qua tag
+/// Thứ tự hiển thị: AbilityCooldown (0) → AbilityCounter (1) → AbilityInfinite (2)
 /// </summary>
 public class SkillPanel : MonoBehaviour
 {
@@ -41,6 +43,7 @@ public class SkillPanel : MonoBehaviour
     private void OnSkillCdChanged(Component sender, object data)
     {
         if (data is not SkillCdReadyData skillData) return;
+        if (!skillData.ShowOnUI) return;
 
         if (skillData.IsRemoved)
         {
@@ -49,9 +52,14 @@ public class SkillPanel : MonoBehaviour
         }
 
         if (activeIcons.TryGetValue(skillData.SkillId, out var existing))
+        {
             existing.Refresh(skillData);
+        }
         else
+        {
             AddIcon(skillData);
+            SortIcons();
+        }
     }
 
     private void RemoveIcon(string skillId)
@@ -59,6 +67,7 @@ public class SkillPanel : MonoBehaviour
         if (!activeIcons.TryGetValue(skillId, out var icon)) return;
         Destroy(icon.gameObject);
         activeIcons.Remove(skillId);
+        SortIcons();
     }
 
     // ── Internal ──────────────────────────────────────────────────
@@ -81,6 +90,21 @@ public class SkillPanel : MonoBehaviour
 
         icon.SetData(data);
         activeIcons[data.SkillId] = icon;
+    }
+
+    /// <summary>
+    /// Sắp xếp lại toàn bộ icon theo DisplayOrder.
+    /// Cùng DisplayOrder → giữ thứ tự hiện tại (ổn định).
+    /// </summary>
+    private void SortIcons()
+    {
+        var sorted = activeIcons.Values
+            .Where(icon => icon != null)
+            .OrderBy(icon => icon.DisplayOrder)
+            .ToList();
+
+        for (int i = 0; i < sorted.Count; i++)
+            sorted[i].transform.SetSiblingIndex(i);
     }
 
     private void Subscribe()

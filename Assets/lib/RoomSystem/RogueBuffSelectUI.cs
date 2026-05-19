@@ -23,6 +23,7 @@ public class RogueBuffSelectUI : MonoBehaviour
     private List<BuffCardUI>  _cards        = new List<BuffCardUI>();
     private BuffGroupId       _selectedGroup;
     private RogueBuffGroup    _selectedPrefab;
+    private BuffSelectSource  _source;
     private enum Step { SelectGroup, SelectMinor }
     private Step _currentStep;
 
@@ -45,6 +46,8 @@ public class RogueBuffSelectUI : MonoBehaviour
     // ── Handler ───────────────────────────────────────────────────
     private void HandleOpen(Component sender, object data)
     {
+        _source = data is BuffSelectSource s ? s : BuffSelectSource.ExitGate;
+
         if (illustrationImage != null)
             illustrationImage.sprite = data is Sprite sprite ? sprite : defaultIllustration;
 
@@ -147,7 +150,9 @@ public class RogueBuffSelectUI : MonoBehaviour
             DungeonFlowManager.Instance.CurrentRun.isBuffSelected = true;
 
         Hide();
-        DungeonFlowManager.Instance?.HandleRogueBuffSelected();
+
+        if (_source == BuffSelectSource.ExitGate)
+            DungeonFlowManager.Instance?.HandleRogueBuffSelected();
     }
 
     /// <summary>Deselect tất cả card trừ card đang được chọn.</summary>

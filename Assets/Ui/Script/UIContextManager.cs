@@ -13,6 +13,12 @@ public class UIContextManager : MonoBehaviour
     [Header("Combat UI — Pc, Mobile, HealthBar group")]
     [SerializeField] private GameObject[] combatGroup;
 
+    [Header("Hall UI — HallUIManager và các thành phần Hall")]
+    [SerializeField] private GameObject[] hallGroup;
+
+    [Header("Overlay UI — DeathScreen, EndRun (hiện trong dungeon, ẩn ở Hall/Start)")]
+    [SerializeField] private GameObject[] overlayGroup;
+
     [Header("Loading Screen")]
     [SerializeField] private GameObject loadingScreenUI;
 
@@ -55,18 +61,23 @@ public class UIContextManager : MonoBehaviour
 
         SetCombatGroup(false);
 
+        bool isHall     = scene.name == "Hall";
+        bool isDungeon  = scene.name != "Hall" && scene.name != "Start";
+        SetHallGroup(isHall);
+        SetOverlayGroup(isDungeon);
+
         if (scene.name == "Start")
             EventManager.Ui.TriggerLoadingScene.Get().RemoveListener(HandleLoadingScene);
         else
             EventManager.Ui.TriggerLoadingScene.Get().AddListener(HandleLoadingScene);
 
-        if (scene.name == "Hall" && HallController.ShouldContinue)
+        if (isHall && HallController.ShouldContinue)
         {
             HallController.ShouldContinue = false;
             DungeonFlowManager.Instance?.ContinueRun();
         }
     }
-    
+
     private void HandleStartCombat(Component sender, object data)
     {
         SetCombatGroup(true);
@@ -120,5 +131,20 @@ public class UIContextManager : MonoBehaviour
         if (combatGroup == null) return;
         foreach (var go in combatGroup)
             if (go != null) go.SetActive(active);
+    }
+
+    private void SetHallGroup(bool active)
+    {
+        if (hallGroup == null) return;
+        foreach (var go in hallGroup)
+            if (go != null) go.SetActive(active);
+    }
+
+    private void SetOverlayGroup(bool active)
+    {
+        if (overlayGroup == null) return;
+        if (active) return; 
+        foreach (var go in overlayGroup)
+            if (go != null) go.SetActive(false);
     }
 }

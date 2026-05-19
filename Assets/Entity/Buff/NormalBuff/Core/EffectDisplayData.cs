@@ -12,8 +12,6 @@ public class EffectDisplayData
     public EffectType     Type        { get; set; }
     public EffectCategory Category    { get; set; }
     public string         DisplayName { get; set; }
-
-    // Effect tự quyết định truyền icon nào tùy trạng thái
     public Sprite         Icon        { get; set; }
 
     // ── Duration — UI tự đếm từ đây ──────────────────────────────
@@ -23,6 +21,10 @@ public class EffectDisplayData
     // CurStacks = MaxStacks = 0 nếu không phải StackingEffect
     public int CurStacks { get; set; }
     public int MaxStacks { get; set; }
+
+    // ── Value — tùy effect dùng (Shield: curShield, ...) ─────────
+    // -1 = không dùng, UI bỏ qua
+    public float Value { get; set; } = -1f;
 
     // ── State ─────────────────────────────────────────────────────
     // true → UI xóa icon, false → UI thêm/cập nhật icon

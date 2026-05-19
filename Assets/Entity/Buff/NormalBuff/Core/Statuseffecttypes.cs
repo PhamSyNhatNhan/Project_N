@@ -47,8 +47,22 @@ public abstract class StackingEffect : StatusEffect
         FireEvent();
     }
 
-    public virtual void AddStack()
+    public virtual void AddStack(int newMaxStacks = -1,
+                                 float newDuration = -1f,
+                                 float newTickInterval = -1f,
+                                 bool? newRefreshOnStack = null,
+                                 bool? newStackResetOnExpire = null)
     {
+        // Cập nhật maxStacks nếu source mới có max cao hơn
+        if (newMaxStacks > maxStacks)
+            maxStacks = newMaxStacks;
+
+        // Cập nhật duration, tickInterval, flags từ source mới
+        if (newDuration      >= 0f) Duration      = newDuration;
+        if (newTickInterval  >= 0f) tickInterval   = newTickInterval;
+        if (newRefreshOnStack.HasValue)     refreshOnStack     = newRefreshOnStack.Value;
+        if (newStackResetOnExpire.HasValue) stackResetOnExpire = newStackResetOnExpire.Value;
+
         if (curStacks >= maxStacks)
         {
             // Đã max stack — chỉ refresh duration nếu được cấu hình
@@ -133,7 +147,7 @@ public abstract class StackableEffect : StatusEffect
     protected int   curStacks       = 0;
     protected bool  isTriggerActive = false;
     protected float triggerTimer    = 0f;
-    private   float stackDecayTimer = 0f;  // đếm ngược đến khi reset stack
+    protected float stackDecayTimer = 0f;  // đếm ngược đến khi reset stack
 
     public int   CurStacks       => curStacks;
     public int   Threshold       => threshold;
@@ -166,12 +180,23 @@ public abstract class StackableEffect : StatusEffect
         FireEvent();
     }
 
-    public virtual void AddStack(int amount = 1)
+    public virtual void AddStack(int amount = 1,
+                                 int   newThreshold       = -1,
+                                 float newTriggerDuration = -1f,
+                                 float newStackDuration   = -1f)
     {
+        // threshold — lấy min (dễ trigger hơn)
+        if (newThreshold > 0 && newThreshold < threshold)
+            threshold = newThreshold;
+
+        // triggerDuration, stackDuration — lấy max (kéo dài hơn)
+        if (newTriggerDuration > triggerDuration) triggerDuration = newTriggerDuration;
+        if (newStackDuration   > stackDuration)   stackDuration   = newStackDuration;
+
         if (isTriggerActive && !canStackDuringTrigger) return;
 
         curStacks      += amount;
-        stackDecayTimer = stackDuration; // reset decay timer mỗi lần thêm stack
+        stackDecayTimer = stackDuration;
         OnStackAdded(amount);
         FireEvent();
 

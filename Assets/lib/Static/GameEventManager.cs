@@ -224,6 +224,50 @@ public static class EventManager
         public GenericEvent<SpawnCountdownEvent> OnSpawnCountdown = new GenericEvent<SpawnCountdownEvent>(
             (source, dest) => source.AddListener(dest.Invoke)
         );
+        
+        // object: RunSaveData — fire khi hoàn thành run
+        public class RunCompletedEvent : UnityEvent<Component, object> { }
+        public GenericEvent<RunCompletedEvent> OnRunCompleted = new GenericEvent<RunCompletedEvent>(
+            (source, dest) => source.AddListener(dest.Invoke)
+        );
+        
+        // object: null — fire khi player chết
+        public class PlayerDeadEvent : UnityEvent<Component, object> { }
+        public GenericEvent<PlayerDeadEvent> OnPlayerDead = new GenericEvent<PlayerDeadEvent>(
+            (source, dest) => source.AddListener(dest.Invoke)
+        );
+        
+        // object: null — fire khi EntityLoader.Start xong, channel = entityKey
+        public class EntityLoadedEvent : UnityEvent<Component, object> { }
+        public GenericEvent<EntityLoadedEvent> OnEntityLoaded = new GenericEvent<EntityLoadedEvent>(
+            (source, dest) => source.AddListener(dest.Invoke)
+        );
+        
+        // object: null — fire khi Shard hoặc UnlockedTalents thay đổi
+        public class UserDataChangedEvent : UnityEvent<Component, object> { }
+        public GenericEvent<UserDataChangedEvent> OnUserDataChanged = new GenericEvent<UserDataChangedEvent>(
+            (source, dest) => source.AddListener(dest.Invoke)
+        );
+        
+        // object: null — fire khi confirm chọn nhân vật, HallUIManager mở MapSelect
+        public class CharacterConfirmedEvent : UnityEvent<Component, object> { }
+        public GenericEvent<CharacterConfirmedEvent> OnCharacterConfirmed = new GenericEvent<CharacterConfirmedEvent>(
+            (source, dest) => source.AddListener(dest.Invoke)
+        );
+        
+        // object: null — channel = entityKey của player
+        // Player lắng nghe channel của mình → hồi full HP
+        public class ShopHealEvent : UnityEvent<Component, object> { }
+        public GenericEvent<ShopHealEvent> OnShopHeal = new GenericEvent<ShopHealEvent>(
+            (source, dest) => source.AddListener(dest.Invoke)
+        );
+ 
+        // object: null — broadcast không channel
+        // Cả 2 shop item lắng nghe → khi 1 cái được dùng, cái kia SetActive(false)
+        public class ShopItemUsedEvent : UnityEvent<Component, object> { }
+        public GenericEvent<ShopItemUsedEvent> OnShopItemUsed = new GenericEvent<ShopItemUsedEvent>(
+            (source, dest) => source.AddListener(dest.Invoke)
+        );
     }
 }
 

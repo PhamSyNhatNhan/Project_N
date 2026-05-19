@@ -2065,7 +2065,7 @@ MonoBehaviour:
   spawnMode: 1
   spawnPoints: []
   zoneShape: 0
-  zoneSize: {x: 10, y: 6}
+  zoneSize: {x: 9.54, y: 6.25}
   zoneRadius: 5
 --- !u!114 &2069496255
 MonoBehaviour:

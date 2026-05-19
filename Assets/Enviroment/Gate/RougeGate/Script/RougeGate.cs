@@ -19,6 +19,8 @@ public class RougeGate : InteractiveObject
 
     private void OpenCharacterSelect()
     {
+        Debug.Log("[RougeGate] OpenCharacterSelect called");
+
         EventManager.Gm.OnOpenCharacterSelect.Get().Invoke(this, null);
     }
 

@@ -1,6 +1,14 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+/// <summary>
+/// Base class quản lý toàn bộ skill của entity.
+/// Load data từ JSON qua ILoadable, phân loại thành 3 cơ chế:
+///   - AbilityCooldown : skill có cooldown timer thực sự
+///   - AbilityCounter  : skill dựa trên stack/counter
+///   - AbilityInfinite : hiển thị trạng thái, không có CD
+/// Cung cấp IsReady() và Use() chung tự động tìm đúng loại.
+/// </summary>
 public class Skill : MonoBehaviour, ILoadable<SkillListData>
 {
     protected bool canSkill = true;
@@ -12,8 +20,10 @@ public class Skill : MonoBehaviour, ILoadable<SkillListData>
 
     // ── Data & CD ─────────────────────────────────────────────────
     // key = skillId
-    protected Dictionary<string, SkillData>       skillData = new Dictionary<string, SkillData>();
-    protected Dictionary<string, AbilityCooldown> skillCd   = new Dictionary<string, AbilityCooldown>();
+    protected Dictionary<string, SkillData>       skillData     = new Dictionary<string, SkillData>();
+    protected Dictionary<string, AbilityCooldown> skillCd       = new Dictionary<string, AbilityCooldown>();
+    protected Dictionary<string, AbilityCounter>  skillCounter  = new Dictionary<string, AbilityCounter>();
+    protected Dictionary<string, AbilityInfinite> skillInfinite = new Dictionary<string, AbilityInfinite>();
 
     // ── Lifecycle ─────────────────────────────────────────────────
     protected virtual void Awake()
@@ -21,7 +31,7 @@ public class Skill : MonoBehaviour, ILoadable<SkillListData>
         timeScale = GetComponent<TimeScale>();
         stat      = GetComponent<Stat>();
     }
-    
+
     protected virtual void Start() {}
 
     protected virtual void Update()
@@ -48,6 +58,13 @@ public class Skill : MonoBehaviour, ILoadable<SkillListData>
     public virtual void ApplyData()
     {
         skillCd.Clear();
+        skillCounter.Clear();
+        skillInfinite.Clear();
+
+        string entityKey = stat != null
+            ? $"{stat.NameCharacter}_{stat.GetInstanceID()}"
+            : "";
+
         foreach (var pair in skillData)
         {
             SkillData data = pair.Value;
@@ -60,26 +77,68 @@ public class Skill : MonoBehaviour, ILoadable<SkillListData>
                     Debug.LogWarning($"[Skill] Không tìm thấy icon: '{data.iconPath}'");
             }
 
-            if (data.cooldown <= 0f) continue;
+            bool showOnUI  = data.Get<bool>("showOnUI", false);
+            string cdType  = data.Get<string>("cdType", "cooldown");
 
-            int        maxCharge  = data.Get<int>("maxCharge", 1);
-            ChargeMode chargeMode = data.Get<string>("chargeMode", "PerStack") == "AllAtOnce"
-                                    ? ChargeMode.AllAtOnce
-                                    : ChargeMode.PerStack;
+            switch (cdType)
+            {
+                case "infinite":
+                {
+                    bool initReady = data.Get<bool>("isReady", false);
+                    var inf = new AbilityInfinite(
+                        skillId:   data.skillId,
+                        entityKey: entityKey,
+                        isReady:   initReady,
+                        showOnUI:  showOnUI,
+                        icon:      data.icon
+                    );
+                    skillInfinite[data.skillId] = inf;
+                    inf.FireInitialEvent();
+                    break;
+                }
 
-            skillCd[data.skillId] = new AbilityCooldown(
-                skillId:    data.skillId,
-                entityKey:  stat != null ? $"{stat.NameCharacter}_{stat.GetInstanceID()}" : data.skillId,
-                baseCd:     data.cooldown,
-                maxCharge:  maxCharge,
-                chargeMode: chargeMode,
-                icon:       data.icon
-            );
+                case "counter":
+                {
+                    int maxCounter = data.Get<int>("maxCounter", 1);
+                    var ct = new AbilityCounter(
+                        skillId:    data.skillId,
+                        entityKey:  entityKey,
+                        maxCounter: maxCounter,
+                        showOnUI:   showOnUI,
+                        icon:       data.icon
+                    );
+                    skillCounter[data.skillId] = ct;
+                    ct.FireInitialEvent();
+                    break;
+                }
 
-            // Fire lần đầu cho skill có charge > 1 để SkillPanel hiển thị ngay
-            if (maxCharge > 1)
-                skillCd[data.skillId].FireInitialEvent();
+                default: // "cooldown" hoặc không có cdType → AbilityCooldown như cũ
+                {
+                    if (data.cooldown <= 0f) break;
+
+                    int        maxCharge  = data.Get<int>("maxCharge", 1);
+                    ChargeMode chargeMode = data.Get<string>("chargeMode", "PerStack") == "AllAtOnce"
+                                           ? ChargeMode.AllAtOnce
+                                           : ChargeMode.PerStack;
+
+                    var cd = new AbilityCooldown(
+                        skillId:    data.skillId,
+                        entityKey:  entityKey,
+                        baseCd:     data.cooldown,
+                        maxCharge:  maxCharge,
+                        chargeMode: chargeMode,
+                        icon:       data.icon,
+                        showOnUI:   showOnUI
+                    );
+                    skillCd[data.skillId] = cd;
+                    cd.FireInitialEvent();
+                    break;
+                }
+            }
         }
+
+        // Fire theo thứ tự: CD → Counter → Infinite (đảm bảo thứ tự hiển thị trong panel)
+        // Đã fire trong từng case ở trên theo đúng thứ tự dictionary insert
     }
 
     // ── Helpers ───────────────────────────────────────────────────
@@ -97,14 +156,47 @@ public class Skill : MonoBehaviour, ILoadable<SkillListData>
     {
         if (skillCd.TryGetValue(skillId, out AbilityCooldown cd))
             return cd;
-        Debug.LogWarning($"[Skill] Không tìm thấy CD cho skillId: '{skillId}'");
         return null;
     }
 
-    /// <summary>Kiểm tra skill có sẵn sàng không</summary>
-    protected bool IsReady(string skillId)
+    /// <summary>Lấy AbilityCounter theo skillId</summary>
+    protected AbilityCounter GetCounter(string skillId)
     {
-        var cd = GetCd(skillId);
-        return cd == null || cd.IsReady;
+        if (skillCounter.TryGetValue(skillId, out AbilityCounter ct))
+            return ct;
+        return null;
+    }
+
+    /// <summary>Lấy AbilityInfinite theo skillId</summary>
+    protected AbilityInfinite GetInfinite(string skillId)
+    {
+        if (skillInfinite.TryGetValue(skillId, out AbilityInfinite inf))
+            return inf;
+        return null;
+    }
+
+    /// <summary>
+    /// Kiểm tra skill có sẵn sàng không — tự tìm đúng loại.
+    /// requiredCounter chỉ dùng cho AbilityCounter.
+    /// </summary>
+    protected bool IsReady(string skillId, int requiredCounter = 1)
+    {
+        if (skillCd.TryGetValue(skillId, out var cd))          return cd.IsReady;
+        if (skillCounter.TryGetValue(skillId, out var ct))     return ct.IsReadyFor(requiredCounter);
+        if (skillInfinite.TryGetValue(skillId, out var inf))   return inf.IsReady;
+        return true; // không có entry → không có CD, luôn ready
+    }
+
+    /// <summary>
+    /// Dùng skill — tự tìm đúng loại.
+    /// counterAmount chỉ dùng cho AbilityCounter.
+    /// Vẫn hỗ trợ gọi trực tiếp skillCd[id].Use() như cũ.
+    /// </summary>
+    protected bool Use(string skillId, int counterAmount = 1)
+    {
+        if (skillCd.TryGetValue(skillId, out var cd))        return cd.Use();
+        if (skillCounter.TryGetValue(skillId, out var ct))   return ct.Use(counterAmount);
+        if (skillInfinite.TryGetValue(skillId, out var inf)) { inf.Use(); return true; }
+        return false;
     }
 }

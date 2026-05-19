@@ -33,7 +33,7 @@ public class MeteorExplosion : ProjectileObject
             var em = Enemy[i].GetComponent<StatusEffectManager>();
             if (em == null) continue;
 
-            em.AddStack(new BurnEffect(), stat, duration: 5f, tickInterval: 0.5f, maxStacks: 5);
+            em.AddStack(EffectType.Burn, stat, duration: 5f, tickInterval: 0.5f, maxStacks: 5);
         }
     }
     
@@ -52,7 +52,7 @@ public class MeteorExplosion : ProjectileObject
             var em = Enemy[i].GetComponent<StatusEffectManager>();
             if (em == null) continue;
 
-            em.AddStack(new BurnEffect(), stat, duration: 5f, tickInterval: 0.5f, maxStacks: 5);
+            em.AddStack(EffectType.Burn, stat);
         }
     }
 }

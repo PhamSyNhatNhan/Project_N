@@ -5,40 +5,23 @@ using UnityEngine.UI;
 
 /// <summary>
 /// UI chọn nhân vật trong Hall Scene.
-/// Gắn lên Panel root của CharacterSelect UI.
-/// 
-/// Setup Inspector:
-///   - portraitImage   : Image component hiển thị portrait
-///   - nameText        : TextMeshProUGUI tên nhân vật
-///   - prevButton      : Button ◄
-///   - nextButton      : Button ►
-///   - confirmButton   : Button Bắt đầu
+/// Chỉ hiện nhân vật đã unlock trong UserDataManager.
+/// Điều phối bởi HallUIManager — không tự lắng nghe event.
 /// </summary>
 public class CharacterSelectUI : MonoBehaviour
 {
-    // ── Inspector ─────────────────────────────────────────────────
     [Header("UI References")]
-    [SerializeField] private Image              portraitImage;
-    [SerializeField] private TextMeshProUGUI    nameText;
-    [SerializeField] private Button             prevButton;
-    [SerializeField] private Button             nextButton;
-    [SerializeField] private Button             confirmButton;
+    [SerializeField] private Image           portraitImage;
+    [SerializeField] private TextMeshProUGUI nameText;
+    [SerializeField] private Button          prevButton;
+    [SerializeField] private Button          nextButton;
+    [SerializeField] private Button          confirmButton;
 
     // ── Runtime ───────────────────────────────────────────────────
-    private List<PlayerDisplayData> _characters = new List<PlayerDisplayData>();
+    private List<PlayerDisplayData> _characters   = new List<PlayerDisplayData>();
     private int                     _currentIndex = 0;
 
     // ── Lifecycle ─────────────────────────────────────────────────
-    private void Awake()
-    {
-        EventManager.Gm.OnOpenCharacterSelect.Get().AddListener(HandleOpenCharacterSelect);
-    }
-
-    private void OnDestroy()
-    {
-        EventManager.Gm.OnOpenCharacterSelect.Get().RemoveListener(HandleOpenCharacterSelect);
-    }
-
     private void Start()
     {
         gameObject.SetActive(false);
@@ -59,12 +42,7 @@ public class CharacterSelectUI : MonoBehaviour
         confirmButton?.onClick.RemoveListener(OnConfirm);
     }
 
-    private void HandleOpenCharacterSelect(Component sender, object data)
-    {
-        Show();
-    }
-
-    // ── Load danh sách nhân vật từ PlayerRegistry ─────────────────
+    // ── Load — chỉ nhân vật đã unlock ────────────────────────────
     private void LoadCharacters()
     {
         _characters.Clear();
@@ -76,12 +54,21 @@ public class CharacterSelectUI : MonoBehaviour
             return;
         }
 
+        if (UserDataManager.Instance == null)
+        {
+            Debug.LogError("[CharacterSelectUI] Không tìm thấy UserDataManager.");
+            return;
+        }
+
         foreach (var data in registry.GetAllDisplayData())
-            _characters.Add(data);
+        {
+            if (UserDataManager.Instance.IsUnlocked(data.talent))
+                _characters.Add(data);
+        }
 
         if (_characters.Count == 0)
         {
-            Debug.LogError("[CharacterSelectUI] Không có nhân vật nào trong PlayerRegistry.");
+            Debug.LogError("[CharacterSelectUI] Không có nhân vật nào đã unlock.");
             return;
         }
 
@@ -114,9 +101,9 @@ public class CharacterSelectUI : MonoBehaviour
         }
 
         DungeonFlowManager.Instance.SetPendingTalent(_characters[_currentIndex].talent);
-
         Hide();
-        EventManager.Gm.OnOpenMapSelect.Get().Invoke(this, null);
+
+        EventManager.Gm.OnCharacterConfirmed.Get().Invoke(this, null);
     }
 
     // ── Refresh UI ────────────────────────────────────────────────
@@ -126,30 +113,29 @@ public class CharacterSelectUI : MonoBehaviour
 
         PlayerDisplayData data = _characters[_currentIndex];
 
-        // Portrait
         if (portraitImage != null)
         {
             portraitImage.sprite  = data.portrait;
             portraitImage.enabled = data.portrait != null;
         }
 
-        // Tên
         if (nameText != null)
             nameText.text = data.displayName;
 
-        // Ẩn prev/next nếu chỉ có 1 nhân vật
         if (prevButton != null) prevButton.gameObject.SetActive(_characters.Count > 1);
         if (nextButton != null) nextButton.gameObject.SetActive(_characters.Count > 1);
     }
 
-    // ── Public API — gọi từ InteractiveObject trong Hall ──────────
+    // ── Public API ────────────────────────────────────────────────
+    // CharacterSelectUI
     public void Show()
     {
+        Debug.Log("[CharacterSelectUI] Show called");
         gameObject.SetActive(true);
+        Debug.Log($"[CharacterSelectUI] activeSelf={gameObject.activeSelf}, activeInHierarchy={gameObject.activeInHierarchy}");
     }
-
     public void Hide()
     {
+        Debug.Log("[CharacterSelectUI] Hide called", gameObject);
         gameObject.SetActive(false);
-    }
-}
+    }}

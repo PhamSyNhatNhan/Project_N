@@ -14,14 +14,7 @@ public class PopupText : MonoBehaviour
         timeScale = ts;
     }
 
-    private void Awake()
-    {
-        Renderer r = GetComponent<Renderer>();
-        if (r != null)
-        {
-            r.sortingOrder = 100;
-        }
-    }
+
 
     private void OnEnable()
     {

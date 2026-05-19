@@ -2,10 +2,9 @@ using UnityEngine;
 using Newtonsoft.Json;
 
 /// <summary>
-/// Load JSON data từ Resources:
-/// - Resources/Entity/Character/Name/Name  (layer = Player)
-/// - Resources/Entity/Enemy/Name/Name      (layer = Enemy)
-/// Phân phát cho Stat, Move, Skill trong Awake → Apply trong Start → tự Destroy
+/// Load JSON data từ Resources.
+/// Awake: load raw data → Start: ApplyData → fire OnEntityLoaded → Destroy.
+/// PlayerSpawner lắng nghe OnEntityLoaded để inject persistence data sau ApplyData.
 /// </summary>
 public class EntityLoader : MonoBehaviour
 {
@@ -51,7 +50,7 @@ public class EntityLoader : MonoBehaviour
         if (skill != null && entityData.skill != null) skill.LoadRawData(entityData.skill);
     }
 
-    // ── Start — Apply data ────────────────────────────────────────
+    // ── Start — Apply data + Fire event ──────────────────────────
     private void Start()
     {
         if (entityData == null) return;
@@ -59,6 +58,14 @@ public class EntityLoader : MonoBehaviour
         if (stat  != null && entityData.stat  != null) stat .ApplyData();
         if (move  != null && entityData.move  != null) move .ApplyData();
         if (skill != null && entityData.skill != null) skill.ApplyData();
+
+        // Fire để PlayerSpawner inject persistence data sau ApplyData
+        var statComp = GetComponent<Stat>();
+        if (statComp != null)
+        {
+            string entityKey = $"{statComp.NameCharacter}_{statComp.GetInstanceID()}";
+            EventManager.Gm.OnEntityLoaded.Get(entityKey).Invoke(this, statComp);
+        }
 
         Destroy(this);
     }
@@ -77,7 +84,7 @@ public class EntityLoader : MonoBehaviour
 
         if (string.IsNullOrEmpty(folder))
         {
-            Debug.LogError($"[EntityLoader] Layer '{layerName}' không được hỗ trợ. Cần là 'Player' hoặc 'Enemy'.", this);
+            Debug.LogError($"[EntityLoader] Layer '{layerName}' không được hỗ trợ.", this);
             return "";
         }
 

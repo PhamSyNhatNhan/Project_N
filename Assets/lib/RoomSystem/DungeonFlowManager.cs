@@ -54,6 +54,14 @@ public class DungeonFlowManager : MonoBehaviour
         EventManager.Gm.OnRoomCleared.Get().RemoveListener(HandleRoomCleared);
     }
 
+    private bool _isTimerRunning = false;
+
+    private void Update()
+    {
+        if (_isTimerRunning && _currentRun != null)
+            _currentRun.runTime += Time.deltaTime;
+    }
+
     // ── Public API ────────────────────────────────────────────────
 
     /// <summary>
@@ -69,6 +77,7 @@ public class DungeonFlowManager : MonoBehaviour
         };
 
         LoadDungeonConfig(dungeonGroupId);
+        _isTimerRunning = true;
         SaveRunData();
         LoadCurrentFloorScene();
     }
@@ -113,6 +122,20 @@ public class DungeonFlowManager : MonoBehaviour
     {
         _currentRun.isRoomCleared  = true;
         _currentRun.isBuffSelected = false;
+
+        // Track room type
+        var floor = CurrentFloor;
+        if (floor != null)
+        {
+            switch (floor.roomType)
+            {
+                case RoomType.NormalCombat: _currentRun.normalRoomsCleared++; break;
+                case RoomType.Shop:         _currentRun.shopRoomsCleared++;   break;
+                case RoomType.Boss:         _currentRun.bossRoomsCleared++;   break;
+            }
+        }
+
+        SavePlayerState();
         SaveRunData();
     }
 
@@ -134,9 +157,11 @@ public class DungeonFlowManager : MonoBehaviour
     /// </summary>
     public void HandleFinalFloorCleared()
     {
+        _isTimerRunning = false;
         SavePlayerState();
+        // Fire end run event trước khi xóa save
+        EventManager.Gm.OnRunCompleted.Get().Invoke(this, _currentRun);
         DeleteRunData();
-        EventManager.Ui.TriggerLoadingScene.Get().Invoke(this, "Start");
     }
 
     // ── Scene Loading ─────────────────────────────────────────────
@@ -163,18 +188,20 @@ public class DungeonFlowManager : MonoBehaviour
     {
         Stat stat = null;
 
-        var spawner = GetComponent<PlayerSpawner>();
+        var spawner = FindObjectOfType<PlayerSpawner>();
+        Debug.Log($"[DungeonFlowManager] FindObjectOfType<PlayerSpawner>={spawner}, scene=...");
+        Debug.Log($"[DungeonFlowManager] PlayerStat={spawner?.PlayerStat}");
         if (spawner != null)
             stat = spawner.PlayerStat;
-
-        if (stat == null)
-            stat = FindObjectOfType<PlayerController>()?.GetComponent<Stat>();
 
         if (stat == null)
         {
             Debug.LogError("[DungeonFlowManager] Không tìm thấy Stat của Player để save.");
             return;
         }
+        
+        Debug.Log($"[SavePlayerState] curHealth={stat.CurHealth}", stat.gameObject); // thêm đây
+
 
         // ── Health ────────────────────────────────────────────────
         _currentRun.curHealth = stat.CurHealth;

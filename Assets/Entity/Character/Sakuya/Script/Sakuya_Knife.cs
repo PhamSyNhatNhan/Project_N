@@ -49,10 +49,13 @@ public class SakuyaKnife : BulletObject
             var enemies = hitbox.detectObject(EnableDamage);
             foreach (var enemy in enemies)
             {
-                //var em = enemy.GetComponent<StatusEffectManager>();
-                //if (em == null) continue;
-
                 enemy.GetComponent<Stat>().TakeDamage(type, damage[0], critRate, critDamage);
+
+                var em = enemy.GetComponent<StatusEffectManager>();
+                if (em == null) continue;
+                em.AddEffect(EffectType.Burn);
+
+                
                 /*
                 em.AddStack(new BurnEffect(), stat, duration: 5f, tickInterval: 0.5f, maxStacks: 5);
                 em.AddStack(new PoisonEffect(), stat, duration: 5f, tickInterval: 1.0f, maxStacks: 5);

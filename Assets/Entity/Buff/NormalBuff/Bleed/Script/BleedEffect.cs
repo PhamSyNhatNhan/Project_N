@@ -3,8 +3,9 @@ using UnityEngine;
 
 /// <summary>
 /// Bleed — StackingEffect
-/// Damage flat mỗi tick + giảm MaxHP theo số stack
-/// Khi remove → trả lại MaxHP
+/// Damage true mỗi tick theo stack.
+/// Hết duration → trừ 10 stack, refresh nếu còn stack.
+/// Dưới 10 stack → về 0, IsExpired = true → Manager remove.
 /// </summary>
 public class BleedEffect : StackingEffect
 {
@@ -13,30 +14,87 @@ public class BleedEffect : StackingEffect
     public override string         DisplayName => "Bleed";
     public override List<string>   IconPaths   => new List<string> { "Effects/Bleed/Bleed" };
 
-    private float damagePerStack  = 15f;
-    private float maxHpReducePerStack = 50f; // giảm flat MaxHP mỗi stack
+    // ── Default Config ────────────────────────────────────────────
+    public override float DefaultDuration     => 5f;
+    public override float DefaultTickInterval => 0.7f;
+    public override int   DefaultMaxStacks    => 100;
 
-    protected override float CalcValue() => curStacks * damagePerStack;
-
-    protected override void OnApplyValue()
+    // ── Default Damages ───────────────────────────────────────────
+    public override List<DamageEntry> DefaultDamages => new List<DamageEntry>
     {
-        if (target == null) return;
-        target.MaxHealth -= maxHpReducePerStack;
-        target.CurHealth  = Mathf.Min(target.CurHealth, target.MaxHealth);
+        new DamageEntry(DamageType.True, 10f)
+    };
+
+    private const int StackDecayAmount = 10;
+    private bool _forceExpire = false;
+
+    // ── IsExpired — chỉ true khi stack về 0 ──────────────────────
+    public override bool IsExpired => _forceExpire;
+
+    // ── OnTick — override để xử lý decay khi hết duration ────────
+    public override void OnTick(float deltaTime)
+    {
+        TimeLeft -= deltaTime;
+
+        // Tick damage
+        if (tickInterval > 0f)
+        {
+            tickTimerBleed += deltaTime;
+            if (tickTimerBleed >= tickInterval)
+            {
+                tickTimerBleed -= tickInterval;
+                OnInterval();
+            }
+        }
+
+        // Hết duration → decay stack
+        if (TimeLeft <= 0f)
+            DecayStacks();
     }
 
-    protected override void OnRemoveValue()
+    private float tickTimerBleed = 0f;
+
+    private void DecayStacks()
     {
-        if (target == null) return;
-        target.MaxHealth += maxHpReducePerStack;
+        curStacks -= StackDecayAmount;
+
+        if (curStacks <= 0)
+        {
+            curStacks    = 0;
+            _forceExpire = true;
+            FireEvent(isRemoved: true);
+            return;
+        }
+
+        // Còn stack — refresh duration
+        TimeLeft = Duration;
+        FireEvent();
     }
 
+    // ── OnInterval ────────────────────────────────────────────────
     protected override void OnInterval()
     {
         if (target == null) return;
-        target.TakeDamage(DamageType.Physical, CalcValue(), 0f, 0f);
+
+        var damages = GetDamages();
+        foreach (var entry in damages)
+            target.TakeDamage(entry.Type, entry.Amount * curStacks, 0f, 0f);
     }
 
-    public override void OnApply()  => base.OnApply();
-    public override void OnRemove() => base.OnRemove();
+    protected override void OnApplyValue()  { }
+    protected override void OnRemoveValue() { }
+
+    public override void OnApply() => base.OnApply();
+
+    public override void OnRemove()
+    {
+        FireEvent(isRemoved: true);
+    }
+
+    public override void Reset()
+    {
+        base.Reset();
+        _forceExpire   = false;
+        tickTimerBleed = 0f;
+    }
 }

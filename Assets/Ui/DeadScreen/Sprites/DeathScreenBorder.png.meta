@@ -1,0 +1,1014 @@
+fileFormatVersion: 2
+guid: eaa325cf258fd7f4ba0d6f77d42c682b
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: 2912123268682165432
+    second: DeathScreenBorder_0
+  - first:
+      213: 1958169886727417727
+    second: DeathScreenBorder_1
+  - first:
+      213: 2534504273503074319
+    second: DeathScreenBorder_2
+  - first:
+      213: -7267895879311234840
+    second: DeathScreenBorder_3
+  - first:
+      213: 8573725206239891015
+    second: DeathScreenBorder_4
+  - first:
+      213: 5222468648421875091
+    second: DeathScreenBorder_5
+  - first:
+      213: -6873693277659014041
+    second: DeathScreenBorder_6
+  - first:
+      213: -8294744092944586192
+    second: DeathScreenBorder_7
+  - first:
+      213: -1051585653350495250
+    second: DeathScreenBorder_8
+  - first:
+      213: 7602661951885271975
+    second: DeathScreenBorder_9
+  - first:
+      213: 4587854506139240356
+    second: DeathScreenBorder_10
+  - first:
+      213: -1105677446193842570
+    second: DeathScreenBorder_11
+  - first:
+      213: -3327195640569217179
+    second: DeathScreenBorder_12
+  - first:
+      213: 817488562965012311
+    second: DeathScreenBorder_13
+  - first:
+      213: -8244004396520783777
+    second: DeathScreenBorder_14
+  - first:
+      213: 3105016180458367584
+    second: DeathScreenBorder_15
+  - first:
+      213: 7249324647427534468
+    second: DeathScreenBorder_16
+  - first:
+      213: 2692894177098717786
+    second: DeathScreenBorder_17
+  - first:
+      213: 4311929637291602338
+    second: DeathScreenBorder_18
+  - first:
+      213: 2208461613995159036
+    second: DeathScreenBorder_19
+  - first:
+      213: 4287266515314907778
+    second: DeathScreenBorder_20
+  - first:
+      213: -1419381071930213447
+    second: DeathScreenBorder_21
+  - first:
+      213: -2743320228545340744
+    second: DeathScreenBorder_22
+  - first:
+      213: -5595257615558536044
+    second: DeathScreenBorder_23
+  - first:
+      213: -7725130183234996739
+    second: DeathScreenBorder_24
+  - first:
+      213: 1856395630330357474
+    second: DeathScreenBorder_25
+  - first:
+      213: 3916855864590563860
+    second: DeathScreenBorder_26
+  - first:
+      213: 9042642866847103135
+    second: DeathScreenBorder_27
+  - first:
+      213: 3442162693292663995
+    second: DeathScreenBorder_28
+  - first:
+      213: -1743317155207813565
+    second: DeathScreenBorder_29
+  - first:
+      213: 1647508329348017202
+    second: DeathScreenBorder_30
+  - first:
+      213: 3580758077185994244
+    second: DeathScreenBorder_31
+  - first:
+      213: 1966886218662159398
+    second: DeathScreenBorder_32
+  - first:
+      213: 1664733935262354586
+    second: DeathScreenBorder_33
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 1
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: DeathScreenBorder_0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 2752
+        height: 1536
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8bc23fb0fa0f96820800000000000000
+      internalID: 2912123268682165432
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DeathScreenBorder_1
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 1523
+        width: 7
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f7f214c1321dc2b10800000000000000
+      internalID: 1958169886727417727
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DeathScreenBorder_2
+      rect:
+        serializedVersion: 2
+        x: 733
+        y: 1527
+        width: 6
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f083cd7553e5c2320800000000000000
+      internalID: 2534504273503074319
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DeathScreenBorder_3
+      rect:
+        serializedVersion: 2
+        x: 1360
+        y: 1489
+        width: 33
+        height: 47
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8e8e029643f332b90800000000000000
+      internalID: -7267895879311234840
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DeathScreenBorder_4
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 1231
+        width: 7
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 74ecdb746adfbf670800000000000000
+      internalID: 8573725206239891015
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DeathScreenBorder_5
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 1052
+        width: 12
+        height: 37
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 39ddccfd09fe97840800000000000000
+      internalID: 5222468648421875091
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DeathScreenBorder_6
+      rect:
+        serializedVersion: 2
+        x: 3
+        y: 1002
+        width: 6
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 76cd422e16cbb90a0800000000000000
+      internalID: -6873693277659014041
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DeathScreenBorder_7
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 990
+        width: 11
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 03aa445e13623ec80800000000000000
+      internalID: -8294744092944586192
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DeathScreenBorder_8
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 764
+        width: 5
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: eeb85297b640861f0800000000000000
+      internalID: -1051585653350495250
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DeathScreenBorder_9
+      rect:
+        serializedVersion: 2
+        x: 2735
+        y: 724
+        width: 17
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7a3ef7db3c4128960800000000000000
+      internalID: 7602661951885271975
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DeathScreenBorder_10
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 708
+        width: 5
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4a7ca97ad555baf30800000000000000
+      internalID: 4587854506139240356
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DeathScreenBorder_11
+      rect:
+        serializedVersion: 2
+        x: 2734
+        y: 701
+        width: 18
+        height: 21
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 67674778838d7a0f0800000000000000
+      internalID: -1105677446193842570
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DeathScreenBorder_12
+      rect:
+        serializedVersion: 2
+        x: 2746
+        y: 701
+        width: 6
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 56fb4a1713d63d1d0800000000000000
+      internalID: -3327195640569217179
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DeathScreenBorder_13
+      rect:
+        serializedVersion: 2
+        x: 2740
+        y: 577
+        width: 12
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 75f597b448d485b00800000000000000
+      internalID: 817488562965012311
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DeathScreenBorder_14
+      rect:
+        serializedVersion: 2
+        x: 2746
+        y: 530
+        width: 6
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f50ce921ea9679d80800000000000000
+      internalID: -8244004396520783777
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DeathScreenBorder_15
+      rect:
+        serializedVersion: 2
+        x: 2738
+        y: 501
+        width: 14
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 06aaf0ad3cb371b20800000000000000
+      internalID: 3105016180458367584
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DeathScreenBorder_16
+      rect:
+        serializedVersion: 2
+        x: 2746
+        y: 474
+        width: 6
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 48ee667bb56ca9460800000000000000
+      internalID: 7249324647427534468
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DeathScreenBorder_17
+      rect:
+        serializedVersion: 2
+        x: 2739
+        y: 445
+        width: 13
+        height: 26
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a5adfab8cf41f5520800000000000000
+      internalID: 2692894177098717786
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DeathScreenBorder_18
+      rect:
+        serializedVersion: 2
+        x: 2746
+        y: 457
+        width: 6
+        height: 16
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2a1be37d82d07db30800000000000000
+      internalID: 4311929637291602338
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DeathScreenBorder_19
+      rect:
+        serializedVersion: 2
+        x: 2737
+        y: 418
+        width: 15
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cfd6442132806ae10800000000000000
+      internalID: 2208461613995159036
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DeathScreenBorder_20
+      rect:
+        serializedVersion: 2
+        x: 2739
+        y: 413
+        width: 12
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 28a95c64e2e6f7b30800000000000000
+      internalID: 4287266515314907778
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DeathScreenBorder_21
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 397
+        width: 7
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9bbbfae6f685d4ce0800000000000000
+      internalID: -1419381071930213447
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DeathScreenBorder_22
+      rect:
+        serializedVersion: 2
+        x: 2737
+        y: 380
+        width: 15
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8ba596079c4cde9d0800000000000000
+      internalID: -2743320228545340744
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DeathScreenBorder_23
+      rect:
+        serializedVersion: 2
+        x: 2745
+        y: 353
+        width: 7
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 49495d5f7d6a952b0800000000000000
+      internalID: -5595257615558536044
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DeathScreenBorder_24
+      rect:
+        serializedVersion: 2
+        x: 2744
+        y: 323
+        width: 8
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: df531a02703dac490800000000000000
+      internalID: -7725130183234996739
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DeathScreenBorder_25
+      rect:
+        serializedVersion: 2
+        x: 4
+        y: 308
+        width: 9
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2e6ad6c7dfd33c910800000000000000
+      internalID: 1856395630330357474
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DeathScreenBorder_26
+      rect:
+        serializedVersion: 2
+        x: 2742
+        y: 303
+        width: 9
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 41a735d08a77b5630800000000000000
+      internalID: 3916855864590563860
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DeathScreenBorder_27
+      rect:
+        serializedVersion: 2
+        x: 2746
+        y: 311
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f98342507cbed7d70800000000000000
+      internalID: 9042642866847103135
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DeathScreenBorder_28
+      rect:
+        serializedVersion: 2
+        x: 4
+        y: 303
+        width: 9
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: bb4afc07bb405cf20800000000000000
+      internalID: 3442162693292663995
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DeathScreenBorder_29
+      rect:
+        serializedVersion: 2
+        x: 2746
+        y: 212
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3466ef8a84e7ec7e0800000000000000
+      internalID: -1743317155207813565
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DeathScreenBorder_30
+      rect:
+        serializedVersion: 2
+        x: 2742
+        y: 200
+        width: 9
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 23c294fb8102dd610800000000000000
+      internalID: 1647508329348017202
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DeathScreenBorder_31
+      rect:
+        serializedVersion: 2
+        x: 2746
+        y: 194
+        width: 6
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 40e2841ef7861b130800000000000000
+      internalID: 3580758077185994244
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DeathScreenBorder_32
+      rect:
+        serializedVersion: 2
+        x: 2740
+        y: 95
+        width: 11
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 62428f84898cb4b10800000000000000
+      internalID: 1966886218662159398
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DeathScreenBorder_33
+      rect:
+        serializedVersion: 2
+        x: 2719
+        y: 0
+        width: 33
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a9cc9d8a1b25a1710800000000000000
+      internalID: 1664733935262354586
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 5e97eb03825dee720800000000000000
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      DeathScreenBorder_0: 2912123268682165432
+      DeathScreenBorder_1: 1958169886727417727
+      DeathScreenBorder_10: 4587854506139240356
+      DeathScreenBorder_11: -1105677446193842570
+      DeathScreenBorder_12: -3327195640569217179
+      DeathScreenBorder_13: 817488562965012311
+      DeathScreenBorder_14: -8244004396520783777
+      DeathScreenBorder_15: 3105016180458367584
+      DeathScreenBorder_16: 7249324647427534468
+      DeathScreenBorder_17: 2692894177098717786
+      DeathScreenBorder_18: 4311929637291602338
+      DeathScreenBorder_19: 2208461613995159036
+      DeathScreenBorder_2: 2534504273503074319
+      DeathScreenBorder_20: 4287266515314907778
+      DeathScreenBorder_21: -1419381071930213447
+      DeathScreenBorder_22: -2743320228545340744
+      DeathScreenBorder_23: -5595257615558536044
+      DeathScreenBorder_24: -7725130183234996739
+      DeathScreenBorder_25: 1856395630330357474
+      DeathScreenBorder_26: 3916855864590563860
+      DeathScreenBorder_27: 9042642866847103135
+      DeathScreenBorder_28: 3442162693292663995
+      DeathScreenBorder_29: -1743317155207813565
+      DeathScreenBorder_3: -7267895879311234840
+      DeathScreenBorder_30: 1647508329348017202
+      DeathScreenBorder_31: 3580758077185994244
+      DeathScreenBorder_32: 1966886218662159398
+      DeathScreenBorder_33: 1664733935262354586
+      DeathScreenBorder_4: 8573725206239891015
+      DeathScreenBorder_5: 5222468648421875091
+      DeathScreenBorder_6: -6873693277659014041
+      DeathScreenBorder_7: -8294744092944586192
+      DeathScreenBorder_8: -1051585653350495250
+      DeathScreenBorder_9: 7602661951885271975
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

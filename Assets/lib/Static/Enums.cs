@@ -80,6 +80,8 @@ public enum EffectType
 public enum DungeonGroupId {Calamity}
 public enum RoomType { NormalCombat, Shop, Boss }
 public enum RoomState { Waiting, InProgress, Completed }
+public enum BuffSelectSource { ExitGate, Shop }
+
 public enum BossId {Boss_1, Brimstone, Calamitas}
 
  

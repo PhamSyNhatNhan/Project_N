@@ -8,7 +8,7 @@
     "baseCritDamage": 50,
     "baseResistantPhysical": 0,
     "baseResistantMagic": 0,
-    "entityIconPath" : "Entity/Player/Sakuya/Sakuya_Icon",
+    "entityIconPath": "Entity/Player/Sakuya/Sakuya_Icon",
     "portraitPath": "Entity/Player/Sakuya/Sakuya_Portrait",
     "displayName": "Sakuya Izayoi",
     "description": "Mô tả ngắn"
@@ -30,7 +30,12 @@
         "iconPath": "Skills/NormalKnife",
         "maxCharge": 1,
         "chargeMode": "PerStack",
-        "iFrameMult": 0.02,
+        "description": "",
+        "iFrameDuration": 0.0,
+        "cdType": "cooldown",
+        "showOnUI": false,
+        "maxCounter": 0,
+        "isReady": false,
         "speed": 10.0,
         "pierceCount": 0
       },
@@ -43,7 +48,12 @@
         "iconPath": "Skills/KnifeRain",
         "maxCharge": 1,
         "chargeMode": "PerStack",
-        "iFrameMult": 0.02,
+        "description": "",
+        "iFrameDuration": 0.0,
+        "cdType": "cooldown",
+        "showOnUI": true,
+        "maxCounter": 0,
+        "isReady": false,
         "knifeCount": 10,
         "spread": 45.0
       },
@@ -56,7 +66,12 @@
         "iconPath": "Skills/TimePause",
         "maxCharge": 1,
         "chargeMode": "PerStack",
-        "iFrameMult": 0.02,
+        "description": "",
+        "iFrameDuration": 0.0,
+        "cdType": "cooldown",
+        "showOnUI": true,
+        "maxCounter": 0,
+        "isReady": false,
         "pauseDuration": 3.0,
         "radius": 8.0
       },
@@ -69,8 +84,12 @@
         "iconPath": "Skills/Dash",
         "maxCharge": 3,
         "chargeMode": "PerStack",
-        "iFrameMult": 0.02,
-        "iFrameDuration": 0.3
+        "description": "",
+        "iFrameDuration": 0.3,
+        "cdType": "cooldown",
+        "showOnUI": true,
+        "maxCounter": 0,
+        "isReady": false
       },
       {
         "skillId": "SakuyaPassive",
@@ -81,9 +100,29 @@
         "iconPath": "Skills/SakuyaPassive",
         "maxCharge": 0,
         "chargeMode": "PerStack",
-        "iFrameMult": 0.02,
-        "maxTimeShards": 5,
+        "description": "",
+        "iFrameDuration": 0.0,
+        "cdType": "counter",
+        "showOnUI": true,
+        "maxCounter": 5,
+        "isReady": false,
         "timeShardBonusDamage": 20.0
+      },
+      {
+        "skillId": "SakuyaShard",
+        "skillType": "Passive",
+        "cooldown": 0,
+        "damage": [],
+        "damageType": "",
+        "iconPath": "Skills/SakuyaShard",
+        "maxCharge": 0,
+        "chargeMode": "PerStack",
+        "description": "",
+        "iFrameDuration": 0.0,
+        "cdType": "infinite",
+        "showOnUI": true,
+        "maxCounter": 0,
+        "isReady": true
       }
     ]
   }

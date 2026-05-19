@@ -2,26 +2,24 @@ using UnityEngine;
 
 /// <summary>
 /// Component trong scene — spawn player và inject persistence data.
-/// Đặt trong mỗi scene combat/boss/shop, tự tìm PlayerRegistry từ GameManager.
-/// Script Execution Order: sau EntityLoader, trước các component khác.
+/// Đặt trong mỗi scene combat/boss/shop.
 ///
 /// Flow:
-///   Awake: Instantiate prefab → EntityLoader.Awake() tự chạy (load raw data)
-///          → inject bonusFlat/bonusMultiplier + LoadPersistenceHealth
-///   Start: restore RogueBuff từ RunSaveData
+///   Awake: Instantiate prefab → EntityLoader.Awake() load raw data
+///   EntityLoader.Start: ApplyData() → fire OnEntityLoaded
+///   PlayerSpawner: nhận OnEntityLoaded → inject bonusFlat/Multiplier + curHealth → ApplyData lại
+///   Start: restore RogueBuff → fire OnPlayerSpawned
 /// </summary>
 public class PlayerSpawner : MonoBehaviour
 {
-    // ── Ref ───────────────────────────────────────────────────────
     [SerializeField] private PlayerRegistry playerRegistry;
 
-    // ── Runtime ───────────────────────────────────────────────────
-    private Stat _playerStat;
+    private Stat   _playerStat;
+    private string _entityKey;
 
-    /// <summary>Dùng cho DungeonFlowManager.SavePlayerState()</summary>
     public Stat PlayerStat => _playerStat;
 
-    // ── Awake — Spawn + Inject stat ───────────────────────────────
+    // ── Awake — Spawn ─────────────────────────────────────────────
     private void Awake()
     {
         if (playerRegistry == null)
@@ -36,11 +34,10 @@ public class PlayerSpawner : MonoBehaviour
         RunSaveData save = DungeonFlowManager.Instance.CurrentRun;
         if (save == null)
         {
-            Debug.LogError("[PlayerSpawner] CurrentRun null — chưa gọi StartNewRun hoặc ContinueRun.");
+            Debug.LogError("[PlayerSpawner] CurrentRun null.");
             return;
         }
 
-        // ── Spawn ─────────────────────────────────────────────────
         GameObject prefab = playerRegistry?.GetPrefab(save.talent);
         if (prefab == null)
         {
@@ -54,14 +51,30 @@ public class PlayerSpawner : MonoBehaviour
         _playerStat = player.GetComponent<Stat>();
         if (_playerStat == null)
         {
-            Debug.LogError("[PlayerSpawner] Player prefab thiếu component Stat.");
+            Debug.LogError("[PlayerSpawner] Player prefab thiếu Stat.");
             return;
         }
 
-        // ── Inject persistence data vào Stat ──────────────────────
-        // EntityLoader.Awake() đã chạy → raw data đã có trong Stat
-        // Inject trước EntityLoader.Start() → ApplyData() sẽ dùng đúng giá trị
+        // Lắng nghe OnEntityLoaded để inject sau khi ApplyData chạy xong
+        _entityKey = $"{_playerStat.NameCharacter}_{_playerStat.GetInstanceID()}";
+        EventManager.Gm.OnEntityLoaded.Get(_entityKey).AddListener(OnEntityLoaded);
+    }
+
+    // ── OnEntityLoaded — inject sau ApplyData ─────────────────────
+    private void OnEntityLoaded(Component sender, object data)
+    {
+        EventManager.Gm.OnEntityLoaded.Get(_entityKey).RemoveListener(OnEntityLoaded);
+
+        if (_playerStat == null) return;
+
+        RunSaveData save = DungeonFlowManager.Instance.CurrentRun;
+        if (save == null) return;
+
         InjectStatData(save);
+
+        // ApplyData lại để apply đúng bonus đã inject
+        _playerStat.ApplyData();
+        
     }
 
     // ── Start — Restore RogueBuff + Fire OnPlayerSpawned ─────────
@@ -71,34 +84,29 @@ public class PlayerSpawner : MonoBehaviour
 
         RunSaveData save = DungeonFlowManager.Instance.CurrentRun;
 
-        // Restore RogueBuff
         if (save?.rogueBuffData != null)
         {
             var buffManager = _playerStat.GetComponent<RogueBuffManager>();
             if (buffManager == null)
-                Debug.LogWarning("[PlayerSpawner] Player thiếu RogueBuffManager — bỏ qua restore RogueBuff.");
+                Debug.LogWarning("[PlayerSpawner] Player thiếu RogueBuffManager.");
             else
                 buffManager.Initialize(save.rogueBuffData);
         }
 
-        // Fire sau khi tất cả đã sẵn sàng — UI subscribe để set entityKey
         EventManager.Gm.OnPlayerSpawned.Get().Invoke(this, _playerStat);
     }
 
     // ── Inject ────────────────────────────────────────────────────
     private void InjectStatData(RunSaveData save)
     {
-        // Health persistence — ApplyData() sẽ restore đúng curHealth
         _playerStat.LoadPersistenceHealth(save.curHealth);
 
-        // ── Bonus Flat ────────────────────────────────────────────
         _playerStat.BonusFlatHealth            = save.bonusFlatHealth;
         _playerStat.BonusFlatDefense           = save.bonusFlatDefense;
         _playerStat.BonusFlatResistantPhysical = save.bonusFlatResistantPhysical;
         _playerStat.BonusFlatResistantMagic    = save.bonusFlatResistantMagic;
         _playerStat.BonusFlatAttack            = save.bonusFlatAttack;
 
-        // ── Bonus Multiplier ──────────────────────────────────────
         _playerStat.BonusMultiplierHealth                = save.bonusMultiplierHealth;
         _playerStat.BonusMultiplierDefense               = save.bonusMultiplierDefense;
         _playerStat.BonusMultiplierResistantPhysical     = save.bonusMultiplierResistantPhysical;
@@ -120,7 +128,7 @@ public class PlayerSpawner : MonoBehaviour
         var spawnPoint = GameObject.FindWithTag("PlayerSpawnPoint");
         if (spawnPoint != null) return spawnPoint.transform.position;
 
-        Debug.LogWarning("[PlayerSpawner] Không tìm thấy PlayerSpawnPoint tag — spawn tại (0,0,0).");
+        Debug.LogWarning("[PlayerSpawner] Không tìm thấy PlayerSpawnPoint — spawn tại (0,0,0).");
         return Vector3.zero;
     }
 }

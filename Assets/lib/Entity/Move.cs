@@ -51,6 +51,9 @@ public class Move : MonoBehaviour, ILoadable<MoveData>
     [SerializeField] protected float baseMoveSpeed = 5f;
     protected float curMoveSpeed;
 
+    // ── Buff / Debuff tạm thời ────────────────────────────────────
+    protected StatBonus buffMoveSpeed = new StatBonus();
+
     // ── Raw data cache — subclass đọc extraFields trong ApplyData ─
     protected MoveData rawData;
 
@@ -93,7 +96,7 @@ public class Move : MonoBehaviour, ILoadable<MoveData>
 
     public virtual void ApplyData()
     {
-        curMoveSpeed = baseMoveSpeed;
+        curMoveSpeed = buffMoveSpeed.GetFinalValue(baseMoveSpeed);
     }
 
     // ── Movement Core ─────────────────────────────────────────────
@@ -321,9 +324,11 @@ public class Move : MonoBehaviour, ILoadable<MoveData>
 
     public float CurMoveSpeed
     {
-        get => curMoveSpeed;
+        get => buffMoveSpeed.GetFinalValue(baseMoveSpeed);
         set => curMoveSpeed = value;
     }
+
+    public StatBonus BuffMoveSpeed => buffMoveSpeed;
 
     public float BaseMoveSpeed
     {

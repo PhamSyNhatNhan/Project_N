@@ -42,11 +42,10 @@ public class RoomSpawner : MonoBehaviour
             return;
         }
 
-        // Shop không có wave — spawn ExitGate ngay và fire OnRoomCleared
+        // Shop không có wave — chỉ spawn ExitGate, player tự tương tác
         if (_floorConfig.roomType == RoomType.Shop)
         {
             SpawnExitGate();
-            EventManager.Gm.OnRoomCleared.Get().Invoke(this, null);
             return;
         }
 
