@@ -1,0 +1,546 @@
+fileFormatVersion: 2
+guid: 7bf9c6ad41608b04380a4a0f704bb5e2
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: 2886152201247263397
+    second: warlock_5_skill_1_effect_1_5_0
+  - first:
+      213: 1179332751834793365
+    second: warlock_5_skill_1_effect_1_5_1
+  - first:
+      213: -3026796828771672072
+    second: warlock_5_skill_1_effect_1_5_2
+  - first:
+      213: 2037858753163109346
+    second: warlock_5_skill_1_effect_1_5_3
+  - first:
+      213: -576204869579935881
+    second: warlock_5_skill_1_effect_1_5_4
+  - first:
+      213: 1396673173207050582
+    second: warlock_5_skill_1_effect_1_5_5
+  - first:
+      213: -3602860203721957000
+    second: warlock_5_skill_1_effect_1_5_6
+  - first:
+      213: -8076939609457566755
+    second: warlock_5_skill_1_effect_1_5_7
+  - first:
+      213: -3904268710075643276
+    second: warlock_5_skill_1_effect_1_5_8
+  - first:
+      213: 7180079528135958076
+    second: warlock_5_skill_1_effect_1_5_9
+  - first:
+      213: 8909587643463716682
+    second: warlock_5_skill_1_effect_1_5_10
+  - first:
+      213: 3255765230731154587
+    second: warlock_5_skill_1_effect_1_5_11
+  - first:
+      213: -7943941255366073001
+    second: warlock_5_skill_1_effect_1_5_12
+  - first:
+      213: 6075591365574380184
+    second: warlock_5_skill_1_effect_1_5_13
+  - first:
+      213: 3240663187845579500
+    second: warlock_5_skill_1_effect_1_5_14
+  - first:
+      213: -1569321561896764757
+    second: warlock_5_skill_1_effect_1_5_15
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 1
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: warlock_5_skill_1_effect_1_5_0
+      rect:
+        serializedVersion: 2
+        x: 2
+        y: 66
+        width: 22
+        height: 21
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5aa0e03b22cad0820800000000000000
+      internalID: 2886152201247263397
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: warlock_5_skill_1_effect_1_5_1
+      rect:
+        serializedVersion: 2
+        x: 34
+        y: 78
+        width: 44
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 595c811b3e4dd5010800000000000000
+      internalID: 1179332751834793365
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: warlock_5_skill_1_effect_1_5_2
+      rect:
+        serializedVersion: 2
+        x: 72
+        y: 60
+        width: 47
+        height: 26
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8ff19c52258aef5d0800000000000000
+      internalID: -3026796828771672072
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: warlock_5_skill_1_effect_1_5_3
+      rect:
+        serializedVersion: 2
+        x: 11
+        y: 30
+        width: 42
+        height: 34
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2e325bc2dbde74c10800000000000000
+      internalID: 2037858753163109346
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: warlock_5_skill_1_effect_1_5_4
+      rect:
+        serializedVersion: 2
+        x: 34
+        y: 61
+        width: 15
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 77f66d659b8e008f0800000000000000
+      internalID: -576204869579935881
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: warlock_5_skill_1_effect_1_5_5
+      rect:
+        serializedVersion: 2
+        x: 51
+        y: 62
+        width: 12
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 659e254e9daf16310800000000000000
+      internalID: 1396673173207050582
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: warlock_5_skill_1_effect_1_5_6
+      rect:
+        serializedVersion: 2
+        x: 113
+        y: 58
+        width: 26
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 871e2c5cbb1100ec0800000000000000
+      internalID: -3602860203721957000
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: warlock_5_skill_1_effect_1_5_7
+      rect:
+        serializedVersion: 2
+        x: 141
+        y: 61
+        width: 12
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ddbdff9f732f8ef80800000000000000
+      internalID: -8076939609457566755
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: warlock_5_skill_1_effect_1_5_8
+      rect:
+        serializedVersion: 2
+        x: 5
+        y: 34
+        width: 12
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 47ac44c3b4041d9c0800000000000000
+      internalID: -3904268710075643276
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: warlock_5_skill_1_effect_1_5_9
+      rect:
+        serializedVersion: 2
+        x: 20
+        y: 38
+        width: 9
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c3e19950a44c4a360800000000000000
+      internalID: 7180079528135958076
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: warlock_5_skill_1_effect_1_5_10
+      rect:
+        serializedVersion: 2
+        x: 56
+        y: 30
+        width: 47
+        height: 24
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a4f4dd7b1c635ab70800000000000000
+      internalID: 8909587643463716682
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: warlock_5_skill_1_effect_1_5_11
+      rect:
+        serializedVersion: 2
+        x: 138
+        y: 37
+        width: 12
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b945cc14a3dce2d20800000000000000
+      internalID: 3255765230731154587
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: warlock_5_skill_1_effect_1_5_12
+      rect:
+        serializedVersion: 2
+        x: 141
+        y: 25
+        width: 22
+        height: 34
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 755a55d548371c190800000000000000
+      internalID: -7943941255366073001
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: warlock_5_skill_1_effect_1_5_13
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 1
+        width: 51
+        height: 20
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 89acd793826d05450800000000000000
+      internalID: 6075591365574380184
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: warlock_5_skill_1_effect_1_5_14
+      rect:
+        serializedVersion: 2
+        x: 58
+        y: 5
+        width: 34
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ce28834eff529fc20800000000000000
+      internalID: 3240663187845579500
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: warlock_5_skill_1_effect_1_5_15
+      rect:
+        serializedVersion: 2
+        x: 103
+        y: 3
+        width: 35
+        height: 32
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: baa38c4aa56a83ae0800000000000000
+      internalID: -1569321561896764757
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 5e97eb03825dee720800000000000000
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      warlock_5_skill_1_effect_1_5_0: 2886152201247263397
+      warlock_5_skill_1_effect_1_5_1: 1179332751834793365
+      warlock_5_skill_1_effect_1_5_10: 8909587643463716682
+      warlock_5_skill_1_effect_1_5_11: 3255765230731154587
+      warlock_5_skill_1_effect_1_5_12: -7943941255366073001
+      warlock_5_skill_1_effect_1_5_13: 6075591365574380184
+      warlock_5_skill_1_effect_1_5_14: 3240663187845579500
+      warlock_5_skill_1_effect_1_5_15: -1569321561896764757
+      warlock_5_skill_1_effect_1_5_2: -3026796828771672072
+      warlock_5_skill_1_effect_1_5_3: 2037858753163109346
+      warlock_5_skill_1_effect_1_5_4: -576204869579935881
+      warlock_5_skill_1_effect_1_5_5: 1396673173207050582
+      warlock_5_skill_1_effect_1_5_6: -3602860203721957000
+      warlock_5_skill_1_effect_1_5_7: -8076939609457566755
+      warlock_5_skill_1_effect_1_5_8: -3904268710075643276
+      warlock_5_skill_1_effect_1_5_9: 7180079528135958076
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

@@ -9,7 +9,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4717175484233288109}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: VFX_Trail_Dark
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -49,9 +49,10 @@ GameObject:
   - component: {fileID: 3732570773608334198}
   - component: {fileID: 5512790342820375398}
   - component: {fileID: 869352408397301807}
-  m_Layer: 0
+  - component: {fileID: 3413352548467004182}
+  m_Layer: 8
   m_Name: UltimaPlanet4
-  m_TagString: Untagged
+  m_TagString: Enemy
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -269,6 +270,42 @@ MonoBehaviour:
   ghostDuration: 0.3
   ghostColor: {r: 1, g: 1, b: 1, a: 0.5}
   useCustomColor: 0
+--- !u!58 &3413352548467004182
+CircleCollider2D:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1574027823569107382}
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Density: 1
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_ForceSendLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_ForceReceiveLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_ContactCaptureLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_CallbackLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_IsTrigger: 0
+  m_UsedByEffector: 0
+  m_CompositeOperation: 0
+  m_CompositeOrder: 0
+  m_Offset: {x: -0.017465055, y: 0}
+  m_Radius: 0.42929018
 --- !u!1 &5428116528324611003
 GameObject:
   m_ObjectHideFlags: 0
@@ -279,7 +316,7 @@ GameObject:
   m_Component:
   - component: {fileID: 4592269341170129557}
   - component: {fileID: 7403501917532467323}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Trail 02
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -421,7 +458,7 @@ GameObject:
   m_Component:
   - component: {fileID: 5607485255025690455}
   - component: {fileID: 4008997509448325336}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Trail 01
   m_TagString: Untagged
   m_Icon: {fileID: 0}

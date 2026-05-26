@@ -1,0 +1,858 @@
+fileFormatVersion: 2
+guid: 65fa7c4832b316e489b17bf8309b020c
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: 1921529408538197685
+    second: GachCardBack_0
+  - first:
+      213: 7645291933605501740
+    second: GachCardBack_1
+  - first:
+      213: -1333154471573127413
+    second: GachCardBack_2
+  - first:
+      213: 7161742723358787897
+    second: GachCardBack_3
+  - first:
+      213: 184275630686285444
+    second: GachCardBack_4
+  - first:
+      213: 4034590972324660134
+    second: GachCardBack_5
+  - first:
+      213: -8761227421959050262
+    second: GachCardBack_6
+  - first:
+      213: -1566972076359268383
+    second: GachCardBack_7
+  - first:
+      213: 384389530730224649
+    second: GachCardBack_8
+  - first:
+      213: -5936135356808744616
+    second: GachCardBack_9
+  - first:
+      213: -1765756006611497905
+    second: GachCardBack_10
+  - first:
+      213: 4587493165523881187
+    second: GachCardBack_11
+  - first:
+      213: -958396899385543878
+    second: GachCardBack_12
+  - first:
+      213: -900345196354817108
+    second: GachCardBack_13
+  - first:
+      213: -4298073546880288723
+    second: GachCardBack_14
+  - first:
+      213: -3624108233199690616
+    second: GachCardBack_15
+  - first:
+      213: 7039760829928541527
+    second: GachCardBack_16
+  - first:
+      213: 2080169159663979287
+    second: GachCardBack_17
+  - first:
+      213: -391093233625261992
+    second: GachCardBack_18
+  - first:
+      213: 6214179277278793727
+    second: GachCardBack_19
+  - first:
+      213: 5209550264254412268
+    second: GachCardBack_20
+  - first:
+      213: -8180940469313525000
+    second: GachCardBack_21
+  - first:
+      213: 7696898134390312940
+    second: GachCardBack_22
+  - first:
+      213: 4090825318464252605
+    second: GachCardBack_23
+  - first:
+      213: 1099260488957468122
+    second: GachCardBack_24
+  - first:
+      213: -8114789222296410257
+    second: GachCardBack_25
+  - first:
+      213: 6681533428009744127
+    second: GachCardBack_26
+  - first:
+      213: 511224056248053226
+    second: GachCardBack_27
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 1
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: GachCardBack_0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 557
+        height: 830
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5beb26df0d4aaaa10800000000000000
+      internalID: 1921529408538197685
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachCardBack_1
+      rect:
+        serializedVersion: 2
+        x: 37
+        y: 820
+        width: 8
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c2b17b2d188891a60800000000000000
+      internalID: 7645291933605501740
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachCardBack_2
+      rect:
+        serializedVersion: 2
+        x: 46
+        y: 820
+        width: 7
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b0ff82b421faf7de0800000000000000
+      internalID: -1333154471573127413
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachCardBack_3
+      rect:
+        serializedVersion: 2
+        x: 60
+        y: 818
+        width: 19
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9390a86ff0f936360800000000000000
+      internalID: 7161742723358787897
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachCardBack_4
+      rect:
+        serializedVersion: 2
+        x: 78
+        y: 822
+        width: 11
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 48e21d3b5bdae8200800000000000000
+      internalID: 184275630686285444
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachCardBack_5
+      rect:
+        serializedVersion: 2
+        x: 92
+        y: 822
+        width: 9
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6a3c867fc1fbdf730800000000000000
+      internalID: 4034590972324660134
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachCardBack_6
+      rect:
+        serializedVersion: 2
+        x: 100
+        y: 822
+        width: 15
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: aeb28b5241ed96680800000000000000
+      internalID: -8761227421959050262
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachCardBack_7
+      rect:
+        serializedVersion: 2
+        x: 159
+        y: 825
+        width: 6
+        height: 5
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1e746afd23ff04ae0800000000000000
+      internalID: -1566972076359268383
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachCardBack_8
+      rect:
+        serializedVersion: 2
+        x: 230
+        y: 822
+        width: 7
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 90cdd8add30a55500800000000000000
+      internalID: 384389530730224649
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachCardBack_9
+      rect:
+        serializedVersion: 2
+        x: 241
+        y: 823
+        width: 8
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 85137ce085c9e9da0800000000000000
+      internalID: -5936135356808744616
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachCardBack_10
+      rect:
+        serializedVersion: 2
+        x: 248
+        y: 818
+        width: 13
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f4cc8e17446ce77e0800000000000000
+      internalID: -1765756006611497905
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachCardBack_11
+      rect:
+        serializedVersion: 2
+        x: 261
+        y: 818
+        width: 16
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3ec459c7abc0aaf30800000000000000
+      internalID: 4587493165523881187
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachCardBack_12
+      rect:
+        serializedVersion: 2
+        x: 279
+        y: 819
+        width: 10
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a33f94a091713b2f0800000000000000
+      internalID: -958396899385543878
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachCardBack_13
+      rect:
+        serializedVersion: 2
+        x: 286
+        y: 819
+        width: 8
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ca3ba0c60d45183f0800000000000000
+      internalID: -900345196354817108
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachCardBack_14
+      rect:
+        serializedVersion: 2
+        x: 316
+        y: 819
+        width: 7
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d2872bb91ec2a54c0800000000000000
+      internalID: -4298073546880288723
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachCardBack_15
+      rect:
+        serializedVersion: 2
+        x: 437
+        y: 824
+        width: 12
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 88c509463c494bdc0800000000000000
+      internalID: -3624108233199690616
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachCardBack_16
+      rect:
+        serializedVersion: 2
+        x: 446
+        y: 821
+        width: 9
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 75d89933d2142b160800000000000000
+      internalID: 7039760829928541527
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachCardBack_17
+      rect:
+        serializedVersion: 2
+        x: 450
+        y: 825
+        width: 7
+        height: 5
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 71b8e7a54de3edc10800000000000000
+      internalID: 2080169159663979287
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachCardBack_18
+      rect:
+        serializedVersion: 2
+        x: 456
+        y: 821
+        width: 7
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 85815bfa6ce829af0800000000000000
+      internalID: -391093233625261992
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachCardBack_19
+      rect:
+        serializedVersion: 2
+        x: 468
+        y: 817
+        width: 17
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: fffcbc8e0233d3650800000000000000
+      internalID: 6214179277278793727
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachCardBack_20
+      rect:
+        serializedVersion: 2
+        x: 482
+        y: 818
+        width: 12
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ce53d6c2d5a0c4840800000000000000
+      internalID: 5209550264254412268
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachCardBack_21
+      rect:
+        serializedVersion: 2
+        x: 492
+        y: 822
+        width: 8
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8fa23f5dcf5777e80800000000000000
+      internalID: -8180940469313525000
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachCardBack_22
+      rect:
+        serializedVersion: 2
+        x: 500
+        y: 822
+        width: 6
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cef83b4c210e0da60800000000000000
+      internalID: 7696898134390312940
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachCardBack_23
+      rect:
+        serializedVersion: 2
+        x: 512
+        y: 821
+        width: 12
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: dba6c39f3f785c830800000000000000
+      internalID: 4090825318464252605
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachCardBack_24
+      rect:
+        serializedVersion: 2
+        x: 536
+        y: 825
+        width: 19
+        height: 5
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: add9eef279b514f00800000000000000
+      internalID: 1099260488957468122
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachCardBack_25
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 811
+        width: 6
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f67aad1423a726f80800000000000000
+      internalID: -8114789222296410257
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachCardBack_26
+      rect:
+        serializedVersion: 2
+        x: 126
+        y: 811
+        width: 8
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ff63b63a04399bc50800000000000000
+      internalID: 6681533428009744127
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachCardBack_27
+      rect:
+        serializedVersion: 2
+        x: 234
+        y: 811
+        width: 7
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: aedac41129b381700800000000000000
+      internalID: 511224056248053226
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 5e97eb03825dee720800000000000000
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      GachCardBack_0: 1921529408538197685
+      GachCardBack_1: 7645291933605501740
+      GachCardBack_10: -1765756006611497905
+      GachCardBack_11: 4587493165523881187
+      GachCardBack_12: -958396899385543878
+      GachCardBack_13: -900345196354817108
+      GachCardBack_14: -4298073546880288723
+      GachCardBack_15: -3624108233199690616
+      GachCardBack_16: 7039760829928541527
+      GachCardBack_17: 2080169159663979287
+      GachCardBack_18: -391093233625261992
+      GachCardBack_19: 6214179277278793727
+      GachCardBack_2: -1333154471573127413
+      GachCardBack_20: 5209550264254412268
+      GachCardBack_21: -8180940469313525000
+      GachCardBack_22: 7696898134390312940
+      GachCardBack_23: 4090825318464252605
+      GachCardBack_24: 1099260488957468122
+      GachCardBack_25: -8114789222296410257
+      GachCardBack_26: 6681533428009744127
+      GachCardBack_27: 511224056248053226
+      GachCardBack_3: 7161742723358787897
+      GachCardBack_4: 184275630686285444
+      GachCardBack_5: 4034590972324660134
+      GachCardBack_6: -8761227421959050262
+      GachCardBack_7: -1566972076359268383
+      GachCardBack_8: 384389530730224649
+      GachCardBack_9: -5936135356808744616
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

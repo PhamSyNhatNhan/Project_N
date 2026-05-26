@@ -12,6 +12,8 @@ public static class EventManager
     public static readonly GameManagerEvent Gm = new GameManagerEvent();
     public static readonly TimeEvents Time = new TimeEvents();
     public static readonly RogueBuffEvents RogueBuff = new RogueBuffEvents();
+    public static readonly ProjectileEvents Projectile = new ProjectileEvents();
+
 
 
     public class PlayerEvents
@@ -112,6 +114,11 @@ public static class EventManager
             (source, dest) => source.AddListener(dest.Invoke)
         );
         
+        public class BurstActiveEvent : UnityEvent<Component, object> { }
+        public GenericEvent<BurstActiveEvent> OnBurstActive = new GenericEvent<BurstActiveEvent>(
+            (source, dest) => source.AddListener(dest.Invoke)
+        );
+        
     }
     
     public class TimeEvents
@@ -153,6 +160,21 @@ public static class EventManager
  
         public class ActivateMinorEvent : UnityEvent<Component, object> { }
         public GenericEvent<ActivateMinorEvent> OnActivateMinor = new GenericEvent<ActivateMinorEvent>(
+            (source, dest) => source.AddListener(dest.Invoke)
+        );
+    }
+    
+    // ── Projectile Events — channel = entityKey của owner ─────────
+    // object: ProjectileHitData
+    public class ProjectileEvents
+    {
+        public class ProjectileHitEvent : UnityEvent<Component, object> { }
+        public GenericEvent<ProjectileHitEvent> OnProjectileHit = new GenericEvent<ProjectileHitEvent>(
+            (source, dest) => source.AddListener(dest.Invoke)
+        );
+        
+        public class SlashEndEvent : UnityEvent<Component, object> { }
+        public GenericEvent<SlashEndEvent> OnSlashEnd = new GenericEvent<SlashEndEvent>(
             (source, dest) => source.AddListener(dest.Invoke)
         );
     }
@@ -268,6 +290,19 @@ public static class EventManager
         public GenericEvent<ShopItemUsedEvent> OnShopItemUsed = new GenericEvent<ShopItemUsedEvent>(
             (source, dest) => source.AddListener(dest.Invoke)
         );
+        
+        // object: null — fire khi mở màn character info
+        public class OpenCharacterInfoEvent : UnityEvent<Component, object> { }
+        public GenericEvent<OpenCharacterInfoEvent> OnOpenCharacterInfo = new GenericEvent<OpenCharacterInfoEvent>(
+            (source, dest) => source.AddListener(dest.Invoke)
+        );
+        
+        // object: null — fire khi mở màn gacha
+        public class OpenGachaEvent : UnityEvent<Component, object> { }
+        public GenericEvent<OpenGachaEvent> OnOpenGacha = new GenericEvent<OpenGachaEvent>(
+            (source, dest) => source.AddListener(dest.Invoke)
+        );
+
     }
 }
 

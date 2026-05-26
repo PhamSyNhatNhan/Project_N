@@ -6,21 +6,22 @@ using Newtonsoft.Json;
 
 /// <summary>
 /// DontDestroyOnLoad — tồn tại xuyên suốt game.
-/// Quản lý UserData: Shard và Talent đã unlock.
-/// Tự động inject Sakuya khi khởi tạo lần đầu.
+/// Quản lý UserData: Shard, CharacterShard và Talent đã unlock.
+/// Tự động inject Dael khi khởi tạo lần đầu.
 /// </summary>
 public class UserDataManager : MonoBehaviour
 {
     public static UserDataManager Instance { get; private set; }
 
     // ── Default ───────────────────────────────────────────────────
-    private static readonly Talent DefaultTalent = Talent.Sakuya;
+    private static readonly Talent DefaultTalent = Talent.Dael;
 
     // ── Runtime ───────────────────────────────────────────────────
     private UserData _data;
 
     // ── Properties ────────────────────────────────────────────────
-    public int Shards => _data.shards;
+    public int Shards          => _data.shards;
+    public int CharacterShards => _data.characterShards;
 
     // ── Lifecycle ─────────────────────────────────────────────────
     private void Awake()
@@ -32,13 +33,10 @@ public class UserDataManager : MonoBehaviour
         }
         Instance = this;
         DontDestroyOnLoad(gameObject);
-
         Load();
     }
 
     // ── Shard API ─────────────────────────────────────────────────
-
-    /// <summary>Thêm shard. Chỉ chấp nhận giá trị dương.</summary>
     public void AddShards(int amount)
     {
         if (amount <= 0) return;
@@ -47,9 +45,6 @@ public class UserDataManager : MonoBehaviour
         EventManager.Gm.OnUserDataChanged.Get().Invoke(this, null);
     }
 
-    /// <summary>
-    /// Tiêu shard. Trả về true nếu đủ tiền và trừ thành công.
-    /// </summary>
     public bool SpendShards(int amount)
     {
         if (amount <= 0) return false;
@@ -64,19 +59,37 @@ public class UserDataManager : MonoBehaviour
         return true;
     }
 
-    /// <summary>Kiểm tra đủ shard không.</summary>
     public bool HasEnoughShards(int amount) => _data.shards >= amount;
 
-    // ── Talent API ────────────────────────────────────────────────
+    // ── CharacterShard API ────────────────────────────────────────
+    public void AddCharacterShards(int amount)
+    {
+        if (amount <= 0) return;
+        _data.characterShards += amount;
+        Save();
+        EventManager.Gm.OnUserDataChanged.Get().Invoke(this, null);
+    }
 
-    /// <summary>Kiểm tra talent đã unlock chưa.</summary>
+    public bool SpendCharacterShards(int amount)
+    {
+        if (amount <= 0) return false;
+        if (_data.characterShards < amount)
+        {
+            Debug.Log($"[UserDataManager] Không đủ CharacterShard. Cần {amount}, có {_data.characterShards}.");
+            return false;
+        }
+        _data.characterShards -= amount;
+        Save();
+        EventManager.Gm.OnUserDataChanged.Get().Invoke(this, null);
+        return true;
+    }
+
+    public bool HasEnoughCharacterShards(int amount) => _data.characterShards >= amount;
+
+    // ── Talent API ────────────────────────────────────────────────
     public bool IsUnlocked(Talent talent)
         => _data.unlockedTalents.Contains(talent.ToString());
 
-    /// <summary>
-    /// Unlock talent bằng shard. Trả về true nếu thành công.
-    /// Thất bại nếu: đã unlock, hoặc không đủ shard.
-    /// </summary>
     public bool UnlockTalent(Talent talent, int cost)
     {
         if (IsUnlocked(talent))
@@ -84,17 +97,23 @@ public class UserDataManager : MonoBehaviour
             Debug.Log($"[UserDataManager] {talent} đã được unlock.");
             return false;
         }
-
-        if (!SpendShards(cost))
-            return false;
-
+        if (!SpendShards(cost)) return false;
         _data.unlockedTalents.Add(talent.ToString());
         Save();
         EventManager.Gm.OnUserDataChanged.Get().Invoke(this, null);
         return true;
     }
 
-    /// <summary>Lấy danh sách tất cả talent đã unlock.</summary>
+    /// <summary>Unlock talent không trừ shard — dùng khi đã thanh toán riêng (gacha).</summary>
+    public bool UnlockTalentFree(Talent talent)
+    {
+        if (IsUnlocked(talent)) return false;
+        _data.unlockedTalents.Add(talent.ToString());
+        Save();
+        EventManager.Gm.OnUserDataChanged.Get().Invoke(this, null);
+        return true;
+    }
+
     public IReadOnlyList<string> GetUnlockedTalents() => _data.unlockedTalents;
 
     // ── Save / Load ───────────────────────────────────────────────
@@ -115,10 +134,7 @@ public class UserDataManager : MonoBehaviour
                 _data = null;
             }
         }
-
-        if (_data == null)
-            _data = new UserData();
-
+        if (_data == null) _data = new UserData();
         Validate();
     }
 
@@ -139,21 +155,15 @@ public class UserDataManager : MonoBehaviour
     {
         bool dirty = false;
 
-        // Shards không âm
-        if (_data.shards < 0)
-        {
-            _data.shards = 0;
-            dirty = true;
-        }
+        if (_data.shards < 0)          { _data.shards = 0; dirty = true; }
+        if (_data.characterShards < 0) { _data.characterShards = 0; dirty = true; }
 
-        // unlockedTalents không null
         if (_data.unlockedTalents == null)
         {
-            _data.unlockedTalents = new List<string>();
+            _data.unlockedTalents = new System.Collections.Generic.List<string>();
             dirty = true;
         }
 
-        // Sakuya luôn unlock
         string defaultKey = DefaultTalent.ToString();
         if (!_data.unlockedTalents.Contains(defaultKey))
         {

@@ -1,0 +1,4342 @@
+fileFormatVersion: 2
+guid: 628974f58b42cf94c91c9b373ec278cf
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: -1412518645508312137
+    second: GachaPullButton1_0
+  - first:
+      213: 4490420216892612342
+    second: GachaPullButton1_1
+  - first:
+      213: -346366472476631768
+    second: GachaPullButton1_2
+  - first:
+      213: -6874962261287499254
+    second: GachaPullButton1_3
+  - first:
+      213: 6742911527913922308
+    second: GachaPullButton1_4
+  - first:
+      213: -1887474564219553358
+    second: GachaPullButton1_5
+  - first:
+      213: -1972190571769418308
+    second: GachaPullButton1_6
+  - first:
+      213: 7238889954264726500
+    second: GachaPullButton1_7
+  - first:
+      213: -5649808781433810925
+    second: GachaPullButton1_8
+  - first:
+      213: 2164473786826213935
+    second: GachaPullButton1_9
+  - first:
+      213: 4679356245808017704
+    second: GachaPullButton1_10
+  - first:
+      213: 2930966440078773241
+    second: GachaPullButton1_11
+  - first:
+      213: -9127046249993174705
+    second: GachaPullButton1_12
+  - first:
+      213: -1169668928316592126
+    second: GachaPullButton1_13
+  - first:
+      213: -9042533260510764774
+    second: GachaPullButton1_14
+  - first:
+      213: -5339233286783227701
+    second: GachaPullButton1_15
+  - first:
+      213: 6289486649132493744
+    second: GachaPullButton1_16
+  - first:
+      213: 8237909835725218389
+    second: GachaPullButton1_17
+  - first:
+      213: 3602918328564135770
+    second: GachaPullButton1_18
+  - first:
+      213: 4303178274623013702
+    second: GachaPullButton1_19
+  - first:
+      213: 6102588379280884152
+    second: GachaPullButton1_20
+  - first:
+      213: -6730842301170510937
+    second: GachaPullButton1_21
+  - first:
+      213: -6467204834358161663
+    second: GachaPullButton1_22
+  - first:
+      213: -5163595230056027561
+    second: GachaPullButton1_23
+  - first:
+      213: 8275474621225395285
+    second: GachaPullButton1_24
+  - first:
+      213: -1210783490609626130
+    second: GachaPullButton1_25
+  - first:
+      213: 8899934841634026016
+    second: GachaPullButton1_26
+  - first:
+      213: 7195405107234632529
+    second: GachaPullButton1_27
+  - first:
+      213: 4256346103039683481
+    second: GachaPullButton1_28
+  - first:
+      213: 2544138851738005747
+    second: GachaPullButton1_29
+  - first:
+      213: -224115948137366921
+    second: GachaPullButton1_30
+  - first:
+      213: 3489302241569814551
+    second: GachaPullButton1_31
+  - first:
+      213: 7607263788214906853
+    second: GachaPullButton1_32
+  - first:
+      213: -1908681892884182807
+    second: GachaPullButton1_33
+  - first:
+      213: -1192980290030220678
+    second: GachaPullButton1_34
+  - first:
+      213: 6560855993475882204
+    second: GachaPullButton1_35
+  - first:
+      213: -2185108941966157477
+    second: GachaPullButton1_36
+  - first:
+      213: -7328253806544417767
+    second: GachaPullButton1_37
+  - first:
+      213: 4981059207695772367
+    second: GachaPullButton1_38
+  - first:
+      213: -8321361813328426692
+    second: GachaPullButton1_39
+  - first:
+      213: -8885207854097218194
+    second: GachaPullButton1_40
+  - first:
+      213: -1133532778572798695
+    second: GachaPullButton1_41
+  - first:
+      213: 3864231262044367559
+    second: GachaPullButton1_42
+  - first:
+      213: 8755640207143181986
+    second: GachaPullButton1_43
+  - first:
+      213: -8691635829316174384
+    second: GachaPullButton1_44
+  - first:
+      213: -7442561357227322242
+    second: GachaPullButton1_45
+  - first:
+      213: -698707955892742627
+    second: GachaPullButton1_46
+  - first:
+      213: 3112877035963675254
+    second: GachaPullButton1_47
+  - first:
+      213: -1904450675815186831
+    second: GachaPullButton1_48
+  - first:
+      213: 4923516387066596271
+    second: GachaPullButton1_49
+  - first:
+      213: 4787367361128832898
+    second: GachaPullButton1_50
+  - first:
+      213: 9110633683614937430
+    second: GachaPullButton1_51
+  - first:
+      213: -2343979279694487929
+    second: GachaPullButton1_52
+  - first:
+      213: -7394036062106033643
+    second: GachaPullButton1_53
+  - first:
+      213: 2516320713160143145
+    second: GachaPullButton1_54
+  - first:
+      213: -7984196858764107277
+    second: GachaPullButton1_55
+  - first:
+      213: -6278944678307729633
+    second: GachaPullButton1_56
+  - first:
+      213: -535145723373206123
+    second: GachaPullButton1_57
+  - first:
+      213: 8816968922142832282
+    second: GachaPullButton1_58
+  - first:
+      213: 8091738874286211610
+    second: GachaPullButton1_59
+  - first:
+      213: 6529970305416956570
+    second: GachaPullButton1_60
+  - first:
+      213: -4807919340758979745
+    second: GachaPullButton1_61
+  - first:
+      213: 981929141392413305
+    second: GachaPullButton1_62
+  - first:
+      213: -302404771735080841
+    second: GachaPullButton1_63
+  - first:
+      213: 2520367078883226736
+    second: GachaPullButton1_64
+  - first:
+      213: 7561236357394768697
+    second: GachaPullButton1_65
+  - first:
+      213: -5164728732452224787
+    second: GachaPullButton1_66
+  - first:
+      213: -7676508809682935368
+    second: GachaPullButton1_67
+  - first:
+      213: 3540839227334881792
+    second: GachaPullButton1_68
+  - first:
+      213: -4049416598123501132
+    second: GachaPullButton1_69
+  - first:
+      213: 2956416280484581679
+    second: GachaPullButton1_70
+  - first:
+      213: 5596409207860654636
+    second: GachaPullButton1_71
+  - first:
+      213: -6293448841581096912
+    second: GachaPullButton1_72
+  - first:
+      213: 5041206696432424036
+    second: GachaPullButton1_73
+  - first:
+      213: 8029676684316596196
+    second: GachaPullButton1_74
+  - first:
+      213: -8128308458924185714
+    second: GachaPullButton1_75
+  - first:
+      213: -5112681904132422463
+    second: GachaPullButton1_76
+  - first:
+      213: 4221543242674755907
+    second: GachaPullButton1_77
+  - first:
+      213: -351770211277904891
+    second: GachaPullButton1_78
+  - first:
+      213: 6086654611023539635
+    second: GachaPullButton1_79
+  - first:
+      213: -4434206262660641541
+    second: GachaPullButton1_80
+  - first:
+      213: -8627738955818897654
+    second: GachaPullButton1_81
+  - first:
+      213: 641645974612569907
+    second: GachaPullButton1_82
+  - first:
+      213: -310052163692817877
+    second: GachaPullButton1_83
+  - first:
+      213: -4745488872042743393
+    second: GachaPullButton1_84
+  - first:
+      213: 5809870282634663224
+    second: GachaPullButton1_85
+  - first:
+      213: 3760022660068430786
+    second: GachaPullButton1_86
+  - first:
+      213: -5109984426669664265
+    second: GachaPullButton1_87
+  - first:
+      213: 1826195354809540002
+    second: GachaPullButton1_88
+  - first:
+      213: -1587690923376677609
+    second: GachaPullButton1_89
+  - first:
+      213: -4864937429824046260
+    second: GachaPullButton1_90
+  - first:
+      213: 6830019554950514078
+    second: GachaPullButton1_91
+  - first:
+      213: 1110822004859128817
+    second: GachaPullButton1_92
+  - first:
+      213: 1892380820642663037
+    second: GachaPullButton1_93
+  - first:
+      213: -5465481618582425135
+    second: GachaPullButton1_94
+  - first:
+      213: 4332098279138358936
+    second: GachaPullButton1_95
+  - first:
+      213: -7367314014702729073
+    second: GachaPullButton1_96
+  - first:
+      213: -7521211990165858934
+    second: GachaPullButton1_97
+  - first:
+      213: -5792877100223682785
+    second: GachaPullButton1_98
+  - first:
+      213: 2440910317636384586
+    second: GachaPullButton1_99
+  - first:
+      213: -1577411432182089691
+    second: GachaPullButton1_100
+  - first:
+      213: -6688300687465802664
+    second: GachaPullButton1_101
+  - first:
+      213: 4871952675681180762
+    second: GachaPullButton1_102
+  - first:
+      213: 2105009355967450468
+    second: GachaPullButton1_103
+  - first:
+      213: 5117690847455432977
+    second: GachaPullButton1_104
+  - first:
+      213: -6169280720579401483
+    second: GachaPullButton1_105
+  - first:
+      213: 8292565951972698479
+    second: GachaPullButton1_106
+  - first:
+      213: -2691842541763028856
+    second: GachaPullButton1_107
+  - first:
+      213: 1912668985972549115
+    second: GachaPullButton1_108
+  - first:
+      213: 5968241446216404724
+    second: GachaPullButton1_109
+  - first:
+      213: -5257901620788946212
+    second: GachaPullButton1_110
+  - first:
+      213: -2544718468725998258
+    second: GachaPullButton1_111
+  - first:
+      213: 999259403261812739
+    second: GachaPullButton1_112
+  - first:
+      213: -397699509644139750
+    second: GachaPullButton1_113
+  - first:
+      213: -1923608416289981776
+    second: GachaPullButton1_114
+  - first:
+      213: 3797507473151325394
+    second: GachaPullButton1_115
+  - first:
+      213: 6252285110977630562
+    second: GachaPullButton1_116
+  - first:
+      213: 2432749032045539366
+    second: GachaPullButton1_117
+  - first:
+      213: 1333495026910854842
+    second: GachaPullButton1_118
+  - first:
+      213: 3548139118098349203
+    second: GachaPullButton1_119
+  - first:
+      213: 2413163361934220860
+    second: GachaPullButton1_120
+  - first:
+      213: 1030128870721682332
+    second: GachaPullButton1_121
+  - first:
+      213: -7525927100576824802
+    second: GachaPullButton1_122
+  - first:
+      213: 3109776733972658463
+    second: GachaPullButton1_123
+  - first:
+      213: 7938528728462730653
+    second: GachaPullButton1_124
+  - first:
+      213: 1725141452057144091
+    second: GachaPullButton1_125
+  - first:
+      213: 2582087273776414819
+    second: GachaPullButton1_126
+  - first:
+      213: 6871242970141638992
+    second: GachaPullButton1_127
+  - first:
+      213: -4903529059728662173
+    second: GachaPullButton1_128
+  - first:
+      213: 3535895527902669162
+    second: GachaPullButton1_129
+  - first:
+      213: 7624626007515380368
+    second: GachaPullButton1_130
+  - first:
+      213: -6610694267549669760
+    second: GachaPullButton1_131
+  - first:
+      213: 7096217417413471178
+    second: GachaPullButton1_132
+  - first:
+      213: -770493395993444368
+    second: GachaPullButton1_133
+  - first:
+      213: 3886285710259088686
+    second: GachaPullButton1_134
+  - first:
+      213: 1444995317705273461
+    second: GachaPullButton1_135
+  - first:
+      213: -846135561555875772
+    second: GachaPullButton1_136
+  - first:
+      213: 8795941116793334775
+    second: GachaPullButton1_137
+  - first:
+      213: -7255534458337195138
+    second: GachaPullButton1_138
+  - first:
+      213: -7207440709369924330
+    second: GachaPullButton1_139
+  - first:
+      213: -755546476510641176
+    second: GachaPullButton1_140
+  - first:
+      213: -2876985330151920163
+    second: GachaPullButton1_141
+  - first:
+      213: -7666678081652180321
+    second: GachaPullButton1_142
+  - first:
+      213: 402406698744328924
+    second: GachaPullButton1_143
+  - first:
+      213: -8264702738702479493
+    second: GachaPullButton1_144
+  - first:
+      213: 5132558344003614930
+    second: GachaPullButton1_145
+  - first:
+      213: -5979288978639286888
+    second: GachaPullButton1_146
+  - first:
+      213: -1961038025592585387
+    second: GachaPullButton1_147
+  - first:
+      213: -9162495477968022690
+    second: GachaPullButton1_148
+  - first:
+      213: -2083075112795684475
+    second: GachaPullButton1_149
+  - first:
+      213: -6976991661625771723
+    second: GachaPullButton1_150
+  - first:
+      213: -3181356059070810583
+    second: GachaPullButton1_151
+  - first:
+      213: -5158299513564389438
+    second: GachaPullButton1_152
+  - first:
+      213: -2692396520987255574
+    second: GachaPullButton1_153
+  - first:
+      213: 2978594007261431977
+    second: GachaPullButton1_154
+  - first:
+      213: 638178320558715821
+    second: GachaPullButton1_155
+  - first:
+      213: 5630967553245272869
+    second: GachaPullButton1_156
+  - first:
+      213: -4097533960654973419
+    second: GachaPullButton1_157
+  - first:
+      213: 7533856148139072756
+    second: GachaPullButton1_158
+  - first:
+      213: -2477066408630873671
+    second: GachaPullButton1_159
+  - first:
+      213: -8414995976973571672
+    second: GachaPullButton1_160
+  - first:
+      213: 692003947066492170
+    second: GachaPullButton1_161
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 1
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: GachaPullButton1_0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 1376
+        height: 768
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7b37cd796c9b56ce0800000000000000
+      internalID: -1412518645508312137
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_1
+      rect:
+        serializedVersion: 2
+        x: 1349
+        y: 599
+        width: 10
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6fedd10656d215e30800000000000000
+      internalID: 4490420216892612342
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_2
+      rect:
+        serializedVersion: 2
+        x: 1355
+        y: 591
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 82ddce54785713bf0800000000000000
+      internalID: -346366472476631768
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_3
+      rect:
+        serializedVersion: 2
+        x: 1343
+        y: 551
+        width: 6
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a0a0ebb9f3a3790a0800000000000000
+      internalID: -6874962261287499254
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_4
+      rect:
+        serializedVersion: 2
+        x: 1348
+        y: 553
+        width: 7
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 40f12352f42a39d50800000000000000
+      internalID: 6742911527913922308
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_5
+      rect:
+        serializedVersion: 2
+        x: 1351
+        y: 469
+        width: 8
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2b9bb1552e75ec5e0800000000000000
+      internalID: -1887474564219553358
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_6
+      rect:
+        serializedVersion: 2
+        x: 1343
+        y: 455
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cbd2f44cf1f51a4e0800000000000000
+      internalID: -1972190571769418308
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_7
+      rect:
+        serializedVersion: 2
+        x: 1365
+        y: 458
+        width: 7
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4ebb7146f04b57460800000000000000
+      internalID: 7238889954264726500
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_8
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 376
+        width: 7
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 31051c5e8d8d791b0800000000000000
+      internalID: -5649808781433810925
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_9
+      rect:
+        serializedVersion: 2
+        x: 3
+        y: 371
+        width: 6
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f2acb65f071c90e10800000000000000
+      internalID: 2164473786826213935
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_10
+      rect:
+        serializedVersion: 2
+        x: 1363
+        y: 363
+        width: 10
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 82174e896b960f040800000000000000
+      internalID: 4679356245808017704
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_11
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 339
+        width: 7
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9fb8c75c272eca820800000000000000
+      internalID: 2930966440078773241
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_12
+      rect:
+        serializedVersion: 2
+        x: 1370
+        y: 353
+        width: 6
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f418894fac7365180800000000000000
+      internalID: -9127046249993174705
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_13
+      rect:
+        serializedVersion: 2
+        x: 2
+        y: 327
+        width: 7
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 200b0ee8e4084cfe0800000000000000
+      internalID: -1169668928316592126
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_14
+      rect:
+        serializedVersion: 2
+        x: 3
+        y: 319
+        width: 8
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a11e991b8e7728280800000000000000
+      internalID: -9042533260510764774
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_15
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 306
+        width: 12
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: bc828583d9b37e5b0800000000000000
+      internalID: -5339233286783227701
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_16
+      rect:
+        serializedVersion: 2
+        x: 1351
+        y: 303
+        width: 9
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0bbaa15c8ceb84750800000000000000
+      internalID: 6289486649132493744
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_17
+      rect:
+        serializedVersion: 2
+        x: 1359
+        y: 301
+        width: 8
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 552291a695fe25270800000000000000
+      internalID: 8237909835725218389
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_18
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 281
+        width: 13
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a573fc87123200230800000000000000
+      internalID: 3602918328564135770
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_19
+      rect:
+        serializedVersion: 2
+        x: 1359
+        y: 288
+        width: 6
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 643451077d5f7bb30800000000000000
+      internalID: 4303178274623013702
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_20
+      rect:
+        serializedVersion: 2
+        x: 1355
+        y: 277
+        width: 8
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8b1c67d4ccfb0b450800000000000000
+      internalID: 6102588379280884152
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_21
+      rect:
+        serializedVersion: 2
+        x: 1355
+        y: 269
+        width: 8
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7a31f8fa69e3792a0800000000000000
+      internalID: -6730842301170510937
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_22
+      rect:
+        serializedVersion: 2
+        x: 3
+        y: 203
+        width: 8
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 10f8466c77fdf36a0800000000000000
+      internalID: -6467204834358161663
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_23
+      rect:
+        serializedVersion: 2
+        x: 5
+        y: 197
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 75aeb940f793758b0800000000000000
+      internalID: -5163595230056027561
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_24
+      rect:
+        serializedVersion: 2
+        x: 1343
+        y: 203
+        width: 8
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 55466e9925468d270800000000000000
+      internalID: 8275474621225395285
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_25
+      rect:
+        serializedVersion: 2
+        x: 1347
+        y: 166
+        width: 29
+        height: 44
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ee34e4e84de623fe0800000000000000
+      internalID: -1210783490609626130
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_26
+      rect:
+        serializedVersion: 2
+        x: 3
+        y: 159
+        width: 10
+        height: 15
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 022f7b7a59be28b70800000000000000
+      internalID: 8899934841634026016
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_27
+      rect:
+        serializedVersion: 2
+        x: 1355
+        y: 135
+        width: 14
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 15370c772d63bd360800000000000000
+      internalID: 7195405107234632529
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_28
+      rect:
+        serializedVersion: 2
+        x: 1369
+        y: 160
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 99b6cc8ca34911b30800000000000000
+      internalID: 4256346103039683481
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_29
+      rect:
+        serializedVersion: 2
+        x: 1363
+        y: 127
+        width: 13
+        height: 27
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3f03d156ec89e4320800000000000000
+      internalID: 2544138851738005747
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_30
+      rect:
+        serializedVersion: 2
+        x: 1366
+        y: 152
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 77ab5ca8bb7c3ecf0800000000000000
+      internalID: -224115948137366921
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_31
+      rect:
+        serializedVersion: 2
+        x: 1342
+        y: 126
+        width: 9
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7183ebec6ed7c6030800000000000000
+      internalID: 3489302241569814551
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_32
+      rect:
+        serializedVersion: 2
+        x: 1343
+        y: 133
+        width: 12
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5efed314c1e629960800000000000000
+      internalID: 7607263788214906853
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_33
+      rect:
+        serializedVersion: 2
+        x: 1355
+        y: 129
+        width: 9
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9e80b695eeff285e0800000000000000
+      internalID: -1908681892884182807
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_34
+      rect:
+        serializedVersion: 2
+        x: 1342
+        y: 121
+        width: 9
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a7ac4b43fbea17fe0800000000000000
+      internalID: -1192980290030220678
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_35
+      rect:
+        serializedVersion: 2
+        x: 1349
+        y: 121
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cdc5f91e3c7dc0b50800000000000000
+      internalID: 6560855993475882204
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_36
+      rect:
+        serializedVersion: 2
+        x: 1360
+        y: 121
+        width: 8
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b59d3969efeeca1e0800000000000000
+      internalID: -2185108941966157477
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_37
+      rect:
+        serializedVersion: 2
+        x: 1343
+        y: 113
+        width: 12
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 91c040d5dffcc4a90800000000000000
+      internalID: -7328253806544417767
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_38
+      rect:
+        serializedVersion: 2
+        x: 1343
+        y: 105
+        width: 8
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: fca25e765f6402540800000000000000
+      internalID: 4981059207695772367
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_39
+      rect:
+        serializedVersion: 2
+        x: 1355
+        y: 110
+        width: 12
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c390f0de485948c80800000000000000
+      internalID: -8321361813328426692
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_40
+      rect:
+        serializedVersion: 2
+        x: 1344
+        y: 101
+        width: 7
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e654605588661b480800000000000000
+      internalID: -8885207854097218194
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_41
+      rect:
+        serializedVersion: 2
+        x: 1352
+        y: 94
+        width: 7
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 91528ef81f1e440f0800000000000000
+      internalID: -1133532778572798695
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_42
+      rect:
+        serializedVersion: 2
+        x: 1358
+        y: 101
+        width: 9
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7ca2d18fbd180a530800000000000000
+      internalID: 3864231262044367559
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_43
+      rect:
+        serializedVersion: 2
+        x: 1363
+        y: 99
+        width: 13
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2ae95e70168428970800000000000000
+      internalID: 8755640207143181986
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_44
+      rect:
+        serializedVersion: 2
+        x: 1363
+        y: 95
+        width: 8
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0dd3d84734b116780800000000000000
+      internalID: -8691635829316174384
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_45
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 45
+        width: 7
+        height: 20
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e749a63c0e5b6b890800000000000000
+      internalID: -7442561357227322242
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_46
+      rect:
+        serializedVersion: 2
+        x: 79
+        y: 54
+        width: 10
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d161647e0d0bd46f0800000000000000
+      internalID: -698707955892742627
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_47
+      rect:
+        serializedVersion: 2
+        x: 1286
+        y: 45
+        width: 11
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 672f516eb29233b20800000000000000
+      internalID: 3112877035963675254
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_48
+      rect:
+        serializedVersion: 2
+        x: 1291
+        y: 56
+        width: 11
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 17e78c753380295e0800000000000000
+      internalID: -1904450675815186831
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_49
+      rect:
+        serializedVersion: 2
+        x: 1296
+        y: 49
+        width: 7
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: fab4be07118d35440800000000000000
+      internalID: 4923516387066596271
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_50
+      rect:
+        serializedVersion: 2
+        x: 1338
+        y: 27
+        width: 38
+        height: 72
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 28f12691045207240800000000000000
+      internalID: 4787367361128832898
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_51
+      rect:
+        serializedVersion: 2
+        x: 4
+        y: 43
+        width: 13
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 651b396a0197f6e70800000000000000
+      internalID: 9110633683614937430
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_52
+      rect:
+        serializedVersion: 2
+        x: 79
+        y: 49
+        width: 8
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 78e1fe89343887fd0800000000000000
+      internalID: -2343979279694487929
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_53
+      rect:
+        serializedVersion: 2
+        x: 1333
+        y: 41
+        width: 7
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 512edb5706b136990800000000000000
+      internalID: -7394036062106033643
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_54
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 47
+        height: 43
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9213ed84b54cbe220800000000000000
+      internalID: 2516320713160143145
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_55
+      rect:
+        serializedVersion: 2
+        x: 5
+        y: 31
+        width: 14
+        height: 15
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3f16390524f623190800000000000000
+      internalID: -7984196858764107277
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_56
+      rect:
+        serializedVersion: 2
+        x: 679
+        y: 35
+        width: 6
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f1f63251515bcd8a0800000000000000
+      internalID: -6278944678307729633
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_57
+      rect:
+        serializedVersion: 2
+        x: 1311
+        y: 31
+        width: 12
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5954547ccc7c298f0800000000000000
+      internalID: -535145723373206123
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_58
+      rect:
+        serializedVersion: 2
+        x: 1319
+        y: 35
+        width: 13
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a967bf7358a2c5a70800000000000000
+      internalID: 8816968922142832282
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_59
+      rect:
+        serializedVersion: 2
+        x: 1327
+        y: 39
+        width: 8
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a128c0162a1ab4070800000000000000
+      internalID: 8091738874286211610
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_60
+      rect:
+        serializedVersion: 2
+        x: 3
+        y: 25
+        width: 8
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a9a0a30456d1f9a50800000000000000
+      internalID: 6529970305416956570
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_61
+      rect:
+        serializedVersion: 2
+        x: 367
+        y: 0
+        width: 32
+        height: 26
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f5ba45145d6d64db0800000000000000
+      internalID: -4807919340758979745
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_62
+      rect:
+        serializedVersion: 2
+        x: 379
+        y: 25
+        width: 10
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9729c430a5380ad00800000000000000
+      internalID: 981929141392413305
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_63
+      rect:
+        serializedVersion: 2
+        x: 480
+        y: 14
+        width: 7
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 770f85a5674adcbf0800000000000000
+      internalID: -302404771735080841
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_64
+      rect:
+        serializedVersion: 2
+        x: 499
+        y: 19
+        width: 7
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0747c6831842af220800000000000000
+      internalID: 2520367078883226736
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_65
+      rect:
+        serializedVersion: 2
+        x: 529
+        y: 0
+        width: 34
+        height: 27
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 933a849e768eee860800000000000000
+      internalID: 7561236357394768697
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_66
+      rect:
+        serializedVersion: 2
+        x: 575
+        y: 23
+        width: 10
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: de08eece4923358b0800000000000000
+      internalID: -5164728732452224787
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_67
+      rect:
+        serializedVersion: 2
+        x: 1277
+        y: 21
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8b121b3d8ef877590800000000000000
+      internalID: -7676508809682935368
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_68
+      rect:
+        serializedVersion: 2
+        x: 1319
+        y: 0
+        width: 36
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 00270106486932130800000000000000
+      internalID: 3540839227334881792
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_69
+      rect:
+        serializedVersion: 2
+        x: 1345
+        y: 25
+        width: 6
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4b927490f059dc7c0800000000000000
+      internalID: -4049416598123501132
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_70
+      rect:
+        serializedVersion: 2
+        x: 1351
+        y: 1
+        width: 25
+        height: 29
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f21177e71fc470920800000000000000
+      internalID: 2956416280484581679
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_71
+      rect:
+        serializedVersion: 2
+        x: 1359
+        y: 26
+        width: 8
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c22724406807aad40800000000000000
+      internalID: 5596409207860654636
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_72
+      rect:
+        serializedVersion: 2
+        x: 47
+        y: 0
+        width: 26
+        height: 23
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 03017796f9d29a8a0800000000000000
+      internalID: -6293448841581096912
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_73
+      rect:
+        serializedVersion: 2
+        x: 69
+        y: 13
+        width: 7
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 464dc2ce7c6f5f540800000000000000
+      internalID: 5041206696432424036
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_74
+      rect:
+        serializedVersion: 2
+        x: 197
+        y: 13
+        width: 10
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4e75dedb6642f6f60800000000000000
+      internalID: 8029676684316596196
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_75
+      rect:
+        serializedVersion: 2
+        x: 215
+        y: 11
+        width: 8
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e876501b582723f80800000000000000
+      internalID: -8128308458924185714
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_76
+      rect:
+        serializedVersion: 2
+        x: 225
+        y: 0
+        width: 39
+        height: 21
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1c48e9675ea1c09b0800000000000000
+      internalID: -5112681904132422463
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_77
+      rect:
+        serializedVersion: 2
+        x: 262
+        y: 0
+        width: 21
+        height: 20
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3495497663fe59a30800000000000000
+      internalID: 4221543242674755907
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_78
+      rect:
+        serializedVersion: 2
+        x: 263
+        y: 15
+        width: 8
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 504673a4bd24e1bf0800000000000000
+      internalID: -351770211277904891
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_79
+      rect:
+        serializedVersion: 2
+        x: 274
+        y: 0
+        width: 34
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3bd2d88ce14287450800000000000000
+      internalID: 6086654611023539635
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_80
+      rect:
+        serializedVersion: 2
+        x: 307
+        y: 0
+        width: 16
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: bfccc45c5e88672c0800000000000000
+      internalID: -4434206262660641541
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_81
+      rect:
+        serializedVersion: 2
+        x: 322
+        y: 0
+        width: 29
+        height: 24
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a0f6d93a12d144880800000000000000
+      internalID: -8627738955818897654
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_82
+      rect:
+        serializedVersion: 2
+        x: 346
+        y: 0
+        width: 19
+        height: 23
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 33f67544d9597e800800000000000000
+      internalID: 641645974612569907
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_83
+      rect:
+        serializedVersion: 2
+        x: 419
+        y: 11
+        width: 12
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b229f39233972bbf0800000000000000
+      internalID: -310052163692817877
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_84
+      rect:
+        serializedVersion: 2
+        x: 437
+        y: 7
+        width: 6
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f99b2587303a42eb0800000000000000
+      internalID: -4745488872042743393
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_85
+      rect:
+        serializedVersion: 2
+        x: 445
+        y: 11
+        width: 6
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 83599837d3ec0a050800000000000000
+      internalID: 5809870282634663224
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_86
+      rect:
+        serializedVersion: 2
+        x: 451
+        y: 8
+        width: 8
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2c35cc810b84e2430800000000000000
+      internalID: 3760022660068430786
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_87
+      rect:
+        serializedVersion: 2
+        x: 463
+        y: 7
+        width: 19
+        height: 16
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7f79390ec30b519b0800000000000000
+      internalID: -5109984426669664265
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_88
+      rect:
+        serializedVersion: 2
+        x: 475
+        y: 17
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2ad14e5eff2f75910800000000000000
+      internalID: 1826195354809540002
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_89
+      rect:
+        serializedVersion: 2
+        x: 478
+        y: 0
+        width: 35
+        height: 21
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 71d6503648367f9e0800000000000000
+      internalID: -1587690923376677609
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_90
+      rect:
+        serializedVersion: 2
+        x: 513
+        y: 7
+        width: 10
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c4bf5d0ee254c7cb0800000000000000
+      internalID: -4864937429824046260
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_91
+      rect:
+        serializedVersion: 2
+        x: 523
+        y: 14
+        width: 6
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e950cc5299a19ce50800000000000000
+      internalID: 6830019554950514078
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_92
+      rect:
+        serializedVersion: 2
+        x: 563
+        y: 7
+        width: 20
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1fbc0506abe6a6f00800000000000000
+      internalID: 1110822004859128817
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_93
+      rect:
+        serializedVersion: 2
+        x: 583
+        y: 1
+        width: 20
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d7a0b228456134a10800000000000000
+      internalID: 1892380820642663037
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_94
+      rect:
+        serializedVersion: 2
+        x: 607
+        y: 3
+        width: 8
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1d1b7fddc65b624b0800000000000000
+      internalID: -5465481618582425135
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_95
+      rect:
+        serializedVersion: 2
+        x: 631
+        y: 0
+        width: 16
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8967f14be64be1c30800000000000000
+      internalID: 4332098279138358936
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_96
+      rect:
+        serializedVersion: 2
+        x: 734
+        y: 0
+        width: 23
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f8803e4ffea02c990800000000000000
+      internalID: -7367314014702729073
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_97
+      rect:
+        serializedVersion: 2
+        x: 815
+        y: 0
+        width: 13
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a8551c54b894f9790800000000000000
+      internalID: -7521211990165858934
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_98
+      rect:
+        serializedVersion: 2
+        x: 855
+        y: 0
+        width: 32
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f172ca528f09b9fa0800000000000000
+      internalID: -5792877100223682785
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_99
+      rect:
+        serializedVersion: 2
+        x: 907
+        y: 1
+        width: 12
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a477d4b500bdfd120800000000000000
+      internalID: 2440910317636384586
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_100
+      rect:
+        serializedVersion: 2
+        x: 934
+        y: 7
+        width: 11
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5287520f8a8eb1ae0800000000000000
+      internalID: -1577411432182089691
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_101
+      rect:
+        serializedVersion: 2
+        x: 963
+        y: 11
+        width: 12
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 854999cf5f16e23a0800000000000000
+      internalID: -6688300687465802664
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_102
+      rect:
+        serializedVersion: 2
+        x: 978
+        y: 5
+        width: 9
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a5c9d745527ac9340800000000000000
+      internalID: 4871952675681180762
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_103
+      rect:
+        serializedVersion: 2
+        x: 1003
+        y: 0
+        width: 16
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 46d405f3bde763d10800000000000000
+      internalID: 2105009355967450468
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_104
+      rect:
+        serializedVersion: 2
+        x: 1018
+        y: 0
+        width: 24
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 11159d806b0b50740800000000000000
+      internalID: 5117690847455432977
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_105
+      rect:
+        serializedVersion: 2
+        x: 1061
+        y: 11
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5f8e232fedf426aa0800000000000000
+      internalID: -6169280720579401483
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_106
+      rect:
+        serializedVersion: 2
+        x: 1116
+        y: 0
+        width: 23
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f69e4d32ccc151370800000000000000
+      internalID: 8292565951972698479
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_107
+      rect:
+        serializedVersion: 2
+        x: 1171
+        y: 13
+        width: 9
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8881ee26877a4aad0800000000000000
+      internalID: -2691842541763028856
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_108
+      rect:
+        serializedVersion: 2
+        x: 1187
+        y: 12
+        width: 11
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: bf5ecc91f4a2b8a10800000000000000
+      internalID: 1912668985972549115
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_109
+      rect:
+        serializedVersion: 2
+        x: 1201
+        y: 12
+        width: 6
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4fe0e7769f373d250800000000000000
+      internalID: 5968241446216404724
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_110
+      rect:
+        serializedVersion: 2
+        x: 1245
+        y: 5
+        width: 12
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cda9cec555e2807b0800000000000000
+      internalID: -5257901620788946212
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_111
+      rect:
+        serializedVersion: 2
+        x: 1290
+        y: 0
+        width: 33
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e4df53209085facd0800000000000000
+      internalID: -2544718468725998258
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_112
+      rect:
+        serializedVersion: 2
+        x: 1315
+        y: 7
+        width: 6
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 300a3e902251edd00800000000000000
+      internalID: 999259403261812739
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_113
+      rect:
+        serializedVersion: 2
+        x: 71
+        y: 0
+        width: 16
+        height: 16
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a13605037661b7af0800000000000000
+      internalID: -397699509644139750
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_114
+      rect:
+        serializedVersion: 2
+        x: 86
+        y: 0
+        width: 9
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0ba751c4658fd45e0800000000000000
+      internalID: -1923608416289981776
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_115
+      rect:
+        serializedVersion: 2
+        x: 94
+        y: 1
+        width: 15
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2d473114de473b430800000000000000
+      internalID: 3797507473151325394
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_116
+      rect:
+        serializedVersion: 2
+        x: 191
+        y: 0
+        width: 25
+        height: 15
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2611942be2494c650800000000000000
+      internalID: 6252285110977630562
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_117
+      rect:
+        serializedVersion: 2
+        x: 214
+        y: 0
+        width: 13
+        height: 15
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 620ffbafa5cd2c120800000000000000
+      internalID: 2432749032045539366
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_118
+      rect:
+        serializedVersion: 2
+        x: 364
+        y: 0
+        width: 7
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: abe75cc69a6818210800000000000000
+      internalID: 1333495026910854842
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_119
+      rect:
+        serializedVersion: 2
+        x: 399
+        y: 7
+        width: 8
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 39c7be3aab58d3130800000000000000
+      internalID: 3548139118098349203
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_120
+      rect:
+        serializedVersion: 2
+        x: 407
+        y: 0
+        width: 24
+        height: 15
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c3e931dca474d7120800000000000000
+      internalID: 2413163361934220860
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_121
+      rect:
+        serializedVersion: 2
+        x: 430
+        y: 7
+        width: 9
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c9b7d3400c0cb4e00800000000000000
+      internalID: 1030128870721682332
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_122
+      rect:
+        serializedVersion: 2
+        x: 447
+        y: 3
+        width: 8
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e1202a41d298e8790800000000000000
+      internalID: -7525927100576824802
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_123
+      rect:
+        serializedVersion: 2
+        x: 457
+        y: 3
+        width: 11
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f19f6379675282b20800000000000000
+      internalID: 3109776733972658463
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_124
+      rect:
+        serializedVersion: 2
+        x: 463
+        y: 0
+        width: 12
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d95214381d15b2e60800000000000000
+      internalID: 7938528728462730653
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_125
+      rect:
+        serializedVersion: 2
+        x: 614
+        y: 3
+        width: 10
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b1bea2da20fe0f710800000000000000
+      internalID: 1725141452057144091
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_126
+      rect:
+        serializedVersion: 2
+        x: 625
+        y: 1
+        width: 9
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 360008ce1ba65d320800000000000000
+      internalID: 2582087273776414819
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_127
+      rect:
+        serializedVersion: 2
+        x: 651
+        y: 1
+        width: 20
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 05141b0731f8b5f50800000000000000
+      internalID: 6871242970141638992
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_128
+      rect:
+        serializedVersion: 2
+        x: 762
+        y: 0
+        width: 18
+        height: 16
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3616119dc4a23fbb0800000000000000
+      internalID: -4903529059728662173
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_129
+      rect:
+        serializedVersion: 2
+        x: 801
+        y: 0
+        width: 15
+        height: 16
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a69e787af36021130800000000000000
+      internalID: 3535895527902669162
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_130
+      rect:
+        serializedVersion: 2
+        x: 823
+        y: 0
+        width: 20
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 09ab823f4fc10d960800000000000000
+      internalID: 7624626007515380368
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_131
+      rect:
+        serializedVersion: 2
+        x: 847
+        y: 4
+        width: 9
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 086adffa6981244a0800000000000000
+      internalID: -6610694267549669760
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_132
+      rect:
+        serializedVersion: 2
+        x: 889
+        y: 7
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: acbaeddc424da7260800000000000000
+      internalID: 7096217417413471178
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_133
+      rect:
+        serializedVersion: 2
+        x: 895
+        y: 9
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0ffb60ea658ae45f0800000000000000
+      internalID: -770493395993444368
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_134
+      rect:
+        serializedVersion: 2
+        x: 895
+        y: 0
+        width: 12
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e2d6ba7534cdee530800000000000000
+      internalID: 3886285710259088686
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_135
+      rect:
+        serializedVersion: 2
+        x: 939
+        y: 1
+        width: 12
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 570fce5e597ad0410800000000000000
+      internalID: 1444995317705273461
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_136
+      rect:
+        serializedVersion: 2
+        x: 960
+        y: 6
+        width: 7
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 448e2a5903ce144f0800000000000000
+      internalID: -846135561555875772
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_137
+      rect:
+        serializedVersion: 2
+        x: 963
+        y: 0
+        width: 10
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7fb28b3c7d5711a70800000000000000
+      internalID: 8795941116793334775
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_138
+      rect:
+        serializedVersion: 2
+        x: 971
+        y: 1
+        width: 8
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e7b84330ad92f4b90800000000000000
+      internalID: -7255534458337195138
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_139
+      rect:
+        serializedVersion: 2
+        x: 985
+        y: 0
+        width: 14
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 615f05a8cd60afb90800000000000000
+      internalID: -7207440709369924330
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_140
+      rect:
+        serializedVersion: 2
+        x: 1060
+        y: 0
+        width: 13
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8e309409b72c385f0800000000000000
+      internalID: -755546476510641176
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_141
+      rect:
+        serializedVersion: 2
+        x: 1086
+        y: 1
+        width: 31
+        height: 15
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ddde84cc515e218d0800000000000000
+      internalID: -2876985330151920163
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_142
+      rect:
+        serializedVersion: 2
+        x: 1135
+        y: 3
+        width: 16
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f9a39df87ec7a9590800000000000000
+      internalID: -7666678081652180321
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_143
+      rect:
+        serializedVersion: 2
+        x: 1153
+        y: 1
+        width: 14
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cd2b4eda2c2a59500800000000000000
+      internalID: 402406698744328924
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_144
+      rect:
+        serializedVersion: 2
+        x: 1171
+        y: 0
+        width: 12
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b7fc07db5a0ed4d80800000000000000
+      internalID: -8264702738702479493
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_145
+      rect:
+        serializedVersion: 2
+        x: 1200
+        y: 6
+        width: 7
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2d87d43de928a3740800000000000000
+      internalID: 5132558344003614930
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_146
+      rect:
+        serializedVersion: 2
+        x: 1222
+        y: 7
+        width: 7
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 89d0cc28a5c450da0800000000000000
+      internalID: -5979288978639286888
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_147
+      rect:
+        serializedVersion: 2
+        x: 1260
+        y: 2
+        width: 7
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 55345854e4ef8c4e0800000000000000
+      internalID: -1961038025592585387
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_148
+      rect:
+        serializedVersion: 2
+        x: 1277
+        y: 2
+        width: 7
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e53d79368e648d080800000000000000
+      internalID: -9162495477968022690
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_149
+      rect:
+        serializedVersion: 2
+        x: 1287
+        y: 4
+        width: 6
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5814b55b83e6713e0800000000000000
+      internalID: -2083075112795684475
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_150
+      rect:
+        serializedVersion: 2
+        x: 1370
+        y: 0
+        width: 6
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 539fee7ac0fbc2f90800000000000000
+      internalID: -6976991661625771723
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_151
+      rect:
+        serializedVersion: 2
+        x: 395
+        y: 0
+        width: 12
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9263c03158d89d3d0800000000000000
+      internalID: -3181356059070810583
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_152
+      rect:
+        serializedVersion: 2
+        x: 487
+        y: 0
+        width: 6
+        height: 5
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2cf9ce81ce90a68b0800000000000000
+      internalID: -5158299513564389438
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_153
+      rect:
+        serializedVersion: 2
+        x: 559
+        y: 0
+        width: 8
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: aec9e0c01afa2aad0800000000000000
+      internalID: -2692396520987255574
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_154
+      rect:
+        serializedVersion: 2
+        x: 791
+        y: 0
+        width: 8
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9a8cce4e777165920800000000000000
+      internalID: 2978594007261431977
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_155
+      rect:
+        serializedVersion: 2
+        x: 847
+        y: 0
+        width: 6
+        height: 5
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: da3f1442dc34bd800800000000000000
+      internalID: 638178320558715821
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_156
+      rect:
+        serializedVersion: 2
+        x: 881
+        y: 0
+        width: 6
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 52b5fe0d727352e40800000000000000
+      internalID: 5630967553245272869
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_157
+      rect:
+        serializedVersion: 2
+        x: 927
+        y: 0
+        width: 10
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5169f0c8292a227c0800000000000000
+      internalID: -4097533960654973419
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_158
+      rect:
+        serializedVersion: 2
+        x: 1189
+        y: 1
+        width: 7
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4fcd8ba2042ad8860800000000000000
+      internalID: 7533856148139072756
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_159
+      rect:
+        serializedVersion: 2
+        x: 1199
+        y: 0
+        width: 8
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9b11184b931bf9dd0800000000000000
+      internalID: -2477066408630873671
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_160
+      rect:
+        serializedVersion: 2
+        x: 1211
+        y: 0
+        width: 6
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8a926265ebde73b80800000000000000
+      internalID: -8414995976973571672
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaPullButton1_161
+      rect:
+        serializedVersion: 2
+        x: 1283
+        y: 0
+        width: 8
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a0501186ced7a9900800000000000000
+      internalID: 692003947066492170
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 5e97eb03825dee720800000000000000
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      GachaPullButton1_0: -1412518645508312137
+      GachaPullButton1_1: 4490420216892612342
+      GachaPullButton1_10: 4679356245808017704
+      GachaPullButton1_100: -1577411432182089691
+      GachaPullButton1_101: -6688300687465802664
+      GachaPullButton1_102: 4871952675681180762
+      GachaPullButton1_103: 2105009355967450468
+      GachaPullButton1_104: 5117690847455432977
+      GachaPullButton1_105: -6169280720579401483
+      GachaPullButton1_106: 8292565951972698479
+      GachaPullButton1_107: -2691842541763028856
+      GachaPullButton1_108: 1912668985972549115
+      GachaPullButton1_109: 5968241446216404724
+      GachaPullButton1_11: 2930966440078773241
+      GachaPullButton1_110: -5257901620788946212
+      GachaPullButton1_111: -2544718468725998258
+      GachaPullButton1_112: 999259403261812739
+      GachaPullButton1_113: -397699509644139750
+      GachaPullButton1_114: -1923608416289981776
+      GachaPullButton1_115: 3797507473151325394
+      GachaPullButton1_116: 6252285110977630562
+      GachaPullButton1_117: 2432749032045539366
+      GachaPullButton1_118: 1333495026910854842
+      GachaPullButton1_119: 3548139118098349203
+      GachaPullButton1_12: -9127046249993174705
+      GachaPullButton1_120: 2413163361934220860
+      GachaPullButton1_121: 1030128870721682332
+      GachaPullButton1_122: -7525927100576824802
+      GachaPullButton1_123: 3109776733972658463
+      GachaPullButton1_124: 7938528728462730653
+      GachaPullButton1_125: 1725141452057144091
+      GachaPullButton1_126: 2582087273776414819
+      GachaPullButton1_127: 6871242970141638992
+      GachaPullButton1_128: -4903529059728662173
+      GachaPullButton1_129: 3535895527902669162
+      GachaPullButton1_13: -1169668928316592126
+      GachaPullButton1_130: 7624626007515380368
+      GachaPullButton1_131: -6610694267549669760
+      GachaPullButton1_132: 7096217417413471178
+      GachaPullButton1_133: -770493395993444368
+      GachaPullButton1_134: 3886285710259088686
+      GachaPullButton1_135: 1444995317705273461
+      GachaPullButton1_136: -846135561555875772
+      GachaPullButton1_137: 8795941116793334775
+      GachaPullButton1_138: -7255534458337195138
+      GachaPullButton1_139: -7207440709369924330
+      GachaPullButton1_14: -9042533260510764774
+      GachaPullButton1_140: -755546476510641176
+      GachaPullButton1_141: -2876985330151920163
+      GachaPullButton1_142: -7666678081652180321
+      GachaPullButton1_143: 402406698744328924
+      GachaPullButton1_144: -8264702738702479493
+      GachaPullButton1_145: 5132558344003614930
+      GachaPullButton1_146: -5979288978639286888
+      GachaPullButton1_147: -1961038025592585387
+      GachaPullButton1_148: -9162495477968022690
+      GachaPullButton1_149: -2083075112795684475
+      GachaPullButton1_15: -5339233286783227701
+      GachaPullButton1_150: -6976991661625771723
+      GachaPullButton1_151: -3181356059070810583
+      GachaPullButton1_152: -5158299513564389438
+      GachaPullButton1_153: -2692396520987255574
+      GachaPullButton1_154: 2978594007261431977
+      GachaPullButton1_155: 638178320558715821
+      GachaPullButton1_156: 5630967553245272869
+      GachaPullButton1_157: -4097533960654973419
+      GachaPullButton1_158: 7533856148139072756
+      GachaPullButton1_159: -2477066408630873671
+      GachaPullButton1_16: 6289486649132493744
+      GachaPullButton1_160: -8414995976973571672
+      GachaPullButton1_161: 692003947066492170
+      GachaPullButton1_17: 8237909835725218389
+      GachaPullButton1_18: 3602918328564135770
+      GachaPullButton1_19: 4303178274623013702
+      GachaPullButton1_2: -346366472476631768
+      GachaPullButton1_20: 6102588379280884152
+      GachaPullButton1_21: -6730842301170510937
+      GachaPullButton1_22: -6467204834358161663
+      GachaPullButton1_23: -5163595230056027561
+      GachaPullButton1_24: 8275474621225395285
+      GachaPullButton1_25: -1210783490609626130
+      GachaPullButton1_26: 8899934841634026016
+      GachaPullButton1_27: 7195405107234632529
+      GachaPullButton1_28: 4256346103039683481
+      GachaPullButton1_29: 2544138851738005747
+      GachaPullButton1_3: -6874962261287499254
+      GachaPullButton1_30: -224115948137366921
+      GachaPullButton1_31: 3489302241569814551
+      GachaPullButton1_32: 7607263788214906853
+      GachaPullButton1_33: -1908681892884182807
+      GachaPullButton1_34: -1192980290030220678
+      GachaPullButton1_35: 6560855993475882204
+      GachaPullButton1_36: -2185108941966157477
+      GachaPullButton1_37: -7328253806544417767
+      GachaPullButton1_38: 4981059207695772367
+      GachaPullButton1_39: -8321361813328426692
+      GachaPullButton1_4: 6742911527913922308
+      GachaPullButton1_40: -8885207854097218194
+      GachaPullButton1_41: -1133532778572798695
+      GachaPullButton1_42: 3864231262044367559
+      GachaPullButton1_43: 8755640207143181986
+      GachaPullButton1_44: -8691635829316174384
+      GachaPullButton1_45: -7442561357227322242
+      GachaPullButton1_46: -698707955892742627
+      GachaPullButton1_47: 3112877035963675254
+      GachaPullButton1_48: -1904450675815186831
+      GachaPullButton1_49: 4923516387066596271
+      GachaPullButton1_5: -1887474564219553358
+      GachaPullButton1_50: 4787367361128832898
+      GachaPullButton1_51: 9110633683614937430
+      GachaPullButton1_52: -2343979279694487929
+      GachaPullButton1_53: -7394036062106033643
+      GachaPullButton1_54: 2516320713160143145
+      GachaPullButton1_55: -7984196858764107277
+      GachaPullButton1_56: -6278944678307729633
+      GachaPullButton1_57: -535145723373206123
+      GachaPullButton1_58: 8816968922142832282
+      GachaPullButton1_59: 8091738874286211610
+      GachaPullButton1_6: -1972190571769418308
+      GachaPullButton1_60: 6529970305416956570
+      GachaPullButton1_61: -4807919340758979745
+      GachaPullButton1_62: 981929141392413305
+      GachaPullButton1_63: -302404771735080841
+      GachaPullButton1_64: 2520367078883226736
+      GachaPullButton1_65: 7561236357394768697
+      GachaPullButton1_66: -5164728732452224787
+      GachaPullButton1_67: -7676508809682935368
+      GachaPullButton1_68: 3540839227334881792
+      GachaPullButton1_69: -4049416598123501132
+      GachaPullButton1_7: 7238889954264726500
+      GachaPullButton1_70: 2956416280484581679
+      GachaPullButton1_71: 5596409207860654636
+      GachaPullButton1_72: -6293448841581096912
+      GachaPullButton1_73: 5041206696432424036
+      GachaPullButton1_74: 8029676684316596196
+      GachaPullButton1_75: -8128308458924185714
+      GachaPullButton1_76: -5112681904132422463
+      GachaPullButton1_77: 4221543242674755907
+      GachaPullButton1_78: -351770211277904891
+      GachaPullButton1_79: 6086654611023539635
+      GachaPullButton1_8: -5649808781433810925
+      GachaPullButton1_80: -4434206262660641541
+      GachaPullButton1_81: -8627738955818897654
+      GachaPullButton1_82: 641645974612569907
+      GachaPullButton1_83: -310052163692817877
+      GachaPullButton1_84: -4745488872042743393
+      GachaPullButton1_85: 5809870282634663224
+      GachaPullButton1_86: 3760022660068430786
+      GachaPullButton1_87: -5109984426669664265
+      GachaPullButton1_88: 1826195354809540002
+      GachaPullButton1_89: -1587690923376677609
+      GachaPullButton1_9: 2164473786826213935
+      GachaPullButton1_90: -4864937429824046260
+      GachaPullButton1_91: 6830019554950514078
+      GachaPullButton1_92: 1110822004859128817
+      GachaPullButton1_93: 1892380820642663037
+      GachaPullButton1_94: -5465481618582425135
+      GachaPullButton1_95: 4332098279138358936
+      GachaPullButton1_96: -7367314014702729073
+      GachaPullButton1_97: -7521211990165858934
+      GachaPullButton1_98: -5792877100223682785
+      GachaPullButton1_99: 2440910317636384586
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

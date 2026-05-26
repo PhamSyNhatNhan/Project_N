@@ -38,6 +38,12 @@ public class Skill : MonoBehaviour, ILoadable<SkillListData>
     {
         foreach (var cd in skillCd.Values)
             cd.Tick(Time.deltaTime);
+
+        foreach (var inf in skillInfinite.Values)
+            inf.Tick(Time.deltaTime);
+
+        foreach (var ct in skillCounter.Values)
+            ct.Tick(Time.deltaTime);
     }
 
     // ── ILoadable ─────────────────────────────────────────────────
@@ -77,8 +83,8 @@ public class Skill : MonoBehaviour, ILoadable<SkillListData>
                     Debug.LogWarning($"[Skill] Không tìm thấy icon: '{data.iconPath}'");
             }
 
-            bool showOnUI  = data.Get<bool>("showOnUI", false);
-            string cdType  = data.Get<string>("cdType", "cooldown");
+            bool   showOnUI = data.Get<bool>("showOnUI", false);
+            string cdType   = data.Get<string>("cdType", "cooldown");
 
             switch (cdType)
             {
@@ -136,9 +142,6 @@ public class Skill : MonoBehaviour, ILoadable<SkillListData>
                 }
             }
         }
-
-        // Fire theo thứ tự: CD → Counter → Infinite (đảm bảo thứ tự hiển thị trong panel)
-        // Đã fire trong từng case ở trên theo đúng thứ tự dictionary insert
     }
 
     // ── Helpers ───────────────────────────────────────────────────
@@ -181,10 +184,23 @@ public class Skill : MonoBehaviour, ILoadable<SkillListData>
     /// </summary>
     protected bool IsReady(string skillId, int requiredCounter = 1)
     {
-        if (skillCd.TryGetValue(skillId, out var cd))          return cd.IsReady;
-        if (skillCounter.TryGetValue(skillId, out var ct))     return ct.IsReadyFor(requiredCounter);
-        if (skillInfinite.TryGetValue(skillId, out var inf))   return inf.IsReady;
-        return true; // không có entry → không có CD, luôn ready
+        if (skillCd.TryGetValue(skillId, out var cd))
+        {
+            //Debug.Log("Cooldown: " + cd.IsReady);
+            return cd.IsReady;
+        }
+
+        if (skillCounter.TryGetValue(skillId, out var ct))
+        {
+            //Debug.Log("Counter");
+            return ct.IsReadyFor(requiredCounter);
+        }
+
+        if (skillInfinite.TryGetValue(skillId, out var inf))
+        {
+            return inf.IsReady;
+        }
+        return true;
     }
 
     /// <summary>

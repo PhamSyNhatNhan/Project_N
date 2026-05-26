@@ -8,7 +8,10 @@ using UnityEngine.InputSystem;
 public class PlayerController : Move
 {
     protected PlayerControls pc;
-    protected Vector2 _Move;
+    protected Vector2        _Move;
+
+    // ── Input Lock ────────────────────────────────────────────────
+    private bool _canInput = true;
 
     protected override void Awake()
     {
@@ -16,15 +19,8 @@ public class PlayerController : Move
         pc = new PlayerControls();
     }
 
-    protected void OnEnable()
-    {
-        pc.Enable();
-    }
-
-    protected void OnDisable()
-    {
-        pc.Disable();
-    }
+    protected void OnEnable()  => pc.Enable();
+    protected void OnDisable() => pc.Disable();
 
     protected override void Update()
     {
@@ -50,7 +46,7 @@ public class PlayerController : Move
 
     protected virtual void CheckInput()
     {
-        _Move = pc.Controller.Move.ReadValue<Vector2>();
+        _Move = _canInput ? pc.Controller.Move.ReadValue<Vector2>() : Vector2.zero;
     }
 
     protected virtual void CheckFlip()
@@ -67,6 +63,13 @@ public class PlayerController : Move
             Flipping();
         else if (transform.position.x > enemy.position.x && flipDirect == 1)
             Flipping();
+    }
+
+    // ── Properties ────────────────────────────────────────────────
+    public bool CanInput
+    {
+        get => _canInput;
+        set => _canInput = value;
     }
 
     public PlayerControls PC

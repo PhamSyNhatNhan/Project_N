@@ -34,7 +34,8 @@ public enum Talent
 {
     Test,
     Gura,
-    Sakuya
+    Sakuya,
+    Dael
 }
 
 public enum SkillType

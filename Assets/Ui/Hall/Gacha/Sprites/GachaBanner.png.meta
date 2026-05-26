@@ -1,0 +1,780 @@
+fileFormatVersion: 2
+guid: 87db17bd9c802be4a8cd9dc3dcec27f5
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: 7599186226835975334
+    second: GachaBanner_0
+  - first:
+      213: -2404238256842343982
+    second: GachaBanner_1
+  - first:
+      213: 5538021106555968296
+    second: GachaBanner_2
+  - first:
+      213: 4472165730849375862
+    second: GachaBanner_3
+  - first:
+      213: 4462308371227097156
+    second: GachaBanner_4
+  - first:
+      213: 2810727719153798279
+    second: GachaBanner_5
+  - first:
+      213: 5262199099249455080
+    second: GachaBanner_6
+  - first:
+      213: 7781773275245253056
+    second: GachaBanner_7
+  - first:
+      213: -1184565538067166317
+    second: GachaBanner_8
+  - first:
+      213: 358456324600907587
+    second: GachaBanner_9
+  - first:
+      213: 27615680680125912
+    second: GachaBanner_10
+  - first:
+      213: -6029943391750577134
+    second: GachaBanner_11
+  - first:
+      213: -1246168291005827097
+    second: GachaBanner_12
+  - first:
+      213: -6069612623671271014
+    second: GachaBanner_13
+  - first:
+      213: -5040026288139483237
+    second: GachaBanner_14
+  - first:
+      213: -3085479253276714271
+    second: GachaBanner_15
+  - first:
+      213: 6139316292379225181
+    second: GachaBanner_16
+  - first:
+      213: -6493481557938426605
+    second: GachaBanner_17
+  - first:
+      213: -646046983851368457
+    second: GachaBanner_18
+  - first:
+      213: -6339973016714688302
+    second: GachaBanner_19
+  - first:
+      213: -3228659207953703405
+    second: GachaBanner_20
+  - first:
+      213: -5923087908337412387
+    second: GachaBanner_21
+  - first:
+      213: -3621315604371358748
+    second: GachaBanner_22
+  - first:
+      213: 6956185116026137149
+    second: GachaBanner_23
+  - first:
+      213: -4641242771050089458
+    second: GachaBanner_24
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 1
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: GachaBanner_0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 1376
+        height: 768
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6ac69907c9bb57960800000000000000
+      internalID: 7599186226835975334
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaBanner_1
+      rect:
+        serializedVersion: 2
+        x: 1361
+        y: 729
+        width: 10
+        height: 15
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2d9f1892b0e62aed0800000000000000
+      internalID: -2404238256842343982
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaBanner_2
+      rect:
+        serializedVersion: 2
+        x: 1363
+        y: 742
+        width: 10
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 82b52eecad00bdc40800000000000000
+      internalID: 5538021106555968296
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaBanner_3
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 660
+        width: 5
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 676c3f3a903501e30800000000000000
+      internalID: 4472165730849375862
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaBanner_4
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 627
+        width: 5
+        height: 32
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4483e3142dd4ded30800000000000000
+      internalID: 4462308371227097156
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaBanner_5
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 545
+        width: 5
+        height: 30
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 78c818cf7f5b10720800000000000000
+      internalID: 2810727719153798279
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaBanner_6
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 515
+        width: 5
+        height: 31
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8efe4205336170940800000000000000
+      internalID: 5262199099249455080
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaBanner_7
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 493
+        width: 7
+        height: 16
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0c11f9170996efb60800000000000000
+      internalID: 7781773275245253056
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaBanner_8
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 469
+        width: 7
+        height: 24
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 39b46525be39f8fe0800000000000000
+      internalID: -1184565538067166317
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaBanner_9
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 429
+        width: 7
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3474457c02e79f400800000000000000
+      internalID: 358456324600907587
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaBanner_10
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 395
+        width: 7
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8d56b25b05c126000800000000000000
+      internalID: 27615680680125912
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaBanner_11
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 309
+        width: 5
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2142ef6ee66515ca0800000000000000
+      internalID: -6029943391750577134
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaBanner_12
+      rect:
+        serializedVersion: 2
+        x: 5
+        y: 308
+        width: 6
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7e7fd34ba88b4bee0800000000000000
+      internalID: -1246168291005827097
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaBanner_13
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 277
+        width: 5
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a91e8d91a7764cba0800000000000000
+      internalID: -6069612623671271014
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaBanner_14
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 202
+        width: 5
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b97c0dc4bca3e0ab0800000000000000
+      internalID: -5040026288139483237
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaBanner_15
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 95
+        width: 5
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1ea9a9a77fc2e25d0800000000000000
+      internalID: -3085479253276714271
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaBanner_16
+      rect:
+        serializedVersion: 2
+        x: 120
+        y: 0
+        width: 24
+        height: 15
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d5c2803f3ab333550800000000000000
+      internalID: 6139316292379225181
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaBanner_17
+      rect:
+        serializedVersion: 2
+        x: 183
+        y: 0
+        width: 8
+        height: 5
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 31da78f4de482e5a0800000000000000
+      internalID: -6493481557938426605
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaBanner_18
+      rect:
+        serializedVersion: 2
+        x: 191
+        y: 0
+        width: 8
+        height: 5
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7ff935be0b7c807f0800000000000000
+      internalID: -646046983851368457
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaBanner_19
+      rect:
+        serializedVersion: 2
+        x: 203
+        y: 0
+        width: 6
+        height: 5
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2d8c825c124e308a0800000000000000
+      internalID: -6339973016714688302
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaBanner_20
+      rect:
+        serializedVersion: 2
+        x: 223
+        y: 0
+        width: 10
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 31e10297e8f7133d0800000000000000
+      internalID: -3228659207953703405
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaBanner_21
+      rect:
+        serializedVersion: 2
+        x: 248
+        y: 0
+        width: 28
+        height: 15
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: dd61322ede6fccda0800000000000000
+      internalID: -5923087908337412387
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaBanner_22
+      rect:
+        serializedVersion: 2
+        x: 286
+        y: 0
+        width: 14
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4ebbdd5f4a08ebdc0800000000000000
+      internalID: -3621315604371358748
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaBanner_23
+      rect:
+        serializedVersion: 2
+        x: 299
+        y: 0
+        width: 28
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d3ae890f185598060800000000000000
+      internalID: 6956185116026137149
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: GachaBanner_24
+      rect:
+        serializedVersion: 2
+        x: 330
+        y: 0
+        width: 8
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e04b5334a4ef69fb0800000000000000
+      internalID: -4641242771050089458
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 5e97eb03825dee720800000000000000
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      GachaBanner_0: 7599186226835975334
+      GachaBanner_1: -2404238256842343982
+      GachaBanner_10: 27615680680125912
+      GachaBanner_11: -6029943391750577134
+      GachaBanner_12: -1246168291005827097
+      GachaBanner_13: -6069612623671271014
+      GachaBanner_14: -5040026288139483237
+      GachaBanner_15: -3085479253276714271
+      GachaBanner_16: 6139316292379225181
+      GachaBanner_17: -6493481557938426605
+      GachaBanner_18: -646046983851368457
+      GachaBanner_19: -6339973016714688302
+      GachaBanner_2: 5538021106555968296
+      GachaBanner_20: -3228659207953703405
+      GachaBanner_21: -5923087908337412387
+      GachaBanner_22: -3621315604371358748
+      GachaBanner_23: 6956185116026137149
+      GachaBanner_24: -4641242771050089458
+      GachaBanner_3: 4472165730849375862
+      GachaBanner_4: 4462308371227097156
+      GachaBanner_5: 2810727719153798279
+      GachaBanner_6: 5262199099249455080
+      GachaBanner_7: 7781773275245253056
+      GachaBanner_8: -1184565538067166317
+      GachaBanner_9: 358456324600907587
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

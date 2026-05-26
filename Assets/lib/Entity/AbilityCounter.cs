@@ -2,8 +2,10 @@ using UnityEngine;
 
 /// <summary>
 /// Cơ chế stack/counter — không có CD timer.
-/// Luôn hiển thị nếu showOnUI = true.
 /// curCounter clamp [0, maxCounter], không âm, không vượt max.
+/// Hook Before/On/After cho cả Add và Use.
+/// Optional duration: > 0 thì tự reset counter về 0 sau duration giây.
+/// Timer reset mỗi khi AddCounter được gọi.
 /// </summary>
 public class AbilityCounter
 {
@@ -15,40 +17,59 @@ public class AbilityCounter
     private readonly int    maxCounter;
 
     // ── Runtime ───────────────────────────────────────────────────
-    private int curCounter;
+    private int   curCounter;
+    private float duration;
+    private float timer;
 
     // ── Properties ────────────────────────────────────────────────
     public int    CurCounter => curCounter;
     public int    MaxCounter => maxCounter;
     public Sprite Icon       => icon;
     public bool   ShowOnUI   => showOnUI;
+    public float  TimeLeft   => timer;
 
-    /// <summary>IsReady — có ít nhất 1 stack.</summary>
-    public bool IsReady => curCounter > 0;
+    public bool IsReady              => curCounter > 0;
+    public bool IsReadyFor(int req)  => curCounter >= req;
 
-    /// <summary>IsReady với số stack yêu cầu cụ thể.</summary>
-    public bool IsReadyFor(int required) => curCounter >= required;
+    // ── Hooks ─────────────────────────────────────────────────────
+    public event System.Action<int> OnBeforeCounterAdded;
+    public event System.Action<int> OnCounterAdded;
+    public event System.Action<int> OnAfterCounterAdded;
+
+    public event System.Action<int> OnBeforeCounterUsed;
+    public event System.Action<int> OnCounterUsed;
+    public event System.Action<int> OnAfterCounterUsed;
 
     // ── Constructor ───────────────────────────────────────────────
     public AbilityCounter(string skillId, string entityKey,
                           int    maxCounter,
                           bool   showOnUI = false,
-                          Sprite icon     = null)
+                          Sprite icon     = null,
+                          float  duration = 0f)
     {
         this.skillId    = skillId;
         this.entityKey  = entityKey;
         this.maxCounter = maxCounter;
         this.showOnUI   = showOnUI;
         this.icon       = icon;
+        this.duration   = duration;
+        curCounter      = 0;
+        timer           = 0f;
+    }
 
-        curCounter = 0;
+    // ── Tick ──────────────────────────────────────────────────────
+    public void Tick(float deltaTime)
+    {
+        if (duration <= 0f || curCounter <= 0) return;
+        timer -= deltaTime;
+        if (timer <= 0f)
+        {
+            timer = 0f;
+            SetCounter(0);
+        }
     }
 
     // ── Init ──────────────────────────────────────────────────────
-    /// <summary>
-    /// Fire lần đầu khi ApplyData() — chỉ fire nếu showOnUI = true.
-    /// Hiển thị 0/maxCounter ngay từ đầu.
-    /// </summary>
     public void FireInitialEvent()
     {
         if (!showOnUI) return;
@@ -56,40 +77,63 @@ public class AbilityCounter
     }
 
     // ── API ───────────────────────────────────────────────────────
-    /// <summary>Cộng stack, clamp về maxCounter. Không fire nếu không thay đổi.</summary>
     public void AddCounter(int amount)
     {
         if (amount <= 0) return;
         int next = Mathf.Min(curCounter + amount, maxCounter);
         if (next == curCounter) return;
+
+        OnBeforeCounterAdded?.Invoke(amount);
         curCounter = next;
+        if (duration > 0f) timer = duration;
         FireEvent();
+        OnCounterAdded?.Invoke(amount);
+        OnAfterCounterAdded?.Invoke(curCounter);
     }
 
-    /// <summary>Set stack trực tiếp, clamp [0, maxCounter]. Không fire nếu không thay đổi.</summary>
     public void SetCounter(int value)
     {
         int next = Mathf.Clamp(value, 0, maxCounter);
         if (next == curCounter) return;
-        curCounter = next;
-        FireEvent();
+        int delta = next - curCounter;
+
+        if (delta > 0)
+        {
+            OnBeforeCounterAdded?.Invoke(delta);
+            curCounter = next;
+            if (duration > 0f) timer = duration;
+            FireEvent();
+            OnCounterAdded?.Invoke(delta);
+            OnAfterCounterAdded?.Invoke(curCounter);
+        }
+        else
+        {
+            int amount = -delta;
+            OnBeforeCounterUsed?.Invoke(amount);
+            curCounter = next;
+            FireEvent();
+            OnCounterUsed?.Invoke(amount);
+            OnAfterCounterUsed?.Invoke(curCounter);
+        }
     }
 
-    /// <summary>Trừ stack. Không âm. Không fire nếu amount <= 0.</summary>
     public bool Use(int amount = 1)
     {
-        if (amount <= 0) return false;
-        if (curCounter < amount) return false;
+        if (amount <= 0 || curCounter < amount) return false;
+        OnBeforeCounterUsed?.Invoke(amount);
         curCounter -= amount;
         FireEvent();
+        OnCounterUsed?.Invoke(amount);
+        OnAfterCounterUsed?.Invoke(curCounter);
         return true;
     }
+
+    public void SetDuration(float d) => duration = d;
 
     // ── Internal ──────────────────────────────────────────────────
     private void FireEvent()
     {
         if (!showOnUI) return;
-
         EventManager.Entity.OnEntitySkillCdReady
             .Get(entityKey)
             .Invoke(null, new SkillCdReadyData

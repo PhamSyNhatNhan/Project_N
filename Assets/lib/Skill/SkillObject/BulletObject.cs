@@ -2,6 +2,12 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
+/// <summary>
+/// Base class cho tất cả projectile dạng bullet — có Rigidbody2D, Animator, TimeScale.
+/// Hỗ trợ 5 chế độ di chuyển: Forward, Angle, Target, Homing, Custom.
+/// Disable theo Timer hoặc Distance.
+/// Override SendDamage() để xử lý damage trong subclass.
+/// </summary>
 [RequireComponent(typeof(Rigidbody2D))]
 [RequireComponent(typeof(Animator))]
 [RequireComponent(typeof(TimeScale))]
@@ -23,7 +29,7 @@ public class BulletObject : SkillObject
 
     protected float   liveTimeSub  = 0.0f;
     protected float   traveledDist = 0.0f;
-    private Vector2 lastPosition;
+    private   Vector2 lastPosition;
 
     // ── Movement ──────────────────────────────────────────────────
     [Header("Movement")]
@@ -33,6 +39,13 @@ public class BulletObject : SkillObject
     protected                  Vector2        moveDir  = Vector2.right;
 
     // ── Homing ────────────────────────────────────────────────────
+    /// <summary>
+    /// Homing — bullet tự động điều chỉnh hướng về target mỗi frame.
+    /// homingStrength: tốc độ xoay về target (cao = xoay nhanh, thấp = xoay chậm).
+    /// homingRadius: bán kính tìm target khi chưa có hoặc target chết.
+    /// findNewIfTargetDead: tự tìm target mới nếu target hiện tại không còn active.
+    /// Target mode: chỉ snap hướng 1 lần lúc spawn, không đổi hướng theo target.
+    /// </summary>
     [Header("Homing")]
     [SerializeField] protected float     homingStrength      = 5.0f;
     [SerializeField] protected float     homingRadius        = 10.0f;
@@ -53,8 +66,9 @@ public class BulletObject : SkillObject
     protected float FixedDeltaTime => timeScale.FixDeltaTime;
 
     // ── Lifecycle ─────────────────────────────────────────────────
-    protected virtual void Awake()
+    protected override void Awake()
     {
+        base.Awake();
         objectSkillType  = ObjectSkillType.bullet;
         amt              = GetComponent<Animator>();
         rb               = GetComponent<Rigidbody2D>();
@@ -242,31 +256,41 @@ public class BulletObject : SkillObject
     { angle = deg; moveDir = AngleToDir(deg); }
 
     public void SetUp(string nameChannel, DamageType type, List<float> damage,
-                      float critRate, float critDamage, float attackSpeed)
+                      float critRate, float critDamage, float attackSpeed, float iFrameDuration = 0f)
     {
-        this.nameChannel = nameChannel; this.type = type; this.damage = damage;
-        this.critRate = critRate; this.critDamage = critDamage; this.attackSpeed = attackSpeed;
+        this.nameChannel    = nameChannel; this.type = type; this.damage = damage;
+        this.critRate       = critRate; this.critDamage = critDamage;
+        this.attackSpeed    = attackSpeed; this.iFrameDuration = iFrameDuration;
     }
 
     public void SetUp(DamageType type, List<float> damage,
-                      float critRate, float critDamage, float attackSpeed)
+                      float critRate, float critDamage, float attackSpeed, float iFrameDuration = 0f)
     {
-        this.type = type; this.damage = damage;
-        this.critRate = critRate; this.critDamage = critDamage; this.attackSpeed = attackSpeed;
+        this.type           = type; this.damage = damage;
+        this.critRate       = critRate; this.critDamage = critDamage;
+        this.attackSpeed    = attackSpeed; this.iFrameDuration = iFrameDuration;
     }
 
-    public void SetUp(DamageType type, List<float> damage, float critRate, float critDamage)
-    { this.type = type; this.damage = damage; this.critRate = critRate; this.critDamage = critDamage; }
-
-    public void SetUp(DamageType type, List<float> damage, Stat stat, float critRate, float critDamage)
+    public void SetUp(DamageType type, List<float> damage,
+                      float critRate, float critDamage, float iFrameDuration = 0f)
     {
-        this.type = type; this.damage = damage;
-        this.critRate = critRate; this.critDamage = critDamage; this.stat = stat;
+        this.type           = type; this.damage = damage;
+        this.critRate       = critRate; this.critDamage = critDamage;
+        this.iFrameDuration = iFrameDuration;
+    }
+
+    public void SetUp(DamageType type, List<float> damage, Stat stat,
+                      float critRate, float critDamage, float iFrameDuration = 0f)
+    {
+        this.type           = type; this.damage = damage;
+        this.critRate       = critRate; this.critDamage = critDamage;
+        this.stat           = stat; this.iFrameDuration = iFrameDuration;
     }
 
     public void SetUp(string nameChannel) => this.nameChannel = nameChannel;
 
     // ── Properties ────────────────────────────────────────────────
+    public void SetSpeed(float newSpeed) => speed = newSpeed;
     public LayerMask EnableDamage { get => enableDamage; set => enableDamage = value; }
     public TimeScale TimeScale    => timeScale;
     public Vector2   MoveDir      => moveDir;

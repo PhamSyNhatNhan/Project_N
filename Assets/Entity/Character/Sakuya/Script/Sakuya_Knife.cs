@@ -1,28 +1,28 @@
 using UnityEngine;
 using System.Collections.Generic;
 
+/// <summary>
+/// Projectile của Sakuya — kế thừa BulletObject.
+/// Khi trúng địch: gây damage, fire OnProjectileHit kèm PwsAmount, disable.
+/// SetUp() có overload nhận pwsOnHit để mỗi loại dao hồi PWS khác nhau.
+/// </summary>
 public class SakuyaKnife : BulletObject
 {
-    private Hitbox hitbox;
+    // ── Config ────────────────────────────────────────────────────
+    [Header("Config")]
+    [SerializeField] private GameObject Explosion;
+
+    // ── State ─────────────────────────────────────────────────────
+    private GameObject explosion;
+    protected int        pwsOnHit = 4;
 
     public int FlipDirect { get; set; } = 1;
-    private float lastHitTime = 0;
 
+    // ── Lifecycle ─────────────────────────────────────────────────
     protected override void Awake()
     {
         base.Awake();
-        hitbox       = GetComponent<BoxHitbox>();
-    }
-
-    protected override void Update()
-    {
-        base.Update();
-        lastHitTime += DeltaTime;
-        if (lastHitTime > 0.05f)
-        {
-            SendDamage();
-            lastHitTime = 0.0f;
-        }
+        InitExplosion();
     }
 
     protected override void OnEnable()
@@ -37,43 +37,77 @@ public class SakuyaKnife : BulletObject
         EventManager.Player.OnAttackEnd.Get(nameChannel).Invoke(this, null);
     }
 
+    // ── Init ──────────────────────────────────────────────────────
+    private void InitExplosion()
+    {
+        if (Explosion == null) return;
+        explosion = Instantiate(Explosion);
+        explosion.transform.SetParent(null);
+        explosion.SetActive(false);
+    }
+
+    // ── Movement ──────────────────────────────────────────────────
     protected override void CustomMovement()
     {
         rb.linearVelocity = new Vector2(speed * FlipDirect * FixedDeltaTime, 0.0f);
     }
 
-    public override void SendDamage()
+    // ── Trigger ───────────────────────────────────────────────────
+    protected virtual void OnTriggerEnter2D(Collider2D other)
     {
-        try
+        if ((EnableDamage.value & (1 << other.gameObject.layer)) == 0) return;
+
+        var enemyStat = other.GetComponent<Stat>();
+        if (enemyStat == null) return;
+
+        SendDamage(enemyStat, other);
+    }
+
+    // ── SendDamage ────────────────────────────────────────────────
+    public override void SendDamage() { }
+
+    private void SendDamage(Stat enemyStat, Collider2D other)
+    {
+        enemyStat.TakeDamage(type, damage[0], critRate, critDamage, iFrameDuration);
+
+        // Fire event để SakuyaSkill cộng PWS
+        EventManager.Projectile.OnProjectileHit
+            .Get(nameChannel)
+            .Invoke(this, new SakuyaHitData { PwsAmount = pwsOnHit });
+
+        // Explosion tại vị trí địch, lệch theo hướng bay
+        if (explosion != null)
         {
-            var enemies = hitbox.detectObject(EnableDamage);
-            foreach (var enemy in enemies)
-            {
-                enemy.GetComponent<Stat>().TakeDamage(type, damage[0], critRate, critDamage);
-
-                var em = enemy.GetComponent<StatusEffectManager>();
-                if (em == null) continue;
-                em.AddEffect(EffectType.Burn);
-
-                
-                /*
-                em.AddStack(new BurnEffect(), stat, duration: 5f, tickInterval: 0.5f, maxStacks: 5);
-                em.AddStack(new PoisonEffect(), stat, duration: 5f, tickInterval: 1.0f, maxStacks: 5);
-                em.AddStack(new BleedEffect(), stat, duration: 5f, tickInterval: 0.8f, maxStacks: 3);
-
-                em.Apply(new SlowEffect(), stat, duration: 3f);
-                em.Apply(new StunEffect(), stat, duration: 2f);
-
-                em.AddMilestoneStack(new FreezeEffect(), stat, threshold: 5, triggerDuration: 2f,
-                    stackDuration: 8f);
-                em.AddMilestoneStack(new ShockEffect(), stat, threshold: 3, triggerDuration: 1f,
-                    stackDuration: 6f);
-                */
-            }
+            explosion.transform.position = (Vector2)other.transform.position + MoveDir * 0.3f;
+            explosion.transform.rotation = transform.rotation;
+            explosion.SetActive(true);
         }
-        finally
-        {
-            
-        }
+
+        gameObject.SetActive(false);
+    }
+
+    // ── SetUp Overloads ───────────────────────────────────────────
+    public void SetUp(string nameChannel, DamageType type, List<float> damage,
+                      float critRate, float critDamage, float attackSpeed,
+                      float iFrameDuration, int pwsOnHit)
+    {
+        base.SetUp(nameChannel, type, damage, critRate, critDamage, attackSpeed, iFrameDuration);
+        this.pwsOnHit = pwsOnHit;
+    }
+
+    public void SetUp(DamageType type, List<float> damage,
+                      float critRate, float critDamage,
+                      float iFrameDuration, int pwsOnHit)
+    {
+        base.SetUp(type, damage, critRate, critDamage, iFrameDuration);
+        this.pwsOnHit = pwsOnHit;
+    }
+
+    public void SetUp(DamageType type, List<float> damage, Stat stat,
+                      float critRate, float critDamage,
+                      float iFrameDuration, int pwsOnHit)
+    {
+        base.SetUp(type, damage, stat, critRate, critDamage, iFrameDuration);
+        this.pwsOnHit = pwsOnHit;
     }
 }

@@ -10,7 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 9058132353395174668}
   - component: {fileID: 3318641005001526596}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Trail 02
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -152,7 +152,7 @@ GameObject:
   m_Component:
   - component: {fileID: 3501916851271573678}
   - component: {fileID: 3528384870498022387}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Trail 01
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -300,9 +300,10 @@ GameObject:
   - component: {fileID: 90024273791065110}
   - component: {fileID: 8511038840234632710}
   - component: {fileID: 3051306620279248965}
-  m_Layer: 0
+  - component: {fileID: 3493735657717318029}
+  m_Layer: 8
   m_Name: UltimaPlanet5
-  m_TagString: Untagged
+  m_TagString: Enemy
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -520,6 +521,42 @@ MonoBehaviour:
   ghostDuration: 0.3
   ghostColor: {r: 1, g: 1, b: 1, a: 0.5}
   useCustomColor: 0
+--- !u!58 &3493735657717318029
+CircleCollider2D:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6516252058734981735}
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Density: 1
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_ForceSendLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_ForceReceiveLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_ContactCaptureLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_CallbackLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_IsTrigger: 0
+  m_UsedByEffector: 0
+  m_CompositeOperation: 0
+  m_CompositeOrder: 0
+  m_Offset: {x: -0.00873261, y: 0}
+  m_Radius: 0.31816217
 --- !u!1 &9137271754328131894
 GameObject:
   m_ObjectHideFlags: 0
@@ -529,7 +566,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2673056077588997697}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: VFX_Trail_Dark
   m_TagString: Untagged
   m_Icon: {fileID: 0}

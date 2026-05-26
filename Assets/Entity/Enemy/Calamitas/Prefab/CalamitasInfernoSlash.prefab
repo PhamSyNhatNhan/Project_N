@@ -15,9 +15,10 @@ GameObject:
   - component: {fileID: 9180607112277965507}
   - component: {fileID: 6901408845632407330}
   - component: {fileID: 143539220695580873}
-  m_Layer: 0
+  - component: {fileID: 8233284795035386353}
+  m_Layer: 8
   m_Name: CalamitasInfernoSlash
-  m_TagString: Untagged
+  m_TagString: Enemy
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -184,6 +185,42 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f9cb62d92d907f34ebf7046291c9b9db, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::AutoDisable
+--- !u!58 &8233284795035386353
+CircleCollider2D:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1756622649559950782}
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Density: 1
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_ForceSendLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_ForceReceiveLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_ContactCaptureLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_CallbackLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_IsTrigger: 0
+  m_UsedByEffector: 0
+  m_CompositeOperation: 0
+  m_CompositeOrder: 0
+  m_Offset: {x: 0.053747058, y: 0.02080533}
+  m_Radius: 0.38617477
 --- !u!1 &1941999463416850694
 GameObject:
   m_ObjectHideFlags: 0
@@ -193,7 +230,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 6921885417289506985}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: GameObject
   m_TagString: Untagged
   m_Icon: {fileID: 0}

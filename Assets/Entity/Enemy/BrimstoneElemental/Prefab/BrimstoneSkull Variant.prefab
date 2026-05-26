@@ -26,7 +26,31 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2710812428792189704, guid: 305466c765e2df340a2007e959761d05, type: 3}
       propertyPath: m_Name
-      value: BrimstoneSkull
+      value: BrimstoneSkull Variant
+      objectReference: {fileID: 0}
+    - target: {fileID: 3669001545821898313, guid: 305466c765e2df340a2007e959761d05, type: 3}
+      propertyPath: m_Size.x
+      value: 0.19087905
+      objectReference: {fileID: 0}
+    - target: {fileID: 3669001545821898313, guid: 305466c765e2df340a2007e959761d05, type: 3}
+      propertyPath: m_Size.y
+      value: 0.24455592
+      objectReference: {fileID: 0}
+    - target: {fileID: 3669001545821898313, guid: 305466c765e2df340a2007e959761d05, type: 3}
+      propertyPath: m_Offset.x
+      value: 0.14054132
+      objectReference: {fileID: 0}
+    - target: {fileID: 3669001545821898313, guid: 305466c765e2df340a2007e959761d05, type: 3}
+      propertyPath: m_Offset.y
+      value: 0.00094367564
+      objectReference: {fileID: 0}
+    - target: {fileID: 3669001545821898313, guid: 305466c765e2df340a2007e959761d05, type: 3}
+      propertyPath: m_SpriteTilingProperty.oldSize.x
+      value: 0.48
+      objectReference: {fileID: 0}
+    - target: {fileID: 3669001545821898313, guid: 305466c765e2df340a2007e959761d05, type: 3}
+      propertyPath: m_SpriteTilingProperty.oldSize.y
+      value: 0.32
       objectReference: {fileID: 0}
     - target: {fileID: 4555866668613548573, guid: 305466c765e2df340a2007e959761d05, type: 3}
       propertyPath: m_LocalPosition.x

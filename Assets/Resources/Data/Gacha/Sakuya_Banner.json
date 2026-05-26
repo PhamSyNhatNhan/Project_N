@@ -1,0 +1,11 @@
+﻿{
+  "bannerId": "sakuya_banner",
+  "talent": "Sakuya",
+  "displayName": "Sakuya Izayoi",
+  "description": "Maid of Eternity",
+  "portraitPath": "Entity/Player/Sakuya/Sakuya_Portrait",
+  "talentRate": 2.0,
+  "pityHardLimit": 90,
+  "softPityStart": 68,
+  "costPerPull": 150
+}

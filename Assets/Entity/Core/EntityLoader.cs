@@ -77,7 +77,7 @@ public class EntityLoader : MonoBehaviour
 
         string folder = layerName switch
         {
-            "Player" => $"Entity/Character/{entityName}/Data",
+            "Player" => $"Entity/Player/{entityName}/Data",
             "Enemy"  => $"Entity/Enemy/{entityName}/Data",
             _        => ""
         };

@@ -13,11 +13,11 @@ GameObject:
   - component: {fileID: 4459405935786843178}
   - component: {fileID: 4440166004186206031}
   - component: {fileID: 391996624637725906}
-  - component: {fileID: 5584234149534921662}
   - component: {fileID: 7394189047098973556}
-  m_Layer: 0
+  - component: {fileID: 4086992056911986816}
+  m_Layer: 8
   m_Name: Sakuya_Knife
-  m_TagString: Untagged
+  m_TagString: Player
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -84,7 +84,7 @@ SpriteRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 0
+  m_SortingOrder: 3
   m_MaskInteraction: 0
   m_Sprite: {fileID: 21300000, guid: b8720624f7bef8448b838c91dfc552b9, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -121,8 +121,8 @@ Rigidbody2D:
     m_Bits: 0
   m_Interpolate: 0
   m_SleepingMode: 1
-  m_CollisionDetection: 1
-  m_Constraints: 4
+  m_CollisionDetection: 0
+  m_Constraints: 0
 --- !u!95 &4440166004186206031
 Animator:
   serializedVersion: 7
@@ -165,33 +165,18 @@ MonoBehaviour:
   critDamage: 0
   attackSpeed: 100
   disableMode: 0
-  liveTime: 2
+  liveTime: 5
   maxDistance: 10
   moveMode: 3
   speed: 500
   angle: 0
-  homingStrength: 5
+  homingStrength: 10
   homingRadius: 10
   findNewIfTargetDead: 1
   enableDamage:
     serializedVersion: 2
     m_Bits: 128
---- !u!114 &5584234149534921662
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5315768711328600932}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fc26ed5120188cb47be818870fabe1c2, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  attackPoints:
-  - isShow: 1
-    attackTransform: {fileID: 2202047411516902142}
-    attackSize: {x: 0.5, y: 0.12}
+  Explosion: {fileID: 4475483287495429244, guid: 78e6e5bce0616314ca9472269ca617db, type: 3}
 --- !u!114 &7394189047098973556
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -212,3 +197,49 @@ MonoBehaviour:
   currentAnimationScale: 1
   activeMovementModifiers: []
   activeAnimationModifiers: []
+--- !u!61 &4086992056911986816
+BoxCollider2D:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5315768711328600932}
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Density: 1
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_ForceSendLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_ForceReceiveLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_ContactCaptureLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_CallbackLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_IsTrigger: 0
+  m_UsedByEffector: 0
+  m_CompositeOperation: 0
+  m_CompositeOrder: 0
+  m_Offset: {x: 0, y: 0}
+  m_SpriteTilingProperty:
+    border: {x: 0, y: 0, z: 0, w: 0}
+    pivot: {x: 0.5, y: 0.5}
+    oldSize: {x: 0.5, y: 0.12}
+    newSize: {x: 1, y: 1}
+    adaptiveTilingThreshold: 0.5
+    drawMode: 0
+    adaptiveTiling: 0
+  m_AutoTiling: 0
+  m_Size: {x: 0.5, y: 0.12}
+  m_EdgeRadius: 0

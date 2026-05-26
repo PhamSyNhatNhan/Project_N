@@ -40,7 +40,7 @@ public class PlayerRegistry : MonoBehaviour
     private PlayerDisplayData LoadDisplayData(Talent talent, GameObject prefab)
     {
         string name         = talent.ToString();
-        string resourcePath = $"Entity/Character/{name}/Data/{name}";
+        string resourcePath = $"Entity/Player/{name}/Data/{name}";
 
         var data = new PlayerDisplayData
         {

@@ -5,21 +5,22 @@ using UnityEngine;
 /// Gắn trong Hall scene — quản lý toàn bộ UI nội bộ:
 ///   - Shard display
 ///   - CharacterSelect → MapSelect flow
-///   - Inventory, CharacterInfo, Shop, Gacha panels (chưa triển khai)
+///   - CharacterInfo panel
+///   - Shop, Gacha panels (chưa triển khai)
 /// </summary>
 public class HallUIManager : MonoBehaviour
 {
     [Header("Shard Display")]
     [SerializeField] private TextMeshProUGUI shardText;
+    [SerializeField] private TextMeshProUGUI charShardText;
 
     [Header("Select UI")]
     [SerializeField] private CharacterSelectUI characterSelectUI;
     [SerializeField] private MapSelectUI       mapSelectUI;
 
-    // TODO: triển khai sau
-    // [Header("Panels")]
-    // [SerializeField] private GameObject inventoryPanel;
-    // [SerializeField] private GameObject characterInfoPanel;
+    [Header("Panels")]
+    [SerializeField] private CharacterInfoUI characterInfoUI;
+    [SerializeField] private GachaUI          gachaUI;
     // [SerializeField] private GameObject shopPanel;
     // [SerializeField] private GameObject gachaPanel;
 
@@ -29,6 +30,8 @@ public class HallUIManager : MonoBehaviour
         EventManager.Gm.OnUserDataChanged.Get().AddListener(HandleUserDataChanged);
         EventManager.Gm.OnCharacterConfirmed.Get().AddListener(HandleCharacterConfirmed);
         EventManager.Gm.OnOpenCharacterSelect.Get().AddListener(HandleOpenCharacterSelect);
+        EventManager.Gm.OnOpenCharacterInfo.Get().AddListener(HandleOpenCharacterInfo);
+        EventManager.Gm.OnOpenGacha.Get().AddListener(HandleOpenGacha);
     }
 
     private void OnDestroy()
@@ -36,6 +39,8 @@ public class HallUIManager : MonoBehaviour
         EventManager.Gm.OnUserDataChanged.Get().RemoveListener(HandleUserDataChanged);
         EventManager.Gm.OnCharacterConfirmed.Get().RemoveListener(HandleCharacterConfirmed);
         EventManager.Gm.OnOpenCharacterSelect.Get().RemoveListener(HandleOpenCharacterSelect);
+        EventManager.Gm.OnOpenCharacterInfo.Get().RemoveListener(HandleOpenCharacterInfo);
+        EventManager.Gm.OnOpenGacha.Get().RemoveListener(HandleOpenGacha);
     }
 
     private void Start()
@@ -52,16 +57,14 @@ public class HallUIManager : MonoBehaviour
 
     private void RefreshShardDisplay()
     {
-        if (shardText == null) return;
         if (UserDataManager.Instance == null) return;
-        shardText.text = $"{UserDataManager.Instance.Shards:N0}";
+        if (shardText     != null) shardText.text     = $"{UserDataManager.Instance.Shards:N0}";
+        if (charShardText != null) charShardText.text = $"{UserDataManager.Instance.CharacterShards:N0}";
     }
 
     // ── Character → Map flow ──────────────────────────────────────
     private void HandleOpenCharacterSelect(Component sender, object data)
     {
-        Debug.Log("[HallUIManager] HandleOpenCharacterSelect called");
-
         CloseAll();
         characterSelectUI?.Show();
     }
@@ -72,35 +75,26 @@ public class HallUIManager : MonoBehaviour
         mapSelectUI?.Show();
     }
 
-    // ── TODO: Panel Toggle — uncomment khi triển khai ─────────────
-    // public void ToggleInventory()     => Toggle(inventoryPanel);
-    // public void ToggleCharacterInfo() => Toggle(characterInfoPanel);
-    // public void ToggleShop()          => Toggle(shopPanel);
-    // public void ToggleGacha()         => Toggle(gachaPanel);
+    // ── Character Info ────────────────────────────────────────────
+    private void HandleOpenCharacterInfo(Component sender, object data)
+    {
+        CloseAll();
+        characterInfoUI?.Show();
+    }
 
+    // ── Gacha ─────────────────────────────────────────────────────
+    private void HandleOpenGacha(Component sender, object data)
+    {
+        CloseAll();
+        gachaUI?.Show();
+    }
+
+    // ── Close All ─────────────────────────────────────────────────
     public void CloseAll()
     {
         characterSelectUI?.Hide();
         mapSelectUI?.Hide();
-
-        // TODO: uncomment khi triển khai
-        // SetPanel(inventoryPanel,     false);
-        // SetPanel(characterInfoPanel, false);
-        // SetPanel(shopPanel,          false);
-        // SetPanel(gachaPanel,         false);
+        characterInfoUI?.Hide();
+        gachaUI?.Hide();
     }
-
-    // ── Helpers ───────────────────────────────────────────────────
-    // private void Toggle(GameObject panel)
-    // {
-    //     if (panel == null) return;
-    //     bool next = !panel.activeSelf;
-    //     CloseAll();
-    //     SetPanel(panel, next);
-    // }
-
-    // private void SetPanel(GameObject panel, bool active)
-    // {
-    //     if (panel != null) panel.SetActive(active);
-    // }
 }

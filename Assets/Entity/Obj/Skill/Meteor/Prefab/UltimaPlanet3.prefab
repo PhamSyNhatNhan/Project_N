@@ -16,9 +16,10 @@ GameObject:
   - component: {fileID: 5779425688410775300}
   - component: {fileID: 6566794196474653190}
   - component: {fileID: 8403175703915165615}
-  m_Layer: 0
+  - component: {fileID: 3973794643692936533}
+  m_Layer: 8
   m_Name: UltimaPlanet3
-  m_TagString: Untagged
+  m_TagString: Enemy
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -236,6 +237,42 @@ MonoBehaviour:
   ghostDuration: 0.3
   ghostColor: {r: 1, g: 1, b: 1, a: 0.5}
   useCustomColor: 0
+--- !u!58 &3973794643692936533
+CircleCollider2D:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1002116347563552380}
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Density: 1
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_ForceSendLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_ForceReceiveLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_ContactCaptureLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_CallbackLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_IsTrigger: 0
+  m_UsedByEffector: 0
+  m_CompositeOperation: 0
+  m_CompositeOrder: 0
+  m_Offset: {x: 0.00000016556847, y: 0}
+  m_Radius: 0.53423226
 --- !u!1 &3890836031408598434
 GameObject:
   m_ObjectHideFlags: 0
@@ -245,7 +282,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1108544262318062190}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: VFX_Trail_Dark
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -279,7 +316,7 @@ GameObject:
   m_Component:
   - component: {fileID: 3216482912451757122}
   - component: {fileID: 2998542884335185917}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Trail 02
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -421,7 +458,7 @@ GameObject:
   m_Component:
   - component: {fileID: 8445027366717151207}
   - component: {fileID: 2233390056269597519}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Trail 01
   m_TagString: Untagged
   m_Icon: {fileID: 0}
