@@ -1,0 +1,45 @@
+using System;
+using EveEngine;
+using Newtonsoft.Json.Linq;
+using Newtonsoft.Json;
+
+// Shared immutable registration. Each implementation owns its schema and runtime behavior.
+public class PNAreaDefinition : EveIIdentified
+{
+    private readonly JToken payload;
+    private readonly Action<JToken, EveRegistryHub> validate;
+    private readonly Action<JToken> validateInput;
+    private readonly Action<JToken, PNContentReferenceContext> validateReferences;
+    public EveId Id { get; }
+    [JsonIgnore] public Type ImplementationType { get; }
+    public string Implementation => ImplementationType.FullName;
+    public JToken Payload => payload.DeepClone();
+    public PNAreaDefinition(EveId id, Type implementation, JToken data, Action<JToken, EveRegistryHub> validator, Action<JToken> inputValidator,
+        Action<JToken, PNContentReferenceContext> validateReferences = null)
+    {
+        if (!id.IsValid || id.Namespace == "base") throw new ArgumentException("Original area ID required.");
+#if UNITY_5_3_OR_NEWER
+        if (implementation == null || !typeof(PNAreaInstance).IsAssignableFrom(implementation) || implementation.IsAbstract || implementation.ContainsGenericParameters)
+            throw new ArgumentException("Area implementation must be a concrete PNAreaInstance component.");
+#else
+        if (implementation == null) throw new ArgumentNullException(nameof(implementation));
+#endif
+        Id = id; ImplementationType = implementation; payload = data?.DeepClone() ?? throw new ArgumentNullException(nameof(data));
+        validate = validator ?? throw new ArgumentNullException(nameof(validator)); validateInput = inputValidator ?? throw new ArgumentNullException(nameof(inputValidator));
+        this.validateReferences = validateReferences;
+    }
+    internal void ValidatePayload(EveRegistryHub registry) => validate(Payload, registry);
+    public void Validate(EveRegistryHub registry) { ValidatePayload(registry); ValidateReferences(new PNContentReferenceContext(registry)); }
+    public void ValidateReferences(PNContentReferenceContext context) => validateReferences?.Invoke(Payload, context);
+    public void ValidateInput(JToken input) => validateInput(input?.DeepClone());
+    public PNAreaDefinition Derive(EveId id, JToken data) => new PNAreaDefinition(id, ImplementationType, data, validate, validateInput, validateReferences);
+#if UNITY_5_3_OR_NEWER
+    // Construction happens only through the selected definition, before pool callback discovery.
+    public virtual UnityEngine.GameObject CreatePoolTemplate()
+    {
+        var root = new UnityEngine.GameObject("Area template: " + Id);
+        root.SetActive(false); root.hideFlags = UnityEngine.HideFlags.HideAndDontSave;
+        root.AddComponent(ImplementationType); return root;
+    }
+#endif
+}

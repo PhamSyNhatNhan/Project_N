@@ -22,7 +22,7 @@ public class WarriorMajor : MajorBuff
             healthMultiplier      = 40f,
         });
 
-        entityKey = $"{stat.NameCharacter}_{stat.GetInstanceID()}";
+        entityKey = $"{stat.NameCharacter}_{stat.GetEntityId()}";
         stat.OnAfterTakeDamage += HandleTakeDamage;
     }
 

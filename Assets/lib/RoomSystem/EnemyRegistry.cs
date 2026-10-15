@@ -3,11 +3,14 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Component trên GameManager.
-/// Map enemyId (string) → Enemy prefab để RoomSpawner spawn đúng loại quái.
+/// Registry component — map enemyId (string) → Enemy prefab.
 /// enemyId khớp với tên trong WaveConfig.enemyPool của DungeonConfig JSON.
+///
+/// Kéo vào danh sách của GameRegistry. Truy cập:
+///   GameRegistry.Get&lt;EnemyRegistry&gt;("Enemy").GetPrefab("Slime");
+/// Mod thêm enemy: .Register("MyModEnemy", prefab);
 /// </summary>
-public class EnemyRegistry : MonoBehaviour
+public class EnemyRegistry : MonoBehaviour, IGameRegistryComponent
 {
     [Serializable]
     public struct Entry
@@ -19,12 +22,13 @@ public class EnemyRegistry : MonoBehaviour
     [Header("Enemy Prefabs")]
     [SerializeField] private Entry[] entries;
 
-    private Dictionary<string, GameObject> _map;
+    private readonly Dictionary<string, GameObject> _map
+        = new Dictionary<string, GameObject>();
 
-    // ── Lifecycle ─────────────────────────────────────────────────
-    private void Awake()
+    // ── IGameRegistryComponent ────────────────────────────────────
+    public void Initialize()
     {
-        _map = new Dictionary<string, GameObject>();
+        _map.Clear();
         if (entries == null) return;
         foreach (var e in entries)
             if (e.prefab != null && !string.IsNullOrEmpty(e.enemyId))
@@ -34,8 +38,23 @@ public class EnemyRegistry : MonoBehaviour
     // ── API ───────────────────────────────────────────────────────
     public GameObject GetPrefab(string enemyId)
     {
-        if (_map.TryGetValue(enemyId, out GameObject prefab)) return prefab;
+        if (!string.IsNullOrEmpty(enemyId) && _map.TryGetValue(enemyId, out var prefab))
+            return prefab;
         Debug.LogError($"[EnemyRegistry] Không tìm thấy prefab cho enemyId '{enemyId}'.");
         return null;
     }
+
+    public bool Contains(string enemyId)
+        => !string.IsNullOrEmpty(enemyId) && _map.ContainsKey(enemyId);
+
+    public IEnumerable<KeyValuePair<string, GameObject>> GetAll() => _map;
+
+    /// <summary>Đăng ký runtime (mod). Ghi đè nếu id đã tồn tại.</summary>
+    public void Register(string enemyId, GameObject prefab)
+    {
+        if (string.IsNullOrEmpty(enemyId) || prefab == null) return;
+        _map[enemyId] = prefab;
+    }
+
+    public void Unregister(string enemyId) => _map.Remove(enemyId ?? "");
 }

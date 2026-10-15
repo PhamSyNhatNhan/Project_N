@@ -49,7 +49,7 @@ public class DespairStoneSkill : EnemySkill
         hitbox     = GetComponent<Hitbox>();
         ghostTrail = GetComponent<GhostTrail>();
         idleEffect = GetComponent<IdleEffect>();
-        entityKey  = $"{enemyStat.NameCharacter}_{enemyStat.GetInstanceID()}";
+        entityKey  = $"{enemyStat.NameCharacter}_{enemyStat.GetEntityId()}";
     }
 
     protected override void Start()

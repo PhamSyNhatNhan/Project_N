@@ -62,7 +62,7 @@ public class DaelSkill : SubPlayerSkill
 
     // ── Entity Key ────────────────────────────────────────────────
     private string entityKey => daelStat != null
-        ? $"{daelStat.NameCharacter}_{daelStat.GetInstanceID()}"
+        ? $"{daelStat.NameCharacter}_{daelStat.GetEntityId()}"
         : gameObject.name;
 
     // ═══════════════════════════════════════════════════════════════
@@ -740,7 +740,7 @@ public class DaelSkill : SubPlayerSkill
 
         Use("Step", false);
         SetInputDelay(data.Get<float>("inputDelay", 0.15f));
-        StartCoroutine(DashPerfectWindow(data));
+        //StartCoroutine(DashPerfectWindow(data));
     }
 
     private System.Collections.IEnumerator DashPerfectWindow(SkillData data)

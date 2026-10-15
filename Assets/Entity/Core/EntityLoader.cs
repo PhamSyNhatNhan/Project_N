@@ -63,7 +63,7 @@ public class EntityLoader : MonoBehaviour
         var statComp = GetComponent<Stat>();
         if (statComp != null)
         {
-            string entityKey = $"{statComp.NameCharacter}_{statComp.GetInstanceID()}";
+            string entityKey = $"{statComp.NameCharacter}_{statComp.GetEntityId()}";
             EventManager.Gm.OnEntityLoaded.Get(entityKey).Invoke(this, statComp);
         }
 

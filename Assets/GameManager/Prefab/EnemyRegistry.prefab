@@ -1,0 +1,59 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &4232730234333314106
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 8612385226639078957}
+  - component: {fileID: 7035569487769379534}
+  m_Layer: 0
+  m_Name: EnemyRegistry
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &8612385226639078957
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4232730234333314106}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &7035569487769379534
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4232730234333314106}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 82a8f791e06b7d349b0fdc51d52cda3b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EnemyRegistry
+  entries:
+  - enemyId: CalamityEye
+    prefab: {fileID: 6580843152953725124, guid: 360b4f97ffccaa04bac2ca476f4920d5, type: 3}
+  - enemyId: DespairStone
+    prefab: {fileID: 1598594851558494500, guid: c4bfacef57adcaa4a835282c69108660, type: 3}
+  - enemyId: HeatSpirit
+    prefab: {fileID: 3591972737080009651, guid: 2fa332731029e4a4e82f762052a0a901, type: 3}
+  - enemyId: RenegadeWarlock
+    prefab: {fileID: 6636251013136352904, guid: 49a136c0819952147bba8590393dcc21, type: 3}
+  - enemyId: Scryllar
+    prefab: {fileID: 8826352273914682648, guid: e5d170b560d627d4db38a58ae9a67c7c, type: 3}
+  - enemyId: SoulSlurper
+    prefab: {fileID: 1642116378630701001, guid: d6f29bc11dffdb84ea4d25e5f58776df, type: 3}

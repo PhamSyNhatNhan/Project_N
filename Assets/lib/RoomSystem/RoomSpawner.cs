@@ -11,8 +11,6 @@ using UnityEngine;
 public class RoomSpawner : MonoBehaviour
 {
     // ── Ref ───────────────────────────────────────────────────────
-    [SerializeField] private EnemyRegistry  enemyRegistry;
-    [SerializeField] private BossRegistry   bossRegistry;
     [SerializeField] private EnemySpawnZone spawnZone;
     [SerializeField] private GameObject     exitGatePrefab;
 
@@ -32,9 +30,6 @@ public class RoomSpawner : MonoBehaviour
         }
 
         // Tìm Registry từ GameManager nếu chưa assign tay
-        if (enemyRegistry == null) enemyRegistry = FindObjectOfType<EnemyRegistry>();
-        if (bossRegistry  == null) bossRegistry  = FindObjectOfType<BossRegistry>();
-
         _floorConfig = DungeonFlowManager.Instance.CurrentFloor;
         if (_floorConfig == null)
         {
@@ -108,8 +103,8 @@ public class RoomSpawner : MonoBehaviour
         {
             // Boss room dùng BossRegistry, còn lại dùng EnemyRegistry
             GameObject prefab = _floorConfig.roomType == RoomType.Boss
-                ? bossRegistry?.GetPrefab(_floorConfig.bossId.Value)
-                : enemyRegistry?.GetPrefab(entityId);
+                ? GameRegistry.Get<BossRegistry>("Boss")?.GetPrefab(_floorConfig.bossId.Value)
+                : GameRegistry.Get<EnemyRegistry>("Enemy")?.GetPrefab(entityId);
 
             if (prefab == null)
             {
@@ -133,7 +128,7 @@ public class RoomSpawner : MonoBehaviour
             var stat = enemy.GetComponent<Stat>();
             if (stat != null)
             {
-                string entityKey = $"{stat.NameCharacter}_{stat.GetInstanceID()}";
+                string entityKey = $"{stat.NameCharacter}_{stat.GetEntityId()}";
                 EventManager.Entity.OnEntityDead.Get(entityKey)
                     .AddListener((sender, data) => OnEnemyDead(enemy));
             }

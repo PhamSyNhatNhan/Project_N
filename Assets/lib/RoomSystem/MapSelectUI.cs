@@ -47,12 +47,8 @@ public class MapSelectUI : MonoBehaviour
     {
         _maps.Clear();
 
-        var registry = FindObjectOfType<MapRegistry>();
-        if (registry == null)
-        {
-            Debug.LogError("[MapSelectUI] Không tìm thấy MapRegistry.");
-            return;
-        }
+        var registry = GameRegistry.Get<MapRegistry>("Map");
+        if (registry == null) return; // GameRegistry đã log lỗi
 
         foreach (var data in registry.GetAllDisplayData())
             _maps.Add(data);

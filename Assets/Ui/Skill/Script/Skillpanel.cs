@@ -27,7 +27,7 @@ public class SkillPanel : MonoBehaviour
         {
             var stat = GameObject.FindWithTag("Player")?.GetComponent<Stat>();
             if (stat != null)
-                SetEntityKey($"{stat.NameCharacter}_{stat.GetInstanceID()}");
+                SetEntityKey($"{stat.NameCharacter}_{stat.GetEntityId()}");
             else
                 Debug.LogWarning("[SkillPanel] Không tìm thấy Player tag!");
         }

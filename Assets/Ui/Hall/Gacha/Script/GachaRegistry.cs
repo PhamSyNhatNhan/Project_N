@@ -4,21 +4,28 @@ using Newtonsoft.Json;
 using UnityEngine;
 
 /// <summary>
-/// Component trên GameManager.
-/// Load tất cả GachaBannerData JSON từ Resources/Data/Gacha/
-/// theo danh sách bannerIds trong Inspector.
+/// Registry component — load tất cả GachaBannerData JSON từ
+/// Resources/Data/Gacha/ theo danh sách bannerIds trong Inspector.
+///
+/// Kéo vào danh sách của GameRegistry (entry name gợi ý: "Gacha"). Truy cập:
+///   GameRegistry.Get&lt;GachaRegistry&gt;("Gacha").GetBanner(bannerId);
+/// Mod thêm banner: .Register(bannerData);
 /// </summary>
-public class GachaRegistry : MonoBehaviour
+public class GachaRegistry : MonoBehaviour, IGameRegistryComponent
 {
     [Header("Banner IDs")]
     [Tooltip("Danh sách bannerId khớp với tên file JSON trong Resources/Data/Gacha/")]
     [SerializeField] private string[] bannerIds;
 
-    private readonly List<GachaBannerData> _banners = new List<GachaBannerData>();
+    private readonly List<GachaBannerData>               _banners   = new List<GachaBannerData>();
+    private readonly Dictionary<string, GachaBannerData> _bannerMap = new Dictionary<string, GachaBannerData>();
 
-    // ── Lifecycle ─────────────────────────────────────────────────
-    private void Awake()
+    // ── IGameRegistryComponent ────────────────────────────────────
+    public void Initialize()
     {
+        _banners.Clear();
+        _bannerMap.Clear();
+
         if (bannerIds == null) return;
         foreach (string id in bannerIds)
             LoadBanner(id);
@@ -27,6 +34,8 @@ public class GachaRegistry : MonoBehaviour
     // ── Load ──────────────────────────────────────────────────────
     private void LoadBanner(string bannerId)
     {
+        if (string.IsNullOrEmpty(bannerId)) return;
+
         string resourcePath = $"Data/Gacha/{bannerId}";
         TextAsset textAsset = Resources.Load<TextAsset>(resourcePath);
 
@@ -55,7 +64,7 @@ public class GachaRegistry : MonoBehaviour
                     Debug.LogWarning($"[GachaRegistry] Không tìm thấy portrait: '{data.portraitPath}'");
             }
 
-            _banners.Add(data);
+            Register(data);
         }
         catch (Exception ex)
         {
@@ -68,9 +77,31 @@ public class GachaRegistry : MonoBehaviour
 
     public GachaBannerData GetBanner(string bannerId)
     {
-        foreach (var b in _banners)
-            if (b.bannerId == bannerId) return b;
+        if (!string.IsNullOrEmpty(bannerId) && _bannerMap.TryGetValue(bannerId, out var data))
+            return data;
         Debug.LogError($"[GachaRegistry] Không tìm thấy banner '{bannerId}'");
         return null;
+    }
+
+    /// <summary>Đăng ký runtime (mod). Ghi đè nếu bannerId đã tồn tại.</summary>
+    public void Register(GachaBannerData data)
+    {
+        if (data == null || string.IsNullOrEmpty(data.bannerId)) return;
+
+        if (_bannerMap.TryGetValue(data.bannerId, out var existing))
+            _banners.Remove(existing);
+
+        _bannerMap[data.bannerId] = data;
+        _banners.Add(data);
+    }
+
+    public void Unregister(string bannerId)
+    {
+        if (string.IsNullOrEmpty(bannerId)) return;
+        if (_bannerMap.TryGetValue(bannerId, out var existing))
+        {
+            _banners.Remove(existing);
+            _bannerMap.Remove(bannerId);
+        }
     }
 }

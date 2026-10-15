@@ -1,0 +1,5 @@
+{
+  "name": "ProjectN.Input",
+  "references": ["Unity.InputSystem"],
+  "autoReferenced": true
+}

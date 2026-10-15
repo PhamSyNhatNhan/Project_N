@@ -1,0 +1,1068 @@
+{
+  "schemaVersion": 1,
+  "characters": [
+    {
+      "id": "project_n:eve",
+      "portraitPath": "UI/Portraits/Eve_Icon",
+      "stats": [
+        {
+          "statId": "base:health",
+          "base": 100,
+          "initialCurrent": 40
+        },
+        {
+          "statId": "base:attack_power",
+          "base": 10
+        },
+        {
+          "statId": "base:attack_speed",
+          "base": 100
+        },
+        {
+          "statId": "base:cooldown_reduction",
+          "base": 0
+        },
+        {
+          "statId": "base:crit_rate",
+          "base": 20
+        },
+        {
+          "statId": "base:crit_damage",
+          "base": 150
+        },
+        {
+          "statId": "base:defense",
+          "base": 5
+        },
+        {
+          "statId": "base:move_speed",
+          "base": 3
+        },
+        {
+          "statId": "base:jump_speed",
+          "base": 3.2
+        }
+      ],
+      "skill": [
+        {
+          "id": "project_n:eve_slash",
+          "data": {
+            "skill": {},
+            "action": {
+              "id": "base:slash_action",
+              "start": {},
+              "perform": {
+                "tags": [
+                  "base:physical",
+                  "base:fire",
+                  "base:ice",
+                  "base:lightning"
+                ],
+                "duration": 0.32,
+                "prefab": "PNAttacks/EveSlash",
+                "value": {
+                  "amount": 100,
+                  "statId": "base:attack_power"
+                },
+                "hitbox": {
+                  "windowStart": 0.06,
+                  "windowEnd": 0.2,
+                  "followCaster": false,
+                  "hitTriggers": false,
+                  "sampleInterval": 0.004
+                }
+              },
+              "exit": {},
+              "cancel": {}
+            },
+            "categoryIds": [
+              "base:attack"
+            ],
+            "affectedByAttackSpeed": true
+          }
+        },
+        {
+          "id": "project_n:eve_moveset",
+          "data": {
+            "skill": {
+              "abilities": [
+                {
+                  "id": "project_n:eve_skill_ready",
+                  "kind": "Cooldown",
+                  "showInUI": true,
+                  "iconPath": "",
+                  "displayOrder": 0,
+                  "maximum": 1,
+                  "initialAmount": 1,
+                  "cooldown": 5,
+                  "recovery": "PerStack",
+                  "autoRecover": true,
+                  "clock": "Game"
+                },
+                {
+                  "id": "project_n:eve_ultimate_ready",
+                  "kind": "Cooldown",
+                  "showInUI": true,
+                  "iconPath": "",
+                  "displayOrder": 0,
+                  "maximum": 1,
+                  "initialAmount": 1,
+                  "cooldown": 25,
+                  "recovery": "PerStack",
+                  "autoRecover": true,
+                  "clock": "Game"
+                },
+                {
+                  "id": "project_n:eve_dash_ready",
+                  "kind": "Cooldown",
+                  "showInUI": true,
+                  "iconPath": "",
+                  "displayOrder": 0,
+                  "maximum": 3,
+                  "initialAmount": 3,
+                  "cooldown": 5,
+                  "recovery": "PerStack",
+                  "autoRecover": true,
+                  "clock": "Game"
+                },
+                {
+                  "id": "project_n:eve_burst_gauge",
+                  "kind": "Counter",
+                  "showInUI": true,
+                  "iconPath": "",
+                  "displayOrder": 0,
+                  "maximum": 150,
+                  "initialAmount": 0,
+                  "clock": "Game"
+                },
+                {
+                  "id": "project_n:eve_slash_stacks",
+                  "kind": "Counter",
+                  "showInUI": true,
+                  "iconPath": "",
+                  "displayOrder": 0,
+                  "maximum": 12,
+                  "initialAmount": 0,
+                  "clock": "Game"
+                },
+                {
+                  "id": "project_n:eve_burst_state",
+                  "kind": "State",
+                  "showInUI": true,
+                  "iconPath": "",
+                  "displayOrder": 0,
+                  "duration": 15,
+                  "reapply": "Keep",
+                  "clock": "Game"
+                },
+                {
+                  "id": "project_n:eve_next_attack",
+                  "kind": "State",
+                  "showInUI": true,
+                  "iconPath": "",
+                  "displayOrder": 0,
+                  "duration": 10,
+                  "reapply": "Refresh",
+                  "clock": "Game"
+                }
+              ],
+              "tuning": {
+                "targetRange": 8,
+                "comboReset": 1,
+                "targetStopDistance": 0.65,
+                "chargeDuration": 1,
+                "burstCost": 100,
+                "burstInitialStacks": 6,
+                "burstEndRefund": 30,
+                "attackGauge": 2,
+                "skillGauge": 5,
+                "ultimateGauge": 10,
+                "attackStacks": 2,
+                "skillStacks": 5,
+                "burstAttackBonus": 100,
+                "burstAttackSpeedBonus": 50,
+                "attackUltimateReduction": 1,
+                "skillUltimateReduction": 2,
+                "repeatDelay": 0.3,
+                "repeatInterval": 0.05,
+                "energy": {
+                  "motionTrailTime": 0.18,
+                  "motionTrailWidth": 0.09,
+                  "burstParticleRate": 38,
+                  "chargeParticleRate": 22,
+                  "particleLifetime": 0.65,
+                  "auraRadius": 0.22,
+                  "lightIntensity": 0.45,
+                  "activationParticles": 20,
+                  "endParticles": 12,
+                  "impactParticles": 5,
+                  "burstParticleMinSize": 0.025,
+                  "burstParticleMaxSize": 0.055,
+                  "burstParticleMinLifetime": 0.65,
+                  "burstParticleMaxLifetime": 1.1,
+                  "burstRiseMinSpeed": 0.3,
+                  "burstRiseMaxSpeed": 0.65
+                },
+                "weapon": {
+                  "handHeight": 0.14,
+                  "handOffset": 0.28,
+                  "normalGlow": 0.05,
+                  "burstGlow": 0.8,
+                  "chargeLength": 0.85,
+                  "chargeAngle": 75,
+                  "bladeWidth": 0.085,
+                  "bladeDepth": 0.04,
+                  "baseLength": 0.85,
+                  "handSideOffset": 0.14,
+                  "guardLength": 0.17,
+                  "guardWidth": 0.065,
+                  "guardDepth": 0.035,
+                  "gripLength": 0.19,
+                  "gripWidth": 0.07,
+                  "gripDepth": 0.035,
+                  "junctionSize": 0.15,
+                  "junctionGlow": 0.14
+                },
+                "skillStopDistance": 0.28,
+                "empoweredStopDistance": 0.4,
+                "skillMotion": "base:eve_skill_rush",
+                "empoweredMotion": "base:eve_empowered_rush",
+                "repeatMotion": "base:eve_repeat_rush",
+                "ultimateMotion": "base:eve_ultimate_rush",
+                "retreatMotion": "base:eve_ultimate_retreat",
+                "blazingAssaultBuffId": "base:eve_blazing_assault",
+                "risingMomentumBuffId": "base:eve_rising_momentum"
+              }
+            },
+            "action": {
+              "id": "base:eve_sweep_action",
+              "start": {},
+              "perform": {
+                "tags": [
+                  "base:physical",
+                  "base:fire",
+                  "base:ice",
+                  "base:lightning"
+                ],
+                "duration": 0.32,
+                "sweepStart": 0.15,
+                "sweepEnd": 0.7,
+                "fadeEnd": 1,
+                "startAngle": -72,
+                "endAngle": 72,
+                "tilt": 0,
+                "radius": 1.55,
+                "innerRadius": 0.1,
+                "height": 0.14,
+                "bladeWidth": 0.045,
+                "trailFraction": 0.65,
+                "intensity": 1.6,
+                "particleRate": 160,
+                "trailWidth": 0.025,
+                "hitThickness": 0.65,
+                "sampleInterval": 0.004,
+                "value": {
+                  "amount": 100,
+                  "statId": "base:attack_power"
+                },
+                "windupAngle": -98,
+                "recoveryAngle": 105,
+                "trailDepth": 0.09,
+                "particleSize": 0.07,
+                "particleLifetime": 0.42,
+                "particleSpeed": 1.8,
+                "afterglow": 0.18
+              },
+              "exit": {},
+              "cancel": {}
+            },
+            "categoryIds": [
+              "base:skill"
+            ],
+            "affectedByAttackSpeed": false
+          }
+        },
+        {
+          "id": "project_n:eve_attack_right",
+          "data": {
+            "skill": {},
+            "action": {
+              "id": "base:eve_sweep_action",
+              "start": {},
+              "perform": {
+                "tags": [
+                  "base:physical",
+                  "base:fire",
+                  "base:ice",
+                  "base:lightning"
+                ],
+                "duration": 0.32,
+                "sweepStart": 0.15,
+                "sweepEnd": 0.7,
+                "fadeEnd": 1,
+                "startAngle": -72,
+                "endAngle": 72,
+                "tilt": -38,
+                "radius": 1.15,
+                "innerRadius": 0.1,
+                "height": 0.14,
+                "bladeWidth": 0.045,
+                "trailFraction": 0.65,
+                "intensity": 1.5,
+                "particleRate": 160,
+                "trailWidth": 0.025,
+                "hitThickness": 0.65,
+                "sampleInterval": 0.004,
+                "value": {
+                  "amount": 100,
+                  "statId": "base:attack_power"
+                },
+                "windupAngle": -98,
+                "recoveryAngle": 105,
+                "trailDepth": 0.09,
+                "particleSize": 0.07,
+                "particleLifetime": 0.42,
+                "particleSpeed": 1.8,
+                "afterglow": 0.18
+              },
+              "exit": {},
+              "cancel": {}
+            },
+            "categoryIds": [
+              "base:attack"
+            ],
+            "affectedByAttackSpeed": true
+          }
+        },
+        {
+          "id": "project_n:eve_attack_left",
+          "data": {
+            "skill": {},
+            "action": {
+              "id": "base:eve_sweep_action",
+              "start": {},
+              "perform": {
+                "tags": [
+                  "base:physical",
+                  "base:fire",
+                  "base:ice",
+                  "base:lightning"
+                ],
+                "duration": 0.32,
+                "sweepStart": 0.15,
+                "sweepEnd": 0.7,
+                "fadeEnd": 1,
+                "startAngle": 72,
+                "endAngle": -72,
+                "tilt": 38,
+                "radius": 1.15,
+                "innerRadius": 0.1,
+                "height": 0.14,
+                "bladeWidth": 0.045,
+                "trailFraction": 0.65,
+                "intensity": 1.5,
+                "particleRate": 160,
+                "trailWidth": 0.025,
+                "hitThickness": 0.65,
+                "sampleInterval": 0.004,
+                "value": {
+                  "amount": 100,
+                  "statId": "base:attack_power"
+                },
+                "windupAngle": 98,
+                "recoveryAngle": -105,
+                "trailDepth": 0.09,
+                "particleSize": 0.07,
+                "particleLifetime": 0.42,
+                "particleSpeed": 1.8,
+                "afterglow": 0.18
+              },
+              "exit": {},
+              "cancel": {}
+            },
+            "categoryIds": [
+              "base:attack"
+            ],
+            "affectedByAttackSpeed": true
+          }
+        },
+        {
+          "id": "project_n:eve_attack_horizontal",
+          "data": {
+            "skill": {},
+            "action": {
+              "id": "base:eve_sweep_action",
+              "start": {},
+              "perform": {
+                "tags": [
+                  "base:physical",
+                  "base:fire",
+                  "base:ice",
+                  "base:lightning"
+                ],
+                "duration": 0.32,
+                "sweepStart": 0.15,
+                "sweepEnd": 0.7,
+                "fadeEnd": 1,
+                "startAngle": -72,
+                "endAngle": 72,
+                "tilt": 0,
+                "radius": 1.55,
+                "innerRadius": 0.1,
+                "height": 0.14,
+                "bladeWidth": 0.045,
+                "trailFraction": 0.65,
+                "intensity": 1.5,
+                "particleRate": 160,
+                "trailWidth": 0.025,
+                "hitThickness": 0.65,
+                "sampleInterval": 0.004,
+                "value": {
+                  "amount": 100,
+                  "statId": "base:attack_power"
+                },
+                "windupAngle": -98,
+                "recoveryAngle": 105,
+                "trailDepth": 0.09,
+                "particleSize": 0.07,
+                "particleLifetime": 0.42,
+                "particleSpeed": 1.8,
+                "afterglow": 0.18
+              },
+              "exit": {},
+              "cancel": {}
+            },
+            "categoryIds": [
+              "base:attack"
+            ],
+            "affectedByAttackSpeed": true
+          }
+        },
+        {
+          "id": "project_n:eve_empowered_right",
+          "data": {
+            "skill": {},
+            "action": {
+              "id": "base:eve_sweep_action",
+              "start": {},
+              "perform": {
+                "tags": [
+                  "base:physical",
+                  "base:fire",
+                  "base:ice",
+                  "base:lightning"
+                ],
+                "duration": 0.32,
+                "sweepStart": 0.15,
+                "sweepEnd": 0.7,
+                "fadeEnd": 1,
+                "startAngle": -72,
+                "endAngle": 72,
+                "tilt": -38,
+                "radius": 1.95,
+                "innerRadius": 0.1,
+                "height": 0.14,
+                "bladeWidth": 0.045,
+                "trailFraction": 0.65,
+                "intensity": 1.9,
+                "particleRate": 160,
+                "trailWidth": 0.025,
+                "hitThickness": 0.65,
+                "sampleInterval": 0.004,
+                "value": {
+                  "amount": 160,
+                  "statId": "base:attack_power"
+                },
+                "windupAngle": -98,
+                "recoveryAngle": 105,
+                "trailDepth": 0.11,
+                "particleSize": 0.07,
+                "particleLifetime": 0.42,
+                "particleSpeed": 1.8,
+                "afterglow": 0.18
+              },
+              "exit": {},
+              "cancel": {}
+            },
+            "categoryIds": [
+              "base:attack"
+            ],
+            "affectedByAttackSpeed": true
+          }
+        },
+        {
+          "id": "project_n:eve_empowered_left",
+          "data": {
+            "skill": {},
+            "action": {
+              "id": "base:eve_sweep_action",
+              "start": {},
+              "perform": {
+                "tags": [
+                  "base:physical",
+                  "base:fire",
+                  "base:ice",
+                  "base:lightning"
+                ],
+                "duration": 0.32,
+                "sweepStart": 0.15,
+                "sweepEnd": 0.7,
+                "fadeEnd": 1,
+                "startAngle": 72,
+                "endAngle": -72,
+                "tilt": 38,
+                "radius": 1.95,
+                "innerRadius": 0.1,
+                "height": 0.14,
+                "bladeWidth": 0.045,
+                "trailFraction": 0.65,
+                "intensity": 1.9,
+                "particleRate": 160,
+                "trailWidth": 0.025,
+                "hitThickness": 0.65,
+                "sampleInterval": 0.004,
+                "value": {
+                  "amount": 160,
+                  "statId": "base:attack_power"
+                },
+                "windupAngle": 98,
+                "recoveryAngle": -105,
+                "trailDepth": 0.11,
+                "particleSize": 0.07,
+                "particleLifetime": 0.42,
+                "particleSpeed": 1.8,
+                "afterglow": 0.18
+              },
+              "exit": {},
+              "cancel": {}
+            },
+            "categoryIds": [
+              "base:attack"
+            ],
+            "affectedByAttackSpeed": true
+          }
+        },
+        {
+          "id": "project_n:eve_empowered_horizontal",
+          "data": {
+            "skill": {},
+            "action": {
+              "id": "base:eve_sweep_action",
+              "start": {},
+              "perform": {
+                "tags": [
+                  "base:physical",
+                  "base:fire",
+                  "base:ice",
+                  "base:lightning"
+                ],
+                "duration": 0.32,
+                "sweepStart": 0.15,
+                "sweepEnd": 0.7,
+                "fadeEnd": 1,
+                "startAngle": -72,
+                "endAngle": 72,
+                "tilt": 0,
+                "radius": 1.95,
+                "innerRadius": 0.1,
+                "height": 0.14,
+                "bladeWidth": 0.045,
+                "trailFraction": 0.65,
+                "intensity": 1.9,
+                "particleRate": 160,
+                "trailWidth": 0.025,
+                "hitThickness": 0.65,
+                "sampleInterval": 0.004,
+                "value": {
+                  "amount": 160,
+                  "statId": "base:attack_power"
+                },
+                "windupAngle": -98,
+                "recoveryAngle": 105,
+                "trailDepth": 0.11,
+                "particleSize": 0.07,
+                "particleLifetime": 0.42,
+                "particleSpeed": 1.8,
+                "afterglow": 0.18
+              },
+              "exit": {},
+              "cancel": {}
+            },
+            "categoryIds": [
+              "base:attack"
+            ],
+            "affectedByAttackSpeed": true
+          }
+        },
+        {
+          "id": "project_n:eve_repeat_right",
+          "data": {
+            "skill": {},
+            "action": {
+              "id": "base:eve_sweep_action",
+              "start": {},
+              "perform": {
+                "tags": [
+                  "base:physical",
+                  "base:fire",
+                  "base:ice",
+                  "base:lightning"
+                ],
+                "duration": 0.32,
+                "sweepStart": 0.15,
+                "sweepEnd": 0.7,
+                "fadeEnd": 1,
+                "startAngle": -72,
+                "endAngle": 72,
+                "tilt": -38,
+                "radius": 2.15,
+                "innerRadius": 0.1,
+                "height": 0.14,
+                "bladeWidth": 0.045,
+                "trailFraction": 0.65,
+                "intensity": 1.9,
+                "particleRate": 160,
+                "trailWidth": 0.025,
+                "hitThickness": 0.65,
+                "sampleInterval": 0.004,
+                "value": {
+                  "amount": 140,
+                  "statId": "base:attack_power"
+                },
+                "windupAngle": -98,
+                "recoveryAngle": 105,
+                "trailDepth": 0.13,
+                "particleSize": 0.07,
+                "particleLifetime": 0.42,
+                "particleSpeed": 1.8,
+                "afterglow": 0.18
+              },
+              "exit": {},
+              "cancel": {}
+            },
+            "categoryIds": [
+              "base:attack"
+            ],
+            "affectedByAttackSpeed": true
+          }
+        },
+        {
+          "id": "project_n:eve_repeat_left",
+          "data": {
+            "skill": {},
+            "action": {
+              "id": "base:eve_sweep_action",
+              "start": {},
+              "perform": {
+                "tags": [
+                  "base:physical",
+                  "base:fire",
+                  "base:ice",
+                  "base:lightning"
+                ],
+                "duration": 0.32,
+                "sweepStart": 0.15,
+                "sweepEnd": 0.7,
+                "fadeEnd": 1,
+                "startAngle": 72,
+                "endAngle": -72,
+                "tilt": 38,
+                "radius": 2.15,
+                "innerRadius": 0.1,
+                "height": 0.14,
+                "bladeWidth": 0.045,
+                "trailFraction": 0.65,
+                "intensity": 1.9,
+                "particleRate": 160,
+                "trailWidth": 0.025,
+                "hitThickness": 0.65,
+                "sampleInterval": 0.004,
+                "value": {
+                  "amount": 140,
+                  "statId": "base:attack_power"
+                },
+                "windupAngle": 98,
+                "recoveryAngle": -105,
+                "trailDepth": 0.13,
+                "particleSize": 0.07,
+                "particleLifetime": 0.42,
+                "particleSpeed": 1.8,
+                "afterglow": 0.18
+              },
+              "exit": {},
+              "cancel": {}
+            },
+            "categoryIds": [
+              "base:attack"
+            ],
+            "affectedByAttackSpeed": true
+          }
+        },
+        {
+          "id": "project_n:eve_burst_ultimate_right",
+          "data": {
+            "skill": {},
+            "action": {
+              "id": "base:eve_sweep_action",
+              "start": {},
+              "perform": {
+                "tags": [
+                  "base:physical",
+                  "base:fire",
+                  "base:ice",
+                  "base:lightning"
+                ],
+                "duration": 0.42,
+                "sweepStart": 0.15,
+                "sweepEnd": 0.7,
+                "fadeEnd": 1,
+                "startAngle": -72,
+                "endAngle": 72,
+                "tilt": -38,
+                "radius": 3,
+                "innerRadius": 0.1,
+                "height": 0.14,
+                "bladeWidth": 0.045,
+                "trailFraction": 0.7,
+                "intensity": 2.3,
+                "particleRate": 240,
+                "trailWidth": 0.025,
+                "hitThickness": 0.65,
+                "sampleInterval": 0.004,
+                "value": {
+                  "amount": 180,
+                  "statId": "base:attack_power"
+                },
+                "windupAngle": -98,
+                "recoveryAngle": 105,
+                "trailDepth": 0.16,
+                "particleSize": 0.09,
+                "particleLifetime": 0.42,
+                "particleSpeed": 1.8,
+                "afterglow": 0.18
+              },
+              "exit": {},
+              "cancel": {}
+            },
+            "categoryIds": [
+              "base:ultimate"
+            ],
+            "affectedByAttackSpeed": false
+          }
+        },
+        {
+          "id": "project_n:eve_burst_ultimate_left",
+          "data": {
+            "skill": {},
+            "action": {
+              "id": "base:eve_sweep_action",
+              "start": {},
+              "perform": {
+                "tags": [
+                  "base:physical",
+                  "base:fire",
+                  "base:ice",
+                  "base:lightning"
+                ],
+                "duration": 0.42,
+                "sweepStart": 0.15,
+                "sweepEnd": 0.7,
+                "fadeEnd": 1,
+                "startAngle": 72,
+                "endAngle": -72,
+                "tilt": 38,
+                "radius": 3,
+                "innerRadius": 0.1,
+                "height": 0.14,
+                "bladeWidth": 0.045,
+                "trailFraction": 0.7,
+                "intensity": 2.3,
+                "particleRate": 240,
+                "trailWidth": 0.025,
+                "hitThickness": 0.65,
+                "sampleInterval": 0.004,
+                "value": {
+                  "amount": 180,
+                  "statId": "base:attack_power"
+                },
+                "windupAngle": 98,
+                "recoveryAngle": -105,
+                "trailDepth": 0.16,
+                "particleSize": 0.09,
+                "particleLifetime": 0.42,
+                "particleSpeed": 1.8,
+                "afterglow": 0.18
+              },
+              "exit": {},
+              "cancel": {}
+            },
+            "categoryIds": [
+              "base:ultimate"
+            ],
+            "affectedByAttackSpeed": false
+          }
+        },
+        {
+          "id": "project_n:eve_burst_ultimate_horizontal",
+          "data": {
+            "skill": {},
+            "action": {
+              "id": "base:eve_sweep_action",
+              "start": {},
+              "perform": {
+                "tags": [
+                  "base:physical",
+                  "base:fire",
+                  "base:ice",
+                  "base:lightning"
+                ],
+                "duration": 0.42,
+                "sweepStart": 0.15,
+                "sweepEnd": 0.7,
+                "fadeEnd": 1,
+                "startAngle": -72,
+                "endAngle": 72,
+                "tilt": 0,
+                "radius": 3,
+                "innerRadius": 0.1,
+                "height": 0.14,
+                "bladeWidth": 0.045,
+                "trailFraction": 0.7,
+                "intensity": 2.3,
+                "particleRate": 240,
+                "trailWidth": 0.025,
+                "hitThickness": 0.65,
+                "sampleInterval": 0.004,
+                "value": {
+                  "amount": 180,
+                  "statId": "base:attack_power"
+                },
+                "windupAngle": -98,
+                "recoveryAngle": 105,
+                "trailDepth": 0.16,
+                "particleSize": 0.09,
+                "particleLifetime": 0.42,
+                "particleSpeed": 1.8,
+                "afterglow": 0.18
+              },
+              "exit": {},
+              "cancel": {}
+            },
+            "categoryIds": [
+              "base:ultimate"
+            ],
+            "affectedByAttackSpeed": false
+          }
+        },
+        {
+          "id": "project_n:eve_ultimate",
+          "data": {
+            "skill": {},
+            "action": {
+              "id": "base:eve_sweep_action",
+              "start": {},
+              "perform": {
+                "tags": [
+                  "base:physical",
+                  "base:fire",
+                  "base:ice",
+                  "base:lightning"
+                ],
+                "duration": 0.42,
+                "sweepStart": 0.15,
+                "sweepEnd": 0.7,
+                "fadeEnd": 1,
+                "startAngle": -72,
+                "endAngle": 72,
+                "tilt": 0,
+                "radius": 3,
+                "innerRadius": 0.1,
+                "height": 0.14,
+                "bladeWidth": 0.045,
+                "trailFraction": 0.7,
+                "intensity": 2.2,
+                "particleRate": 240,
+                "trailWidth": 0.025,
+                "hitThickness": 0.65,
+                "sampleInterval": 0.004,
+                "value": {
+                  "amount": 350,
+                  "statId": "base:attack_power"
+                },
+                "windupAngle": -98,
+                "recoveryAngle": 105,
+                "trailDepth": 0.16,
+                "particleSize": 0.09,
+                "particleLifetime": 0.42,
+                "particleSpeed": 1.8,
+                "afterglow": 0.18
+              },
+              "exit": {},
+              "cancel": {}
+            },
+            "categoryIds": [
+              "base:ultimate"
+            ],
+            "affectedByAttackSpeed": false
+          }
+        },
+        {
+          "id": "project_n:eve_skill_rush",
+          "data": {
+            "skill": {},
+            "action": {
+              "id": "base:motion_action",
+              "start": {},
+              "perform": {
+                "distance": 4,
+                "duration": 0.16,
+                "ignoreEntities": false,
+                "permissionId": "base:motion_voluntary"
+              },
+              "exit": {},
+              "cancel": {}
+            },
+            "categoryIds": [
+              "base:skill"
+            ],
+            "affectedByAttackSpeed": false
+          }
+        },
+        {
+          "id": "project_n:eve_empowered_rush",
+          "data": {
+            "skill": {},
+            "action": {
+              "id": "base:motion_action",
+              "start": {},
+              "perform": {
+                "distance": 3,
+                "duration": 0.16,
+                "ignoreEntities": false,
+                "permissionId": "base:motion_voluntary"
+              },
+              "exit": {},
+              "cancel": {}
+            },
+            "categoryIds": [
+              "base:attack"
+            ],
+            "affectedByAttackSpeed": true
+          }
+        },
+        {
+          "id": "project_n:eve_repeat_rush",
+          "data": {
+            "skill": {},
+            "action": {
+              "id": "base:motion_action",
+              "start": {},
+              "perform": {
+                "distance": 3,
+                "duration": 0.16,
+                "ignoreEntities": false,
+                "permissionId": "base:motion_voluntary"
+              },
+              "exit": {},
+              "cancel": {}
+            },
+            "categoryIds": [
+              "base:attack"
+            ],
+            "affectedByAttackSpeed": true
+          }
+        },
+        {
+          "id": "project_n:eve_ultimate_rush",
+          "data": {
+            "skill": {},
+            "action": {
+              "id": "base:motion_action",
+              "start": {},
+              "perform": {
+                "distance": 8,
+                "duration": 0.16,
+                "ignoreEntities": false,
+                "permissionId": "base:motion_voluntary"
+              },
+              "exit": {},
+              "cancel": {}
+            },
+            "categoryIds": [
+              "base:ultimate"
+            ],
+            "affectedByAttackSpeed": false
+          }
+        },
+        {
+          "id": "project_n:eve_ultimate_retreat",
+          "data": {
+            "skill": {},
+            "action": {
+              "id": "base:motion_action",
+              "start": {},
+              "perform": {
+                "distance": 1.2,
+                "duration": 0.18,
+                "ignoreEntities": false,
+                "permissionId": "base:motion_voluntary"
+              },
+              "exit": {},
+              "cancel": {}
+            },
+            "categoryIds": [
+              "base:ultimate"
+            ],
+            "affectedByAttackSpeed": false
+          }
+        },
+        {
+          "id": "project_n:eve_dash",
+          "data": {
+            "skill": {
+              "recoveryId": "project_n:eve_dash_ready",
+              "applyCooldownReduction": true
+            },
+            "action": {
+              "id": "base:motion_action",
+              "perform": {
+                "distance": 2,
+                "duration": 0.16,
+                "ignoreEntities": true,
+                "permissionId": "base:motion_voluntary"
+              },
+              "exit": {},
+              "start": {},
+              "cancel": {}
+            },
+            "categoryIds": [
+              "base:dash"
+            ],
+            "affectedByAttackSpeed": false,
+            "effects": [
+              {
+                "trigger": "OnComplete",
+                "kind": "Operation",
+                "id": "base:create_area",
+                "position": "Self",
+                "data": {
+                  "areaId": "base:timescale_area",
+                  "followCaster": false,
+                  "input": {
+                    "radius": 2.5,
+                    "reduction": 0.9,
+                    "minimumReduction": 0.9,
+                    "duration": 15,
+                    "dependent": false,
+                    "layerMask": 128,
+                    "layerMode": "Include"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

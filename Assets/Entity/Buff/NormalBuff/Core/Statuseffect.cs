@@ -83,7 +83,7 @@ public abstract class StatusEffect
         this.target       = target;
         this.source       = source;
         this.timeScale    = target.GetComponent<TimeScale>();
-        this.entityKey    = $"{target.NameCharacter}_{target.GetInstanceID()}";
+        this.entityKey    = $"{target.NameCharacter}_{target.GetEntityId()}";
         this.tickInterval = tickInterval;
         Duration          = duration;
         TimeLeft          = duration;

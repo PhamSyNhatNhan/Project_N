@@ -85,30 +85,22 @@ public class EndRunUI : MonoBehaviour
         if (characterNameText != null)
             characterNameText.text = run.talent.ToString();
 
-        var playerRegistry = FindObjectOfType<PlayerRegistry>();
-        if (playerRegistry != null)
+        var displayData = GameRegistry.Get<PlayerRegistry>("Player")?.GetDisplayData(run.talent);
+        if (characterPortrait != null && displayData?.portrait != null)
         {
-            var displayData = playerRegistry.GetDisplayData(run.talent);
-            if (characterPortrait != null && displayData?.portrait != null)
-            {
-                characterPortrait.sprite  = displayData.portrait;
-                characterPortrait.enabled = true;
-            }
+            characterPortrait.sprite  = displayData.portrait;
+            characterPortrait.enabled = true;
         }
 
         // ── Dungeon ───────────────────────────────────────────────
         if (dungeonNameText != null)
             dungeonNameText.text = dungeonConfig?.displayName ?? run.dungeonGroupId;
 
-        var mapRegistry = FindObjectOfType<MapRegistry>();
-        if (mapRegistry != null)
+        var mapData = GameRegistry.Get<MapRegistry>("Map")?.GetDisplayData(run.dungeonGroupId);
+        if (dungeonPreview != null && mapData?.preview != null)
         {
-            var mapData = mapRegistry.GetDisplayData(run.dungeonGroupId);
-            if (dungeonPreview != null && mapData?.preview != null)
-            {
-                dungeonPreview.sprite  = mapData.preview;
-                dungeonPreview.enabled = true;
-            }
+            dungeonPreview.sprite  = mapData.preview;
+            dungeonPreview.enabled = true;
         }
 
         // ── Stats ─────────────────────────────────────────────────

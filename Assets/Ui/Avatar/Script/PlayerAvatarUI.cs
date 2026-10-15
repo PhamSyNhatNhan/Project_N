@@ -26,7 +26,7 @@ public class PlayerAvatarUI : MonoBehaviour
     private void OnPlayerSpawned(Component sender, object data)
     {
         if (data is not Stat stat) return;
-        SetEntityKey($"{stat.NameCharacter}_{stat.GetInstanceID()}");
+        SetEntityKey($"{stat.NameCharacter}_{stat.GetEntityId()}");
     }
 
     private void OnAvatarLoaded(Component sender, object data)

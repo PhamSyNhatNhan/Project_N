@@ -2,12 +2,18 @@ using System.Collections.Generic;
 using UnityEngine;
 
 // ════════════════════════════════════════════════════════════════
-// Chứa các Prefab của các RogueBuff 
+// Registry component — chứa các Prefab của các RogueBuff group.
+//
+// Kéo vào danh sách của GameRegistry (entry name gợi ý: "RogueBuff").
+// Truy cập:
+//   GameRegistry.Get<RogueBuffRegistry>("RogueBuff").TryGetPrefab(...)
+//
+// Lưu ý: key vẫn là BuffGroupId enum vì RogueBuffSaveData và
+// RogueBuffManager đang lưu enum — chuyển sang string sẽ đụng save data,
+// để dành cho đợt refactor mod riêng.
 // ════════════════════════════════════════════════════════════════
-public class RogueBuffRegistry : MonoBehaviour
+public class RogueBuffRegistry : MonoBehaviour, IGameRegistryComponent
 {
-    public static RogueBuffRegistry Instance { get; private set; }
-
     [System.Serializable]
     public struct Entry
     {
@@ -18,19 +24,13 @@ public class RogueBuffRegistry : MonoBehaviour
     [Header("Buff Group Prefabs")]
     [SerializeField] private Entry[] entries;
 
-    private Dictionary<BuffGroupId, RogueBuffGroup> _map;
+    private readonly Dictionary<BuffGroupId, RogueBuffGroup> _map
+        = new Dictionary<BuffGroupId, RogueBuffGroup>();
 
-    // ── Lifecycle ─────────────────────────────────────────────────
-    private void Awake()
+    // ── IGameRegistryComponent ────────────────────────────────────
+    public void Initialize()
     {
-        if (Instance != null && Instance != this)
-        {
-            Destroy(this);
-            return;
-        }
-        Instance = this;
-
-        _map = new Dictionary<BuffGroupId, RogueBuffGroup>();
+        _map.Clear();
         if (entries == null) return;
         foreach (var e in entries)
             if (e.prefab != null)
@@ -39,16 +39,17 @@ public class RogueBuffRegistry : MonoBehaviour
 
     // ── API ───────────────────────────────────────────────────────
     public bool TryGetPrefab(BuffGroupId groupId, out RogueBuffGroup prefab)
-    {
-        if (_map == null) { prefab = null; return false; }
-        return _map.TryGetValue(groupId, out prefab);
-    }
+        => _map.TryGetValue(groupId, out prefab);
 
     /// <summary>Trả về tất cả entry đã đăng ký — dùng cho RogueBuffSelectUI.</summary>
-    public IEnumerable<KeyValuePair<BuffGroupId, RogueBuffGroup>> GetAllEntries()
+    public IEnumerable<KeyValuePair<BuffGroupId, RogueBuffGroup>> GetAllEntries() => _map;
+
+    /// <summary>Đăng ký runtime. Ghi đè nếu id đã tồn tại.</summary>
+    public void Register(BuffGroupId groupId, RogueBuffGroup prefab)
     {
-        if (_map == null) yield break;
-        foreach (var pair in _map)
-            yield return pair;
+        if (prefab == null) return;
+        _map[groupId] = prefab;
     }
+
+    public void Unregister(BuffGroupId groupId) => _map.Remove(groupId);
 }

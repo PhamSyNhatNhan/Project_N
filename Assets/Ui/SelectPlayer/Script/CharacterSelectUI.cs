@@ -47,12 +47,8 @@ public class CharacterSelectUI : MonoBehaviour
     {
         _characters.Clear();
 
-        var registry = FindObjectOfType<PlayerRegistry>();
-        if (registry == null)
-        {
-            Debug.LogError("[CharacterSelectUI] Không tìm thấy PlayerRegistry.");
-            return;
-        }
+        var registry = GameRegistry.Get<PlayerRegistry>("Player");
+        if (registry == null) return;
 
         if (UserDataManager.Instance == null)
         {
@@ -127,15 +123,16 @@ public class CharacterSelectUI : MonoBehaviour
     }
 
     // ── Public API ────────────────────────────────────────────────
-    // CharacterSelectUI
     public void Show()
     {
         Debug.Log("[CharacterSelectUI] Show called");
         gameObject.SetActive(true);
         Debug.Log($"[CharacterSelectUI] activeSelf={gameObject.activeSelf}, activeInHierarchy={gameObject.activeInHierarchy}");
     }
+
     public void Hide()
     {
         Debug.Log("[CharacterSelectUI] Hide called", gameObject);
         gameObject.SetActive(false);
-    }}
+    }
+}

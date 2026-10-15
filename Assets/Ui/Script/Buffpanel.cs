@@ -32,7 +32,7 @@ public class BuffPanel : MonoBehaviour
     private void OnPlayerSpawned(Component sender, object data)
     {
         if (data is not Stat stat) return;
-        SetEntityKey($"{stat.NameCharacter}_{stat.GetInstanceID()}");
+        SetEntityKey($"{stat.NameCharacter}_{stat.GetEntityId()}");
     }
 
     private void OnEffectChanged(Component sender, object data)

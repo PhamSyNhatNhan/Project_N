@@ -1,0 +1,1 @@
+{"name":"ProjectN.Game.Editor","references":["EveEngine","ProjectN.Core","ProjectN.Game"],"includePlatforms":["Editor"]}

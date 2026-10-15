@@ -61,7 +61,7 @@ public class Move : MonoBehaviour, ILoadable<MoveData>
     protected float FixedDeltaTime => timeScale.FixDeltaTime;
 
     private string entityKey => stat != null
-        ? $"{stat.NameCharacter}_{stat.GetInstanceID()}"
+        ? $"{stat.NameCharacter}_{stat.GetEntityId()}"
         : gameObject.name;
 
     // ── Lifecycle ─────────────────────────────────────────────────

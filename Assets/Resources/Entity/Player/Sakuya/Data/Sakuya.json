@@ -1,14 +1,14 @@
 ﻿{
   "stat": {
-    "baseHealth": 520000,
+    "baseHealth": 27000,
     "baseDefense": 100,
-    "baseAttack": 200,
+    "baseAttack": 300,
     "baseAttackSpeed": 100,
     "baseCritRate": 5,
     "baseCritDamage": 50,
     "baseResistantPhysical": 0,
     "baseResistantMagic": 0,
-    "entityIconPath": "Entity/Player/Sakuya/Sakuya_Icon",
+    "entityIconPath": "UI/Portraits/Eve_Icon",
     "portraitPath": "Entity/Player/Sakuya/Sakuya_Portrait",
     "displayName": "Sakuya Izayoi",
     "description": "Mô tả ngắn"
@@ -26,7 +26,7 @@
         "skillType": "Attack",
         "cooldown": 0.2,
         "damage": [
-          200.0
+          300.0
         ],
         "damageType": "Physical",
         "iconPath": "",
@@ -46,8 +46,8 @@
         "skillType": "Attack",
         "cooldown": 0.2,
         "damage": [
-          200.0,
-          120.0
+          300.0,
+          220.0
         ],
         "damageType": "Physical",
         "iconPath": "",
@@ -67,7 +67,7 @@
         "skillType": "Attack",
         "cooldown": 0.2,
         "damage": [
-          200.0
+          300.0
         ],
         "damageType": "Physical",
         "iconPath": "",
@@ -88,7 +88,7 @@
         "skillType": "Attack",
         "cooldown": 0.2,
         "damage": [
-          120.0
+          220.0
         ],
         "damageType": "Physical",
         "iconPath": "",
@@ -133,7 +133,7 @@
         "skillType": "Attack",
         "cooldown": 0,
         "damage": [
-          350.0
+          450.0
         ],
         "damageType": "Physical",
         "iconPath": "Entity/Player/Sakuya/Skills/Clock12",
@@ -153,7 +153,7 @@
         "skillType": "Dash",
         "cooldown": 0,
         "damage": [
-          120.0
+          220.0
         ],
         "damageType": "Physical",
         "iconPath": "Entity/Player/Sakuya/Skills/Clock3",
@@ -173,7 +173,7 @@
         "skillType": "Dash",
         "cooldown": 0,
         "damage": [
-          200.0
+          350.0
         ],
         "damageType": "Physical",
         "iconPath": "Entity/Player/Sakuya/Skills/Clock7",
@@ -194,7 +194,7 @@
         "skillType": "Skill",
         "cooldown": 0,
         "damage": [
-          300
+          400
         ],
         "damageType": "Physical",
         "iconPath": "Entity/Player/Sakuya/Skills/SkillTap",
@@ -254,7 +254,7 @@
         "skillType": "Skill",
         "cooldown": 0,
         "damage": [
-          200
+          350
         ],
         "damageType": "Physical",
         "iconPath": "Entity/Player/Sakuya/Skills/Clock10",
@@ -274,7 +274,7 @@
         "skillType": "Ulti",
         "cooldown": 0,
         "damage": [
-          250
+          350
         ],
         "damageType": "Physical",
         "iconPath": "Entity/Player/Sakuya/Skills/UltiL1",
@@ -298,7 +298,7 @@
         "skillType": "Ulti",
         "cooldown": 0,
         "damage": [
-          180
+          280
         ],
         "damageType": "Physical",
         "iconPath": "Entity/Player/Sakuya/Skills/UltiL2",
@@ -320,7 +320,7 @@
         "skillType": "Ulti",
         "cooldown": 0,
         "damage": [
-          200
+          300
         ],
         "damageType": "Physical",
         "iconPath": "Entity/Player/Sakuya/Skills/UltiL3",
@@ -380,7 +380,7 @@
         "skillType": "Ulti",
         "cooldown": 0,
         "damage": [
-          300
+          450
         ],
         "damageType": "Physical",
         "iconPath": "Entity/Player/Sakuya/Skills/Clock11",
@@ -400,7 +400,7 @@
         "skillType": "Ulti",
         "cooldown": 0,
         "damage": [
-          400
+          500
         ],
         "damageType": "Physical",
         "iconPath": "Entity/Player/Sakuya/Skills/Clock11_5",
@@ -421,7 +421,7 @@
         "skillType": "Ulti",
         "cooldown": 0,
         "damage": [
-          200
+          370
         ],
         "damageType": "Physical",
         "iconPath": "Entity/Player/Sakuya/Skills/Clock5",

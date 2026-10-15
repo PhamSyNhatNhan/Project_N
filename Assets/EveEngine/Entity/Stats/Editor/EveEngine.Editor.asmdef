@@ -1,0 +1,6 @@
+{
+  "name": "EveEngine.Editor",
+  "references": ["EveEngine"],
+  "includePlatforms": ["Editor"],
+  "autoReferenced": true
+}

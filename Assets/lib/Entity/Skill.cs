@@ -68,7 +68,7 @@ public class Skill : MonoBehaviour, ILoadable<SkillListData>
         skillInfinite.Clear();
 
         string entityKey = stat != null
-            ? $"{stat.NameCharacter}_{stat.GetInstanceID()}"
+            ? $"{stat.NameCharacter}_{stat.GetEntityId()}"
             : "";
 
         foreach (var pair in skillData)

@@ -1,0 +1,574 @@
+fileFormatVersion: 2
+guid: 515fb7b7c2888954d83355777444b23b
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: 7751058797047727168
+    second: EnergyRibbon_0
+  - first:
+      213: -335897608695704047
+    second: EnergyRibbon_1
+  - first:
+      213: -3385608885703542747
+    second: EnergyRibbon_2
+  - first:
+      213: 1469590463502746313
+    second: EnergyRibbon_3
+  - first:
+      213: 7276871655483779066
+    second: EnergyRibbon_4
+  - first:
+      213: 2660158768442585041
+    second: EnergyRibbon_5
+  - first:
+      213: 5967266148526344494
+    second: EnergyRibbon_6
+  - first:
+      213: -747755647784942170
+    second: EnergyRibbon_7
+  - first:
+      213: -6811493551294341893
+    second: EnergyRibbon_8
+  - first:
+      213: 7185935991023675364
+    second: EnergyRibbon_9
+  - first:
+      213: -7128268410555554139
+    second: EnergyRibbon_10
+  - first:
+      213: -4294781930127008951
+    second: EnergyRibbon_11
+  - first:
+      213: -1960357945922556450
+    second: EnergyRibbon_12
+  - first:
+      213: 7180726661382395921
+    second: EnergyRibbon_13
+  - first:
+      213: 4580972036020564978
+    second: EnergyRibbon_14
+  - first:
+      213: -2338394139569354110
+    second: EnergyRibbon_15
+  - first:
+      213: -4641554506480609134
+    second: EnergyRibbon_16
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 1
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationMethod: 0
+  spriteTessellationDetail: -1
+  spriteGeometrySubdivision: -1
+  textureType: 0
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 1024
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 0
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: EnergyRibbon_0
+      rect:
+        serializedVersion: 2
+        x: 104
+        y: 764
+        width: 197
+        height: 165
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0444237b8ea419b60800000000000000
+      internalID: 7751058797047727168
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: EnergyRibbon_1
+      rect:
+        serializedVersion: 2
+        x: 232
+        y: 819
+        width: 6
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1161ac097e6a65bf0800000000000000
+      internalID: -335897608695704047
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: EnergyRibbon_2
+      rect:
+        serializedVersion: 2
+        x: 305
+        y: 746
+        width: 892
+        height: 470
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 528fb3bf7a6e301d0800000000000000
+      internalID: -3385608885703542747
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: EnergyRibbon_3
+      rect:
+        serializedVersion: 2
+        x: 422
+        y: 833
+        width: 16
+        height: 29
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9c202668db8056410800000000000000
+      internalID: 1469590463502746313
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: EnergyRibbon_4
+      rect:
+        serializedVersion: 2
+        x: 430
+        y: 825
+        width: 23
+        height: 24
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: af728355734acf460800000000000000
+      internalID: 7276871655483779066
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: EnergyRibbon_5
+      rect:
+        serializedVersion: 2
+        x: 601
+        y: 827
+        width: 9
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 1df29274e48cae420800000000000000
+      internalID: 2660158768442585041
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: EnergyRibbon_6
+      rect:
+        serializedVersion: 2
+        x: 609
+        y: 821
+        width: 7
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e29402732fcffc250800000000000000
+      internalID: 5967266148526344494
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: EnergyRibbon_7
+      rect:
+        serializedVersion: 2
+        x: 637
+        y: 813
+        width: 23
+        height: 39
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6a58cfa33307f95f0800000000000000
+      internalID: -747755647784942170
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: EnergyRibbon_8
+      rect:
+        serializedVersion: 2
+        x: 675
+        y: 805
+        width: 23
+        height: 20
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: bfc9c3534b6b871a0800000000000000
+      internalID: -6811493551294341893
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: EnergyRibbon_9
+      rect:
+        serializedVersion: 2
+        x: 697
+        y: 806
+        width: 13
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4e729ab06b299b360800000000000000
+      internalID: 7185935991023675364
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: EnergyRibbon_10
+      rect:
+        serializedVersion: 2
+        x: 711
+        y: 809
+        width: 11
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5a6a235d5ad431d90800000000000000
+      internalID: -7128268410555554139
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: EnergyRibbon_11
+      rect:
+        serializedVersion: 2
+        x: 721
+        y: 810
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 94b530bd69ed564c0800000000000000
+      internalID: -4294781930127008951
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: EnergyRibbon_12
+      rect:
+        serializedVersion: 2
+        x: 1139
+        y: 842
+        width: 10
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: eddeba8a5d86bc4e0800000000000000
+      internalID: -1960357945922556450
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: EnergyRibbon_13
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 1249
+        height: 742
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 118dfd87ad017a360800000000000000
+      internalID: 7180726661382395921
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: EnergyRibbon_14
+      rect:
+        serializedVersion: 2
+        x: 96
+        y: 71
+        width: 12
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2f3f005bbc1e29f30800000000000000
+      internalID: 4580972036020564978
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: EnergyRibbon_15
+      rect:
+        serializedVersion: 2
+        x: 329
+        y: 409
+        width: 8
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 28a0d1e5bea5c8fd0800000000000000
+      internalID: -2338394139569354110
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: EnergyRibbon_16
+      rect:
+        serializedVersion: 2
+        x: 358
+        y: 369
+        width: 15
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2981c93b4c2e59fb0800000000000000
+      internalID: -4641554506480609134
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      EnergyRibbon_0: 7751058797047727168
+      EnergyRibbon_1: -335897608695704047
+      EnergyRibbon_10: -7128268410555554139
+      EnergyRibbon_11: -4294781930127008951
+      EnergyRibbon_12: -1960357945922556450
+      EnergyRibbon_13: 7180726661382395921
+      EnergyRibbon_14: 4580972036020564978
+      EnergyRibbon_15: -2338394139569354110
+      EnergyRibbon_16: -4641554506480609134
+      EnergyRibbon_2: -3385608885703542747
+      EnergyRibbon_3: 1469590463502746313
+      EnergyRibbon_4: 7276871655483779066
+      EnergyRibbon_5: 2660158768442585041
+      EnergyRibbon_6: 5967266148526344494
+      EnergyRibbon_7: -747755647784942170
+      EnergyRibbon_8: -6811493551294341893
+      EnergyRibbon_9: 7185935991023675364
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
