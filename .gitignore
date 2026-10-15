@@ -61,6 +61,12 @@ InitTestScene*.unity*
 
 # Keep Unity asset metadata tracked. Do not ignore *.meta.
 
+# Folders kept local only (not published)
+/Docs/
+/Examples/
+/Tests/
+/Tools/
+
 # Python cache
 __pycache__/
 *.pyc
