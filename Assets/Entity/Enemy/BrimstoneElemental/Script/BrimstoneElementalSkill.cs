@@ -137,7 +137,7 @@ public class BrimstoneElementalSkill : EnemySkill
     private SpriteRenderer       srcRenderer;
     private BrimstoneBlinkShadow blinkShadow;
     private Transform            playerTransform;
-    private string entityKey => $"{enemyStat.NameCharacter}_{enemyStat.GetInstanceID()}";
+    private string entityKey => $"{enemyStat.NameCharacter}_{enemyStat.GetEntityId()}";
 
     private readonly EasyPoolingList petalPool        = new EasyPoolingList();
     private readonly EasyPoolingList rosePool         = new EasyPoolingList();

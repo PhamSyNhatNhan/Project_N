@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "statDefinitions": [
+    { "id": "eve:health", "kind": "resource", "maxChangePolicy": "preserveRatio" },
+    { "id": "eve:attack", "kind": "number" },
+    { "id": "eve:damage", "kind": "number" },
+    { "id": "eve:fire_damage", "kind": "number" },
+    { "id": "eve:energy", "kind": "resource", "maxChangePolicy": "preserveCurrent" }
+  ],
+  "characters": [
+    {
+      "id": "example:warrior",
+      "stats": [
+        { "statId": "eve:health", "base": 1000, "initialCurrent": 700 },
+        { "statId": "eve:attack", "base": 100 }
+      ]
+    },
+    {
+      "id": "example:spirit",
+      "stats": [
+        { "statId": "eve:energy", "base": 200 },
+        { "statId": "eve:attack", "base": 80 }
+      ]
+    }
+  ]
+}

@@ -137,10 +137,10 @@ public class RogueBuffSelectUI : MonoBehaviour
 
     private void OnCardSelected(BuffGroupId groupId, int minorIndex)
     {
-        var buffManager = FindObjectOfType<RogueBuffManager>();
+        var buffManager = RogueBuffManager.Instance;
         if (buffManager == null)
         {
-            Debug.LogError("[RogueBuffSelectUI] Không tìm thấy RogueBuffManager.");
+            Debug.LogError("[RogueBuffSelectUI] RogueBuffManager.Instance null — player chưa spawn?");
             return;
         }
 
@@ -167,8 +167,8 @@ public class RogueBuffSelectUI : MonoBehaviour
     private List<(BuffGroupId groupId, RogueBuffGroup prefab)> BuildGroupPool()
     {
         var pool        = new List<(BuffGroupId, RogueBuffGroup)>();
-        var registry    = RogueBuffRegistry.Instance;
-        var buffManager = FindObjectOfType<RogueBuffManager>();
+        var registry    = GameRegistry.Get<RogueBuffRegistry>("RogueBuff");
+        var buffManager = RogueBuffManager.Instance;
 
         if (registry == null || buffManager == null) return pool;
 
@@ -196,8 +196,7 @@ public class RogueBuffSelectUI : MonoBehaviour
 
     private List<(int minorIndex, MinorBuff buff)> GetAvailableMinors(BuffGroupId groupId, RogueBuffGroup prefab)
     {
-        var buffManager = FindObjectOfType<RogueBuffManager>();
-        RogueBuffGroup group = buffManager?.GetGroup(groupId);
+        RogueBuffGroup group = RogueBuffManager.Instance?.GetGroup(groupId);
 
         var available = new List<(int, MinorBuff)>();
         for (int i = 0; i < prefab.MinorCount; i++)

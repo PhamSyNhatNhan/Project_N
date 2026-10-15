@@ -1,0 +1,7 @@
+{
+  "name": "ProjectN.Game",
+  "references": ["EveEngine", "ProjectN.Core", "Unity.InputSystem", "Unity.RenderPipelines.Universal.Runtime", "Unity.RenderPipelines.Core.Runtime"],
+  "overrideReferences": true,
+  "precompiledReferences": ["Newtonsoft.Json.dll"],
+  "autoReferenced": true
+}

@@ -24,8 +24,8 @@
         "multiplierDamageTakenMultiplier": 0.0
       },
       "waves": [
-        { "enemyPool": ["CalamityEye", "CalamityEye"], "spawnDelay": 3.0 },
-        { "enemyPool": ["CalamityEye", "DespairStone", "DespairStone", "DespairStone"], "spawnDelay": 3.0 }
+        { "enemyPool": ["CalamityEye", "CalamityEye"], "spawnDelay": 1.5 },
+        { "enemyPool": ["CalamityEye", "DespairStone", "DespairStone", "DespairStone"], "spawnDelay": 1.5 }
       ]
     },
     {
@@ -49,8 +49,8 @@
         "multiplierDamageTakenMultiplier": 0.0
       },
       "waves": [
-        { "enemyPool": ["DespairStone", "DespairStone", "DespairStone", "CalamityEye"], "spawnDelay": 3.0 },
-        { "enemyPool": ["HeatSpirit", "HeatSpirit", "HeatSpirit", "CalamityEye"], "spawnDelay": 3.0 }
+        { "enemyPool": ["DespairStone", "DespairStone", "DespairStone", "CalamityEye"], "spawnDelay": 1.5 },
+        { "enemyPool": ["HeatSpirit", "HeatSpirit", "HeatSpirit", "CalamityEye"], "spawnDelay": 1.5 }
       ]
     },
     {
@@ -74,9 +74,9 @@
         "multiplierDamageTakenMultiplier": 0.0
       },
       "waves": [
-        { "enemyPool": ["HeatSpirit", "HeatSpirit", "HeatSpirit", "DespairStone", "DespairStone", "DespairStone"], "spawnDelay": 3.0 },
-        { "enemyPool": ["RenegadeWarlock", "CalamityEye", "CalamityEye", "HeatSpirit", "HeatSpirit", "HeatSpirit"], "spawnDelay": 4.0 },
-        { "enemyPool": ["RenegadeWarlock", "DespairStone", "DespairStone", "DespairStone", "CalamityEye"], "spawnDelay": 4.0 }
+        { "enemyPool": ["HeatSpirit", "HeatSpirit", "HeatSpirit", "DespairStone", "DespairStone", "DespairStone"], "spawnDelay": 1.5 },
+        { "enemyPool": ["RenegadeWarlock", "CalamityEye", "CalamityEye", "HeatSpirit", "HeatSpirit", "HeatSpirit"], "spawnDelay": 1.5 },
+        { "enemyPool": ["RenegadeWarlock", "DespairStone", "DespairStone", "DespairStone", "CalamityEye"], "spawnDelay": 1.5 }
       ]
     },
     {
@@ -122,7 +122,7 @@
         "multiplierDamageTakenMultiplier": 0.0
       },
       "waves": [
-        { "enemyPool": ["Boss_1"], "spawnDelay": 3.0 }
+        { "enemyPool": ["Boss_1"], "spawnDelay": 1.5 }
       ]
     },
     {
@@ -146,8 +146,8 @@
         "multiplierDamageTakenMultiplier": 0.0
       },
       "waves": [
-        { "enemyPool": ["Scryllar", "Scryllar", "HeatSpirit", "HeatSpirit", "HeatSpirit", "DespairStone"], "spawnDelay": 3.0 },
-        { "enemyPool": ["Scryllar", "Scryllar", "Scryllar", "HeatSpirit", "HeatSpirit", "HeatSpirit", "CalamityEye"], "spawnDelay": 3.0 }
+        { "enemyPool": ["Scryllar", "Scryllar", "HeatSpirit", "HeatSpirit", "HeatSpirit", "DespairStone"], "spawnDelay": 1.5 },
+        { "enemyPool": ["Scryllar", "Scryllar", "Scryllar", "HeatSpirit", "HeatSpirit", "HeatSpirit", "CalamityEye"], "spawnDelay": 1.5 }
       ]
     },
     {
@@ -171,8 +171,8 @@
         "multiplierDamageTakenMultiplier": 0.0
       },
       "waves": [
-        { "enemyPool": ["SoulSlurper", "SoulSlurper", "Scryllar", "HeatSpirit", "HeatSpirit", "HeatSpirit"], "spawnDelay": 3.0 },
-        { "enemyPool": ["SoulSlurper", "SoulSlurper", "Scryllar", "Scryllar", "DespairStone", "DespairStone", "DespairStone"], "spawnDelay": 3.0 }
+        { "enemyPool": ["SoulSlurper", "SoulSlurper", "Scryllar", "HeatSpirit", "HeatSpirit", "HeatSpirit"], "spawnDelay": 1.5 },
+        { "enemyPool": ["SoulSlurper", "SoulSlurper", "Scryllar", "Scryllar", "DespairStone", "DespairStone", "DespairStone"], "spawnDelay": 1.5 }
       ]
     },
     {
@@ -196,9 +196,9 @@
         "multiplierDamageTakenMultiplier": 0.0
       },
       "waves": [
-        { "enemyPool": ["SoulSlurper", "SoulSlurper", "SoulSlurper", "Scryllar", "HeatSpirit", "HeatSpirit", "HeatSpirit"], "spawnDelay": 3.0 },
-        { "enemyPool": ["RenegadeWarlock", "SoulSlurper", "SoulSlurper", "Scryllar", "DespairStone", "DespairStone", "DespairStone"], "spawnDelay": 4.0 },
-        { "enemyPool": ["RenegadeWarlock", "RenegadeWarlock", "Scryllar", "Scryllar", "SoulSlurper", "SoulSlurper"], "spawnDelay": 4.0 }
+        { "enemyPool": ["SoulSlurper", "SoulSlurper", "SoulSlurper", "Scryllar", "HeatSpirit", "HeatSpirit", "HeatSpirit"], "spawnDelay": 1.5 },
+        { "enemyPool": ["RenegadeWarlock", "SoulSlurper", "SoulSlurper", "Scryllar", "DespairStone", "DespairStone", "DespairStone"], "spawnDelay": 1.5 },
+        { "enemyPool": ["RenegadeWarlock", "RenegadeWarlock", "Scryllar", "Scryllar", "SoulSlurper", "SoulSlurper"], "spawnDelay": 1.5 }
       ]
     },
     {
@@ -244,7 +244,7 @@
         "multiplierDamageTakenMultiplier": 0.0
       },
       "waves": [
-        { "enemyPool": ["Brimstone"], "spawnDelay": 3.0 }
+        { "enemyPool": ["Brimstone"], "spawnDelay": 1.5 }
       ]
     },
     {
@@ -268,8 +268,8 @@
         "multiplierDamageTakenMultiplier": 0.0
       },
       "waves": [
-        { "enemyPool": ["SoulSlurper", "SoulSlurper", "SoulSlurper", "RenegadeWarlock", "Scryllar", "Scryllar", "HeatSpirit", "HeatSpirit"], "spawnDelay": 4.0 },
-        { "enemyPool": ["RenegadeWarlock", "RenegadeWarlock", "SoulSlurper", "SoulSlurper", "Scryllar", "Scryllar", "DespairStone", "DespairStone", "DespairStone"], "spawnDelay": 4.0 }
+        { "enemyPool": ["SoulSlurper", "SoulSlurper", "SoulSlurper", "RenegadeWarlock", "Scryllar", "Scryllar", "HeatSpirit", "HeatSpirit"], "spawnDelay": 1.5 },
+        { "enemyPool": ["RenegadeWarlock", "RenegadeWarlock", "SoulSlurper", "SoulSlurper", "Scryllar", "Scryllar", "DespairStone", "DespairStone", "DespairStone"], "spawnDelay": 1.5 }
       ]
     },
     {
@@ -293,8 +293,8 @@
         "multiplierDamageTakenMultiplier": 0.0
       },
       "waves": [
-        { "enemyPool": ["RenegadeWarlock", "RenegadeWarlock", "SoulSlurper", "SoulSlurper", "SoulSlurper", "Scryllar", "HeatSpirit", "HeatSpirit", "HeatSpirit"], "spawnDelay": 4.0 },
-        { "enemyPool": ["RenegadeWarlock", "RenegadeWarlock", "RenegadeWarlock", "SoulSlurper", "SoulSlurper", "Scryllar", "DespairStone", "DespairStone", "DespairStone", "DespairStone"], "spawnDelay": 4.0 }
+        { "enemyPool": ["RenegadeWarlock", "RenegadeWarlock", "SoulSlurper", "SoulSlurper", "SoulSlurper", "Scryllar", "HeatSpirit", "HeatSpirit", "HeatSpirit"], "spawnDelay": 1.5 },
+        { "enemyPool": ["RenegadeWarlock", "RenegadeWarlock", "RenegadeWarlock", "SoulSlurper", "SoulSlurper", "Scryllar", "DespairStone", "DespairStone", "DespairStone", "DespairStone"], "spawnDelay": 1.5 }
       ]
     },
     {
@@ -318,9 +318,9 @@
         "multiplierDamageTakenMultiplier": 0.0
       },
       "waves": [
-        { "enemyPool": ["RenegadeWarlock", "RenegadeWarlock", "RenegadeWarlock", "SoulSlurper", "SoulSlurper", "SoulSlurper", "Scryllar", "HeatSpirit", "HeatSpirit", "HeatSpirit", "DespairStone"], "spawnDelay": 4.0 },
-        { "enemyPool": ["RenegadeWarlock", "RenegadeWarlock", "RenegadeWarlock", "RenegadeWarlock", "SoulSlurper", "SoulSlurper", "SoulSlurper", "Scryllar", "DespairStone", "DespairStone", "DespairStone", "DespairStone"], "spawnDelay": 5.0 },
-        { "enemyPool": ["RenegadeWarlock", "RenegadeWarlock", "RenegadeWarlock", "RenegadeWarlock", "RenegadeWarlock", "SoulSlurper", "SoulSlurper", "SoulSlurper", "Scryllar", "Scryllar"], "spawnDelay": 5.0 }
+        { "enemyPool": ["RenegadeWarlock", "RenegadeWarlock", "RenegadeWarlock", "SoulSlurper", "SoulSlurper", "SoulSlurper", "Scryllar", "HeatSpirit", "HeatSpirit", "HeatSpirit", "DespairStone"], "spawnDelay": 1.5 },
+        { "enemyPool": ["RenegadeWarlock", "RenegadeWarlock", "RenegadeWarlock", "RenegadeWarlock", "SoulSlurper", "SoulSlurper", "SoulSlurper", "Scryllar", "DespairStone", "DespairStone", "DespairStone", "DespairStone"], "spawnDelay": 1.5 },
+        { "enemyPool": ["RenegadeWarlock", "RenegadeWarlock", "RenegadeWarlock", "RenegadeWarlock", "RenegadeWarlock", "SoulSlurper", "SoulSlurper", "SoulSlurper", "Scryllar", "Scryllar"], "spawnDelay": 1.5 }
       ]
     },
     {
@@ -366,7 +366,7 @@
         "multiplierDamageTakenMultiplier": 0.0
       },
       "waves": [
-        { "enemyPool": ["Calamitas"], "spawnDelay": 3.0 }
+        { "enemyPool": ["Calamitas"], "spawnDelay": 1.5 }
       ]
     }
   ]

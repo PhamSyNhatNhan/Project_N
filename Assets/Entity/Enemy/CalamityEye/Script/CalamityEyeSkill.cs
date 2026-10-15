@@ -49,7 +49,7 @@ public class CalamityEyeSkill : EnemySkill
         enemyStat = GetComponent<Stat>();
         enemyMove = GetComponent<Move>();
         hitbox    = GetComponent<Hitbox>();
-        entityKey = $"{enemyStat.NameCharacter}_{enemyStat.GetInstanceID()}";
+        entityKey = $"{enemyStat.NameCharacter}_{enemyStat.GetEntityId()}";
     }
 
     protected override void Start()

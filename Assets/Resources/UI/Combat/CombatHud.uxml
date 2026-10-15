@@ -1,0 +1,30 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+  <ui:VisualElement name="combat-hud" class="combat-hud">
+    <ui:VisualElement name="player-hud" class="player-hud">
+      <ui:VisualElement name="portrait-host" class="portrait-host">
+        <ui:VisualElement name="portrait-outer-ring" class="portrait-outer-ring" picking-mode="Ignore" />
+        <ui:VisualElement name="portrait" class="portrait">
+          <ui:VisualElement name="portrait-image" class="portrait-image" />
+          <ui:VisualElement name="portrait-placeholder" class="portrait-placeholder">
+            <ui:VisualElement class="portrait-head" /><ui:VisualElement class="portrait-shoulders" />
+          </ui:VisualElement>
+        </ui:VisualElement>
+      </ui:VisualElement>
+      <ui:VisualElement class="vitals">
+        <ui:VisualElement name="hud-health" class="hud-health"><ui:ProgressBar name="player-hp" title="" class="hp" /></ui:VisualElement>
+        <ui:VisualElement name="player-buffs" class="hud-buffs" picking-mode="Ignore" />
+      </ui:VisualElement>
+    </ui:VisualElement>
+    <ui:VisualElement name="test-panel" class="test-panel pn-panel-surface">
+      <ui:Button name="toggle-test" text="Test panel ▸" />
+      <ui:VisualElement name="test-body" class="test-body">
+        <ui:DropdownField name="test-entity" label="Entity" />
+        <ui:ScrollView name="test-scroll" horizontal-scroller-visibility="Hidden">
+          <ui:VisualElement class="test-section"><ui:Label text="LIVE" class="test-heading" /><ui:Label name="test-details" /></ui:VisualElement>
+          <ui:VisualElement class="test-section"><ui:Label text="STATS · evaluated / base" class="test-heading" /><ui:Label name="test-stats" /></ui:VisualElement>
+          <ui:VisualElement class="test-section"><ui:Label text="ABILITIES · live instances" class="test-heading" /><ui:Label name="test-abilities" /></ui:VisualElement>
+        </ui:ScrollView>
+      </ui:VisualElement>
+    </ui:VisualElement>
+  </ui:VisualElement>
+</ui:UXML>

@@ -12,8 +12,6 @@ using UnityEngine;
 /// </summary>
 public class PlayerSpawner : MonoBehaviour
 {
-    [SerializeField] private PlayerRegistry playerRegistry;
-
     private Stat   _playerStat;
     private string _entityKey;
 
@@ -22,9 +20,6 @@ public class PlayerSpawner : MonoBehaviour
     // ── Awake — Spawn ─────────────────────────────────────────────
     private void Awake()
     {
-        if (playerRegistry == null)
-            playerRegistry = FindObjectOfType<PlayerRegistry>();
-
         if (DungeonFlowManager.Instance == null)
         {
             Debug.LogError("[PlayerSpawner] DungeonFlowManager chưa tồn tại.");
@@ -38,7 +33,7 @@ public class PlayerSpawner : MonoBehaviour
             return;
         }
 
-        GameObject prefab = playerRegistry?.GetPrefab(save.talent);
+        GameObject prefab = GameRegistry.Get<PlayerRegistry>("Player")?.GetPrefab(save.talent);
         if (prefab == null)
         {
             Debug.LogError($"[PlayerSpawner] Không tìm thấy prefab cho Talent '{save.talent}'.");
@@ -56,7 +51,7 @@ public class PlayerSpawner : MonoBehaviour
         }
 
         // Lắng nghe OnEntityLoaded để inject sau khi ApplyData chạy xong
-        _entityKey = $"{_playerStat.NameCharacter}_{_playerStat.GetInstanceID()}";
+        _entityKey = $"{_playerStat.NameCharacter}_{_playerStat.GetEntityId()}";
         EventManager.Gm.OnEntityLoaded.Get(_entityKey).AddListener(OnEntityLoaded);
     }
 

@@ -69,7 +69,7 @@ public class ScryllarSkill : EnemySkill
         slash1Pool.SetPrefab(slashPrefab1);
         slash2Pool.SetPrefab(slashPrefab2);
         slash3Pool.SetPrefab(slashPrefab3);
-        entityKey = $"{enemyStat.NameCharacter}_{enemyStat.GetInstanceID()}";
+        entityKey = $"{enemyStat.NameCharacter}_{enemyStat.GetEntityId()}";
     }
 
     protected override void Start()

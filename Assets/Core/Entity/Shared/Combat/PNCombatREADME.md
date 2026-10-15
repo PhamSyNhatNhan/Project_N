@@ -1,0 +1,171 @@
+# Damage Flow / Luồng Damage
+
+Separate healing now uses [PNHeal API](PNHealREADME.md) (RulesVersion41/API2),
+with its own packets/results/events and shared Scale/Mitigation calculators.
+
+Current numeric API uses double throughout stats/combat. Crit Rate/Crit Damage
+use direct percentage values (25=25%, 150=critical multiplier1.5). See
+PNCriticalDamageREADME.md for signed rate, snapshots, canCrit and API2 migration.
+
+VI: Core thêm luồng damage cục bộ có thẩm quyền vào PNStat, tách phần combat sang
+PNStatCombat.cs qua partial class. Payload và kết quả nằm trong PNDamage.cs. Engine
+không chứa luật game; PNPlayerStat/EveCharacterStat kế thừa API này.
+
+EN: Core PNStat now owns a local authoritative damage flow, organized in its
+PNStatCombat partial class. PNDamage.cs defines the immutable payload and result.
+Engine supplies numeric stat infrastructure; crit and combat rules stay in Core.
+Player/character subclasses inherit this API.
+
+## API
+
+```csharp
+// EN: The amount is already evaluated, but has not yet received outgoing tag bonuses.
+// VI: Amount đã được tính giá trị, nhưng chưa áp bonus phía gây theo tag.
+PNDamageResult result = attacker.SendDamage(defender, amount,
+    PNContentModule.Physical, PNContentModule.Fire);
+
+// EN: Projectiles and delayed effects capture bonuses once and apply later on impact.
+// VI: Projectile và hiệu ứng trì hoãn chụp bonus một lần rồi áp khi chạm mục tiêu.
+PNDamage packet = attacker.CreateDamage(amount, PNContentModule.Physical);
+PNDamageResult hit = defender.ReceiveDamage(packet);
+```
+
+VI: CreateDamage kiểm tra entity sống/Ready, session và tag, rồi áp Scale của phía
+gây. PNDamage giữ Amount sau bonus, Tags read-only đã khử trùng, SourceId và SessionId.
+Không đưa payload này trở lại SendDamage để tránh áp bonus lần hai. Payload có thể
+đến nhiều mục tiêu và còn hợp lệ sau khi nguồn chết hoặc unload trong cùng session.
+
+EN: CreateDamage requires a living Ready source and valid tags, applies sender Scale
+once, and snapshots the amount, deduplicated read-only tags, source and session ID.
+ReceiveDamage consumes the snapshot directly. Do not feed its amount back through
+SendDamage. Delayed packets may hit multiple targets after source death/unload in
+the same session, without rereading source bonuses.
+
+VI: Scale phía gây cộng flat của base/resource trước các hệ số; flat của tag ngoài
+stat cộng cuối Scale, trước crit. Ví dụ input900, bonus cùng group .2 và .4,
+flat hỏa100: Scale1540, crit200% -> packet3080. Sau đó áp DEF, Mitigation, iframe
+và HP như hiện tại. Flat chỉ chọn theo tag thực sự có trong packet, không tự suy ra
+tag; snapshot giữ cả phần flat khi source thay đổi/unload. Evaluate không nhận flat tag.
+
+EN: Sender Scale adds entity base/resource flats before multipliers and non-stat
+tag flats after them, before crit. Input900 with same-group .2/.4 and Fire flat100
+produces Scale1540, or packet3080 at 200% crit. DEF, Mitigation, iframe and HP follow.
+Only selected tags contribute; the immutable packet retains flats after source
+changes/unload. Evaluate excludes non-stat tag flats.
+
+VI: ReceiveDamage kiểm tra receiver Ready và session của packet, tính DEF K=500 rồi
+Mitigation theo tags, sau đó trừ Current của project_n:health và chặn tại 0. Damage
+âm, không hữu hạn, type/tag sai, overflow bị từ chối trước khi sửa HP. Không đổi Max
+hoặc modifier của hai entity. Calculator override qua PNStat vẫn được gọi.
+
+EN: ReceiveDamage validates a Ready receiver and matching packet session, applies
+DEF K=500 and tagged Mitigation, then subtracts current health with a zero floor.
+Invalid tags/types, negative/non-finite damage and overflow fail before HP mutation.
+Maxima and modifiers are unchanged. Component calculation overrides are honored.
+
+## Results And Death / Kết Quả Và Chết
+
+VI: PNDamageResult gồm Damage, TargetId, CalculatedDamage sau DEF/kháng,
+AppliedDamage là HP thực mất, HealthBefore/HealthAfter và Killed. Overkill có thể
+CalculatedDamage > AppliedDamage. IsDead đọc Current HP <= 0, không giữ cờ chết
+riêng; hồi HP qua API resource hiện có làm entity sống lại.
+
+EN: Results distinguish calculated damage from actual HP loss, preserve before/after
+health, source/target identity and the positive-to-zero Killed transition. IsDead is
+derived from current health, so restoring HP permits another death transition.
+
+VI: DamageReceived và Died phát sau khi ghi HP; hook kế thừa OnDamageReceived/OnDied
+có thể bổ sung xử lý. Listener lỗi được log riêng, không ngăn listener khác hoặc làm
+caller thử lại hit đã ghi. Died chỉ phát khi hit đưa HP từ dương về 0. Hit hợp lệ vào
+entity đã chết không mất HP và không phát lại hai event. Hit 0/miễn damage vào entity
+sống vẫn phát DamageReceived. Unload xóa listener; gameplay phải đăng ký lại sau nạp.
+Thay HP trực tiếp bằng SetCurrent không tự phát event combat.
+
+EN: Notifications and virtual hooks run after the HP commit. Listener exceptions
+are logged without aborting committed damage or remaining notifications. Dead
+targets do not emit repeated hit/death events; valid zero/immune hits on living
+targets still emit DamageReceived. Unload clears listeners. Direct SetCurrent calls
+do not emit combat events. Core does not destroy/disable entities on death.
+
+## Authority And Scope / Thẩm Quyền Và Phạm Vi
+
+VI: Chỉ Offline/Host được dùng Create/Send/Receive. Entity phải nạp qua loader Ready,
+thuộc directory, registry và session đang hoạt động. Packet session cũ bị từ chối.
+Đây là API nội bộ tin cậy, không phải handler mạng: chưa xác thực message, deduplicate
+hit/replay, truyền damage hoặc đồng bộ HP cho client. Hitbox/projectile caller phải
+quyết định mỗi hit được áp vào mục tiêu bao nhiêu lần.
+
+EN: Offline/Host authority only; require Ready loaders and matching directory,
+registry/session ownership. Stale packets are rejected. This trusted local API is
+not a network handler and has no message authentication, replay deduplication,
+damage transport or client HP synchronization. Hit detection owns per-target hit counts.
+
+VI: PNSkillValue và action project_n:damage_action nối value/statId với luồng này.
+Slash hiện dùng hitbox PhysX theo timeline để chọn targets. PNStat tạo popup sau
+khi ghi HP, hiển thị CalculatedDamage; PNPlayerStat tắt popup khi player nhận damage.
+Xem Popup/PNDamagePopupREADME.md và Game/Skill/Actions/Slash/PNSlashAuthoringREADME.md.
+Crit dùng snapshot; iframe Gradual đã triển khai bên receiver. Heal/shield còn để sau.
+RulesVersion project_n:37; DLL API2.
+
+EN: PNSkillValue and damage_action connect raw/stat values to this flow. Slash
+selects targets using timeline-driven PhysX hitboxes. PNStat presents calculated
+damage after committing HP; PNPlayerStat suppresses popups on player receivers.
+See Popup/PNDamagePopupREADME.md and the slash authoring guide. Critical hits use
+sender snapshots; Gradual iframes run on receivers. Healing/shields remain future work.
+RulesVersion is project_n:37; DLL API2.
+
+## Gradual iframe
+
+Every living receiver shares ONE timer across all damage sources and types, including
+True, self and friendly damage. Core does not filter damage by hostility; hit selection
+still belongs to callers. No Legacy mode or invulnerability flag is added.
+
+Optional `action.perform.iframeDuration` is a finite signed number for DamageAction,
+Slash and EveSweep. Omit the field to use the receiver fallback: PNStat/PNEnemyStat
+0.2 seconds, PNPlayerStat 1.0 second. Explicit zero is distinct from omission; JSON
+null/string/non-finite values are rejected before execution/content-session startup.
+Current authored Eve sweeps omit the optional field intentionally and use fallback.
+
+```json
+"perform": {
+  "value": { "amount": 100 },
+  "canCrit": false,
+  "iframeDuration": -0.2,
+  "tags": ["base:true"]
+}
+```
+
+Let T be the pre-hit remaining time and d the packet duration or receiver fallback:
+
+- T=0: full incoming damage; new timer abs(d).
+- T>0: incoming damage after DEF/mitigation multiplied by FIXED 0.3;
+  new timer max(0,T-d). The hit that breaks iframe still takes the reduced damage.
+- Positive d consumes time; negative d extends it; zero neither creates nor consumes.
+- Valid zero-damage hits on living receivers use the same timer rules as the original.
+  A dead receiver changes neither HP nor timer and emits no hit/death notifications.
+- No timer cap or automatic reset on death has been added. Non-finite accumulated
+  time is rejected before HP/timer commit. Restoring HP retains remaining time.
+
+PNDamage snapshots optional IFrameDuration without selecting a receiver fallback.
+`CreateDamage(amount,canCrit,iframeDuration,tags)` preserves existing virtual outgoing
+implementations; existing overloads and the original packet constructor remain available.
+No additional crit roll or outgoing bonus calculation is performed when attaching duration.
+PNDamageResult reports IFrameMultiplier, IFrameBefore, IFrameAfter and
+ResolvedIFrameDuration; CalculatedDamage/popup includes iframe reduction. Reduced hits
+remain successful hits and still emit DamageReceived/rewards normally.
+
+PNStat owns a private PNAbilityCollection containing passive `project_n:iframe` State.
+It uses the existing Ability timers, without requiring a skill/PNAbilityManager on
+receivers or changing authored scenes. Its immutable definition is shared, runtime
+instance is per stat. PNStat.Update advances it with Time.deltaTime (Game clock),
+ignoring EveTimeScale including its minimum. Unity pause stops it; global slow scales
+it. Disable pauses automatic updates, reenable resumes without catchup; unload disposes
+the collection, reload starts empty. AdvanceCombatTime accepts an explicit Game delta
+for native/standalone checks. SessionStopped blocks timer advancement and damage.
+
+Dash adds no iframe or invulnerability here; future Buff integration remains separate.
+Authority is still local Offline/Host: no network damage transport/replay/deduplication
+has been added. Calls are committed sequentially by the existing receive path.
+
+Verification: Tests/EveEngine/PNIFrameTests.cs and PNIFrameEditorChecks.Run() cover
+signed/zero/missing duration, defaults, two sources, clock, rejection and lifecycle.

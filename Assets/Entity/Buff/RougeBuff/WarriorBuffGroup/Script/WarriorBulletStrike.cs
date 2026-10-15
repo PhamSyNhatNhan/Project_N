@@ -18,7 +18,7 @@ public class WarriorBulletStrike : MinorBuff
 
     protected override void OnApply()
     {
-        //entityKey = $"{stat.NameCharacter}_{stat.GetInstanceID()}";
+        //entityKey = $"{stat.NameCharacter}_{stat.GetEntityId()}";
         //EventManager.Player.OnPlayerAttack.Get(entityKey).AddListener(HandleAttack);
     }
 

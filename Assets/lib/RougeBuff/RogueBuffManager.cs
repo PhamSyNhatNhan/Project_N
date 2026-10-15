@@ -4,12 +4,10 @@ using UnityEngine;
 // ════════════════════════════════════════════════════════════════
 //  RogueBuffManager — Component trên player GameObject
 //
-//  Setup: kéo RogueBuffRegistry asset vào field registry — 1 lần
-//         dùng chung cho tất cả nhân vật
-//
+//  Player luôn duy nhất trong scene → expose static Instance
 //  Direct API:
-//    buffManager.AddGroup(BuffGroupId.Warrior)
-//    buffManager.ActivateMinor(BuffGroupId.Warrior, 1)
+//    RogueBuffManager.Instance.AddGroup(BuffGroupId.Warrior)
+//    RogueBuffManager.Instance.ActivateMinor(BuffGroupId.Warrior, 1)
 //
 //  Qua event (không cần reference):
 //    EventManager.RogueBuff.OnAddGroup.Get().Invoke(this, BuffGroupId.Warrior)
@@ -17,6 +15,12 @@ using UnityEngine;
 // ════════════════════════════════════════════════════════════════
 public class RogueBuffManager : MonoBehaviour
 {
+    /// <summary>
+    /// Instance trên player hiện tại — null khi chưa spawn hoặc đã destroy.
+    /// Per-scene: player mới spawn sẽ tự thay thế.
+    /// </summary>
+    public static RogueBuffManager Instance { get; private set; }
+
     private Dictionary<BuffGroupId, RogueBuffGroup> activeGroups = new();
 
     // ── Events (C#) ───────────────────────────────────────────────
@@ -27,18 +31,37 @@ public class RogueBuffManager : MonoBehaviour
     // ── Lifecycle ─────────────────────────────────────────────────
     private void Awake()
     {
+        if (Instance != null && Instance != this)
+            Debug.LogWarning("[RogueBuffManager] Đã tồn tại Instance khác — ghi đè (player mới spawn?).");
+        Instance = this;
+
         // Subscribe EventManager → forward xuống direct API
         EventManager.RogueBuff.OnAddGroup.Get()
-            .AddListener((sender, data) =>
-            {
-                if (data is BuffGroupId id) AddGroup(id);
-            });
+            .AddListener(HandleAddGroupEvent);
 
         EventManager.RogueBuff.OnActivateMinor.Get()
-            .AddListener((sender, data) =>
-            {
-                if (data is (BuffGroupId id, int idx)) ActivateMinor(id, idx);
-            });
+            .AddListener(HandleActivateMinorEvent);
+    }
+
+    private void OnDestroy()
+    {
+        if (Instance == this) Instance = null;
+
+        EventManager.RogueBuff.OnAddGroup.Get()
+            .RemoveListener(HandleAddGroupEvent);
+        EventManager.RogueBuff.OnActivateMinor.Get()
+            .RemoveListener(HandleActivateMinorEvent);
+    }
+
+    // ── Event handlers ────────────────────────────────────────────
+    private void HandleAddGroupEvent(Component sender, object data)
+    {
+        if (data is BuffGroupId id) AddGroup(id);
+    }
+
+    private void HandleActivateMinorEvent(Component sender, object data)
+    {
+        if (data is (BuffGroupId id, int idx)) ActivateMinor(id, idx);
     }
 
     // ── Direct API ────────────────────────────────────────────────
@@ -52,13 +75,10 @@ public class RogueBuffManager : MonoBehaviour
         if (activeGroups.TryGetValue(groupId, out var existing))
             return existing;
 
-        if (RogueBuffRegistry.Instance == null)
-        {
-            Debug.LogError("[RogueBuffManager] RogueBuffRegistry chưa tồn tại — thêm component vào GameManager");
-            return null;
-        }
+        var registry = GameRegistry.Get<RogueBuffRegistry>("RogueBuff");
+        if (registry == null) return null; // GameRegistry đã log lỗi
 
-        if (!RogueBuffRegistry.Instance.TryGetPrefab(groupId, out var prefab))
+        if (!registry.TryGetPrefab(groupId, out var prefab))
         {
             Debug.LogError($"[RogueBuffManager] Không tìm thấy prefab cho group '{groupId}' trong Registry");
             return null;

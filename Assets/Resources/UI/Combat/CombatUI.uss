@@ -1,0 +1,116 @@
+.pn-panel-surface { background-color: rgba(184,192,196,0.97); }
+.menu-safe-area { position: absolute; top: 0; right: 0; }
+.pause-toggle { position: absolute; top: 12px; right: 12px; width: 56px; height: 56px; border-width: 0; background-color: transparent; align-items: center; justify-content: center; padding: 0; }
+.pause-toggle:hover { background-color: transparent; }
+.pause-toggle:active { background-color: transparent; }
+.pause-toggle:focus { border-width: 0; }
+.pause-sparkle-icon { position: absolute; left: 0; right: 0; top: 0; bottom: 0; }
+.pause-overlay { position: absolute; left: 0; right: 0; top: 0; bottom: 0; overflow: hidden; justify-content: center; }
+.pause-surface { position: absolute; left: 0; right: 0; top: 0; bottom: 0; overflow: hidden; }
+.pause-system { position: absolute; width: 600px; height: 600px; overflow: visible; }
+.pause-core { border-radius: 129px; border-width: 1px; border-color: rgba(255,255,255,0.65); overflow: hidden; }
+.pause-sky { position: absolute; left: 0; right: 0; top: 0; bottom: 0; }
+.pause-card { position: absolute; width: 300px; height: 246px; top: 50%; right: 9%; padding: 0; background-color: transparent; justify-content: center; overflow: visible; }
+.pause-choice { height: 64px; min-height: 64px; margin: 9px 0; border-width: 1px; border-color: rgba(255,255,255,0.7); border-radius: 17px; background-color: rgb(240,243,244); color: rgb(53,69,77); font-size: 20px; -unity-text-align: middle-left; padding-left: 24px; overflow: visible; }
+.pause-button-halo { position: absolute; left: -4px; right: -4px; top: -4px; bottom: -4px; }
+.pause-primary { background-color: rgb(248,250,250); -unity-font-style: normal; }
+.pause-primary:hover { background-color: white; }
+.pause-primary:active { background-color: rgb(231,238,240); }
+.pause-primary:focus { border-color: white; }
+.pause-choice:disabled { color: rgb(146,157,162); background-color: rgb(240,243,244); opacity: 1; }
+.combat-hud { flex-grow: 1; }
+.player-hud { position: absolute; left: 24px; top: 24px; flex-direction: row; align-items: center; width: 280px; }
+.player-hud .portrait-host { width: 56px; height: 56px; flex-shrink: 0; margin-right: 14px; }
+.player-hud .portrait-outer-ring { position: absolute; left: -3px; right: -3px; top: -3px; bottom: -3px; border-width: 1px; border-color: rgba(255,255,255,0.45); border-radius: 31px; }
+.player-hud .portrait { width: 56px; height: 56px; border-width: 2px; border-color: rgba(255,255,255,0.92); border-radius: 28px; overflow: hidden; justify-content: center; align-items: center; }
+.player-hud .portrait-image { position: absolute; left: 0; right: 0; top: 0; bottom: 0; -unity-background-scale-mode: scale-and-crop; }
+.player-hud .portrait-placeholder { width: 40px; height: 40px; align-items: center; justify-content: flex-end; }
+.player-hud .portrait-head { width: 13px; height: 13px; border-radius: 7px; background-color: rgba(255,255,255,0.8); margin-bottom: 3px; }
+.player-hud .portrait-shoulders { width: 30px; height: 20px; border-top-left-radius: 15px; border-top-right-radius: 15px; background-color: rgba(255,255,255,0.8); }
+.player-hud .vitals { width: 210px; height: 52px; flex-shrink: 0; }
+.player-hud .hud-health { height: 14px; flex-shrink: 0; }
+.hp { height: 24px; }
+.hp .unity-progress-bar__background { background-color: rgb(40,48,56); border-radius: 3px; }
+.hp .unity-progress-bar__progress { background-color: rgb(102,196,163); border-radius: 3px; }
+.hp .unity-progress-bar__title { color: rgb(243,249,250); font-size: 12px; -unity-font-style: bold; }
+.player-hud .hp { height: 14px; margin: 0; padding: 0; overflow: hidden; border-radius: 7px; }
+.player-hud .hp .unity-progress-bar__container { min-height: 0; height: 14px; }
+.player-hud .hp .unity-progress-bar__background { background-color: rgba(255,255,255,0.12); border-width: 1px; border-color: rgba(255,255,255,0.25); border-radius: 7px; }
+.player-hud .hp .unity-progress-bar__progress { background-color: rgb(255,255,255); border-width: 0; border-radius: 7px; top: 0; bottom: 0; left: 0; }
+.player-hud .hp .unity-progress-bar__title-container { display: none; }
+.player-hud .hud-buffs { position: absolute; top: 22px; left: 0; }
+.player-hud .hud-buff { width: 30px; height: 30px; margin-right: 8px; flex-shrink: 0; opacity: 0.55; -unity-background-scale-mode: scale-to-fit; }
+.player-hud .hud-buff-shield { background-image: resource("Effects/Shield/Shield"); }
+.player-hud .hud-buff-burn { background-image: resource("Effects/Burn/Burn"); }
+.player-hud .hud-buff-poison { background-image: resource("Effects/Poison/Poison"); }
+.buffs { flex-direction: row; justify-content: flex-start; margin-top: 7px; align-items: center; }
+.buff-caption { color: rgb(131,147,167); font-size: 10px; margin-right: 8px; }
+.buff-slot { color: rgb(113,131,154); font-size: 14px; width: 21px; height: 21px; background-color: rgba(46,59,74,0.65); margin-right: 5px; -unity-text-align: middle-center; border-radius: 3px; }
+.test-panel { position: absolute; right: 24px; top: 80px; width: 340px; max-height: 85%; padding: 8px; border-radius: 18px; border-width: 1px; border-color: rgba(255,255,255,0.7); overflow: hidden; }
+.test-panel Button { background-color: rgba(255,255,255,0.55); color: rgb(28,33,37); height: 32px; margin: 0; border-width: 0; border-radius: 12px; font-size: 12px; }
+.test-panel Button:hover { background-color: rgba(255,255,255,0.75); }
+.test-panel Button:active { background-color: rgba(255,255,255,0.95); }
+.test-body { padding-top: 10px; min-height: 0; flex-shrink: 1; }
+.test-body Label { color: rgb(28,33,37); font-size: 12px; white-space: normal; margin: 0; }
+#test-entity { margin: 0 0 10px 0; flex-shrink: 0; }
+#test-entity .unity-base-field__label { min-width: 48px; color: rgb(65,73,79); }
+#test-entity .unity-base-field__input { background-color: rgba(255,255,255,0.55); border-width: 0; border-radius: 9px; min-height: 28px; padding: 3px 8px; }
+.test-body .unity-base-popup-field__text { color: rgb(28,33,37); }
+.test-body .unity-base-popup-field__arrow { -unity-background-image-tint-color: rgb(65,73,79); }
+.test-section { padding: 10px; margin-bottom: 8px; border-radius: 12px; background-color: rgb(250,251,252); flex-shrink: 0; }
+.test-body .test-heading { color: rgb(65,73,79); font-size: 11px; -unity-font-style: bold; margin-bottom: 7px; }
+#test-scroll { max-height: 560px; min-height: 0; flex-shrink: 1; }
+#test-scroll .unity-scroller--vertical { width: 4px; min-width: 4px; max-width: 4px; margin-left: 6px; margin-right: 0; background-color: transparent; border-width: 0; }
+#test-scroll .unity-repeat-button { display: none; }
+#test-scroll .unity-scroller__slider { margin: 0; padding: 0; min-width: 0; background-color: transparent; border-width: 0; }
+#test-scroll .unity-base-slider__input { min-width: 0; background-color: transparent; background-image: none; border-width: 0; padding: 0; }
+#test-scroll .unity-base-slider__dragger-border { display: none; }
+#test-scroll .unity-base-slider__tracker { background-color: transparent; background-image: none; border-width: 0; }
+#test-scroll .unity-base-slider__dragger { width: 4px; min-width: 4px; max-width: 4px; left: 0; right: 0; margin: 0; background-color: rgba(255,255,255,0.9); background-image: none; border-width: 0; border-radius: 2px; }
+.world-root { width: 260px; align-items: center; }
+.world-name { color: rgb(238,226,195); background-color: rgba(13,20,29,0.8); border-radius: 3px; font-size: 12px; -unity-font-style: bold; padding: 2px 8px; margin-bottom: 5px; }
+.enemy-world { width: 96px; height: 100%; justify-content: flex-end; }
+.enemy-vitals { width: 200px; flex-shrink: 0; align-items: center; }
+.enemy-buffs { flex-direction: row; flex-wrap: wrap-reverse; align-content: flex-start; justify-content: flex-start; margin-bottom: 4px; }
+.enemy-buff { width: 30px; height: 30px; margin-right: 3px; flex-shrink: 0; opacity: 0.75; -unity-background-scale-mode: scale-to-fit; }
+.enemy-buff-shield { background-image: resource("Effects/Shield/Shield"); }
+.enemy-buff-burn { background-image: resource("Effects/Burn/Burn"); }
+.enemy-buff-poison { background-image: resource("Effects/Poison/Poison"); margin-right: 0; }
+.enemy-hp-ring { width: 96px; height: 14px; padding: 2px; border-width: 1px; border-color: rgba(255,255,255,0.45); border-radius: 7px; background-color: transparent; flex-shrink: 0; }
+.enemy-hp { width: 90px; height: 8px; margin: 0; padding: 0; overflow: hidden; border-radius: 4px; flex-shrink: 0; }
+.enemy-hp .unity-progress-bar__background { background-color: rgba(255,255,255,0.12); border-width: 1px; border-color: rgba(255,255,255,0.25); border-radius: 4px; }
+.enemy-hp .unity-progress-bar__progress { background-color: white; border-width: 0; border-radius: 4px; margin: 0; top: 0; bottom: 0; left: 0; }
+.enemy-hp .unity-progress-bar__title-container { display: none; }
+.player-world { height: 100%; justify-content: flex-end; }
+.ability-grid { flex-direction: row; flex-wrap: wrap-reverse; justify-content: flex-start; align-content: flex-start; width: 180px; }
+.ability-card { width: 35px; height: 35px; margin: 2px 5px; padding: 0; flex-shrink: 0; background-color: transparent; border-width: 0; }
+.ability-image { position: absolute; left: 0; right: 0; top: 0; bottom: 0; -unity-background-scale-mode: scale-to-fit; }
+.ability-number-badge { position: absolute; padding: 1px 3px; min-width: 16px; }
+.ability-card Label { margin: 0; padding: 0; font-size: 16px; color: white; -unity-font-style: bold; -unity-text-outline-width: 0; }
+.ability-number-badge.ability-charge { right: 100%; margin-right: -15px; bottom: 1px; }
+.ability-number-badge.ability-counter { left: 100%; margin-left: -15px; top: 1px; }
+.ability-number-badge.ability-time { left: 100%; margin-left: -15px; bottom: 1px; }
+.ability-card Label.ability-charge { -unity-text-align: middle-right; }
+.ability-card Label.ability-counter, .ability-card Label.ability-time { -unity-text-align: middle-left; }
+.enemy-hp .unity-progress-bar__container { min-height: 0; height: 8px; }
+.buff-grid { position: relative; flex-shrink: 0; overflow: visible; }
+.buff-card { position: absolute; width: 30px; height: 30px; background-color: transparent; border-width: 0; overflow: visible; }
+.buff-image { position: absolute; left: 0; right: 0; top: 0; bottom: 0; -unity-background-scale-mode: scale-to-fit; }
+.buff-card Label { margin: 0; padding: 0; height: 16px; font-size: 14px; color: white; -unity-font-style: bold; -unity-text-outline-width: 0; }
+.buff-card .ability-number-badge { padding: 0px 3px; }
+.buff-card .buff-corner-0 { right: 100%; margin-right: -10px; top: -2px; }
+.buff-card .buff-corner-1 { left: 100%; margin-left: -10px; top: -2px; }
+.buff-card .buff-corner-2 { right: 100%; margin-right: -10px; bottom: -2px; }
+.buff-card .buff-corner-3 { left: 100%; margin-left: -10px; bottom: -2px; }
+.buff-corner-0 Label, .buff-corner-2 Label { -unity-text-align: middle-right; }
+.buff-corner-1 Label, .buff-corner-3 Label { -unity-text-align: middle-left; }
+.mobile-controls, .mobile-safe-area { position: absolute; left: 0; right: 0; top: 0; bottom: 0; }
+.mobile-move-zone { position: absolute; left: 0; top: 0; bottom: 0; width: 50%; }
+.mobile-stick { position: absolute; width: 140px; height: 140px; border-radius: 70px; border-width: 1px; border-color: rgba(255,255,255,0.75); background-color: rgba(255,255,255,0.18); overflow: visible; }
+.mobile-thumb { position: absolute; left: 44px; top: 44px; width: 50px; height: 50px; border-radius: 25px; background-color: rgba(255,255,255,0.65); border-width: 1px; border-color: rgba(255,255,255,0.9); }
+.mobile-buttons { position: absolute; right: 12px; bottom: 12px; width: 500px; height: 320px; transform-origin: right bottom; }
+.mobile-button { position: absolute; border-radius: 100px; border-width: 1px; border-color: rgba(255,255,255,0.75); background-color: rgba(255,255,255,0.20); overflow: visible; }
+.mobile-direction-ring { position: absolute; left: -31px; top: -31px; width: 200px; height: 200px; transform-origin: center; }
+.mobile-outer-ring { position: absolute; left: -5.5px; right: -5.5px; top: -5.5px; bottom: -5.5px; border-radius: 100px; border-width: 1.5px; border-color: rgba(255,255,255,0.45); background-color: transparent; }
+.mobile-button-icon { position: absolute; left: 22%; right: 22%; top: 22%; bottom: 22%; -unity-background-scale-mode: scale-to-fit; opacity: 0.8; }
+.mobile-button.mobile-pressed { background-color: rgba(255,255,255,0.35); border-color: white; }

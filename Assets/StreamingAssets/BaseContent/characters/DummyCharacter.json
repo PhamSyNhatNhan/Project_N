@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "characters": [
+    {
+      "id": "project_n:dummy",
+      "portraitPath": "",
+      "data": { "enemyTypeId": "base:normal" },
+      "stats": [
+        { "statId": "base:health", "base": 200000000, "initialCurrent": 200000000 },
+        { "statId": "base:attack_power", "base": 0 },
+        { "statId": "base:attack_speed", "base": 100 },
+        { "statId": "base:cooldown_reduction", "base": 0 },
+        { "statId": "base:crit_rate", "base": 0 },
+        { "statId": "base:crit_damage", "base": 150 },
+        { "statId": "base:defense", "base": 0 }
+      ],
+      "skill": []
+    }
+  ]
+}

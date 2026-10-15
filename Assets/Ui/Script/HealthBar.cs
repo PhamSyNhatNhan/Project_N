@@ -27,7 +27,7 @@ public class HealthBar : MonoBehaviour
     private void OnPlayerSpawned(Component sender, object data)
     {
         if (data is not Stat stat) return;
-        SetEntityKey($"{stat.NameCharacter}_{stat.GetInstanceID()}");
+        SetEntityKey($"{stat.NameCharacter}_{stat.GetEntityId()}");
     }
 
     private void OnHealthChanged(Component sender, object data)

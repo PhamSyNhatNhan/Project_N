@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "namespace": "example_combat",
+  "version": "1.0.0",
+  "dependencies": { "project_n": "1.0.0" },
+  "code": {
+    "apiVersion": "6",
+    "assembly": "bin/ExampleCombatMod.dll",
+    "entryPoint": "ExampleCombatMod.CombatMod",
+    "libraries": []
+  }
+}
+

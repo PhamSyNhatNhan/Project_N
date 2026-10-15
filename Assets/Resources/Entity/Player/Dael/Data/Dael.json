@@ -1,8 +1,8 @@
 ﻿{
   "stat": {
-    "baseHealth": 25000,
+    "baseHealth": 35000,
     "baseDefense": 200,
-    "baseAttack": 350,
+    "baseAttack": 420,
     "baseAttackSpeed": 100,
     "baseCritRate": 5,
     "baseCritDamage": 50,
@@ -24,7 +24,7 @@
       {
         "skillId": "Slash1",
         "skillType": "Attack",
-        "cooldown": 0.2,
+        "cooldown": 0.0,
         "damage": [
           280
         ],
@@ -45,7 +45,7 @@
       {
         "skillId": "Slash2",
         "skillType": "Attack",
-        "cooldown": 0.2,
+        "cooldown": 0.0,
         "damage": [
           300
         ],
@@ -66,10 +66,10 @@
       {
         "skillId": "Slash3",
         "skillType": "Attack",
-        "cooldown": 0.2,
+        "cooldown": 0.0,
         "damage": [
-          420,
-          480
+          520,
+          580
         ],
         "damageType": "Physical",
         "iconPath": "",
@@ -107,7 +107,7 @@
         "maxCounter": 0,
         "isReady": false,
         "speed": 600.0,
-        "retreatTime": 0.15,
+        "retreatTime": 0.1,
         "bgOnEnd": 5,
         "beOnEnd": 10
       },
@@ -125,7 +125,7 @@
         "description": "1 kiếm từ trên trời đâm xuống",
         "iFrameDuration": 0.05,
         "cdType": "cooldown",
-        "inputDelay": 0.3,
+        "inputDelay": 0.1,
         "showOnUI": true,
         "maxCounter": 0,
         "isReady": false,
@@ -147,7 +147,7 @@
         "description": "3 kiếm từ trên trời, kết thúc Burst",
         "iFrameDuration": 0.05,
         "cdType": "cooldown",
-        "inputDelay": 0.3,
+        "inputDelay": 0.1,
         "showOnUI": false,
         "maxCounter": 0,
         "isReady": false,
@@ -244,7 +244,7 @@
       {
         "skillId": "Slash1Burst",
         "skillType": "Attack",
-        "cooldown": 0.2,
+        "cooldown": 0.0,
         "damage": [
           370
         ],
@@ -255,7 +255,7 @@
         "description": "Slash1 trong Burst",
         "iFrameDuration": 0.05,
         "cdType": "cooldown",
-        "inputDelay": 0.15,
+        "inputDelay": 0.1,
         "showOnUI": false,
         "maxCounter": 0,
         "isReady": false,
@@ -266,7 +266,7 @@
       {
         "skillId": "Slash2Burst",
         "skillType": "Attack",
-        "cooldown": 0.2,
+        "cooldown": 0.0,
         "damage": [
           400
         ],
@@ -277,7 +277,7 @@
         "description": "Slash2 trong Burst",
         "iFrameDuration": 0.05,
         "cdType": "cooldown",
-        "inputDelay": 0.15,
+        "inputDelay": 0.1,
         "showOnUI": false,
         "maxCounter": 0,
         "isReady": false,
@@ -288,10 +288,10 @@
       {
         "skillId": "Slash3Burst",
         "skillType": "Attack",
-        "cooldown": 0.2,
+        "cooldown": 0.0,
         "damage": [
-          500,
-          600
+          550,
+          650
         ],
         "damageType": "Physical",
         "iconPath": "",
@@ -325,7 +325,7 @@
         "description": "Ulti trong Burst - 1 kiếm, BladeEdge 50",
         "iFrameDuration": 0.05,
         "cdType": "cooldown",
-        "inputDelay": 0.3,
+        "inputDelay": 0.1,
         "showOnUI": false,
         "maxCounter": 0,
         "isReady": false,

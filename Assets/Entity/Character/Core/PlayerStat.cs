@@ -38,7 +38,7 @@ public class PlayerStat : Stat
         }
 
         EventManager.Entity.OnEntityAvatarLoaded
-            .Get($"{NameCharacter}_{GetInstanceID()}")
+            .Get($"{NameCharacter}_{GetEntityId()}")
             .Invoke(this, sprite);
     }
 }

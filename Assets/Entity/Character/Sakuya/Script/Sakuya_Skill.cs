@@ -105,7 +105,7 @@ public class SakuyaSkill : SubPlayerSkill
 
     // ── Entity Key ────────────────────────────────────────────────
     private string entityKey => sakuyaStat != null
-        ? $"{sakuyaStat.NameCharacter}_{sakuyaStat.GetInstanceID()}"
+        ? $"{sakuyaStat.NameCharacter}_{sakuyaStat.GetEntityId()}"
         : gameObject.name;
 
     // ═══════════════════════════════════════════════════════════════

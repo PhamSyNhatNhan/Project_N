@@ -245,7 +245,7 @@ Rigidbody2D:
   m_Interpolate: 0
   m_SleepingMode: 1
   m_CollisionDetection: 0
-  m_Constraints: 0
+  m_Constraints: 4
 --- !u!95 &5839348750337030132
 Animator:
   serializedVersion: 7
@@ -397,7 +397,10 @@ MonoBehaviour:
   curCritDamage: 0
   bonusMultiplierCritDamage: 0
   canDamge: 1
+  iFrameMode: 1
   iFrame: 0.02
+  iFrameDamageMult: 0.3
+  curIFrameTime: 0
   popupTextPrefab: {fileID: 5717053717913238444, guid: a3dabe48804a204449e3624fb9946647, type: 3}
   type: 0
   fxSpawn: {fileID: 4442534364368256545, guid: 4cd38bf0f5d972f419de50084cb7e5d6, type: 3}

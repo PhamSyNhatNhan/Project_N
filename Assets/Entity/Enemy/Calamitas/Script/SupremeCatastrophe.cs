@@ -103,7 +103,7 @@ public class SupremeCatastrophe : EnemySkill
         animator   = GetComponent<Animator>()
                   ?? GetComponentInChildren<Animator>();
 
-        entityKey = $"{minionStat.NameCharacter}_{minionStat.GetInstanceID()}";
+        entityKey = $"{minionStat.NameCharacter}_{minionStat.GetEntityId()}";
     }
 
     protected override void Start()

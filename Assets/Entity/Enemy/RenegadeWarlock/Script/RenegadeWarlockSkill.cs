@@ -73,7 +73,7 @@ public class RenegadeWarlockSkill : EnemySkill
             meteorPools[i] = new EasyPoolingList();
             meteorPools[i].SetPrefab(meteorPrefabs[i]);
         }
-        entityKey = $"{enemyStat.NameCharacter}_{enemyStat.GetInstanceID()}";
+        entityKey = $"{enemyStat.NameCharacter}_{enemyStat.GetEntityId()}";
     }
 
     protected override void Start()

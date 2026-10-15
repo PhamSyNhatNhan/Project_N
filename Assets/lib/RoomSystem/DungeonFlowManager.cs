@@ -41,7 +41,7 @@ public class DungeonFlowManager : MonoBehaviour
             return;
         }
         Instance = this;
-        DontDestroyOnLoad(gameObject);
+        //DontDestroyOnLoad(gameObject);
     }
 
     private void OnEnable()
@@ -229,7 +229,7 @@ public class DungeonFlowManager : MonoBehaviour
         _currentRun.bonusMultiplierMultiplierDamageTaken = stat.BonusMultiplierMultiplierDamageTaken;
 
         // ── RogueBuff ─────────────────────────────────────────────
-        var buffManager = FindObjectOfType<RogueBuffManager>();
+        var buffManager = RogueBuffManager.Instance;
         if (buffManager != null)
             _currentRun.rogueBuffData = buffManager.CreateSaveData();
     }
@@ -238,14 +238,10 @@ public class DungeonFlowManager : MonoBehaviour
     private void LoadDungeonConfig(string groupId)
     {
         // Ưu tiên lấy từ MapRegistry nếu đã load sẵn
-        var mapRegistry = FindObjectOfType<MapRegistry>();
-        if (mapRegistry != null)
-        {
-            _dungeonConfig = mapRegistry.GetConfig(groupId);
-            if (_dungeonConfig != null) return;
-        }
+        _dungeonConfig = GameRegistry.Get<MapRegistry>("Map")?.TryGetConfig(groupId);
+        if (_dungeonConfig != null) return;
 
-        // Fallback: load từ Resources
+        // Fallback: load từ Resources (vd: scene không có GameRegistry)
         string resourcePath = $"Data/Dungeon/{groupId}";
         TextAsset textAsset = Resources.Load<TextAsset>(resourcePath);
         if (textAsset == null)

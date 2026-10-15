@@ -31,7 +31,7 @@ public class EnemyBar : MonoBehaviour
         if (targetStat != null)
         {
             targetTransform = targetStat.transform;
-            entityKey = $"{targetStat.NameCharacter}_{targetStat.GetInstanceID()}";
+            entityKey = $"{targetStat.NameCharacter}_{targetStat.GetEntityId()}";
             SetTarget(targetStat);
             SubscribeDead();
         }
@@ -89,7 +89,7 @@ public class EnemyBar : MonoBehaviour
     // ── Public ────────────────────────────────────────────────────
     public void SetTarget(Stat stat)
     {
-        string key = $"{stat.NameCharacter}_{stat.GetInstanceID()}";
+        string key = $"{stat.NameCharacter}_{stat.GetEntityId()}";
         healthBar?.SetEntityKey(key);
         buffPanel?.SetEntityKey(key);
     }

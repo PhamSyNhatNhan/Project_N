@@ -94,7 +94,7 @@ public class GachaUI : MonoBehaviour
     public void Show()
     {
         gameObject.SetActive(true);
-        _registry = FindObjectOfType<GachaRegistry>();
+        _registry = GameRegistry.Get<GachaRegistry>("Gacha");
         LoadBannerList();
         RefreshShardDisplay();
         resultOverlay?.SetActive(false);
@@ -143,11 +143,9 @@ public class GachaUI : MonoBehaviour
         _currentBanner = _registry.GetBanner(bannerId);
         if (_currentBanner == null) return;
 
-        // Highlight
+        // Highlight đúng item theo bannerId
         foreach (var item in _bannerItems)
             item.SetSelected(false);
-        var selected = _bannerItems.Find(i => true); // find by bannerId
-        // Tìm đúng item
         for (int i = 0; i < _bannerItems.Count; i++)
         {
             if (_registry.GetAllBanners()[i].bannerId == bannerId)
@@ -402,8 +400,6 @@ public class GachaUI : MonoBehaviour
             actionButton.interactable = true;
     }
 
-
-
     private IEnumerator FadeOverlay(bool fadeIn, System.Action onDone = null)
     {
         float duration = overlayFadeDuration;
@@ -437,7 +433,7 @@ public class GachaUI : MonoBehaviour
     {
         if (result.type == GachaResultType.Talent)
         {
-            var registry = FindObjectOfType<PlayerRegistry>();
+            var registry = GameRegistry.Get<PlayerRegistry>("Player");
             var data     = registry?.GetDisplayData(result.talent);
             // Thử portrait trước, fallback sang avatar
             return data?.portrait ?? data?.avatar;
@@ -459,8 +455,6 @@ public class GachaUI : MonoBehaviour
         int pity = GachaManager.Instance?.GetPity(_currentBanner.bannerId) ?? 0;
         pityCountText.text = $"{pity} / {_currentBanner.pityHardLimit}";
     }
-
-
 
     private void RefreshCostDisplay()
     {

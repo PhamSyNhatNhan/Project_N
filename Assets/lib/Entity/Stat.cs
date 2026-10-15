@@ -128,7 +128,7 @@ public class Stat : MonoBehaviour, ILoadable<StatData>
     [SerializeField] private GameObject popupTextPrefab;
     protected EasyPoolingList popupTextPool = new EasyPoolingList();
 
-    protected string entityKey => $"{nameCharacter}_{GetInstanceID()}";
+    protected string entityKey => $"{nameCharacter}_{GetEntityId()}";
     protected StatData rawStatData;
     
     public event System.Func<float, DamageType, float> OnBeforeTakeDamage;

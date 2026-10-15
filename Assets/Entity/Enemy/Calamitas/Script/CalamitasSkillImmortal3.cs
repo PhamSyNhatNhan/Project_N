@@ -216,7 +216,7 @@ public class CalamitasSkillImmortal3 : MonoBehaviour
     // ══════════════════════════════════════════════════════════════
     private void Awake()
     {
-        entityKey = GetInstanceID().ToString();
+        entityKey = GetEntityId().ToString();
         bossStat  = GetComponent<Stat>();
         timeScale = GetComponent<TimeScale>();
         
