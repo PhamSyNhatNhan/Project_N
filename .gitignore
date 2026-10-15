@@ -66,6 +66,8 @@ InitTestScene*.unity*
 /Examples/
 /Tests/
 /Tools/
+/BUFF_UI_PLAN.md
+/ENTITY_LIFECYCLE_COOP_CONTRACT.md
 
 # Python cache
 __pycache__/
