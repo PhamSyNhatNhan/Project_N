@@ -23,6 +23,27 @@ namespace EveEngine
         public bool IsActive { get; internal set; } = true;
         private bool stoppingNotified;
         public event Action Stopping;
+        private readonly System.Collections.Generic.List<Action> cleanup = new System.Collections.Generic.List<Action>();
+        private readonly System.Collections.Generic.List<Action> afterEntityCleanup = new System.Collections.Generic.List<Action>();
+        public int PendingServiceCleanupCount => cleanup.Count + afterEntityCleanup.Count;
+        // Required teardown is retryable; unlike Stopping notifications, failures block the next play.
+        public void RegisterCleanup(Action action) => RegisterCleanup(action, false);
+        public void RegisterCleanup(Action action, bool afterEntities)
+        {
+            if (!IsActive) throw new InvalidOperationException("An active session is required.");
+            (afterEntities ? afterEntityCleanup : cleanup).Add(action ?? throw new ArgumentNullException(nameof(action)));
+        }
+        internal void CleanupServices(bool afterEntities = false)
+        {
+            var actions = afterEntities ? afterEntityCleanup : cleanup;
+            var errors = new System.Collections.Generic.List<Exception>();
+            for (int i = actions.Count - 1; i >= 0; i--)
+            {
+                try { actions[i](); actions.RemoveAt(i); }
+                catch (Exception error) { errors.Add(error); }
+            }
+            if (errors.Count != 0) throw new AggregateException("Required session service cleanup failed.", errors);
+        }
         internal void NotifyStopping()
         { IsActive = false; if (stoppingNotified) return; stoppingNotified = true; foreach (Action observer in Stopping?.GetInvocationList() ?? Array.Empty<Delegate>()) try { observer(); } catch (Exception error) { UnityEngine.Debug.LogException(error, null); } Stopping = null; }
         // Authenticated admission code assigns this once; UI is only a consumer.

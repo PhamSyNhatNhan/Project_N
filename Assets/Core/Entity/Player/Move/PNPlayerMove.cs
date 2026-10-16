@@ -5,7 +5,7 @@ using UnityEngine.InputSystem;
 // EN: Project_N's 3D player movement reads PlayerControls directly, as the original controller did.
 // VI: PNPlayerMove 3D đọc trực tiếp PlayerControls như controller gốc.
 [DisallowMultipleComponent]
-public class PNPlayerMove : PNMove
+public class PNPlayerMove : PNMove, IPNEntityResourceOwner
 {
     [SerializeField, Range(0f, 1f)] private float minTimeScale = 1f;
     [SerializeField] private SpriteRenderer spriteRenderer;
@@ -47,7 +47,10 @@ public class PNPlayerMove : PNMove
     protected override void ConfigureTimeScale(EveTimeScale timeScale) => timeScale.MinScale = minTimeScale;
 
     protected virtual void Awake()
+        => EnsureInputInitialized();
+    public void EnsureInputInitialized()
     {
+        if (pc != null) return;
         if (spriteRenderer == null) spriteRenderer = GetComponentInChildren<SpriteRenderer>(true);
         pc = new PlayerControls();
     }
@@ -64,9 +67,8 @@ public class PNPlayerMove : PNMove
     }
 
     protected virtual void OnDestroy()
-    {
-        pc?.Dispose();
-    }
+        => DisposeEntityResources();
+    public void DisposeEntityResources() { pc?.Dispose();pc=null; }
 
     protected virtual void Update()
     {

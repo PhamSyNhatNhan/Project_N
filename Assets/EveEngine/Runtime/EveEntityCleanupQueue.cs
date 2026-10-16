@@ -33,9 +33,9 @@ namespace EveEngine
         public void Retire(EveEntityLoader loader)
         {
             if (!leases.TryGetValue(loader, out var lease)) throw new InvalidOperationException("Object was not reserved in cleanup accounting.");
-            loader.InvalidateAndHide(); Scheduler.Retire(lease);
+            if(loader!=null)loader.InvalidateAndHide(); Scheduler.Retire(lease);
         }
-        public void BeginStop() { foreach (var loader in leases.Keys.ToArray()) loader.InvalidateAndHide(); Scheduler.BeginStop(); }
+        public void BeginStop() { foreach (var loader in leases.Keys.ToArray()) if(loader!=null)loader.InvalidateAndHide(); Scheduler.BeginStop(); }
         public void AdvanceFrame()
         {
 #if UNITY_5_3_OR_NEWER

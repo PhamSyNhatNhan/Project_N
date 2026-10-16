@@ -50,6 +50,7 @@ public sealed class PNUiRuntime : MonoBehaviour
     private UniversalAdditionalCameraData cameraData;
     private bool originalUiBit;
     private Guid session;
+    private EveSessionContext boundSession;
     private EveEntityId selected;
     private DropdownField entitySelect;
     private Label details;
@@ -68,10 +69,26 @@ public sealed class PNUiRuntime : MonoBehaviour
 
     public static void Attach(EveGameRuntime runtime)
     {
-        if(runtime.GetComponent<PNUiRuntime>()==null) runtime.gameObject.AddComponent<PNUiRuntime>();
+        if(runtime==null || !runtime.IsReady) throw new InvalidOperationException("Ready runtime required.");
+        var ui=runtime.GetComponent<PNUiRuntime>() ?? runtime.gameObject.AddComponent<PNUiRuntime>();
+        ui.Bind(EveRegistrySession.Context);
+    }
+    public void Bind(EveSessionContext context)
+    {
+        if(context==null || !context.IsActive) throw new InvalidOperationException("Active session required.");
+        if(ReferenceEquals(boundSession,context) && hud!=null) return;
+        Unbind(); boundSession=context; boundSession.Stopping+=Unbind;
+        try { Build(); } catch { Unbind(); throw; }
+    }
+    public void Unbind()
+    {
+        if(boundSession!=null) boundSession.Stopping-=Unbind;
+        boundSession=null;
+        DisposeUI(); LocalPlayerId=default; ViewCamera=null;
     }
     private void OnEnable()
     {
+        if(boundSession==null) return;
         try { Build(); } catch { DisposeUI(); throw; }
     }
     private void Build()
@@ -273,10 +290,10 @@ public sealed class PNUiRuntime : MonoBehaviour
         foreach(var pair in portraits)if(pair.Value!=pair.Key)Retire(pair.Value);
         portraits.Clear();
     }
-    private void OnDisable()=>DisposeUI();
+    private void OnDisable()=>Unbind();
     private void OnApplicationFocus(bool focus) { if(!focus)mobile?.Reset(); }
     private void OnApplicationPause(bool paused) { if(paused)mobile?.Reset(); }
-    private void OnDestroy()=>DisposeUI();
+    private void OnDestroy()=>Unbind();
     private void DisposeUI()
     {
         hudBuffs?.Dispose();hudBuffs=null;
@@ -292,7 +309,11 @@ public sealed class PNUiRuntime : MonoBehaviour
         overlaySettings=null; worldSettings=null; entities.Clear(); images.Clear(); selectionIds.Clear();
         selectionKey=""; session=Guid.Empty; HudPlayer=null;
     }
-    internal static void Retire(UnityEngine.Object value) { if(Application.isPlaying) Destroy(value); else DestroyImmediate(value); }
+    internal static void Retire(UnityEngine.Object value)
+    {
+        if(value is GameObject root && root!=null) root.SetActive(false);
+        if(Application.isPlaying) Destroy(value); else DestroyImmediate(value);
+    }
     public static string Number(double value)=>value.ToString("0.##",CultureInfo.InvariantCulture);
     private static string Name(PNStat stat)=>stat.CharacterId.Path;
     private static void Health(ProgressBar bar, PNStat stat, bool showText)

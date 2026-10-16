@@ -5,11 +5,12 @@ using Unity.Cinemachine;
 public class CameraManager : MonoBehaviour
 {
     // ── Config ────────────────────────────────────────────────────
-    [SerializeField] private CinemachineCamera virtualCamera;
+    [SerializeField] private CinemachineVirtualCameraBase virtualCamera;
     [SerializeField] private string playerTag = "Player";
 
     // ── State ─────────────────────────────────────────────────────
     private CinemachineImpulseSource impulseSource;
+    private EveEngine.EveEventSubscription playerBinding;
 
     // ── Lifecycle ─────────────────────────────────────────────────
     private void Awake()
@@ -19,11 +20,11 @@ public class CameraManager : MonoBehaviour
             Debug.LogWarning("[CameraManager] Thiếu CinemachineImpulseSource trên GameObject này.");
 
         if (virtualCamera == null)
-            virtualCamera = FindFirstObjectByType<CinemachineCamera>();
+            virtualCamera = FindAnyObjectByType<CinemachineVirtualCameraBase>();
 
         if (virtualCamera == null)
         {
-            Debug.LogWarning("[CameraManager] Không tìm thấy CinemachineCamera trong scene.");
+            Debug.LogWarning("[CameraManager] Không tìm thấy CinemachineVirtualCameraBase trong scene.");
             return;
         }
 
@@ -32,11 +33,13 @@ public class CameraManager : MonoBehaviour
 
     private void OnEnable()
     {
+        playerBinding=EveEngine.EveEventManager.Global.Subscribe<PNLocalPlayerBound>(PNLocalPlayerBound.Event,(_, notice)=>SetFollowTarget(notice.Target));
         EventManager.Gm.OnCameraShake.Get().AddListener(OnShakeReceived);
     }
 
     private void OnDisable()
     {
+        playerBinding?.Dispose();playerBinding=null;
         EventManager.Gm.OnCameraShake.Get().RemoveListener(OnShakeReceived);
     }
 
@@ -58,6 +61,9 @@ public class CameraManager : MonoBehaviour
 
     public void SetFollowTarget(Transform target)
     {
+        // The persistent manager can awaken before the gameplay scene's camera exists.
+        if(virtualCamera==null)virtualCamera=FindAnyObjectByType<CinemachineVirtualCameraBase>();
+        if(virtualCamera==null)return;
         virtualCamera.Follow = target;
         virtualCamera.LookAt = target;
     }

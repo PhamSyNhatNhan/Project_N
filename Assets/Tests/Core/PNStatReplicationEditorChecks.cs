@@ -115,7 +115,7 @@ public static class PNStatReplicationEditorChecks
                     staged.Commit();staged.Published();staged.Dispose();player.gameObject.SetActive(true);
                 }
                 var uiObject=new GameObject("Disposable Stat UI");roots.Add(uiObject);SceneManager.MoveGameObjectToScene(uiObject,preview);
-                var ui=uiObject.AddComponent<PNUiRuntime>();
+                var ui=uiObject.AddComponent<PNUiRuntime>(); ui.Bind(EveRegistrySession.Context);
                 if(ui.HudRoot==null)typeof(PNUiRuntime).GetMethod("Build",BindingFlags.NonPublic|BindingFlags.Instance).Invoke(ui,null);
                 ui.RefreshUI();
                 Check(ui.HudPlayer==local.GetComponent<PNStat>() && Math.Abs(ui.HudRoot.Q<ProgressBar>("player-hp").value-20)<.01,"native HUD selects admitted owner and reads replicated HP");
@@ -129,7 +129,7 @@ public static class PNStatReplicationEditorChecks
                     if(rowStat==remote.GetComponent<PNStat>())remoteVitals=rowRoot.Q("enemy-vitals").style.display.value==DisplayStyle.Flex && rowRoot.Q("ability-grid").style.display.value==DisplayStyle.None;
                 }
                 Check(localGrid && remoteVitals,"native teammate vitals visible and Ability grid owner-only");
-                UnityEngine.Object.DestroyImmediate(uiObject);
+                ui.Unbind(); UnityEngine.Object.DestroyImmediate(uiObject);
 
             }
             Finish();

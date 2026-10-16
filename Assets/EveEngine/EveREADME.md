@@ -1,5 +1,24 @@
 # EveEngine
 
+## Current content/play lifetime (P1 S1–S2, 2026-10-16)
+
+`EveRuntime.EnsureContentLoaded()` builds one `EveContentContext` (sealed registry, compatibility and mod
+instances) without starting gameplay. `BeginSession(role)` creates a fresh fixed-role context from that
+content. `Initialize()` explicitly combines those two operations for existing Offline/test callers and
+is idempotent for an already-running same-role session. Changing Role requires ending the play first.
+`EndSession()` invalidates and cleans entities and ends mod play hooks, retaining content. Use
+`UnloadContent()` for terminal disposal/reload; the next EnsureContentLoaded builds a new generation.
+
+`EveRegistrySession.Context/Current/IsReady` still describe the current play, not content readiness.
+`EveRuntimeEventIds.ContentReady` is distinct from gameplay `Ready`; loading content alone never activates
+loaders through the play-ready event. Cleanup failure keeps Stopping and ownership for RetryCleanup,
+including requested content disposal if its runtime owner is destroyed. Registered mod instances survive
+play ends so definitions/factories do not reference disposed objects. See `Mods/EveModsREADME.md`.
+
+This is the Engine foundation. App-launch bootstrap, menu/scene coordination and full Game UI/Area
+binding belong to S3; Mirror admission/enrollment is not implemented by S1–S2. Older descriptions below
+that clear content on every EndSession are superseded by this contract.
+
 Current lifecycle integration (RulesVersion67 / Mod API6): see
 `Networking/EveActorLifecycleREADME.md` for Prepared/Commit, publication guards,
 generation directory, budgeted real-object cleanup and actor/Buff snapshot adapters.
@@ -213,3 +232,23 @@ Mỗi lúc chỉ chạy một lệnh đặc biệt. Lệnh mới hủy lệnh c�
 EN: `EveSkill` loads the optional `characters[].skill` list, whose entries contain only `id` and flexible `data`. Core supplies payload schemas and execution. See [EveSkillREADME](Entity/Skill/EveSkillREADME.md) for registration, loading overrides, JSON isolation and Core responsibilities.
 
 VI: `EveSkill` nạp danh sách `characters[].skill` tùy chọn gồm `id` và `data` linh hoạt. Core quy định mẫu dữ liệu và thực thi. Xem [EveSkillREADME](Entity/Skill/EveSkillREADME.md) về đăng ký, override nạp, cô lập JSON và trách nhiệm Core.
+
+### P1 S3: required play-service cleanup
+
+Game subclasses bind play services in `EveRuntime.BindSession(context)` before the
+Ready event. Register required teardown with `context.RegisterCleanup(Action)` before
+initialization can fail. End invalidates the context, notifies Stopping observers, then
+attempts all registered cleanup actions in reverse order before entity unload and mod
+EndPlay. Failed actions remain in Stopping for RetryCleanup; successful ones are removed.
+Stopping events are optional notifications and log observer errors; they do not replace
+required cleanup. Content remains loaded between successful plays.
+
+## Mirror foundation P1 (2026-10-16)
+
+`EveEntityPreparationScheduler` owns factory candidates from borrow through successful return, including failures before a cleanup lease exists. `EvePreparationProfile` selects global elapsed prepare/cleanup budgets and capacity limits per play. Prepare has no minimum-step exception; nonpreemptible callback overruns consume the frame budget. Commit has a warning threshold only unless an independent caller explicitly selects another policy. `AdmissionCount` retains failed retiring objects until return; `ResidentCount` includes every borrowed object not returned.
+
+`EveBindingInbox` bounds pre-Ready state/events per binding and globally. Latest state replaces one slot; required events retain FIFO order and accounting until successful application. Local binding tokens fence stale callbacks independently of identity generation.
+
+`EveSceneEntityKey` stores stable scene/entity metadata in authored content; validation rejects missing/duplicate pairs. It does not allocate runtime entity IDs. `EveSessionContext.RegisterCleanup(Action)` retains its existing signature; the additional `(Action, bool afterEntities)` overload supports owners such as factories whose terminal disposal must follow entity return. Failed required cleanup remains retryable and blocks a new play; automatic pumping does not repeatedly rerun a failed service callback.
+
+Mirror lives in Coop/Composition. These engine contracts do not depend on Mirror, KCP or Project_N character IDs. Fresh integration evidence and limits are recorded in `Docs/MirrorP1S4S10Implementation.md` and the newest handoff.

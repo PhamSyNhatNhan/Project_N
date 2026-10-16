@@ -9,6 +9,7 @@ using UnityEngine;
 [RequireComponent(typeof(PNAbilityManager))]
 public class PNSkill : EveSkill, EveIEntityLoadPreparation
 {
+    protected bool HasGameplayAuthority=>!EveRegistrySession.IsReady||EveRegistrySession.Context.HasAuthority;
     public void PrepareEntityLoad()
     { if (GetComponent<PNControlManager>() == null) gameObject.AddComponent<PNControlManager>(); }
     public override IEnumerable<Type> Dependencies => new[] { typeof(PNControlManager) };
@@ -53,7 +54,7 @@ public class PNSkill : EveSkill, EveIEntityLoadPreparation
     protected float ExecutionSpeed => CurrentInvocation?.Metadata.AffectedByAttackSpeed == true ? (float)Math.Max(0, GetComponent<PNStat>().Evaluate(PNContentIds.AttackSpeed) / 100) : 1;
     protected void AdvanceAuxiliaryEffects(float delta) => Effects?.Advance(delta);
     protected virtual void Update()
-    { if (!IsReady) return; var clock = GetComponent<EveTimeScale>(); AdvanceAuxiliaryEffects(clock != null && clock.isActiveAndEnabled ? clock.DeltaTime : Time.deltaTime); }
+    { if (!IsReady||!HasGameplayAuthority) return; var clock = GetComponent<EveTimeScale>(); AdvanceAuxiliaryEffects(clock != null && clock.isActiveAndEnabled ? clock.DeltaTime : Time.deltaTime); }
     protected virtual void OnDisable() { prepared?.Dispose(); prepared = null; EndActivation(true); Effects?.CancelExecutions(); }
     protected virtual void OnDestroy() => Unload();
     public virtual bool TryInterrupt(EveId reason)

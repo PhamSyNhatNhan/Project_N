@@ -12,7 +12,9 @@ namespace EveEngine
     // VI: Constructor không giữ tài nguyên; dọn đăng ký/phiên phải xử lý được lỗi giữa chừng.
     public interface EveICodeMod : IDisposable
     {
+        // Once per content generation. Instances remain alive while their registered definitions are used.
         void Register(EveModRegistrationContext context);
+        // May repeat on the same instance for successive plays; context and play-owned state must not leak.
         void OnSessionStarted(EveSessionContext context);
         void OnSessionEnded(EveSessionContext context);
     }

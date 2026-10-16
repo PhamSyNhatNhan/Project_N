@@ -129,6 +129,7 @@ public partial class PNPlayerSkill
     }
     protected override void Update()
     {
+        if(!HasGameplayAuthority)return;
         var delta = playerDashClock!=null&&playerDashClock.isActiveAndEnabled?playerDashClock.DeltaTime:Time.deltaTime;
         AdvanceAuxiliaryEffects(delta); AdvancePlayerDash(delta);
     }

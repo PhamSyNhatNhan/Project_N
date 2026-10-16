@@ -1,0 +1,15 @@
+{
+  "name": "ProjectN.Coop.Tests",
+  "references": [
+    "EveEngine",
+    "ProjectN.Core",
+    "ProjectN.Game",
+    "ProjectN.Coop",
+    "ProjectN.Composition",
+    "Mirror",
+    "Mirror.Transports",
+    "Unity.InputSystem",
+    "ProjectN.Input"
+  ],
+  "autoReferenced": true
+}

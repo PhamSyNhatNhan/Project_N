@@ -442,7 +442,7 @@ public sealed class PNLifecyclePolicyPlayer : MonoBehaviour
         presentationCamera.clearFlags = CameraClearFlags.SolidColor; presentationCamera.backgroundColor = new Color(.04f, .06f, .08f); presentationCamera.targetTexture = presentationTexture;
         presentationCamera.GetUniversalAdditionalCameraData().renderType = CameraRenderType.Base;
         presentationUI = new GameObject("Owned existing combat UI fixture").AddComponent<PNUiRuntime>();
-        presentationUI.ViewCamera = presentationCamera; presentationUI.LocalOwnerId = 1; presentationUI.LocalPlayerId = live[0].Stat.EntityId;
+        presentationUI.Bind(EveRegistrySession.Context); presentationUI.ViewCamera = presentationCamera; presentationUI.LocalOwnerId = 1; presentationUI.LocalPlayerId = live[0].Stat.EntityId;
         foreach (var document in presentationUI.GetComponentsInChildren<UIDocument>()) if (document.panelSettings.renderMode != PanelRenderMode.WorldSpace) document.panelSettings.targetTexture = hudTexture;
         presentationUI.RefreshUI();
         Check(presentationUI.HudRoot.Q("player-buffs").childCount == live[0].Handles.Length, "Player Buff UI count.");

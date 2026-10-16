@@ -16,34 +16,53 @@ public class EveGameRuntime : EveRuntime
     public const string CurrentRulesVersion = "project_n:74";
     public override string RulesVersion => CurrentRulesVersion;
 #if UNITY_5_3_OR_NEWER
-    public override void Initialize()
+    internal bool IsBootstrapOwner { get; set; }
+    protected override void Awake()
     {
-        base.Initialize();
-        if(Application.isPlaying && IsReady) { PNUiRuntime.Attach(this); PNAreaManager.Attach(this); }
+        if (!Application.isPlaying) return;
+        if (IsBootstrapOwner) { EnsureContentLoaded(); return; }
+        // A scene entry never owns content, even after the previous play has ended.
+        try { PNGameBootstrap.Begin(PNGameBootstrap.Config); }
+        finally { Destroy(this); }
+    }
+    protected override void BindSession(EveSessionContext session)
+    {
+        if (!Application.isPlaying) return;
+        // Register before binding, so partial initialization also has a cleanup owner.
+        session.RegisterCleanup(() => GetComponent<PNAreaManager>()?.Shutdown());
+        session.RegisterCleanup(() => GetComponent<PNUiRuntime>()?.Unbind());
+        PNAreaManager.Attach(this);
+        PNUiRuntime.Attach(this);
+        PNGameSession.Attach(this, session);
     }
 #endif
-
+    protected virtual bool ModsAllowed
+    {
+        get
+        {
 #if UNITY_5_3_OR_NEWER
-    public override void EndSession()
-    {
-        var areas = GetComponent<PNAreaManager>(); if (areas != null) areas.Shutdown();
-        base.EndSession();
-    }
+            return Application.platform != RuntimePlatform.Android && Application.platform != RuntimePlatform.IPhonePlayer;
+#else
+            return true;
 #endif
+        }
+    }
     protected override IEnumerable<EveOverrideSelection> ReadOverrideSelections()
-        => EveOverrideSelection.Read(Path.Combine(Application.persistentDataPath, modsFolder, "overrides.json"));
+        => ModsAllowed ? EveOverrideSelection.Read(Path.Combine(ModsDirectory, "overrides.json"))
+            : System.Array.Empty<EveOverrideSelection>();
+    protected virtual string ModsDirectory => Path.Combine(Application.persistentDataPath, modsFolder);
 
     protected override IEnumerable<EveContentDocument> ReadContentDocuments()
     {
-        string modsDirectory = Path.Combine(Application.persistentDataPath, modsFolder);
+        string modsDirectory = ModsDirectory;
         var source = new EveDirectoryContentSource(
             Path.Combine(Application.streamingAssetsPath, baseContentFolder),
-            modsDirectory, EveDirectoryContentSource.ReadEnabledMods(Path.Combine(modsDirectory, enabledModsFile)));
+            modsDirectory, ModsAllowed ? EveDirectoryContentSource.ReadEnabledMods(Path.Combine(modsDirectory, enabledModsFile)) : System.Array.Empty<string>());
         packs = source.ReadPacks();
         return source.ReadDocuments(packs);
     }
 
-    protected override EveCodeModSession LoadCodeMods() => new EveCodeModLoader("project_n").Load(packs);
+    protected override EveCodeModSession LoadCodeMods() => ModsAllowed ? new EveCodeModLoader("project_n").Load(packs) : EveCodeModSession.Empty();
 #if UNITY_5_3_OR_NEWER
     protected override IReadOnlyDictionary<string, string> ReadGameplayAssetHashes(EveRegistryHub registry)
         => PNSlashPrefabContent.Hashes(registry);

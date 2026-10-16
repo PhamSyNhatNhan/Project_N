@@ -282,7 +282,7 @@ internal sealed class PNPauseMenu : IDisposable
     {
         if(disposed)return;disposed=true;Abort();menu.performed-=OnMenu;menu.Disable();menu.Dispose();
         overlay.RemoveFromHierarchy();safe.RemoveFromHierarchy();
-        UnityEngine.Object.Destroy(lightTexture);UnityEngine.Object.Destroy(coreTexture);
+        PNUiRuntime.Retire(lightTexture);PNUiRuntime.Retire(coreTexture);
     }
 }
 #endif

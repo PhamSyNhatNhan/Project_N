@@ -7,7 +7,7 @@ using UnityEngine.InputSystem.Interactions;
 // EN: Owns skill input independently of Move; concrete skills map input hooks to action hooks.
 // VI: Sở hữu input skill độc lập với Move; skill cụ thể nối hook input với hook action.
 [DisallowMultipleComponent]
-public partial class PNPlayerSkill : PNSkill
+public partial class PNPlayerSkill : PNSkill, IPNEntityResourceOwner
 {
     [SerializeField] private PlayerSkillInputConfig attackInput = new PlayerSkillInputConfig();
     [SerializeField] private PlayerSkillInputConfig skillInput = new PlayerSkillInputConfig();
@@ -30,7 +30,7 @@ public partial class PNPlayerSkill : PNSkill
     public virtual PlayerSkillInputConfig BurstInput => burstInput;
     public virtual bool CanInput
     {
-        get => canInput && !menuInputBlocked && PNLocalPlayerInput.Allows(GetComponent<EveEntityLoader>());
+        get => canInput && !menuInputBlocked && HasGameplayAuthority && PNLocalPlayerInput.Allows(GetComponent<EveEntityLoader>());
         set
         {
             if (canInput == value) return;
@@ -40,7 +40,10 @@ public partial class PNPlayerSkill : PNSkill
     }
 
     protected virtual void Awake()
+        => EnsureInputInitialized();
+    public void EnsureInputInitialized()
     {
+        if (pc != null) return;
         DashInput.CanTap=true;DashInput.PressImmediately=true;DashInput.HoldMode=PlayerSkillHoldMode.None;
         PNRepeatInteraction.Register();
         pc = new PNPlayerSkillControls();
@@ -56,11 +59,15 @@ public partial class PNPlayerSkill : PNSkill
     {
         try
         {
-            UnloadPlayerDash();
-            if (pc == null) return;
-            DisableButtons(); Unsubscribe(); pc.Dispose(); pc = null;
+            DisposeEntityResources();
         }
         finally { base.OnDestroy(); }
+    }
+    public void DisposeEntityResources()
+    {
+        UnloadPlayerDash();
+        if(pc==null)return;
+        DisableButtons();Unsubscribe();pc.Dispose();pc=null;
     }
     protected virtual void OnValidate()
     {

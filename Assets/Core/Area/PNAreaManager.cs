@@ -66,7 +66,11 @@ public abstract class PNAreaInstance : MonoBehaviour, EveIPoolable
     protected abstract void Cleanup();
     public bool Finish(PNAreaEndReason reason = PNAreaEndReason.Requested) => Manager != null && Manager.End(Handle, reason);
     internal void Stop(PNAreaEndReason reason)
-    { if (!IsRunning) return; IsRunning = false; EndReason = reason; Cleanup(); }
+    {
+        if (!IsRunning && !CleanupFailed) return;
+        IsRunning = false; EndReason = reason; CleanupFailed = true;
+        Cleanup(); CleanupFailed = false;
+    }
     public virtual void OnPoolCreated() { }
     public virtual void OnPoolGet(EveEasyPooling pool) { }
     // Explicit destruction hook is required for retained resources in native Edit fixtures too.
@@ -92,6 +96,7 @@ public sealed class PNAreaManager : MonoBehaviour
     private readonly Dictionary<(PNAreaDefinition, Scene), PoolEntry> pools = new Dictionary<(PNAreaDefinition, Scene), PoolEntry>();
     private readonly Dictionary<long, Entry> entries = new Dictionary<long, Entry>();
     private readonly Queue<Action> pending = new Queue<Action>();
+    private readonly HashSet<PNAreaInstance> pendingResources = new HashSet<PNAreaInstance>();
     private long sequence; private bool busy, closing;
     public EveSessionContext Session { get; private set; }
     public int ActiveCount => entries.Values.Count(x => x.Instance != null && x.Instance.IsRunning);
@@ -155,7 +160,12 @@ public sealed class PNAreaManager : MonoBehaviour
                     if (!localPool.Instances.TryGetValue(item, out var retained)) return;
                     localPool.Instances.Remove(item);
                     // Unity may have destroyed the native object already; use the retained CLR reference.
-                    if (!ReferenceEquals(retained, null)) retained.DisposePooledResources();
+                    if (!ReferenceEquals(retained, null))
+                    {
+                        pendingResources.Add(retained);
+                        retained.DisposePooledResources();
+                        pendingResources.Remove(retained);
+                    }
                 };
             }
             root = pool.Pool.Get(); SceneManager.MoveGameObjectToScene(root, request.Scene);
@@ -172,7 +182,12 @@ public sealed class PNAreaManager : MonoBehaviour
         }
         catch (Exception error)
         {
-            if (id != 0 && entries.TryGetValue(id, out var entry)) { SafeStop(entry, PNAreaEndReason.RuntimeError); entries.Remove(id); }
+            if (id != 0 && entries.TryGetValue(id, out var entry))
+            {
+                SafeStop(entry, PNAreaEndReason.RuntimeError);
+                if (entry.Instance.CleanupFailed) { receipt.Error = error; receipt.Status = PNAreaStatus.Failed; return; }
+                entries.Remove(id);
+            }
             if (root != null) { try { pool.Pool.Release(root); } catch (Exception cleanup) { Debug.LogException(cleanup, this); } }
             receipt.Error = error; receipt.Status = PNAreaStatus.Failed;
         }
@@ -210,6 +225,7 @@ public sealed class PNAreaManager : MonoBehaviour
     public void Advance(float gameDelta)
     {
         if (!Finite(gameDelta) || gameDelta < 0) throw new ArgumentOutOfRangeException(nameof(gameDelta));
+        if (closing) return;
         if (Session == null || !Session.IsActive) { Shutdown(); return; }
         Submit(() => {
             foreach (var pair in entries.ToArray())
@@ -230,6 +246,8 @@ public sealed class PNAreaManager : MonoBehaviour
     { try { if (entry.Instance != null) entry.Instance.Stop(reason); } catch (Exception error) { if (entry.Instance != null) entry.Instance.CleanupFailed = true; Debug.LogException(error, this); } }
     private void Return(long id, Entry entry)
     {
+        // A failed gameplay cleanup keeps its owner; pool eviction is not a cleanup retry.
+        if (!ReferenceEquals(entry.Instance, null) && entry.Instance.CleanupFailed) return;
         entries.Remove(id);
         if (entry.Instance == null && !ReferenceEquals(entry.Instance, null)) entry.Instance.CleanupFailed = true;
         try { entry.Pool.Pool.Release(entry.Root); } catch (Exception error) { Debug.LogException(error, this); }
@@ -239,16 +257,48 @@ public sealed class PNAreaManager : MonoBehaviour
         Submit(() => {
             foreach (var pair in entries.Where(x => x.Value.Scene == scene).ToArray()) { SafeStop(pair.Value, PNAreaEndReason.SceneUnloaded); Return(pair.Key, pair.Value); }
             // Storage is scene-local: rebuild idle pools after any scene teardown.
-            foreach (var pair in pools.Where(x => x.Value.Scene == scene).ToArray()) { pair.Value.Pool.Dispose(); DestroyOwned(pair.Value.Template); pools.Remove(pair.Key); }
+            foreach (var pair in pools.Where(x => x.Value.Scene == scene).ToArray())
+            {
+                if (entries.Values.Any(x => ReferenceEquals(x.Pool, pair.Value))) continue;
+                pair.Value.Pool.Dispose(); DestroyOwned(pair.Value.Template); pools.Remove(pair.Key);
+            }
         });
     }
     public void Shutdown()
     {
-        if (closing) return; closing = true; SceneManager.sceneUnloaded -= SceneUnloaded;
-        foreach (var entry in entries.Values.ToArray()) SafeStop(entry, PNAreaEndReason.SessionEnded);
-        entries.Clear();
-        foreach (var pool in pools.Values.ToArray()) { try { pool.Pool.Dispose(); } catch (Exception error) { Debug.LogException(error, this); } finally { DestroyOwned(pool.Template); } }
-        pools.Clear(); Session = null;
+        closing = true; SceneManager.sceneUnloaded -= SceneUnloaded;
+        var errors = new List<Exception>();
+        foreach (var pair in entries.ToArray())
+        {
+            try
+            {
+                if (!ReferenceEquals(pair.Value.Instance, null)) pair.Value.Instance.Stop(PNAreaEndReason.SessionEnded);
+                entries.Remove(pair.Key);
+            }
+            catch (Exception error) { errors.Add(error); }
+        }
+        // Required gameplay failures retain entries/pools/session and block the next play.
+        if (errors.Count != 0) throw new AggregateException("Area gameplay cleanup failed.", errors);
+        foreach (var resource in pendingResources.ToArray())
+        {
+            try { resource.DisposePooledResources(); pendingResources.Remove(resource); }
+            catch (Exception error) { errors.Add(error); }
+        }
+        foreach (var pair in pools.ToArray())
+        {
+            try
+            {
+                foreach (var instance in pair.Value.Instances.ToArray())
+                {
+                    instance.Value.DisposePooledResources();
+                    pair.Value.Instances.Remove(instance.Key);
+                }
+                pair.Value.Pool.Dispose(); DestroyOwned(pair.Value.Template); pools.Remove(pair.Key);
+            }
+            catch (Exception error) { errors.Add(error); }
+        }
+        if (errors.Count != 0) throw new AggregateException("Area resource cleanup failed.", errors);
+        Session = null;
     }
     private static void DestroyOwned(GameObject obj) { if (obj == null) return; if (Application.isPlaying) Destroy(obj); else DestroyImmediate(obj); }
     private void Update() => Advance(Time.deltaTime);

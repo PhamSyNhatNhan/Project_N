@@ -300,6 +300,7 @@ public partial class EveCharacterSkill
     }
     private void AdvanceMoveset(float delta)
     {
+        if(!HasGameplayAuthority)return;
         AdvanceAuxiliaryEffects(delta);
         if (ownedAbilities == null) return;
         if (Stats == null || !Stats.IsReady || !GetComponent<EveEntityLoader>().IsReady) { CancelMoveset(); return; }

@@ -286,3 +286,13 @@ bright rim; same-strength overlap still suppresses interior rims and stacked tin
 Native frames compare motion with particles hidden, opening/closing radius, frozen
 Game delta, particle scale, buried VFX and full resting portrait. Evidence
 `.utmp/TimeScaleTwistReview`; Player/CoreCLR/XR remain unverified.
+
+### P1 S3: play teardown ownership
+
+Game binds this manager once per play and registers Shutdown as required session cleanup
+before mod EndPlay. Shutdown retains failed gameplay Cleanup entries and pools instead
+of evicting them. Failed pooled-resource disposal remains owned for retry as well; a
+successful gameplay cleanup is not repeated just because resource disposal retries.
+New creation is closed during teardown. Fix the cause and call session RetryCleanup;
+new plays remain blocked while required cleanup is pending. Cleanup implementations
+must tolerate partial initialization/retry; resource disposal stays idempotent.

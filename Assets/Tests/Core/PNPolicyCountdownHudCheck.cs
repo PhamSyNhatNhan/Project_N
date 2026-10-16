@@ -49,7 +49,7 @@ public sealed class PNPolicyCountdownHudCheck : MonoBehaviour
         camera.GetUniversalAdditionalCameraData().renderType=CameraRenderType.Base;
         worldTexture=new RenderTexture(1280,720,24);worldTexture.Create();camera.targetTexture=worldTexture;
         hudTexture=new RenderTexture(1280,720,0);hudTexture.Create();
-        ui=new GameObject("Owned real HUD").AddComponent<PNUiRuntime>();ui.ViewCamera=camera;ui.LocalOwnerId=1;ui.LocalPlayerId=player.EntityId;
+        ui=new GameObject("Owned real HUD").AddComponent<PNUiRuntime>();ui.Bind(EveRegistrySession.Context);ui.ViewCamera=camera;ui.LocalOwnerId=1;ui.LocalPlayerId=player.EntityId;
         foreach(var doc in ui.GetComponentsInChildren<UIDocument>())if(doc.panelSettings.renderMode!=PanelRenderMode.WorldSpace)doc.panelSettings.targetTexture=hudTexture;
         var buffs=player.GetComponent<PNBuffManager>();var receipt=buffs.Buffs.Apply(new PNBuffApplyRequest(EveId.Parse("project_n:timescale_reduction"),PNBuffSource.Capture(player),new JObject{{"duration",8},{"reduction",0},{"minimumReduction",0}}));Check(receipt.Handle.IsAlive,"Native HUD Buff applied.");
         int messages=0;observedManager=buffs;messageObserver=_=>messages++;buffs.Publisher.Message+=messageObserver;

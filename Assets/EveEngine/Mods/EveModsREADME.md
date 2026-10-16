@@ -90,13 +90,17 @@ Override vẫn chịu hợp đồng `base:` và lựa chọn provider; xem
 
 ## Lifecycle and loading rules / Vòng đời và quy tắc nạp
 
-- Register chạy theo thứ tự dependency trong bootstrap, trước khi khóa registry.
+- Register chạy một lần mỗi content generation, theo thứ tự dependency trong bootstrap, trước khi khóa registry.
 - OnSessionStarted nhận context đã dựng và registry đã khóa, trước công bố Ready.
   Không dựa vào `EveRegistrySession.IsReady` trong hook này; dùng context nhận được.
-- Dọn entity trước, rồi OnSessionEnded và Dispose theo thứ tự dependency ngược.
+- Dọn entity trước, rồi OnSessionEnded theo thứ tự dependency ngược. Một mod instance có thể nhận nhiều
+  cặp OnSessionStarted/OnSessionEnded qua nhiều phiên chơi dùng cùng content; dọn state phiên trong end hook.
+  Dispose chỉ chạy khi unload/reload content hoặc hủy owner, không chạy mỗi lần EndSession.
+  Instance được giữ để factory/definition đã đăng ký không trỏ object bị dispose.
   Context ở OnSessionEnded không còn active. Đăng ký lỗi vẫn được Dispose;
-  start lỗi vẫn gọi end để hoàn tác tài nguyên đã tạo một phần.
-- Lỗi register/start hủy phiên. Cleanup lỗi giữ trạng thái Stopping và tài nguyên
+  start lỗi chỉ gọi end cho module đã bắt đầu để hoàn tác tài nguyên đã tạo một phần.
+- Lỗi register không công bố content; start lỗi không công bố phiên và giữ content nếu cleanup thành công.
+  Cleanup lỗi giữ trạng thái Stopping và tài nguyên
   chờ RetryCleanup; hook đã thành công không chạy lại. Hook lỗi cần hỗ trợ retry.
 - DLL host/API không được đóng gói lại. DLL cùng simple name khác nội dung hoặc
   assembly identity bị từ chối; bản sao byte giống nhau của thư viện mod được dùng chung.
