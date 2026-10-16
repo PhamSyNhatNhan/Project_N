@@ -24,6 +24,7 @@ namespace EveEngine
             internal Func<EveEntityLoader> Create;
             internal Action<EveEntityLoader> Configure,Return,Published;
             internal Action<EveEntityLoader> BeforePublish;
+            internal Func<EveEntityLoader,bool> PreparePublication;
             internal Action<Exception> Failed;
             internal bool Leased,Retiring,Returned;
             internal double Started,RetryAt;
@@ -38,8 +39,23 @@ namespace EveEngine
         private readonly Queue<Candidate> pending=new Queue<Candidate>();
         private readonly List<Candidate> owned=new List<Candidate>();
         private bool stopping;
-        private int cursor;
+        private int cursor,publicationCursor;
+        private long frames;
+        private readonly List<PreparationJob> jobs=new List<PreparationJob>();
+        private int jobCursor;
+        private sealed class PreparationJob:IDisposable
+        {
+            public Func<bool> Advance;public Action<Exception> Failed;public bool Disposed;
+            public void Dispose(){Disposed=true;Advance=null;Failed=null;}
+        }
+        public IDisposable SchedulePreparation(Func<bool> advance,Action<Exception> failed)
+        {
+            jobs.RemoveAll(x=>x.Disposed);
+            if(stopping||!session.IsActive||jobs.Count>=profile.Resident)throw new InvalidOperationException("Preparation work queue closed/full.");
+            var job=new PreparationJob{Advance=advance??throw new ArgumentNullException(nameof(advance)),Failed=failed};jobs.Add(job);return job;
+        }
         private double frameStart;
+        public double TimeoutMilliseconds=>profile.TimeoutMs;
         public int PendingCount=>pending.Count;
         public int ResidentCount=>owned.Count;
         public int ActiveCount=>owned.Count(x=>!x.Retiring);
@@ -54,9 +70,11 @@ namespace EveEngine
             session.RegisterCleanup(Stop);
         }
         public Candidate Enqueue(Func<EveEntityLoader> create,Action<EveEntityLoader> configure,Action<EveEntityLoader> returned,Action<EveEntityLoader> published,Action<Exception> failed,Action<EveEntityLoader> beforePublish=null)
+            => Enqueue(create,configure,returned,published,failed,beforePublish,null);
+        public Candidate Enqueue(Func<EveEntityLoader> create,Action<EveEntityLoader> configure,Action<EveEntityLoader> returned,Action<EveEntityLoader> published,Action<Exception> failed,Action<EveEntityLoader> beforePublish,Func<EveEntityLoader,bool> preparePublication)
         {
             if(stopping||!session.IsActive||pending.Count>=profile.Pending)throw new InvalidOperationException("Preparation queue is closed or full.");
-            var candidate=new Candidate {Create=create??throw new ArgumentNullException(nameof(create)),Configure=configure??throw new ArgumentNullException(nameof(configure)),Return=returned??throw new ArgumentNullException(nameof(returned)),Published=published,Failed=failed,BeforePublish=beforePublish,Started=clock()};
+            var candidate=new Candidate {Create=create??throw new ArgumentNullException(nameof(create)),Configure=configure??throw new ArgumentNullException(nameof(configure)),Return=returned??throw new ArgumentNullException(nameof(returned)),Published=published,Failed=failed,BeforePublish=beforePublish,PreparePublication=preparePublication,Started=clock()};
             pending.Enqueue(candidate);return candidate;
         }
         private void Return(Candidate candidate)
@@ -91,10 +109,20 @@ namespace EveEngine
         public void AdvanceFrame()
         {
             frameStart=clock();session.Cleanup.AdvanceFrame();
+            frames++;
             foreach(var candidate in owned.Where(x=>x.Retiring&&!x.Leased&&x.Attempts<profile.CleanupAttempts&&clock()>=x.RetryAt).ToArray())CleanupProvisional(candidate);
             if(stopping||!session.IsActive)return;
+            foreach(var candidate in owned.Where(x=>!x.Retiring&&x.Loader!=null&&x.Loader.State==EveEntityLoadState.Prepared&&clock()-x.Started>profile.TimeoutMs).ToArray())Fail(candidate,new TimeoutException("Prepared entity publication timed out."));
             double prepareStart=clock();int steps=0;
             bool HasTime()=>RemainingFrameMs>0&&clock()-prepareStart<profile.PrepareMs&&steps<profile.Steps;
+            jobs.RemoveAll(x=>x.Disposed);
+            var work=jobs.ToArray();
+            bool jobTurn=profile.Steps>1||frames%2==0||pending.Count==0&&!owned.Any(x=>!x.Retiring&&x.Loader!=null&&(x.Loader.State==EveEntityLoadState.Preparing||x.Loader.State==EveEntityLoadState.Prepared));
+            for(int i=0;jobTurn&&i<Math.Min(work.Length,Math.Max(1,profile.Steps/2))&&HasTime();i++)
+            {
+                jobCursor%=work.Length;var job=work[jobCursor++];if(job.Disposed)continue;
+                steps++;try{if(job.Advance())job.Dispose();}catch(Exception error){var failed=job.Failed;job.Dispose();try{failed?.Invoke(error);}catch(Exception callback){UnityEngine.Debug.LogException(callback,null);}}
+            }
             while(pending.Count>0&&HasTime())
             {
                 var next=pending.Peek();
@@ -122,9 +150,15 @@ namespace EveEngine
                 try
                 {
                     steps++;if(clock()-candidate.Started>profile.TimeoutMs)throw new TimeoutException("Entity preparation timed out.");
-                    if(candidate.Loader.PrepareNext())batch.Add(candidate);
+                    if(candidate.Loader.PrepareNext()&&candidate.PreparePublication==null)batch.Add(candidate);
                 }
                 catch(Exception error){Fail(candidate,error);}
+            }
+            var prepared=owned.Where(x=>!x.Retiring&&x.Loader!=null&&x.Loader.State==EveEntityLoadState.Prepared&&x.PreparePublication!=null).ToArray();
+            for(int i=0;i<prepared.Length&&HasTime();i++)
+            {
+                publicationCursor%=prepared.Length;var candidate=prepared[publicationCursor++];
+                try{steps++;if(candidate.PreparePublication==null||candidate.PreparePublication(candidate.Loader))batch.Add(candidate);}catch(Exception error){Fail(candidate,error);}
             }
             if(batch.Count==0)return;
             try {EveEntityLoader.CommitBatch(batch.Select(x=>x.Loader),()=> {foreach(var candidate in batch)candidate.BeforePublish?.Invoke(candidate.Loader);});}
@@ -135,6 +169,7 @@ namespace EveEngine
         public void Stop()
         {
             stopping=true;
+            foreach(var job in jobs)job.Dispose();jobs.Clear();
             while(pending.Count>0)Retire(pending.Dequeue());
             foreach(var candidate in owned.ToArray())Retire(candidate);
             if(owned.Any(x=>!x.Leased))throw new InvalidOperationException("Provisional entity cleanup is pending; explicit retry required.");

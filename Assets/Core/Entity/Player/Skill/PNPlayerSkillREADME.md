@@ -1,5 +1,8 @@
 # PNPlayerSkill input
 
+Rules75: [binding override](../../Shared/Skill/PNSkillBindingREADME.md) routes semantic
+input to the chosen behavior. Profile owns interaction; changed action requires neutral.
+
 `PNPlayerSkill : PNSkill` giữ khung input PlayerSkill gốc cho Attack, Skill, Ulti,
 Dash, Burst. Vòng đời input và vòng đời Action độc lập. Hook mặc định rỗng;
 skill nhân vật tự override để nối tới Action. Không tự chuyển trạng thái Action,

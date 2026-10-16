@@ -1,3 +1,30 @@
+## Current: Typed Buff presentation and Mirror adapter (RulesVersion76 / Mod API6)
+
+`PNBuffManager` adds `TryCaptureState`, `StateChanged`, `OptionalCuePublished`,
+`StageState`, `ApplyChange`, `HasBaseline` and `AppliedRevision`. `PNBuffFrame` and
+`PNBuffChange` preserve immutable state, canonical group ordering and removal/cues;
+the existing `PNBuffWireState` presenter API stays compatible. Use the manager's
+stable `Presentation` interface for UI subscriptions across baseline refreshes.
+
+Gameplay behavior remains authoritative. A client replica never recreates Buff
+effects or Skill binding leases. Buff removal can leave a committed Skill cast running
+under FinishCurrent; presence/icon state cannot identify the executing Skill.
+Custom behavior private fields remain host-only unless explicitly published as
+presentation data. Payload guards run before cloning; JSON/byte/depth/node bounds and
+presenter-specific schema/version limits are separate from gameplay stack/lifetime.
+
+See [coop API](PNBuffCoopREADME.md) and `Docs/MirrorP3Implementation.md` for the current
+Mirror baseline/live/grace contracts, actual evidence and remaining platform limits.
+Legacy codec/actor APIs remain available for their callers, but are not Mirror's path.
+
+## Current: Skill binding lease template (RulesVersion75 / Mod API6)
+
+`base:buff_skill_binding_template` grants a selected Skill profile into a slot through
+an owned lease. Payload: duration, slot, profileId, priority, applyTransition and
+releaseTransition. Suspend/expiry/cleanup returns the lease; resume regrants without
+casting. Pending receipt failure ends the Buff with RuntimeError. See
+[Skill binding contract](../Skill/PNSkillBindingREADME.md). Mirror P3 remains separate.
+
 
 ## Current: StackCount failure isolation in publication (RulesVersion71 / Mod API6)
 

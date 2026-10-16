@@ -44,13 +44,15 @@ namespace ProjectN.Coop.Tests
             if(EditorApplication.isPlayingOrWillChangePlaymode)throw new InvalidOperationException("Idle required.");
             if(SessionState.GetString(Key,"").Length>0)return; // Dynamic command retries must not overwrite the original settings.
             var settings=new Settings{start=AssetDatabase.GetAssetPath(EditorSceneManager.playModeStartScene),enabled=EditorSettings.enterPlayModeOptionsEnabled,options=(int)EditorSettings.enterPlayModeOptions,fps=Application.targetFrameRate,background=Application.runInBackground};
-            SessionState.SetString(Key,JsonUtility.ToJson(settings));EditorSceneManager.playModeStartScene=AssetDatabase.LoadAssetAtPath<SceneAsset>(ScenePath);
+            SessionState.SetString(Key,JsonUtility.ToJson(settings));Application.runInBackground=true;Application.targetFrameRate=60;EditorSceneManager.playModeStartScene=AssetDatabase.LoadAssetAtPath<SceneAsset>(ScenePath);
             EditorSettings.enterPlayModeOptionsEnabled=true;EditorSettings.enterPlayModeOptions=noDomainReload?EnterPlayModeOptions.DisableDomainReload:EnterPlayModeOptions.None;
         }
-        public static void CompileAndroid()
+        public static void CompileAndroid()=>CompileAndroid(".utmp/P1S4S10");
+        public static void CompileAndroid(string folder)
         {
-            var result=PlayerBuildInterface.CompilePlayerScripts(new ScriptCompilationSettings{target=BuildTarget.Android,group=BuildTargetGroup.Android,options=ScriptCompilationOptions.DevelopmentBuild},".utmp/P1S4S10/AndroidScripts");
-            File.WriteAllText(".utmp/P1S4S10/AndroidCompile.txt","assemblies="+result.assemblies.Count+" (script compilation only, no IL2CPP/device evidence)");
+            Directory.CreateDirectory(folder);
+            var result=PlayerBuildInterface.CompilePlayerScripts(new ScriptCompilationSettings{target=BuildTarget.Android,group=BuildTargetGroup.Android,options=ScriptCompilationOptions.DevelopmentBuild},Path.Combine(folder,"AndroidScripts"));
+            File.WriteAllText(Path.Combine(folder,"AndroidCompile.txt"),"assemblies="+result.assemblies.Count+" (script compilation only, no IL2CPP/device evidence)");
         }
     }
 }

@@ -20,6 +20,7 @@ public class PNContentModule : EveIContentModule, EveIContentFinalizeModule, Eve
 
     public virtual void Register(EveRegistryHub hub)
     {
+        PNSkillBindingContent.RegisterRegistries(hub);
         hub.GetOrCreate<PNBuffDefinition>(); hub.NameRegistry<PNBuffDefinition>("buffs");
         hub.GetOrCreate<PNBuffPresenterDefinition>(); hub.NameRegistry<PNBuffPresenterDefinition>("buff_presenters");
         var buffTags = hub.GetOrCreate<PNBuffTagDefinition>(); hub.NameRegistry<PNBuffTagDefinition>("buff_tags");

@@ -58,8 +58,8 @@ public sealed class PNMoveHostWorld : IDisposable
     {
         var move=actor.Move;var stat=move.GetComponent<PNStatReplication>();
         if(stat==null || !stat.CanCaptureReplication)throw new InvalidOperationException("Move needs committed shared Stat life.");
-        // The one Stat publisher owns lifeRevision. Capture refreshes it without consuming pending publication.
-        stat.CaptureReplication();var life=stat.AuthoritativeState;
+        // The shared typed Stat source owns lifeRevision; no legacy encoding is needed to refresh it.
+        var life=stat.CaptureState();
         var control=move.GetComponent<PNControlManager>(); var clock=move.GetComponent<EveTimeScale>();
         var stats=move.GetComponent<EveStat>();var registry=session.Registry;
         MoveRights rights=MoveRights.None;

@@ -35,6 +35,8 @@ public static class EveDllModEditorChecks
             content.Publish(hub, compatibility);
             EveRegistrySession.Begin(content);
             EveRegistrySession.Start(hub, EveSessionRole.Offline, compatibility);
+            var skillEvidence=PNSkillBindingDllChecks.Verify(hub,"native_probe");
+            System.IO.Directory.CreateDirectory(".utmp/SkillOverride");System.IO.File.WriteAllText(".utmp/SkillOverride/NativeDLL.txt",skillEvidence);
             var stats = new PNStatSet(hub);
             stats.AddBase(new EveBaseStat(PNContentIds.AttackPower, 100f));
             if (stats.Evaluate(EveId.Parse("base:attack_power")) != 107f || mods.Fingerprints.Count != 2 ||

@@ -26,6 +26,7 @@ namespace ProjectN.Coop.Tests
         private static string Argument(string prefix)=>Environment.GetCommandLineArgs().FirstOrDefault(x=>x.StartsWith(prefix,StringComparison.Ordinal))?.Substring(prefix.Length);
         private void Awake()
         {
+            if(Environment.GetCommandLineArgs().Contains("--pn-peer-test"))PNGameBootstrap.Config.Network.Port=7788;
             if(Environment.GetCommandLineArgs().Contains("--pn-cap-fixture"))PNGameBootstrap.Config.Network.MaximumClients=1;
             string reject=Argument("--pn-reject=");if(reject==null||reject=="capacity")return;
             originalWriter=Writer<PNAdmissionRequest>.write;
@@ -89,6 +90,7 @@ namespace ProjectN.Coop.Tests
         }
         private IEnumerator Start()
         {
+            if(Environment.GetCommandLineArgs().Any(x=>x.StartsWith("--pn-stat-test=")))yield break;
             output=Environment.GetCommandLineArgs().FirstOrDefault(x=>x.StartsWith("--pn-result="))?.Substring(12)??".utmp/P1S4S10/Play.txt";
             yield return null;
             bool standalone=Environment.GetCommandLineArgs().Contains("--pn-peer-test");
@@ -121,7 +123,7 @@ namespace ProjectN.Coop.Tests
             catch(Exception e){Fail(e);yield break;}
             deadline=Time.realtimeSinceStartupAsDouble+20;
             while(true){bool waiting;try{waiting=Await(()=>EveRegistrySession.State==EveSessionState.Stopped);}catch(Exception e){Fail(e);yield break;}if(!waiting)break;yield return null;}
-            try {Check(PNGameBootstrap.Runtime.Content.GenerationId==content,"content retained after Offline");PNGameBootstrap.Begin(new PNPlayConfig(EveSessionRole.Host));}catch(Exception e){Fail(e);yield break;}
+            try {Check(PNGameBootstrap.Runtime.Content.GenerationId==content,"content retained after Offline");var nativeHostConfig=new PNPlayConfig(EveSessionRole.Host);nativeHostConfig.Network.Port=7789;PNGameBootstrap.Begin(nativeHostConfig);}catch(Exception e){Fail(e);yield break;}
             deadline=Time.realtimeSinceStartupAsDouble+20;
             while(true){bool waiting;try{waiting=Await(()=>NetworkClient.localPlayer!=null&&((PNNetworkManager)NetworkManager.singleton).PublishedCount==2);}catch(Exception e){Fail(e);yield break;}if(!waiting)break;yield return null;}
             try

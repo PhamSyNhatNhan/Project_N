@@ -11,7 +11,7 @@ namespace ProjectN.Coop.Tests
             void Reject(Action action,string name,string expected=null)
             {try{action();}catch(Exception error){if(expected!=null&&!error.Message.Contains(expected))throw new Exception(name+": "+error.Message);count++;return;}throw new Exception(name);}
             var local=new EveContentCompatibility(1,"rules",new Dictionary<string,string>{{"pack:fixture",new string('a',64)},{"dll:fixture",new string('b',64)}});
-            PNAdmissionRequest Request()=>new PNAdmissionRequest {NetworkVersion=PNNetworkAuthenticator.NetworkVersion,Platform="PC",Mode="roguelite",SelectPlayer=true,Content=PNContentFingerprint.From(local)};
+            PNAdmissionRequest Request()=>new PNAdmissionRequest {NetworkVersion=PNNetworkAuthenticator.NetworkVersion,Limits=new PNNetworkProfile().ProtocolLimits,Platform="PC",Mode="roguelite",SelectPlayer=true,Content=PNContentFingerprint.From(local)};
             EveContentCompatibility Read(PNAdmissionRequest value,int admitted=0,bool host=false)=>PNAdmissionRules.Validate(value,local,"PC","roguelite",admitted,3,host);
             local.Validate(Read(Request()));Check(true,"matching fingerprint admitted");
             var request=Request();request.NetworkVersion++;Reject(()=>Read(request),"network version mismatch","version");

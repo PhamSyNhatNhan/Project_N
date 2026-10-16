@@ -13,30 +13,38 @@ namespace ProjectN.Coop
     {
         public const uint Asset = 0x504e0002;
         [SyncVar] public PNActorMetadata Metadata;
+        [SyncVar] public bool HasBuff;
+        [System.NonSerialized] public PNStatFrame State;
+        [System.NonSerialized] public long BindingToken;
         private PNActorMetadata initialMetadata;
+        private bool initialHasBuff;
         private bool bound;
         private void ValidateMetadata()
         {
             if(Metadata.HostSession==System.Guid.Empty||Metadata.Entity<=0||Metadata.Generation<=0||Metadata.Owner<0||string.IsNullOrWhiteSpace(Metadata.Character)||Metadata.Character.Length>128||string.IsNullOrWhiteSpace(Metadata.SceneKey)||Metadata.SceneKey.Length>128||Metadata.EntityKey==null||Metadata.EntityKey.Length>128)
                 throw new System.InvalidOperationException("Invalid actor shell metadata.");
             if(bound&&!Metadata.Equals(initialMetadata))throw new System.InvalidOperationException("A published shell binding is immutable; retire and spawn a new shell.");
+            if(bound&&HasBuff!=initialHasBuff)throw new System.InvalidOperationException("A published Buff component descriptor is immutable.");
         }
-        public override void OnStartServer(){ValidateMetadata();initialMetadata=Metadata;bound=true;}
+        public override void OnStartServer(){ValidateMetadata();initialMetadata=Metadata;initialHasBuff=HasBuff;bound=true;}
         public override void OnSerialize(NetworkWriter writer,bool initialState)
         {
-            try{ValidateMetadata();base.OnSerialize(writer,initialState);}
+            try{
+                ValidateMetadata();PNStatWire.Size(State);
+                using(var staged=NetworkWriterPool.Get()){base.OnSerialize(staged,initialState);staged.WriteStatFrame(State);writer.WriteBytes(staged.ToArraySegment().Array,staged.ToArraySegment().Offset,staged.Position);}
+            }
             catch(System.Exception error){(NetworkManager.singleton as PNNetworkManager)?.ProtocolFailure(error,true);throw;}
         }
         public override void OnDeserialize(NetworkReader reader,bool initialState)
         {
-            try{base.OnDeserialize(reader,initialState);ValidateMetadata();}
+            try{base.OnDeserialize(reader,initialState);ValidateMetadata();State=reader.ReadStatFrame();if(NetworkManager.singleton is PNNetworkManager manager)manager.ReceiveStat(this,State,initialState);}
             catch(System.Exception error){(NetworkManager.singleton as PNNetworkManager)?.ProtocolFailure(error,false);throw;}
         }
         public override void OnStopServer()
         {if(NetworkManager.singleton is PNNetworkManager manager)manager.RemoveActor(this);}
         public override void OnStartClient()
         {
-            initialMetadata=Metadata;bound=true;
+            initialMetadata=Metadata;initialHasBuff=HasBuff;bound=true;
             if(!isServer) ((PNNetworkManager)NetworkManager.singleton).ReceiveActor(this);
         }
         public override void OnStopClient()

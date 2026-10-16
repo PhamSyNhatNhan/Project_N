@@ -72,10 +72,10 @@ public sealed class PNBuffPresentationWriter
     {
         if (!IsActive) return;
         if (version < 1) throw new ArgumentOutOfRangeException(nameof(version));
-        DynamicData = data?.DeepClone(); PayloadVersion = version; collection.VisualPublished();
+        PNBuffPayloadValidation.Validate(data); DynamicData = data?.DeepClone(); PayloadVersion = version; collection.VisualPublished();
     }
     public void Cue(string name, bool guaranteed = false, JToken data = null)
-    { if (IsActive) { var payload = data?.DeepClone(); collection.Coordinator.Submit(() => { if (IsActive) collection.PublishCue(Instance.Handle, name, guaranteed, payload); }); } }
+    { if (IsActive) { PNBuffPayloadValidation.Validate(data); var payload = data?.DeepClone(); collection.Coordinator.Submit(() => { if (IsActive) collection.PublishCue(Instance.Handle, name, guaranteed, payload); }); } }
     private Action<long?> remainingChanged;
     private long? lastSeconds;
     private bool hasSeconds;

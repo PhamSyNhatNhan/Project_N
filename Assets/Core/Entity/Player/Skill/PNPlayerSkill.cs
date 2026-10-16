@@ -53,7 +53,7 @@ public partial class PNPlayerSkill : PNSkill, IPNEntityResourceOwner
     protected virtual void Start() => StartSetUp();
     protected virtual void AwakeSetUp() { }
     protected virtual void StartSetUp() { }
-    protected virtual void OnEnable() { if (pc != null) RefreshInput(); }
+    protected override void OnEnable() { base.OnEnable(); if (pc != null) RefreshInput(); }
     protected override void OnDisable() { try { CancelPlayerDash(); DisableButtons(); } finally { base.OnDisable(); } }
     protected override void OnDestroy()
     {
@@ -76,11 +76,14 @@ public partial class PNPlayerSkill : PNSkill, IPNEntityResourceOwner
     public override void Load(EveEntityLoadContext context)
     {
         base.Load(context);
+        if(Bindings==null) ConfigureBindings(new[]{new System.Collections.Generic.KeyValuePair<EveId,EveId>(PNSkillSlots.Dash,DefaultDashBindingProfile)});
+        BindingChanged += RefreshBindingInput;
         LoadPlayerDash();
         if (pc != null) RefreshInput();
     }
     public override void Unload()
     {
+        BindingChanged -= RefreshBindingInput;
         UnloadPlayerDash();
         DisableButtons();
         base.Unload();
@@ -93,11 +96,11 @@ public partial class PNPlayerSkill : PNSkill, IPNEntityResourceOwner
         if (pc == null) return;
         AttackInput.Validate(); SkillInput.Validate(); UltiInput.Validate(); DashInput.Validate(); BurstInput.Validate();
         DisableButtons();
-        Apply(pc.Controller.Attack, AttackInput);
-        Apply(pc.Controller.Skill, SkillInput);
-        Apply(pc.Controller.Ulti, UltiInput);
-        Apply(pc.Controller.Dash, DashInput);
-        Apply(pc.Controller.Burst, BurstInput);
+        Apply(pc.Controller.Attack, BindingInput(PNSkillSlots.Attack, AttackInput));
+        Apply(pc.Controller.Skill, BindingInput(PNSkillSlots.Skill, SkillInput));
+        Apply(pc.Controller.Ulti, BindingInput(PNSkillSlots.Ultimate, UltiInput));
+        Apply(pc.Controller.Dash, BindingInput(PNSkillSlots.Dash, DashInput));
+        Apply(pc.Controller.Burst, BindingInput(PNSkillSlots.Burst, BurstInput));
     }
     private void Apply(InputAction action, PlayerSkillInputConfig config)
     {
@@ -155,6 +158,7 @@ public partial class PNPlayerSkill : PNSkill, IPNEntityResourceOwner
     }
     protected virtual void StartedAttack(InputAction.CallbackContext ctx)
     {
+        if (RouteBindingInput(PNSkillSlots.Attack, ctx, PNSkillInputPhase.Started)) return;
         if (!CanInput || !isActiveAndEnabled) return;
         if (ctx.interaction is TapInteraction || ctx.interaction is PressInteraction)
         { StartTapAttack(); }
@@ -167,6 +171,7 @@ public partial class PNPlayerSkill : PNSkill, IPNEntityResourceOwner
     }
     protected virtual void PerformedAttack(InputAction.CallbackContext ctx)
     {
+        if (RouteBindingInput(PNSkillSlots.Attack, ctx, PNSkillInputPhase.Performed)) return;
         if (!CanInput || !isActiveAndEnabled) return;
         if (ctx.interaction is TapInteraction || ctx.interaction is PressInteraction)
         { EnterTapAttack(); TapAttack(); ExitTapAttack(); }
@@ -179,6 +184,7 @@ public partial class PNPlayerSkill : PNSkill, IPNEntityResourceOwner
     }
     protected virtual void CanceledAttack(InputAction.CallbackContext ctx)
     {
+        if (RouteBindingInput(PNSkillSlots.Attack, ctx, PNSkillInputPhase.Canceled)) return;
         if (ctx.interaction is TapInteraction || ctx.interaction is PressInteraction)
         { CanceledTapAttack(); }
         else if (ctx.interaction is HoldInteraction)
@@ -208,6 +214,7 @@ public partial class PNPlayerSkill : PNSkill, IPNEntityResourceOwner
     protected virtual void CanceledRepeatAttack() { }
     protected virtual void StartedSkill(InputAction.CallbackContext ctx)
     {
+        if (RouteBindingInput(PNSkillSlots.Skill, ctx, PNSkillInputPhase.Started)) return;
         if (!CanInput || !isActiveAndEnabled) return;
         if (ctx.interaction is TapInteraction || ctx.interaction is PressInteraction)
         { StartTapSkill(); }
@@ -220,6 +227,7 @@ public partial class PNPlayerSkill : PNSkill, IPNEntityResourceOwner
     }
     protected virtual void PerformedSkill(InputAction.CallbackContext ctx)
     {
+        if (RouteBindingInput(PNSkillSlots.Skill, ctx, PNSkillInputPhase.Performed)) return;
         if (!CanInput || !isActiveAndEnabled) return;
         if (ctx.interaction is TapInteraction || ctx.interaction is PressInteraction)
         { EnterTapSkill(); TapSkill(); ExitTapSkill(); }
@@ -232,6 +240,7 @@ public partial class PNPlayerSkill : PNSkill, IPNEntityResourceOwner
     }
     protected virtual void CanceledSkill(InputAction.CallbackContext ctx)
     {
+        if (RouteBindingInput(PNSkillSlots.Skill, ctx, PNSkillInputPhase.Canceled)) return;
         if (ctx.interaction is TapInteraction || ctx.interaction is PressInteraction)
         { CanceledTapSkill(); }
         else if (ctx.interaction is HoldInteraction)
@@ -261,6 +270,7 @@ public partial class PNPlayerSkill : PNSkill, IPNEntityResourceOwner
     protected virtual void CanceledRepeatSkill() { }
     protected virtual void StartedUlti(InputAction.CallbackContext ctx)
     {
+        if (RouteBindingInput(PNSkillSlots.Ultimate, ctx, PNSkillInputPhase.Started)) return;
         if (!CanInput || !isActiveAndEnabled) return;
         if (ctx.interaction is TapInteraction || ctx.interaction is PressInteraction)
         { StartTapUlti(); }
@@ -273,6 +283,7 @@ public partial class PNPlayerSkill : PNSkill, IPNEntityResourceOwner
     }
     protected virtual void PerformedUlti(InputAction.CallbackContext ctx)
     {
+        if (RouteBindingInput(PNSkillSlots.Ultimate, ctx, PNSkillInputPhase.Performed)) return;
         if (!CanInput || !isActiveAndEnabled) return;
         if (ctx.interaction is TapInteraction || ctx.interaction is PressInteraction)
         { EnterTapUlti(); TapUlti(); ExitTapUlti(); }
@@ -285,6 +296,7 @@ public partial class PNPlayerSkill : PNSkill, IPNEntityResourceOwner
     }
     protected virtual void CanceledUlti(InputAction.CallbackContext ctx)
     {
+        if (RouteBindingInput(PNSkillSlots.Ultimate, ctx, PNSkillInputPhase.Canceled)) return;
         if (ctx.interaction is TapInteraction || ctx.interaction is PressInteraction)
         { CanceledTapUlti(); }
         else if (ctx.interaction is HoldInteraction)
@@ -314,6 +326,7 @@ public partial class PNPlayerSkill : PNSkill, IPNEntityResourceOwner
     protected virtual void CanceledRepeatUlti() { }
     protected virtual void StartedDash(InputAction.CallbackContext ctx)
     {
+        if (RouteBindingInput(PNSkillSlots.Dash, ctx, PNSkillInputPhase.Started)) return;
         if (!CanInput || !isActiveAndEnabled) return;
         if (ctx.interaction is TapInteraction || ctx.interaction is PressInteraction)
         { StartTapDash(); }
@@ -326,6 +339,7 @@ public partial class PNPlayerSkill : PNSkill, IPNEntityResourceOwner
     }
     protected virtual void PerformedDash(InputAction.CallbackContext ctx)
     {
+        if (RouteBindingInput(PNSkillSlots.Dash, ctx, PNSkillInputPhase.Performed)) return;
         if (!CanInput || !isActiveAndEnabled) return;
         if (ctx.interaction is TapInteraction || ctx.interaction is PressInteraction)
         { EnterTapDash(); TapDash(); ExitTapDash(); }
@@ -338,6 +352,7 @@ public partial class PNPlayerSkill : PNSkill, IPNEntityResourceOwner
     }
     protected virtual void CanceledDash(InputAction.CallbackContext ctx)
     {
+        if (RouteBindingInput(PNSkillSlots.Dash, ctx, PNSkillInputPhase.Canceled)) return;
         if (ctx.interaction is TapInteraction || ctx.interaction is PressInteraction)
         { CanceledTapDash(); }
         else if (ctx.interaction is HoldInteraction)
@@ -367,6 +382,7 @@ public partial class PNPlayerSkill : PNSkill, IPNEntityResourceOwner
     protected virtual void CanceledRepeatDash() { }
     protected virtual void StartedBurst(InputAction.CallbackContext ctx)
     {
+        if (RouteBindingInput(PNSkillSlots.Burst, ctx, PNSkillInputPhase.Started)) return;
         if (!CanInput || !isActiveAndEnabled) return;
         if (ctx.interaction is TapInteraction || ctx.interaction is PressInteraction)
         { StartTapBurst(); }
@@ -379,6 +395,7 @@ public partial class PNPlayerSkill : PNSkill, IPNEntityResourceOwner
     }
     protected virtual void PerformedBurst(InputAction.CallbackContext ctx)
     {
+        if (RouteBindingInput(PNSkillSlots.Burst, ctx, PNSkillInputPhase.Performed)) return;
         if (!CanInput || !isActiveAndEnabled) return;
         if (ctx.interaction is TapInteraction || ctx.interaction is PressInteraction)
         { EnterTapBurst(); TapBurst(); ExitTapBurst(); }
@@ -391,6 +408,7 @@ public partial class PNPlayerSkill : PNSkill, IPNEntityResourceOwner
     }
     protected virtual void CanceledBurst(InputAction.CallbackContext ctx)
     {
+        if (RouteBindingInput(PNSkillSlots.Burst, ctx, PNSkillInputPhase.Canceled)) return;
         if (ctx.interaction is TapInteraction || ctx.interaction is PressInteraction)
         { CanceledTapBurst(); }
         else if (ctx.interaction is HoldInteraction)

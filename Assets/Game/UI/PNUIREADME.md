@@ -1,3 +1,9 @@
+## Current: Skill binding visibility (RulesVersion75)
+
+Local HUD filters Ability IDs associated with cached binding profiles to the selected
+profiles, retaining entity-wide states. This changes visibility only; hidden cooldowns
+keep their entity-owned clocks. No new skill bar/layout/style or remote Ability display.
+
 
 ## Current: Buff reliability and presentation coop (RulesVersion66 / Mod API5)
 
@@ -61,8 +67,11 @@ Buff PNG artwork retains its original shape.
   rounded90x8 HP bar for every `PNEnemyStat`, including ordinary enemies at full
   health. No name, HP numbers or panel background. Buffs run left-to-right and
   wrap bottom-to-top in five columns, with a4px gap to
-  the HP outer ring. The transparent96x14 pill ring has a1px white border at45%
-  opacity and2px spacing around HP. The document is200px wide with dynamic Buff
+  the HP outer ring. The transparent96x14 pill ring has a1px light-red border
+  (RGBA255,180,180,0.8) for enemies and2px spacing around HP. Remote players reuse
+  HP + Buff presentation with the original white ring at45% opacity and no Ability
+  icons. Local player HUD/Ability presentation and all Buff artwork stay unchanged.
+  The document is200px wide with dynamic Buff
   height; the90x8 HP and96x14 ring stay centered and do not grow with the grid.
   Bottom-center anchor projects the Sprite quad top with a6 reference-pixel gap;
   enemyOffset is the fallback without a SpriteRenderer. HP reads current/max health.

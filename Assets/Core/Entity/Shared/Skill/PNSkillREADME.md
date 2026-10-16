@@ -1,5 +1,8 @@
 # PNSkill
 
+Rules75: [Skill binding override](PNSkillBindingREADME.md) adds entity-local slot selection,
+scoped overrides and extensible behavior factories. Slot and Skill categories are independent.
+
 Current lifecycle (RulesVersion67 / Mod API6): skill payloads initialize in Prepare,
 but IsReady and activation require a valid published context. Dependency/initial
 passive setup uses IsInitialized and the loader's narrow module scope. Public gameplay

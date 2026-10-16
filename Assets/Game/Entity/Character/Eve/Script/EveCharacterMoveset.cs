@@ -302,6 +302,7 @@ public partial class EveCharacterSkill
     {
         if(!HasGameplayAuthority)return;
         AdvanceAuxiliaryEffects(delta);
+        AdvanceBindings(delta);
         if (ownedAbilities == null) return;
         if (Stats == null || !Stats.IsReady || !GetComponent<EveEntityLoader>().IsReady) { CancelMoveset(); return; }
         if (Stats.IsDead) { OnEveDied(null); return; }
@@ -398,7 +399,7 @@ public partial class EveCharacterSkill
         bool again = wasRepeat && repeatHeld && IsInBurst && stacks.Current > 0;
         if (CurrentCast == EveCast.Repeat && stacks.Current == 0) repeatExhausted = true;
         FinishSequence();
-        if (wasRepeat && (!again || !TryRepeatAttack())) EndRepeatChain();
+        if (wasRepeat && (!again || !CanContinueEveRepeat || !TryRepeatAttack())) EndRepeatChain();
     }
     private void EndRepeatChain()
     {
@@ -467,7 +468,7 @@ public partial class EveCharacterSkill
     {
         if (deathHandled) return;
         deathHandled = true;
-        CancelMoveset(); EndBurst(false); ownedAbilities.ResetAll(); comboIndex = repeatStroke = 0;
+        CancelMoveset(); EndBurst(false); foreach(var id in new[]{SkillCooldownId,UltimateCooldownId,DashCooldownId,BurstGaugeId,BurstStateId,SlashStacksId,EmpowermentId}) foreach(var ability in ownedAbilities.Find(id)) ability.Reset(); comboIndex = repeatStroke = 0;
 #if UNITY_5_3_OR_NEWER
         energy?.Clear();
 #endif

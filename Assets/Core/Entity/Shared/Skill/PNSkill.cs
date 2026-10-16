@@ -7,7 +7,7 @@ using UnityEngine;
 // EN: Extension point for skill data and behavior shared by Project_N characters.
 // VI: Điểm kế thừa cho dữ liệu và hành vi skill chung của nhân vật Project_N.
 [RequireComponent(typeof(PNAbilityManager))]
-public class PNSkill : EveSkill, EveIEntityLoadPreparation
+public partial class PNSkill : EveSkill, EveIEntityLoadPreparation, EveIEntityCommitStep
 {
     protected bool HasGameplayAuthority=>!EveRegistrySession.IsReady||EveRegistrySession.Context.HasAuthority;
     public void PrepareEntityLoad()
@@ -20,6 +20,7 @@ public class PNSkill : EveSkill, EveIEntityLoadPreparation
     private PNSkillInvocation prepared;
     public bool CanActivateSkill(EveId skillId)
     {
+        if (ExecutingProfile.IsValid && (inputBehavior == null || !ReferenceEquals(inputBehavior, executingBehavior))) return false;
         if (!IsReady || Effects == null || !EveRegistrySession.IsReady || !EveRegistrySession.Context.HasAuthority) return false;
         prepared?.Dispose(); prepared = Effects.Prepare(skillId);
         var categories = prepared.AdmissionCategories;
@@ -47,6 +48,7 @@ public class PNSkill : EveSkill, EveIEntityLoadPreparation
     }
     protected void EndActivation(bool cancelled = false)
     {
+        executingBehavior = null; executingSlot = default;
         var value = CurrentInvocation; CurrentInvocation = null;
         try { if (value != null && !value.IsEnded && value.Committed) value.ActivationContext?.Fire(cancelled ? "OnInvocationCancel" : "OnInvocationComplete"); }
         finally { value?.Dispose(); }
@@ -54,8 +56,8 @@ public class PNSkill : EveSkill, EveIEntityLoadPreparation
     protected float ExecutionSpeed => CurrentInvocation?.Metadata.AffectedByAttackSpeed == true ? (float)Math.Max(0, GetComponent<PNStat>().Evaluate(PNContentIds.AttackSpeed) / 100) : 1;
     protected void AdvanceAuxiliaryEffects(float delta) => Effects?.Advance(delta);
     protected virtual void Update()
-    { if (!IsReady||!HasGameplayAuthority) return; var clock = GetComponent<EveTimeScale>(); AdvanceAuxiliaryEffects(clock != null && clock.isActiveAndEnabled ? clock.DeltaTime : Time.deltaTime); }
-    protected virtual void OnDisable() { prepared?.Dispose(); prepared = null; EndActivation(true); Effects?.CancelExecutions(); }
+    { if (!IsReady||!HasGameplayAuthority) return; var clock = GetComponent<EveTimeScale>(); var delta=clock != null && clock.isActiveAndEnabled ? clock.DeltaTime : Time.deltaTime; AdvanceAuxiliaryEffects(delta);AdvanceBindings(delta); }
+    protected virtual void OnDisable() { try{CancelBindingInputs();}finally{SuspendBindingSelections();prepared?.Dispose();prepared = null;EndActivation(true);Effects?.CancelExecutions();} }
     protected virtual void OnDestroy() => Unload();
     public virtual bool TryInterrupt(EveId reason)
     { if (!reason.IsValid) throw new ArgumentException("Interruption reason required."); return false; }
@@ -97,6 +99,7 @@ public class PNSkill : EveSkill, EveIEntityLoadPreparation
             if(TryGetSkillData(identity,out _) || builtInData.ContainsKey(identity))continue;
             builtInData.Add(identity,(PNSkillData)LoadSkillData(identity,registry.Skills.GetEffective(identity).Data));
         }
+        LoadBindings(id);
     }
 
     protected override object LoadSkillData(EveId skillId, object data)
@@ -151,8 +154,11 @@ public class PNSkill : EveSkill, EveIEntityLoadPreparation
 
     public override void Unload()
     {
+        try { UnloadBindings(); }
+        finally {
         prepared?.Dispose(); prepared = null; EndActivation(true); Effects?.Dispose(); Effects = null;
         registry = null;builtInData.Clear(); LastControlDecision = null;
         base.Unload();
+        }
     }
 }

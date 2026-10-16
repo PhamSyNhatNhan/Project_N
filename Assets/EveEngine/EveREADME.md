@@ -1,5 +1,21 @@
 # EveEngine
 
+## Current prepared-publication work (P3, 2026-10-17)
+
+`EveEntityPreparationScheduler` retains its original Enqueue overload and adds a
+publication-preparation callback. A completed loader can wait in Prepared until its
+required projection transactions are validated; it remains owned/counts resident and
+retains its original timeout. No repeated PrepareNext or temporary public Ready is
+used to wait for network data. BeforePublish performs prepared swaps, not wire parsing.
+
+`SchedulePreparation` admits cancellable bounded projection work into the same
+preparation budget/step allowance. Stop retires jobs and candidates; caller ownership
+must still dispose the buffers/subscriptions it retained. One-step profiles alternate
+live projection work with entity preparation so neither monopolizes progress.
+Quantum/mod callbacks are not preemptible; elapsed budgets are admission guards, not
+hard wall-clock guarantees. `EveBindingInbox.ReserveBytes` supplies idempotent retained
+byte leases; adapters must keep encoded/decoded/staging ownership charged until release.
+
 ## Current content/play lifetime (P1 S1–S2, 2026-10-16)
 
 `EveRuntime.EnsureContentLoaded()` builds one `EveContentContext` (sealed registry, compatibility and mod

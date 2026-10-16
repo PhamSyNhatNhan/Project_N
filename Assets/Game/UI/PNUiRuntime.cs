@@ -407,9 +407,13 @@ public sealed class PNUiRuntime : MonoBehaviour
             else
             {
                 var manager=stat.GetComponent<PNAbilityManager>();
+                var abilityInstances=manager!=null&&manager.IsReady?manager.Abilities.Instances:Array.Empty<PNAbility>();
+                var bindingSkill=stat.GetComponent<PNSkill>();
+                var bindingIds=bindingSkill?.BindingAbilityIds??Array.Empty<EveId>();
+                var selectedBindingIds=bindingSkill?.SelectedBindingAbilityIds??Array.Empty<EveId>();
                 IReadOnlyList<PNAbilityDisplay> rows=manager!=null && manager.IsReady
                     ?PNAbilityDisplay.Read(manager.Abilities)
-                        .Where(row=>row.IsAvailable || manager.Abilities.Find(row.Definition.Id).Any(ability=>ability.CooldownRemaining>0)).ToArray()
+                        .Where(row=>(!bindingIds.Contains(row.Definition.Id)||selectedBindingIds.Contains(row.Definition.Id)) && (row.IsAvailable || abilityInstances.Any(ability=>ability.Id==row.Definition.Id&&ability.CooldownRemaining>0))).ToArray()
                     :Array.Empty<PNAbilityDisplay>();
                 var ids=new HashSet<EveId>(rows.Select(r=>r.Definition.Id));
                 foreach(var card in cards.Values)if(!ids.Contains(card.Definition.Id))card.Hide();

@@ -176,7 +176,7 @@ public abstract class PNBuffPresenter : IDisposable
 }
 
 // Trusted-host input only. The transport authenticates the connection before calling this proxy.
-public sealed class PNBuffReplica : PNIBuffPresentationSource, IDisposable
+public sealed partial class PNBuffReplica : PNIBuffPresentationSource, IDisposable
 {
     private readonly EveRegistryHub registry;
     private readonly PNStat target;
@@ -220,11 +220,14 @@ public sealed class PNBuffReplica : PNIBuffPresentationSource, IDisposable
     public long Epoch { get; private set; }
     public long Sequence { get; private set; }
     public PNBuffReplicaStatus Status { get; private set; } = PNBuffReplicaStatus.AwaitingSnapshot;
-    public event Action<PNBuffPresentationChange> PresentationChanged;
+    private sealed class PresentationObservers
+    {internal Action<PNBuffPresentationChange> Changed;internal Action<Exception> PresenterFailure;internal Action<PNBuffCue> Cue;}
+    private PresentationObservers observers=new PresentationObservers();
+    public event Action<PNBuffPresentationChange> PresentationChanged {add{observers.Changed+=value;}remove{observers.Changed-=value;}}
     public event Action SnapshotRequested;
     public event Action<PNBuffReplicationError, string> Failed;
-    public event Action<Exception> PresenterFailed;
-    public event Action<PNBuffCue> CuePresented;
+    public event Action<Exception> PresenterFailed {add{observers.PresenterFailure+=value;}remove{observers.PresenterFailure-=value;}}
+    public event Action<PNBuffCue> CuePresented {add{observers.Cue+=value;}remove{observers.Cue-=value;}}
     public int PresenterCount => presenters.Count(x => x.Value.Value != null);
     public void RejectSession(PNBuffReplicationError code, string reason) => Dispatch(() => Fail(code, reason));
     public IReadOnlyList<PNBuffWireState> Snapshot() => Array.AsReadOnly(states.Values.OrderBy(x => x.InstanceId).ToArray());
@@ -239,7 +242,7 @@ public sealed class PNBuffReplica : PNIBuffPresentationSource, IDisposable
         this.registry = registry; SessionId = authoritativeSession; TargetId = targetId; this.target = target; this.render = render; this.policy = policy ?? new PNBuffReplicaPolicy();
     }
     private void Observer(Action action) { try { action(); } catch (Exception e) { ReportPresenter(e); } }
-    private void ReportPresenter(Exception e) { foreach (Action<Exception> f in PresenterFailed?.GetInvocationList() ?? Array.Empty<Delegate>()) try { f(e); } catch { } }
+    private void ReportPresenter(Exception e) { foreach (Action<Exception> f in observers.PresenterFailure?.GetInvocationList() ?? Array.Empty<Delegate>()) try { f(e); } catch { } }
     private void Fail(PNBuffReplicationError code, string message)
     {
         if (Status == PNBuffReplicaStatus.Failed || Status == PNBuffReplicaStatus.Closed) return;
@@ -322,7 +325,7 @@ public sealed class PNBuffReplica : PNIBuffPresentationSource, IDisposable
         {
             if (!states.TryGetValue(m.RemovedId, out var old)) return false;
             DeliverCues(m.Cues, now, false);
-            var key = GroupKey(old); if (presenters.TryGetValue(key, out var slot) && !slot.Faulted) InvokeSlot(slot, () => slot.Value?.Removed(old, m.EndReason.Value));
+            var key = GroupKey(old); Present(() => { if (presenters.TryGetValue(key, out var slot) && !slot.Faulted) InvokeSlot(slot, () => slot.Value?.Removed(old, m.EndReason.Value)); });
             // The Removed event carries the last shown Numbers; forget the countdown cache only after emitting it.
             states.Remove(old.InstanceId); Retired(old.InstanceId); Emit(PNBuffPresentationChangeKind.Removed, old); ForgetShown(old.InstanceId); Rebuild(now, false); return true;
         }
@@ -461,8 +464,8 @@ public sealed class PNBuffReplica : PNIBuffPresentationSource, IDisposable
     private void Emit(PNBuffPresentationChangeKind kind, PNBuffWireState s)
     {
         uiSequence = checked(uiSequence + 1); var change = new PNBuffPresentationChange(kind, Ui(s), uiSequence);
-        Action notify = () => { foreach (Action<PNBuffPresentationChange> f in PresentationChanged?.GetInvocationList() ?? Array.Empty<Delegate>()) Observer(() => f(change)); };
-        if (publicationDepth > 0) publicationNotices.Enqueue(notify); else notify();
+        Action notify = () => { foreach (Action<PNBuffPresentationChange> f in observers.Changed?.GetInvocationList() ?? Array.Empty<Delegate>()) Observer(() => f(change)); };
+        Present(notify);
     }
     public IReadOnlyList<PNBuffPresentationSnapshot> PresentationSnapshot() => Array.AsReadOnly(states.Values.Select(Ui).OrderBy(x => x.GroupOrder).ThenBy(x => x.InstanceId).ToArray());
     private string GroupKey(PNBuffWireState s)
@@ -487,10 +490,13 @@ public sealed class PNBuffReplica : PNIBuffPresentationSource, IDisposable
     }
     private void Rebuild(double now, bool retry, bool cleanupGroups = true)
     {
-        if (publicationDepth > 0) { publicationNotices.Enqueue(() => Rebuild(now, retry, cleanupGroups)); return; }
         if (cleanupGroups) foreach (var id in groups.Keys.Where(id => !states.Values.Any(s => s.BuffId == id)).ToArray()) groups.Remove(id);
         if (!render) return;
         var desired = states.Values.Where(x => !x.Suspended && registry.Buffs().Get(x.ProfileId).PresenterId.IsValid).GroupBy(GroupKey).ToDictionary(x => x.Key, x => x.OrderBy(y => y.InstanceId).ToArray());
+        Present(() => RebuildDesired(desired, now, retry));
+    }
+    private void RebuildDesired(Dictionary<string, PNBuffWireState[]> desired, double now, bool retry)
+    {
         foreach (var key in presenters.Keys.Where(x => !desired.ContainsKey(x)).ToArray()) { RetireSlot(presenters[key]); presenters.Remove(key); }
         foreach (var pair in desired)
         {
@@ -512,8 +518,11 @@ public sealed class PNBuffReplica : PNIBuffPresentationSource, IDisposable
         {
             if (!states.TryGetValue(cue.InstanceId, out var state) || state.Suspended || seenCues.Contains(cue.Id) || optional && (now < cue.At || now - cue.At > cue.MaximumAge)) continue;
             seenCues.Add(cue.Id); cueOrder.Enqueue(cue.Id); while (cueOrder.Count > policy.MaximumBufferedPackets * 4) seenCues.Remove(cueOrder.Dequeue());
-            var key = GroupKey(state); if (presenters.TryGetValue(key, out var slot)) InvokeSlot(slot, () => slot.Value?.Cue(cue));
-            foreach (Action<PNBuffCue> f in CuePresented?.GetInvocationList() ?? Array.Empty<Delegate>()) Observer(() => f(cue));
+            var key = GroupKey(state);
+            Present(() => {
+                if (presenters.TryGetValue(key, out var slot)) InvokeSlot(slot, () => slot.Value?.Cue(cue));
+                foreach (Action<PNBuffCue> f in observers.Cue?.GetInvocationList() ?? Array.Empty<Delegate>()) Observer(() => f(cue));
+            });
         }
     }
     public void Receive(PNBuffOptionalCueMessage m, double now) => Dispatch(() => ReceiveCore(m, now));
@@ -580,7 +589,7 @@ public sealed class PNBuffReplica : PNIBuffPresentationSource, IDisposable
     {
         if (Status == PNBuffReplicaStatus.Closed) return;
         Status = PNBuffReplicaStatus.Closed; Clear(); groups.Clear(); retired.Clear(); retiredOrder.Clear(); seenCues.Clear(); cueOrder.Clear();
-        PresentationChanged = null; SnapshotRequested = null; Failed = null; PresenterFailed = null; CuePresented = null;
+        observers.Changed=null;SnapshotRequested=null;Failed=null;observers.PresenterFailure=null;observers.Cue=null;
     });
 }
 

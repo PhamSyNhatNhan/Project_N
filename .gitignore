@@ -48,6 +48,7 @@ Desktop.ini
 sysinfo.txt
 crashlytics-build.properties
 InitTestScene*.unity*
+/MirrorExamplesPipelineConverted.txt
 
 # Personal AI-agent working files (Claude Code / Codex)
 /.claude/

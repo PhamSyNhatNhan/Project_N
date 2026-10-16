@@ -1,4 +1,52 @@
-# Buff presentation coop — RulesVersion68 / Mod API6
+# Buff presentation coop — RulesVersion76 / Mod API6
+
+## Current Mirror path (P3)
+
+See `Docs/MirrorP3Implementation.md` for implementation/acceptance status and limits.
+Mirror uses `PNBuffManager.TryCaptureState`, `StateChanged`, `OptionalCuePublished`,
+`StageState` and `ApplyChange`. `PNBuffFrame` includes immutable selected states,
+publisher revision, presentation sample and canonical group order. `PNBuffChange`
+preserves final removal state/reason/required cues. Empty baseline is explicit at
+revision0; it is different from missing required state.
+
+`PNBuffWireState` remains the public presenter DTO for compatibility. Mirror serializes
+its fields with bounded binary writers and JSON only for custom JToken data; it does
+not use PNBuffWireCodec or the legacy per-target ACK/resync protocol. The sections
+below about actor codecs/standalone Receive remain legacy APIs, not Mirror setup.
+Never connect both transport facades to the same entity binding.
+
+Host/offline owns behavior and one publisher. Clients own presentation only. UI uses
+the stable `Presentation` source; callers of the low-level `Replica` property must
+read the current replica after a transaction refresh. Prepared candidate transactions
+create no presenter or cue before publication, restore the old owner on rollback,
+and transfer surviving renderer resources on refresh. Initial publication flushes
+before EntityReady. Required ending cues run before Removed/resource retirement.
+
+Mirror initial state uses observer-authenticated stream nonce and fragmented baseline
+assembly before Ready. Baseline1MiB, required record64KiB, chunk16KiB, instances4096,
+custom payload16KiB/depth32/nodes4096 are initial hard transport guards. Per-presenter
+default4KiB still applies separately. Limits must fit the configured transport; there
+is no promise that all4096 instances with maximum payloads fit the total baseline.
+Overflow fails clearly rather than truncating gameplay. Payload DOM construction is
+preflighted and charged with retained transfer/stage ownership. Charges bound pending
+work; they are not an exact managed-heap measurement.
+
+Baseline, required lifecycle and admitted optional cues share reliable FIFO. Optional
+may be dropped before enqueue, on payload rejection or freshness expiry; it never
+updates required revision or clock mapping. Malformed transport framing remains a
+protocol error. Presenter schema/factory/Update failures isolate that presenter while
+keeping Buff state. Generic required-state failure closes the affected connection or
+authoritative session through the adapter failure path.
+
+Countdown derivation is supported **only when definition opts in**; the historical
+statements below denying all replica-derived countdowns predate that contract.
+Clock samples map host presentation time to network time, separate from per-Buff Rate.
+Grace freezes extrapolation and resumes from coherent anchors, without client gameplay
+ticks or a replay of all absent time. Stat+Buff fixed targets protect their own adapters;
+this does not complete Skill binding/cooldown/execution or Move replication.
+
+Summon and general presenter entity-reference resolution are separate integrations.
+SourceId is attribution, not a stable Unity object reference across generation/reuse.
 
 ## Optional cue classification — RulesVersion74 / Mod API6
 

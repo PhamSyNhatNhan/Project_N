@@ -8,7 +8,8 @@ public sealed class PNNetworkProfile
     public bool SelectPlayer=true;
     public int CommandBytes=8192;
     public double AdmissionSeconds=15,GraceSeconds=15,RejectDrainSeconds=1;
-    public int PendingBindings=64,LatestStateBytes=32768,RequiredEvents=64,RequiredEventBytes=65536,PendingEvents=4096,PendingBytes=4*1024*1024;
+    public int PendingBindings=64,LatestStateBytes=32768,RequiredEvents=256,RequiredEventBytes=262144,PendingEvents=4096,PendingBytes=8*1024*1024;
+    public string ProtocolLimits=>string.Join(":",new[]{"buff1","1048576","65536","16384","4096","32","4096",PendingBindings.ToString(System.Globalization.CultureInfo.InvariantCulture),LatestStateBytes.ToString(System.Globalization.CultureInfo.InvariantCulture),RequiredEvents.ToString(System.Globalization.CultureInfo.InvariantCulture),RequiredEventBytes.ToString(System.Globalization.CultureInfo.InvariantCulture),PendingEvents.ToString(System.Globalization.CultureInfo.InvariantCulture),PendingBytes.ToString(System.Globalization.CultureInfo.InvariantCulture)});
     public void Validate()
     {
         foreach(double value in new[]{AdmissionSeconds,GraceSeconds,RejectDrainSeconds})if(double.IsNaN(value)||double.IsInfinity(value)||value<=0)throw new ArgumentOutOfRangeException();

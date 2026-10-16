@@ -29,6 +29,7 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
 
     public virtual void Register(EveRegistryHub hub)
     {
+        PNGameSkillBindings.RegisterBehaviors(hub);
         PNBuffGameplayContent.Register(hub);
         PNAreaGameplayContent.Register(hub);
         motionReferences.Clear();
@@ -79,6 +80,11 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
 
     public virtual void FinalizeContent(EveRegistryHub hub)
     {
+        PNGameSkillBindings.Register(hub);
+        foreach(var behavior in hub.Get<PNSkillBehaviorDefinition>().Snapshot().Values.Where(x=>x.Id.Namespace=="project_n"))
+            hub.Get<PNSkillBehaviorDefinition>().RegisterBase(new EveId("base",behavior.Id.Path),behavior.Id,"project_n",compatible:(original,replacement)=>true);
+        foreach(var profile in hub.Get<PNSkillBindingProfile>().Snapshot().Values.Where(x=>x.Id.Namespace=="project_n"))
+            hub.Get<PNSkillBindingProfile>().RegisterBase(new EveId("base",profile.Id.Path),profile.Id,"project_n",compatible:(original,replacement)=>true);
         foreach (var definition in hub.Buffs().Snapshot().Values)
             if (definition.Id.Namespace == "project_n" && !hub.Buffs().BindingSnapshot().Any(x => x.Identity == definition.Id))
                 hub.Buffs().RegisterBase(new EveId("base", definition.Id.Path), definition.Id, "project_n", compatible: (original, replacement) => true);
@@ -124,6 +130,7 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
     // VI: Kiểm tra khung Core được nhận diện với action đã chọn trước khi công bố phiên.
     public virtual void ValidateContent(EveRegistryHub hub)
     {
+        PNSkillBindingContent.Validate(hub);
         foreach (var category in hub.SkillCategories().Snapshot().Values) category.Validate(hub);
         foreach (var definition in hub.Buffs().Snapshot().Values) definition.Validate(hub);
         foreach (var definition in hub.Get<PNAreaDefinition>().Snapshot().Values) definition.Validate(hub);

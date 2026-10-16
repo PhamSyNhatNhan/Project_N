@@ -15,6 +15,8 @@ using UnityEngine.SceneManagement;
 public static class PNElementalBuffEditorChecks
 {
     public static string Run()
+        => Run(".utmp/BuffCoopReview/ElementalCaptures");
+    public static string Run(string captureFolder)
     {
         if (Application.isPlaying || EveRegistrySession.State != EveSessionState.Stopped) throw new InvalidOperationException("Idle Edit Mode required.");
         var original=SceneManager.GetActiveScene();bool dirty=original.isDirty;
@@ -78,14 +80,14 @@ public static class PNElementalBuffEditorChecks
             var bloom=profile.Add<Bloom>(true);bloom.threshold.Override(1);bloom.intensity.Override(.3f);bloom.scatter.Override(.6f);
             texture=new RenderTexture(1600,650,24,RenderTextureFormat.ARGBHalf);texture.Create();camera.targetTexture=texture;
             output=new Texture2D(texture.width,texture.height,TextureFormat.RGB24,false);
-            Directory.CreateDirectory(".utmp/BuffCoopReview/ElementalCaptures");
+            Directory.CreateDirectory(captureFolder);
             var buffShader=Shader.Find("Project_N/VFX/BuffElemental");Check(buffShader!=null && !ShaderUtil.ShaderHasError(buffShader),"Dedicated elemental shader compiles");
             for(int frame=0;frame<3;frame++)
             {
                 foreach(var target in targets)foreach(var visual in target.GetComponentsInChildren<PNBuffElementVisual>())visual.AdvanceVisual(frame==0?.14f:.27f,camera);
                 camera.Render();RenderTexture.active=texture;output.ReadPixels(new Rect(0,0,texture.width,texture.height),0,0);output.Apply();
                 Check(output.GetPixels32().Count(p=>p.r>110 || p.g>110 || p.b>110)>100,"Actual URP Buff pixels frame "+frame);
-                File.WriteAllBytes(".utmp/BuffCoopReview/ElementalCaptures/Frame"+frame+".png",output.EncodeToPNG());
+                File.WriteAllBytes(Path.Combine(captureFolder,"Frame"+frame+".png"),output.EncodeToPNG());
             }
             var scaled=targets[1];var effect=scaled.GetComponentInChildren<PNBuffElementVisual>();
             effect.AdvanceVisual(0,camera);float originalWidth=effect.BodyWidth,originalHeight=effect.BodyHeight;
@@ -115,7 +117,7 @@ public static class PNElementalBuffEditorChecks
             foreach(var visual in scaled.GetComponentsInChildren<PNBuffElementVisual>())visual.AdvanceVisual(0,camera);
             targets[0].transform.localScale=Vector3.one*1.25f;
             foreach(var visual in targets[0].GetComponentsInChildren<PNBuffElementVisual>())visual.AdvanceVisual(0,camera);
-            camera.Render();RenderTexture.active=texture;output.ReadPixels(new Rect(0,0,texture.width,texture.height),0,0);output.Apply();File.WriteAllBytes(".utmp/BuffCoopReview/ElementalCaptures/Scaled.png",output.EncodeToPNG());scaled.transform.localScale=Vector3.one;
+            camera.Render();RenderTexture.active=texture;output.ReadPixels(new Rect(0,0,texture.width,texture.height),0,0);output.Apply();File.WriteAllBytes(Path.Combine(captureFolder,"Scaled.png"),output.EncodeToPNG());scaled.transform.localScale=Vector3.one;
             targets[0].transform.localScale=Vector3.one;
             var arrowClock=targets[0].GetComponent<EveTimeScale>();arrowClock.MinScale=.2f;arrowClock.AddOwnedModifier(EveId.Parse("test:freeze"),EveTimeModifierKind.Scale,-1,targets[0]);
             var first=targets[0].GetComponentInChildren<PNBuffElementVisual>();float before=first.VisualTime;targets[0].GetComponent<PNBuffManager>().Advance(1);first.AdvanceVisual(0,camera);
@@ -143,7 +145,7 @@ public static class PNElementalBuffEditorChecks
             if(profile!=null){foreach(var component in profile.components)UnityEngine.Object.DestroyImmediate(component);UnityEngine.Object.DestroyImmediate(profile);}
         }
         Check(SceneManager.GetActiveScene()==original && original.isDirty==dirty,"Original scene and dirty state preserved");
-        string summary="PASS "+checks+" elemental native/render checks";File.WriteAllLines(".utmp/BuffCoopReview/ElementalCaptures/NativeResults.txt",evidence.Concat(new[]{summary}));return summary;
+        string summary="PASS "+checks+" elemental native/render checks";File.WriteAllLines(Path.Combine(captureFolder,"NativeResults.txt"),evidence.Concat(new[]{summary}));return summary;
     }
 }
 #endif

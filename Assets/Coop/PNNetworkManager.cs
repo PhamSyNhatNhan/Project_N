@@ -6,7 +6,7 @@ using Mirror;
 using UnityEngine;
 namespace ProjectN.Coop
 {
-    public sealed class PNNetworkManager : NetworkManager
+    public sealed partial class PNNetworkManager : NetworkManager
     {
         private sealed class Binding
         {
@@ -14,6 +14,28 @@ namespace ProjectN.Coop
             public EveEntityPreparationScheduler.Candidate Candidate;
             public PNActorMetadata Metadata;
             public long Token;
+            public PNStatReplication Stat;
+            public Action<PNStatFrame> LifeNotice;
+            public Action<Exception> StatFailure;
+            public PNBuffManager Buff;
+            public Action<PNBuffChange> BuffChanged;
+            public Action<PNBuffOptionalCueMessage,double> BuffCue;
+            public Action<Exception> BuffFault;
+            public PNBuffBaselineAssembly BuffAssembly;
+            public readonly Queue<PNBuffBaselineAssembly> BuffRecords=new Queue<PNBuffBaselineAssembly>();
+            public readonly List<IDisposable> BuffRetained=new List<IDisposable>();
+            public int BuffRecordBytes;
+            public ulong LastBuffTransfer;
+            public bool BuffPrepared;
+            public EveIReplicaStage BuffStage;
+            public bool Retiring;
+            public double RetiringAt;
+            public PNBuffWire.FrameDecoder BuffDecoder;
+            public IDisposable BuffJob;
+            public ulong DroppedOptionalTransfer;
+            public readonly List<EveIReplicaStage> Stages=new List<EveIReplicaStage>();
+            public NetworkConnectionToClient OwnerConnection;
+            public double AwaitingAt;
         }
         public EveRuntime Runtime;
         public IPNEntityFactory Factory;
@@ -31,7 +53,7 @@ namespace ProjectN.Coop
         public long BindingToken(uint netId)=>bindings.TryGetValue(netId,out var value)?value.Token:0;
         public bool BufferRequired(uint netId,long token,byte[] payload,bool latest)
         {
-            if(stopping||!EveRegistrySession.IsReady||EveRegistrySession.Context.Role!=EveSessionRole.Client)return false;
+            if(stopping||fatalSerialization||!EveRegistrySession.IsReady||EveRegistrySession.Context.Role!=EveSessionRole.Client)return false;
             if(!bindings.TryGetValue(netId,out var binding)||binding.Token!=token)return false;
             try
             {
@@ -41,18 +63,22 @@ namespace ProjectN.Coop
                 else if(latest)inbox.Latest(netId,token,payload);else inbox.Required(netId,token,payload);
                 return true;
             }
-            catch(Exception error){LastFailure=error.Message;NetworkClient.Disconnect();return false;}
+            catch(Exception error){ProtocolFailure(error,false);return false;}
         }
-        private bool stopping;
+        private bool stopping,transportStopped,teardownRunning;
         private bool fatalSerialization;
         public void ProtocolFailure(Exception error,bool authoritative)
-        {if(stopping)return;LastFailure=error.Message;if(authoritative)fatalSerialization=true;else NetworkClient.Disconnect();}
+        {
+            if(stopping||fatalSerialization)return;LastFailure=error.Message;fatalSerialization=true;
+            foreach(var binding in bindings.Values)SetInput(binding,false);
+            if(!authoritative&&EveRegistrySession.IsReady&&EveRegistrySession.Context.IsActive)EveRegistrySession.Context.FailConnection("REQUIRED_ADAPTER",error.Message);
+        }
         public bool HasEnded=>stopping;
         public Func<bool> RequiredStateSettled=()=>true;
         public long AllocateOwner()=>checked(++nextOwner);
         public void RouteIntent(NetworkConnectionToClient connection,Guid session,long entity,long generation,long sequence,string command,string payload)
         {
-            if(stopping)return;
+            if(stopping||fatalSerialization)return;
             try
             {
                 if(!PeerInputReady(connection)||!(connection.authenticationData is PNPeer peer)||peer.Owner<=0)throw new InvalidOperationException("Command input is not admitted/ready.");
@@ -65,6 +91,7 @@ namespace ProjectN.Coop
         }
         public override void OnStartServer()
         {
+            InitializeReplication();
             NetworkServer.RegisterHandler<PNHeartbeat>(ReceiveHeartbeat);
             NetworkServer.RegisterHandler<PNResume>(ReceiveResume);
             foreach(var request in Factory.SceneEntities())EnrollHost(request,null);
@@ -73,10 +100,13 @@ namespace ProjectN.Coop
         public override void OnStartClient()
         {
             inbox=new EveBindingInbox {MaximumBindings=Profile.PendingBindings,MaximumStateBytes=Profile.LatestStateBytes,MaximumEvents=Profile.RequiredEvents,MaximumEventBytes=Profile.RequiredEventBytes,MaximumTotalEvents=Profile.PendingEvents,MaximumTotalBytes=Profile.PendingBytes};
+            InitializeReplication();
             clientStartedAt=Time.realtimeSinceStartupAsDouble;
             NetworkClient.RegisterSpawnHandler(PNSessionShell.Asset,_=>CreateShell<PNSessionShell>("Session shell"),DestroyShell);
             NetworkClient.RegisterSpawnHandler(PNActorShell.Asset,_=>CreateShell<PNActorShell>("Actor shell"),DestroyShell);
             NetworkClient.RegisterHandler<PNResume>(ReceiveResumeClient);
+            NetworkClient.RegisterHandler<PNStatNotice>(ReceiveStatMessage);
+            NetworkClient.RegisterHandler<PNStateFence>(ReceiveFence);
         }
         public static GameObject CreateShell<T>(string name) where T:NetworkBehaviour
         {var root=new GameObject(name);root.SetActive(false);root.AddComponent<NetworkIdentity>();root.AddComponent<T>();root.SetActive(true);return root;}
@@ -96,21 +126,20 @@ namespace ProjectN.Coop
         {
             var metadata=new PNActorMetadata {HostSession=EveRegistrySession.Context.SessionId,Owner=request.Owner,Character=request.Character,SceneKey=request.SceneKey,EntityKey=request.EntityKey,Generation=1};
             metadata.Entity=EveRegistrySession.Context.Entities.AllocateHostId().Value;
-            var binding=new Binding {Metadata=metadata,Token=checked(++nextToken)};
+            var binding=new Binding {Metadata=metadata,Token=checked(++nextToken),OwnerConnection=owner,AwaitingAt=Time.realtimeSinceStartupAsDouble};
             awaitingSpawn.Add(binding);
             binding.Candidate=Scheduler.Enqueue(()=>Factory.Get(request),loader=>
             {
                 Factory.Configure(loader,request);loader.GetComponent<EveEntityIdentity>().Assign(new EveEntityId(metadata.Entity),EveId.Parse(metadata.Character),metadata.Owner,metadata.Generation);
             },Factory.Return,loader=>
             {
-                if(stopping)return;
+                if(stopping||fatalSerialization)return;
                 Factory.Published(loader);
-                var root=CreateShell<PNActorShell>("Actor "+metadata.Entity);binding.Shell=root.GetComponent<PNActorShell>();binding.Shell.Metadata=metadata;
-                NetworkServer.Spawn(root,PNActorShell.Asset,owner);bindings.Add(binding.Shell.netId,binding);awaitingSpawn.Remove(binding);
             },error=>FailActor(binding,error));
         }
         public void ReceiveActor(PNActorShell shell)
         {
+            if(stopping||fatalSerialization)return;
             try
             {
                 var session=EveRegistrySession.Context;var metadata=shell.Metadata;
@@ -121,20 +150,21 @@ namespace ProjectN.Coop
                 var request=new PNEntityRequest {Player=string.IsNullOrEmpty(metadata.EntityKey),Owner=metadata.Owner,Character=metadata.Character,SceneKey=metadata.SceneKey,EntityKey=metadata.EntityKey};
                 // P1 actor metadata positions are initial content/spawn positions; Move replication follows in P4.
                 if(request.Player)request.Position=Factory.Player(metadata.Owner).Position;
-                var binding=new Binding {Shell=shell,Metadata=metadata,Token=checked(++nextToken)};bindings.Add(shell.netId,binding);
-                inbox.Reserve(shell.netId,binding.Token,64+System.Text.Encoding.UTF8.GetByteCount(metadata.Character+metadata.SceneKey+metadata.EntityKey));
+                if(!initialStates.TryGetValue(shell.netId,out var initial)||!ReferenceEquals(initial.Shell,shell))throw new FormatException("Actor lacks initial required state reservation.");
+                var binding=new Binding {Shell=shell,Metadata=metadata,Token=initial.Token};bindings.Add(shell.netId,binding);initialStates.Remove(shell.netId);
                 binding.Candidate=Scheduler.Enqueue(()=>Factory.Get(request),loader=>
                 {Factory.Configure(loader,request);loader.GetComponent<EveEntityIdentity>().Assign(new EveEntityId(metadata.Entity),EveId.Parse(metadata.Character),metadata.Owner,metadata.Generation);},Factory.Return,loader=>
-                {Factory.Published(loader);inbox.Release(shell.netId,binding.Token);SetInput(binding,clientInputReady);},error=>FailActor(binding,error),loader=>inbox.Apply(shell.netId,binding.Token,bytes=>ApplyLatestState(loader,bytes),bytes=>ApplyRequiredEvent(loader,bytes)));
+                {foreach(var stage in binding.Stages){stage.Published();stage.Dispose();}binding.Stages.Clear();PublishBuff(binding);Factory.Published(loader);inbox.Release(shell.netId,binding.Token);SetInput(binding,clientInputReady);},error=>FailActor(binding,error),loader=>{CommitBuff(binding);StageStat(binding,loader);inbox.Apply(shell.netId,binding.Token,bytes=>ApplyLatestState(loader,bytes),bytes=>ApplyRequiredEvent(loader,bytes));},loader=>PrepareBuff(binding,loader));
+                if(shell.HasBuff)NetworkClient.Send(new PNBuffBaselineRequest{Stream=Stream(binding)});
             }
-            catch(Exception error){LastFailure=error.Message;NetworkClient.Disconnect();}
+            catch(Exception error){ProtocolFailure(error,false);}
         }
         private void FailActor(Binding binding,Exception error)
         {
-            if(stopping)return;
+            if(stopping||fatalSerialization)return;
             Debug.LogException(error,this);
             LastFailure=error.Message;
-            if(EveRegistrySession.IsReady&&EveRegistrySession.Context.Role==EveSessionRole.Client){NetworkClient.Disconnect();return;}
+            if(EveRegistrySession.IsReady&&EveRegistrySession.Context.Role==EveSessionRole.Client){ProtocolFailure(error,false);return;}
             if(binding.Candidate!=null)Scheduler.Retire(binding.Candidate);
             if(binding.Shell!=null)
             {if(binding.Shell.netId!=0)NetworkServer.Destroy(binding.Shell.gameObject);else Destroy(binding.Shell.gameObject);}
@@ -149,11 +179,13 @@ namespace ProjectN.Coop
         }
         public void RemoveActor(PNActorShell shell)
         {
+            if(initialStates.TryGetValue(shell.netId,out var initial)&&ReferenceEquals(initial.Shell,shell)){if(inbox.Contains(shell.netId,initial.Token))inbox.Release(shell.netId,initial.Token);initialStates.Remove(shell.netId);}
             if(bindings.TryGetValue(shell.netId,out var binding)&&ReferenceEquals(binding.Shell,shell))
-            {Scheduler.Retire(binding.Candidate);if(inbox.Contains(shell.netId,binding.Token))inbox.Release(shell.netId,binding.Token);bindings.Remove(shell.netId);}
+            {UnhookStat(binding);Scheduler.Retire(binding.Candidate);if(inbox.Contains(shell.netId,binding.Token))inbox.Release(shell.netId,binding.Token);bindings.Remove(shell.netId);}
         }
         public override void OnServerDisconnect(NetworkConnectionToClient conn)
         {
+            peerFences.Remove(conn.connectionId);
             if(conn.authenticationData is PNPeer peer && peer.Owner>0)
             {
                 Policy.OnOwnerLeft(()=>RetireOwner(peer.Owner));
@@ -165,7 +197,9 @@ namespace ProjectN.Coop
         {
             foreach(var binding in bindings.Values.Concat(awaitingSpawn).Where(x=>x.Metadata.Owner==owner).ToArray())
             {
-                Scheduler.Retire(binding.Candidate);
+                if(binding.Shell!=null&&binding.Shell.netId!=0)
+                {binding.Retiring=true;binding.RetiringAt=Time.realtimeSinceStartupAsDouble;DetachBuffPublication(binding);Scheduler.Retire(binding.Candidate);continue;}
+                UnhookStat(binding);Scheduler.Retire(binding.Candidate);
                 if(binding.Shell!=null){bindings.Remove(binding.Shell.netId);NetworkServer.Destroy(binding.Shell.gameObject);}
                 awaitingSpawn.Remove(binding);
             }
@@ -177,23 +211,40 @@ namespace ProjectN.Coop
         {
             if(stopping)return;stopping=true;
             foreach(var binding in bindings.Values.Concat(awaitingSpawn).ToArray())Scheduler.Retire(binding.Candidate);
-            ReleaseInboxes();bindings.Clear();awaitingSpawn.Clear();Runtime.EndSession();
+            DisposeReplication();ReleaseInboxes();bindings.Clear();awaitingSpawn.Clear();Runtime.EndSession();
         }
         public void StopSession()
         {
-            stopping=true;
-            if(NetworkServer.active&&NetworkClient.active)StopHost();else if(NetworkServer.active)StopServer();else if(NetworkClient.active)StopClient();
-            foreach(var binding in bindings.Values.Concat(awaitingSpawn).ToArray())Scheduler.Retire(binding.Candidate);
-            ReleaseInboxes();bindings.Clear();awaitingSpawn.Clear();Runtime.EndSession();
+            if(teardownRunning)return;teardownRunning=true;stopping=true;
+            try
+            {
+                if(!transportStopped)
+                {
+                    if(NetworkServer.active&&NetworkClient.active)StopHost();else if(NetworkServer.active)StopServer();else if(NetworkClient.active)StopClient();
+                    NetworkClient.Shutdown();NetworkServer.Shutdown();
+                    if(transport!=null&&transport.gameObject.activeSelf){transport.ServerStop();transport.ClientDisconnect();transport.Shutdown();}
+                    transportStopped=true;
+                }
+                foreach(var binding in bindings.Values.Concat(awaitingSpawn).ToArray())Scheduler.Retire(binding.Candidate);
+                DisposeReplication();ReleaseInboxes();bindings.Clear();awaitingSpawn.Clear();Runtime.EndSession();
+            }
+            finally{teardownRunning=false;}
         }
         private void ReleaseInboxes(){foreach(var item in bindings)if(inbox.Contains(item.Key,item.Value.Token))inbox.Release(item.Key,item.Value.Token);}
         public bool PeerInputReady(NetworkConnectionToClient conn)=>conn.authenticationData is PNPeer peer&&peer.InputReady&&peer.InterruptedAt<0;
-        private string BindingDigest()
+        private string BindingDigest(NetworkConnectionToClient observer=null)
         {
             using(var stream=new System.IO.MemoryStream())
             {
-                using(var writer=new System.IO.BinaryWriter(stream,System.Text.Encoding.UTF8,true))foreach(var item in bindings.OrderBy(x=>x.Value.Metadata.Entity))
-                {var m=item.Value.Metadata;writer.Write(m.HostSession.ToByteArray());writer.Write(m.Entity);writer.Write(m.Generation);writer.Write(m.Owner);writer.Write(item.Key);writer.Write(m.Character);writer.Write(m.SceneKey);writer.Write(m.EntityKey);}
+                using(var writer=new System.IO.BinaryWriter(stream,System.Text.Encoding.UTF8,true))
+                {
+                    writer.Write(string.Join("|",RequiredAdapters.OrderBy(x=>x,StringComparer.Ordinal)));
+                    foreach(var item in bindings.Where(x=>observer==null||x.Value.Shell.netIdentity.observers.ContainsKey(observer.connectionId)).OrderBy(x=>x.Value.Metadata.Entity))
+                    {
+                        var m=item.Value.Metadata;writer.Write(m.HostSession.ToByteArray());writer.Write(m.Entity);writer.Write(m.Generation);writer.Write(m.Owner);writer.Write(item.Key);writer.Write(m.Character);writer.Write(m.SceneKey);writer.Write(m.EntityKey);writer.Write(item.Value.Shell.HasBuff);
+                        ulong nonce=0;if(item.Value.Shell.HasBuff){if(observer==null)nonce=(ulong)item.Value.Token;else if(buffPeers.TryGetValue((observer.connectionId,item.Key),out var peer))nonce=peer.Stream.Nonce;}writer.Write(nonce);
+                    }
+                }
                 using(var hash=System.Security.Cryptography.SHA256.Create())return BitConverter.ToString(hash.ComputeHash(stream.ToArray())).Replace("-","");
             }
         }
@@ -201,7 +252,7 @@ namespace ProjectN.Coop
         private double lastHeartbeat,lastHostTraffic,clientInterrupted=-1;
         private double clientStartedAt;
         private uint heartbeatSequence;
-        private bool paused,clientInputReady=true;
+        private bool paused,clientInputReady=false;
         private double hostInterrupted=-1;
         private uint lastResponseSequence;
         private uint clientResumeFloor;
@@ -215,8 +266,8 @@ namespace ProjectN.Coop
             if(NetworkClient.isConnected&&!NetworkServer.active)
             {
                 if(value){if(clientInterrupted<0)clientInterrupted=now;clientInputReady=false;foreach(var binding in bindings.Values)SetInput(binding,false);}
+                if(!value)clientResumeFloor=heartbeatSequence+1;
                 SendHeartbeat();
-                if(!value)clientResumeFloor=heartbeatSequence;
             }
             if(NetworkServer.active)
             {
@@ -229,14 +280,14 @@ namespace ProjectN.Coop
                 }
                 else if(hostInterrupted>=0)
                 {
-                    if(now-hostInterrupted>=Profile.GraceSeconds||!EveRegistrySession.IsReady||!EveRegistrySession.Context.IsActive||!RequiredStateSettled()||bindings.Values.Any(x=>x.Candidate.Loader==null||!x.Candidate.Loader.IsReady))
+                    if(now-hostInterrupted>=Profile.GraceSeconds||!EveRegistrySession.IsReady||!EveRegistrySession.Context.IsActive||!AdaptersSettled()||bindings.Values.Any(x=>x.Candidate.Loader==null||!x.Candidate.Loader.IsReady))
                     {LastFailure="Host cannot safely continue after interruption.";StopHost();return;}
                     hostInterrupted=-1;foreach(var binding in bindings.Values.Where(x=>x.Metadata.Owner==0))SetInput(binding,true);
                 }
             }
         }
         private void SendHeartbeat()
-        {NetworkClient.Send(new PNHeartbeat {Sequence=++heartbeatSequence,Paused=paused,ResumeRequired=!clientInputReady||clientInterrupted>=0});lastHeartbeat=Time.realtimeSinceStartupAsDouble;}
+        {NetworkClient.Send(new PNHeartbeat {Sequence=++heartbeatSequence,ResumeFloor=clientResumeFloor,Paused=paused,ResumeRequired=!clientInputReady||clientInterrupted>=0});lastHeartbeat=Time.realtimeSinceStartupAsDouble;}
         private void Interrupt(PNPeer peer)
         {
             peer.Grace.Interrupt(Time.realtimeSinceStartupAsDouble);
@@ -255,13 +306,15 @@ namespace ProjectN.Coop
         {
             if(!(conn.authenticationData is PNPeer peer)||value.Sequence<=peer.Sequence)return;
             if(peer.InterruptedAt>=0&&Time.realtimeSinceStartupAsDouble-peer.InterruptedAt>=Profile.GraceSeconds){conn.Disconnect();return;}
+            if(value.ResumeFloor>value.Sequence){conn.Disconnect();return;}
+            if(value.ResumeFloor>peer.ResumeChallenge){peer.ResumeChallenge=0;peer.ResumeFloor=0;peerFences.Remove(conn.connectionId);}
             peer.Sequence=value.Sequence;peer.LastTraffic=Time.realtimeSinceStartupAsDouble;
             if(value.ResumeRequired)
             {Interrupt(peer);if(!value.Paused&&peer.ResumeFloor==0){peer.ResumeFloor=value.Sequence;peer.ResumeChallenge=value.Sequence;}}
-            if(value.Paused){Interrupt(peer);return;}
+            if(value.Paused){Interrupt(peer);peer.ResumeChallenge=peer.ResumeFloor=0;peerFences.Remove(conn.connectionId);return;}
             if(peer.InterruptedAt>=0)
-            {if(peer.ResumeChallenge==0)peer.ResumeChallenge=value.Sequence;conn.Send(new PNResume {Sequence=peer.ResumeChallenge,Acknowledged=false,BindingDigest=BindingDigest()});}
-            else conn.Send(new PNResume {Sequence=value.Sequence,Acknowledged=true,BindingDigest=BindingDigest()});
+            {if(peer.ResumeChallenge==0)peer.ResumeChallenge=value.Sequence;if(!SendFence(conn,peer))return;conn.Send(new PNResume {Sequence=peer.ResumeChallenge,Acknowledged=false,BindingDigest=BindingDigest(conn)});}
+            else conn.Send(new PNResume {Sequence=value.Sequence,Acknowledged=true,BindingDigest=BindingDigest(conn)});
         }
         private void ReceiveResumeClient(PNResume value)
         {
@@ -277,8 +330,9 @@ namespace ProjectN.Coop
             }
             if(clientInterrupted>=0&&Time.realtimeSinceStartupAsDouble-clientInterrupted>=Profile.GraceSeconds){LastFailure="Catch-up exceeded interruption grace.";StopClient();return;}
             // Required state must be settled before acknowledgement. P1 owns lifecycle/bindings; later adapters add state barriers.
-            if(!RequiredStateSettled() || bindings.Values.Any(x=>x.Candidate==null||x.Candidate.Loader==null||!x.Candidate.Loader.IsReady))return;
+            if(!AdaptersSettled() || bindings.Values.Any(x=>x.Candidate==null||x.Candidate.Loader==null||!x.Candidate.Loader.IsReady))return;
             if(value.BindingDigest!=BindingDigest())return;
+            if((clientInterrupted>=0||!clientInputReady)&&!FenceSettled(value.Sequence,value.BindingDigest)){if(clientInterrupted<0)clientInterrupted=Time.realtimeSinceStartupAsDouble;return;}
             if(!value.Acknowledged){NetworkClient.Send(new PNResume {Sequence=value.Sequence,Acknowledged=true,BindingDigest=value.BindingDigest});return;}
             clientInterrupted=-1;clientInputReady=true;foreach(var binding in bindings.Values)SetInput(binding,true);
         }
@@ -286,9 +340,10 @@ namespace ProjectN.Coop
         {
             if(paused)return;
             if(!(conn.authenticationData is PNPeer peer)||!value.Acknowledged||value.Sequence!=peer.ResumeChallenge||peer.InterruptedAt<0)return;
-            if(value.BindingDigest!=BindingDigest())return;
+            if(value.BindingDigest!=BindingDigest(conn))return;
+            if(!peerFences.TryGetValue(conn.connectionId,out var fence)||fence[fence.Length-1].Attempt!=value.Sequence||fence[fence.Length-1].Digest!=value.BindingDigest)return;
             if(Time.realtimeSinceStartupAsDouble-peer.InterruptedAt>=Profile.GraceSeconds){conn.Disconnect();return;}
-            if(!peer.Grace.TryResume(Time.realtimeSinceStartupAsDouble,EveRegistrySession.IsReady&&EveRegistrySession.Context.IsActive,value.BindingDigest==BindingDigest(),RequiredStateSettled()))return;
+            if(!peer.Grace.TryResume(Time.realtimeSinceStartupAsDouble,EveRegistrySession.IsReady&&EveRegistrySession.Context.IsActive,value.BindingDigest==BindingDigest(conn),AdaptersSettled()))return;
             peer.InputReady=true;
             peer.ResumeChallenge=0;
             peer.ResumeFloor=0;
@@ -299,7 +354,7 @@ namespace ProjectN.Coop
         {
             base.LateUpdate();
             if(stopping)return;
-            if(fatalSerialization){StopHost();return;}
+            if(fatalSerialization){StopSession();return;}
             if(NetworkServer.active&&EveRegistrySession.IsReady&&EveRegistrySession.Context.Cleanup.Scheduler.QuarantineCount>0){LastFailure="Authoritative cleanup quarantined; session consistency cannot be established.";StopHost();return;}
             double now=Time.realtimeSinceStartupAsDouble;
             if(!NetworkServer.active&&NetworkClient.active&&!NetworkClient.ready&&now-clientStartedAt>=Profile.AdmissionSeconds){LastFailure="Admission timeout.";StopClient();return;}

@@ -7,39 +7,6 @@ using System.Text;
 using EveEngine;
 using UnityEngine;
 
-// Immutable full replacement, shared by capture and client value view. No gameplay writes.
-public sealed class PNStatFrame
-{
-    public long Revision { get; }
-    public long LifeRevision { get; }
-    public bool Dead { get; }
-    public bool LifeOnly { get; }
-    public IReadOnlyDictionary<EveId, PNResourceValue> Resources { get; }
-    public PNStatFrame(long revision, long lifeRevision, bool dead, IDictionary<EveId, PNResourceValue> resources, bool lifeOnly = false)
-    {
-        if (revision < 1 || lifeRevision < 1 || resources == null || resources.Count > 128) throw new FormatException("Stat frame bounds.");
-        var copy = new Dictionary<EveId, PNResourceValue>();
-        foreach (var entry in resources)
-        {
-            if (!entry.Key.IsValid) throw new FormatException("Stat ID required.");
-            entry.Value.Validate(); copy.Add(entry.Key, entry.Value);
-        }
-        if(lifeOnly && copy.Count != 0) throw new FormatException("Life notice has resources.");
-        LifeOnly = lifeOnly; Revision = revision; LifeRevision = lifeRevision; Dead = dead;
-        Resources = new ReadOnlyDictionary<EveId, PNResourceValue>(copy);
-    }
-}
-public readonly struct PNResourceValue
-{
-    public double Current { get; }
-    public double Max { get; }
-    public PNResourceValue(double current, double max) { Current = current; Max = max; Validate(); }
-    public void Validate()
-    {
-        if (double.IsNaN(Current) || double.IsInfinity(Current) || double.IsNaN(Max) || double.IsInfinity(Max) ||
-            Max < 0 || Current < 0 || Current > Max) throw new FormatException("Invalid resource pair.");
-    }
-}
 public static class PNStatCodec
 {
     public const int MaximumBytes = 32768;
@@ -98,19 +65,27 @@ public sealed class PNStatReplication : MonoBehaviour, EveIEntityLoadStep, EveIE
 {
     private EveEntityLoadContext context;
     private PNStat stat;
-    private PNStatFrame hostFrame, view, publishedFrame;
+    private PNStatProjection projection = new PNStatProjection();
+    private PNStatFrame hostFrame => projection.State;
+    private PNStatFrame view, publishedFrame;
+    private bool typedTransport;
+    private long fullViewRevision;
+    public long FullViewRevision => IsReady ? fullViewRevision : 0;
+    public event Action<PNStatFrame> LifeObserved;
+    public event Action<Exception> ProjectionFailed;
+    public void UseTypedTransport() { typedTransport = true; }
     private Guid boundHost;
     private EveId[] replicatedIds;
     private double accumulator;
     public Exception SamplingFailure { get; private set; }
     private void Report(Exception error)
-    { if(SamplingFailure == null) Debug.LogException(error, this); SamplingFailure = error; }
+    { if(SamplingFailure == null) Debug.LogException(error, this); SamplingFailure = error; ProjectionFailed?.Invoke(error); }
     public EveId ReplicationId => EveId.Parse("project_n:stat");
     public int LoadOrder => 11;
     public IEnumerable<Type> Dependencies => new[] { typeof(PNStat) };
     public bool IsReady => context != null && context.CanUse;
     public bool CanCaptureReplication => IsReady && context.Session.HasAuthority &&
-        (GetComponent<PNBuffManager>() == null || GetComponent<PNBuffManager>().CanCaptureReplication);
+        (GetComponent<PNBuffManager>() == null || GetComponent<PNBuffManager>().CanCaptureState);
     public PNStatFrame View => IsReady && !context.Session.HasAuthority ? view : null;
     public PNStatFrame AuthoritativeState => IsReady && context.Session.HasAuthority ? hostFrame : null;
     public event Action<byte[]> ReplicationDelta;
@@ -128,6 +103,7 @@ public sealed class PNStatReplication : MonoBehaviour, EveIEntityLoadStep, EveIE
         }
         replicatedIds = stat.Set.BaseSnapshot().Keys.Where(id => context.Registry.Stats.GetEffective(id).Replication == EveStatReplication.Everyone)
             .Select(id => context.Registry.Stats.ResolveIdentity(id)).OrderBy(id => id.ToString(), StringComparer.Ordinal).ToArray();
+        if(replicatedIds.Length>128 || replicatedIds.Any(id=>Encoding.UTF8.GetByteCount(id.ToString())>128))throw new InvalidOperationException("Selected Stat set exceeds replication bounds.");
         if (context.Session.HasAuthority) stat.Died += OnDied;
     }
     public void CommitEntity(EveEntityLoadContext value) { if (context.Session.HasAuthority) { Refresh(); publishedFrame = hostFrame; } }
@@ -137,16 +113,17 @@ public sealed class PNStatReplication : MonoBehaviour, EveIEntityLoadStep, EveIE
         var values = new Dictionary<EveId, PNResourceValue>();
         foreach (var id in replicatedIds)
             values.Add(id, new PNResourceValue(stat.GetCurrent(id), stat.GetMax(id)));
-        bool dead = stat.IsDead;
-        long life = hostFrame == null ? 1 : hostFrame.Dead != dead ? checked(hostFrame.LifeRevision + 1) : hostFrame.LifeRevision;
-        bool changed = hostFrame == null || hostFrame.Dead != dead || hostFrame.Resources.Count != values.Count ||
-            values.Any(x => !hostFrame.Resources.TryGetValue(x.Key, out var old) || old.Current != x.Value.Current || old.Max != x.Value.Max);
-        return changed ? new PNStatFrame(hostFrame == null ? 1 : checked(hostFrame.Revision + 1), life, dead, values) : hostFrame;
+        return projection.Capture(values, stat.IsDead);
     }
-    private bool Refresh() { var next = ReadHost(); bool changed = !ReferenceEquals(next, hostFrame); hostFrame = next; SamplingFailure = null; return changed; }
+    private bool Refresh() { var before=hostFrame; ReadHost(); SamplingFailure=null; return !ReferenceEquals(before,hostFrame); }
+    public PNStatFrame CaptureState()
+    {
+        if(!CanCaptureReplication) throw new InvalidOperationException("Stat capture requires a drained, committed host.");
+        Refresh(); return hostFrame;
+    }
     private void Publish()
     {
-        var listeners = ReplicationDelta; publishedFrame = hostFrame; if (listeners == null) return;
+        var listeners = typedTransport ? null : ReplicationDelta; publishedFrame = hostFrame; if (listeners == null) return;
         var payload = PNStatCodec.Encode(hostFrame);
         foreach (Action<byte[]> observer in listeners.GetInvocationList())
             try { observer(payload); } catch (Exception error) { Report(error); }
@@ -158,13 +135,10 @@ public sealed class PNStatReplication : MonoBehaviour, EveIEntityLoadStep, EveIE
         {
             // Died runs after HP commit, possibly inside a Buff mutation. Capture life only;
             // numeric/max reads wait for the drained sampling/snapshot boundary.
-            bool dead = stat.IsDead;
-            if (hostFrame.Dead == dead) return;
-            hostFrame = new PNStatFrame(checked(hostFrame.Revision + 1), checked(hostFrame.LifeRevision + 1), dead,
-                new Dictionary<EveId, PNResourceValue>(hostFrame.Resources));
-            var notice = new PNStatFrame(hostFrame.Revision, hostFrame.LifeRevision, dead,
-                new Dictionary<EveId, PNResourceValue>(), true);
-            var listeners = ReplicationDelta;
+            var notice=projection.ObserveLife(stat.IsDead);
+            if(notice==null)return;
+            LifeObserved?.Invoke(notice);
+            var listeners = typedTransport ? null : ReplicationDelta;
             if(listeners != null) foreach(Action<byte[]> listener in listeners.GetInvocationList())
                 try { listener(PNStatCodec.Encode(notice)); } catch(Exception error) { Report(error); }
         }
@@ -185,24 +159,26 @@ public sealed class PNStatReplication : MonoBehaviour, EveIEntityLoadStep, EveIE
     public byte[] CaptureReplication()
     {
         if (!CanCaptureReplication) throw new InvalidOperationException("Committed Stat host required.");
-        Refresh(); return PNStatCodec.Encode(hostFrame);
+        return PNStatCodec.Encode(CaptureState());
     }
     public Func<byte[]> FreezeReplication()
     {
         var bytes = CaptureReplication(); return () => (byte[])bytes.Clone();
     }
-    private PNStatFrame Validate(byte[] bytes, Guid host, long generation)
+    private PNStatFrame Validate(byte[] bytes, Guid host, long generation) => ValidateState(PNStatCodec.Decode(bytes),host,generation);
+    private PNStatFrame ValidateState(PNStatFrame frame, Guid host, long generation)
     {
         if (context == null || !context.IsValid || !context.Session.IsActive || context.Session.HasAuthority || host == Guid.Empty ||
             generation != context.Generation || boundHost != Guid.Empty && boundHost != host)
             throw new FormatException("Stat replica identity.");
-        var frame = PNStatCodec.Decode(bytes);
+        if(frame==null)throw new FormatException("Missing Stat state.");
         var expected = replicatedIds;
         if (!frame.LifeOnly && !expected.SequenceEqual(frame.Resources.Keys.OrderBy(id => id.ToString(), StringComparer.Ordinal))) throw new FormatException("Stat resource set differs from selected content.");
         if (view != null)
         {
+            if(frame.Revision==view.Revision&&frame.LifeRevision!=view.LifeRevision || frame.Revision<view.Revision&&frame.LifeRevision>view.LifeRevision)throw new FormatException("Conflicting Stat revision ordering.");
             if (frame.LifeRevision == view.LifeRevision && frame.Dead != view.Dead) throw new FormatException("Conflicting Stat life version.");
-            if (!frame.LifeOnly && frame.Revision == view.Revision && !PNStatCodec.Encode(frame).SequenceEqual(PNStatCodec.Encode(view))) throw new FormatException("Conflicting Stat version.");
+            if (!frame.LifeOnly && frame.Revision == view.Revision && !frame.SameValues(view)) throw new FormatException("Conflicting Stat version.");
             if (frame.Revision > view.Revision && frame.LifeRevision < view.LifeRevision) throw new FormatException("Stat life version regressed.");
         }
         return frame;
@@ -210,31 +186,37 @@ public sealed class PNStatReplication : MonoBehaviour, EveIEntityLoadStep, EveIE
     private void Apply(PNStatFrame frame, Guid host)
     {
         if(frame.LifeOnly && view == null) throw new FormatException("Life notice requires baseline.");
-        if (view == null || frame.Revision > view.Revision)
+        if(!frame.LifeOnly && frame.Revision>fullViewRevision)
         {
-            view = frame.LifeOnly ? new PNStatFrame(frame.Revision,frame.LifeRevision,frame.Dead,
-                new Dictionary<EveId,PNResourceValue>(view.Resources)) : frame;
-            boundHost = host;
+            fullViewRevision=frame.Revision;
+            view=view!=null&&view.Revision>frame.Revision ? new PNStatFrame(view.Revision,view.LifeRevision,view.Dead,new Dictionary<EveId,PNResourceValue>(frame.Resources)) : frame;
+            boundHost=host;
         }
+        else if(frame.LifeOnly && frame.Revision>view.Revision)
+        { view=new PNStatFrame(frame.Revision,frame.LifeRevision,frame.Dead,new Dictionary<EveId,PNResourceValue>(view.Resources));boundHost=host; }
     }
     public void ApplyReplicationDelta(byte[] bytes, Guid authoritativeSession, long generation)
     {
         if (!IsReady) throw new InvalidOperationException("Stat delta requires Ready.");
         Apply(Validate(bytes, authoritativeSession, generation), authoritativeSession);
     }
-    public EveIReplicaStage StageReplication(byte[] bytes, Guid authoritativeSession, long generation)
-        {
-        var frame = Validate(bytes, authoritativeSession, generation);
+    public EveIReplicaStage StageReplication(byte[] bytes, Guid authoritativeSession, long generation) => StageState(PNStatCodec.Decode(bytes),authoritativeSession,generation);
+    public void ApplyState(PNStatFrame frame,Guid host,long generation)
+    {if(!IsReady)throw new InvalidOperationException("Stat update requires Ready.");Apply(ValidateState(frame,host,generation),host);}
+    public EveIReplicaStage StageState(PNStatFrame frame,Guid authoritativeSession,long generation)
+    {
+        frame = ValidateState(frame, authoritativeSession, generation);
         if(frame.LifeOnly)throw new FormatException("Baseline requires full Stat state.");
         return new Stage(this, frame, authoritativeSession);
     }
+    public EveIReplicaStage StageUpdate(PNStatFrame frame,Guid host,long generation) => new Stage(this,ValidateState(frame,host,generation),host);
     private sealed class Stage : EveIReplicaStage
     {
         private readonly PNStatReplication owner; private readonly PNStatFrame frame, before; private readonly Guid host, oldHost;
         private bool committed, published, disposed;
-        private readonly EveEntityLoadContext admitted; private PNStatFrame applied;
+        private readonly EveEntityLoadContext admitted; private PNStatFrame applied; private readonly long beforeFull;
         public Stage(PNStatReplication owner, PNStatFrame frame, Guid host)
-        { this.owner = owner; this.frame = frame; this.host = host; before = owner.view; oldHost = owner.boundHost; admitted = owner.context; }
+        { this.owner = owner; this.frame = frame; this.host = host; before = owner.view; oldHost = owner.boundHost; admitted = owner.context; beforeFull=owner.fullViewRevision; }
         public void Commit()
         {
             if(disposed || !ReferenceEquals(owner.context,admitted) || !admitted.IsValid || !admitted.Session.IsActive)
@@ -247,13 +229,13 @@ public sealed class PNStatReplication : MonoBehaviour, EveIEntityLoadStep, EveIE
         {
             if(disposed)return; disposed = true;
             if(committed && !published && ReferenceEquals(owner.context,admitted) && ReferenceEquals(owner.view,applied))
-            { owner.view = before; owner.boundHost = oldHost; }
+            { owner.view = before; owner.boundHost = oldHost; owner.fullViewRevision=beforeFull; }
         }
     }
     public void Unload()
     {
         if (stat != null) stat.Died -= OnDied;
-        context = null; stat = null; replicatedIds = null; hostFrame = view = publishedFrame = null; boundHost = Guid.Empty; accumulator = 0; SamplingFailure = null; ReplicationDelta = null;
+        context = null; stat = null; replicatedIds = null; projection = new PNStatProjection(); view = publishedFrame = null; typedTransport=false; fullViewRevision=0; LifeObserved=null; ProjectionFailed=null; boundHost = Guid.Empty; accumulator = 0; SamplingFailure = null; ReplicationDelta = null;
     }
 }
 

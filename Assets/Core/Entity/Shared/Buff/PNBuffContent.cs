@@ -5,15 +5,17 @@ using EveEngine;
 using Newtonsoft.Json.Linq;
 
 // Core owns the Buff schema; Engine only provides the extension envelope and atomic batch boundary.
-public sealed class PNBuffContentBatch : EveIContentExtensionBatch
+public sealed partial class PNBuffContentBatch : EveIContentExtensionBatch
 {
     private readonly EveRegistryHub hub;
     private readonly Dictionary<EveId, PNBuffTagDefinition> tags = new Dictionary<EveId, PNBuffTagDefinition>();
     private readonly Dictionary<EveId, PNBuffDefinition> buffs = new Dictionary<EveId, PNBuffDefinition>();
     private readonly Dictionary<EveId, PNAreaDefinition> areas = new Dictionary<EveId, PNAreaDefinition>();
+    private readonly Dictionary<EveId,PNSkillBindingProfile> skillProfiles=new Dictionary<EveId,PNSkillBindingProfile>();
+    private readonly Dictionary<EveId,PNSkillBaseBindings> skillMappings=new Dictionary<EveId,PNSkillBaseBindings>();
     private readonly List<Action> checks = new List<Action>();
     private readonly HashSet<EveId> pendingStats;
-    public IEnumerable<EveIIdentified> Definitions => tags.Values.Cast<EveIIdentified>().Concat(buffs.Values).Concat(areas.Values);
+    public IEnumerable<EveIIdentified> Definitions => tags.Values.Cast<EveIIdentified>().Concat(buffs.Values).Concat(areas.Values).Concat(skillProfiles.Values).Concat(skillMappings.Values);
     public PNBuffContentBatch(IReadOnlyList<EveContentExtensionDocument> documents, EveRegistryHub hub, IReadOnlyList<EveIIdentified> pendingDefinitions)
     {
         this.hub = hub;
@@ -23,7 +25,8 @@ public sealed class PNBuffContentBatch : EveIContentExtensionBatch
             var root = document.Extensions;
             // Each registered processor consumes its own namespaced extension.
             if (root["project_n"] == null) continue;
-            var data = Object(root["project_n"]); Fields(data, "buffTags", "buffs", "areas");
+            var data = Object(root["project_n"]); Fields(data, "buffTags", "buffs", "areas", "skillBindingProfiles", "skillBaseBindings");
+            ParseSkillBindings(data,document,pendingDefinitions);
             foreach (var value in Array(data["areas"]))
             {
                 var obj = Object(value); Fields(obj, "id", "factoryId", "data"); var id = Owned(String(obj, "id"), document);
@@ -81,7 +84,7 @@ public sealed class PNBuffContentBatch : EveIContentExtensionBatch
         if (document.ContentNamespace != null && document.Dependencies != null && owner != document.ContentNamespace && !document.Dependencies.Contains(owner)) throw new FormatException("Buff reference requires dependency on " + owner);
     }
     public void Validate() { if (hub.Buffs().IsSealed || hub.BuffTags().IsSealed) throw new InvalidOperationException("Buff registries sealed."); foreach (var check in checks) check(); }
-    public void Commit() { foreach (var tag in tags.Values) hub.BuffTags().Register(tag); foreach (var buff in buffs.Values) hub.Buffs().Register(buff); foreach (var area in areas.Values) hub.Get<PNAreaDefinition>().Register(area); }
+    public void Commit() { foreach(var profile in skillProfiles.Values)hub.Get<PNSkillBindingProfile>().Register(profile); foreach(var mapping in skillMappings.Values)hub.Get<PNSkillBaseBindings>().Register(mapping); foreach (var tag in tags.Values) hub.BuffTags().Register(tag); foreach (var buff in buffs.Values) hub.Buffs().Register(buff); foreach (var area in areas.Values) hub.Get<PNAreaDefinition>().Register(area); }
     // Absent or null disables the countdown. Required fields; v1 accepts Ceiling/Hide only.
     internal static PNBuffCountdown Countdown(JToken token)
     {

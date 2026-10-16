@@ -21,7 +21,7 @@ namespace ProjectN.Coop
     }
     public sealed class PNNetworkAuthenticator : NetworkAuthenticator
     {
-        public const int NetworkVersion=1;
+        public const int NetworkVersion=3;
         public PNNetworkManager Manager;
         private readonly Dictionary<NetworkConnectionToClient,double> pending=new Dictionary<NetworkConnectionToClient,double>();
         public static string PlatformGroup => Application.platform==RuntimePlatform.Android||Application.platform==RuntimePlatform.IPhonePlayer?"Mobile":"PC";
@@ -31,18 +31,19 @@ namespace ProjectN.Coop
         public override void OnStartClient()=>NetworkClient.RegisterHandler<PNAdmissionResponse>(ReceiveResponse,false);
         public override void OnStopClient()=>NetworkClient.UnregisterHandler<PNAdmissionResponse>();
         public override void OnClientAuthenticate()
-        {NetworkClient.Send(new PNAdmissionRequest {NetworkVersion=NetworkVersion,Platform=PlatformGroup,Mode=Manager.ModeId,SelectPlayer=Manager.Profile.SelectPlayer,Content=PNContentFingerprint.From(Manager.Runtime.Content.Compatibility)});}
+        {NetworkClient.Send(new PNAdmissionRequest {NetworkVersion=NetworkVersion,Platform=PlatformGroup,Mode=Manager.ModeId,Limits=Manager.Profile.ProtocolLimits,SelectPlayer=Manager.Profile.SelectPlayer,Content=PNContentFingerprint.From(Manager.Runtime.Content.Compatibility)});}
         public void ReceiveRequest(NetworkConnectionToClient conn,PNAdmissionRequest request)
         {
             if(!pending.Remove(conn)||conn.isAuthenticated){conn.Disconnect();return;}
             try
             {
                 bool local=conn is LocalConnectionToClient;
+                if(request.Limits!=Manager.Profile.ProtocolLimits)throw new InvalidOperationException("Protocol limit profile mismatch.");
                 var content=PNAdmissionRules.Validate(request,Manager.Runtime.Content.Compatibility,PlatformGroup,Manager.ModeId,NetworkServer.connections.Values.Count(x=>x.authenticationData is PNPeer p&&p.Owner>0),Manager.Policy.MaximumClients,local);
                 long owner=local?0:Manager.AllocateOwner();
                 if(!local)EveRegistrySession.Context.Coop.AdmitPeer(owner,content);
                 conn.authenticationData=new PNPeer {Owner=owner,LastTraffic=Time.realtimeSinceStartupAsDouble,SelectPlayer=request.SelectPlayer,Grace=new PNGraceWindow(Manager.Profile.GraceSeconds)};
-                conn.Send(new PNAdmissionResponse {Accepted=true,HostSession=EveRegistrySession.Context.SessionId,Owner=owner,Content=PNContentFingerprint.From(Manager.Runtime.Content.Compatibility)});
+                conn.Send(new PNAdmissionResponse {Accepted=true,Limits=Manager.Profile.ProtocolLimits,HostSession=EveRegistrySession.Context.SessionId,Owner=owner,Content=PNContentFingerprint.From(Manager.Runtime.Content.Compatibility)});
                 ServerAccept(conn);
             }
             catch(Exception error)
@@ -62,6 +63,7 @@ namespace ProjectN.Coop
             try
             {
                 if(!response.Accepted)throw new InvalidOperationException(response.Reason??"Admission refused.");
+                if(response.Limits!=Manager.Profile.ProtocolLimits)throw new InvalidOperationException("Host protocol limit profile mismatch.");
                 if(response.HostSession==Guid.Empty)throw new InvalidOperationException("Host session missing.");
                 var context=EveRegistrySession.Context;
                 if(context.Role==EveSessionRole.Client)context.Coop.AdmitHost(response.HostSession,response.Content.Read(),response.Owner);
