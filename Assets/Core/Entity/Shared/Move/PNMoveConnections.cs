@@ -36,16 +36,22 @@ public sealed class PNMoveHostWorld : IDisposable
     public Exception LastProtocolError { get; private set; }
     public Exception SamplingFailure(MoveIdentity id) => Actors.TryGetValue(id,out var actor)?actor.Failure:null;
     private double lastSample=-1;
+    private readonly int capacity;
     public PNMoveHostWorld(EveSessionContext session)
+        :this(session,256){}
+    public PNMoveHostWorld(EveSessionContext session,int capacity)
     {
         if(session==null || !session.IsActive || session.Role!=EveSessionRole.Host)throw new InvalidOperationException("Active host required.");
+        if(capacity<1||capacity>4096)throw new ArgumentOutOfRangeException(nameof(capacity));this.capacity=capacity;
         this.session=session; session.Stopping+=Dispose;
     }
     public void Track(PNMove move,bool remoteOwned)
+    {if(move==null||!move.IsReady||move.UsesTypedMovementTransport)throw new InvalidOperationException("Published legacy movement required.");TrackTyped(move,remoteOwned);}
+    public void TrackTyped(PNMove move,bool remoteOwned)
     {
-        if(!IsActive || move==null || !move.IsReady || move.GetComponent<EveEntityLoader>()?.LoadContext?.Session!=session)throw new InvalidOperationException("Published same-session Move required.");
+        if(!IsActive || move==null || !move.NetworkUsable || move.GetComponent<EveEntityLoader>()?.LoadContext?.Session!=session)throw new InvalidOperationException("Published same-session Move required.");
         var identity=move.NetworkIdentity(session.SessionId);var entity=move.GetComponent<EveEntityIdentity>();
-        if(Actors.ContainsKey(identity) || Actors.Count>=256 || remoteOwned && (entity.OwnerId<=0 || !session.Coop.IsPeerAdmitted(entity.OwnerId)))throw new InvalidOperationException("Move enrollment/owner/capacity.");
+        if(Actors.ContainsKey(identity) || Actors.Count>=capacity || remoteOwned && (entity.OwnerId<=0 || !session.Coop.IsPeerAdmitted(entity.OwnerId)))throw new InvalidOperationException("Move enrollment/owner/capacity.");
         var actor=new Actor{Move=move,Remote=remoteOwned};
         var mirror=ReadMirror(actor,1);
         actor.Model=new MoveHostModel(identity,entity.OwnerId,mirror,move.ReadMovementState(),move.ReadMovementRecovery(),new Constraints(move)){Ready=true};
@@ -86,9 +92,15 @@ public sealed class PNMoveHostWorld : IDisposable
         MoveMessage message;
         try { message=MoveCodec.Decode(bytes) as MoveMessage; }
         catch(FormatException error) { LastProtocolError=error;return MoveReportResult.Malformed; }
+        return ReceiveTyped(message,authenticatedSender,hostTime);
+    }
+    public MoveReportResult ReceiveTyped(MoveMessage message,long authenticatedSender,double hostTime)
+    {
+        if(!IsActive || !session.Coop.IsPeerAdmitted(authenticatedSender))return MoveReportResult.WrongOwner;
         if(!(message is MovePoseReport) && !(message is MoveBaselineRequest))return MoveReportResult.Malformed;
         if(!Actors.TryGetValue(message.Identity,out var actor) || !actor.Remote)return MoveReportResult.WrongIdentity;
         if(!actor.Move.NetworkUsable || actor.Move.HostMovement!=actor.Model)return MoveReportResult.NotReady;
+        if(actor.Move.GetComponent<PNStatReplication>()?.CanCaptureReplication!=true)return MoveReportResult.NotReady;
         try { Refresh(actor);actor.Failure=null; }
         catch(Exception error) { actor.Failure=error;return MoveReportResult.NotReady; }
         if(message is MoveBaselineRequest request)return actor.Model.RequestBaseline(request,authenticatedSender)?MoveReportResult.Accepted:MoveReportResult.Stale;
@@ -157,6 +169,7 @@ public sealed class PNMoveHostWorld : IDisposable
     }
     public PNMoveHostConnection Connect(long admittedPeer)
     { if(!IsActive || !session.Coop.IsPeerAdmitted(admittedPeer))throw new InvalidOperationException("Admitted peer required.");return new PNMoveHostConnection(this,admittedPeer); }
+    public MoveHostModel TypedModel(MoveIdentity identity)=>Actors.TryGetValue(identity,out var actor)?actor.Model:null;
     public void Dispose()
     {
         if(disposed)return;disposed=true;session.Stopping-=Dispose;
@@ -218,7 +231,7 @@ public sealed class PNMoveClientConnection : IDisposable
     }
     public void Bind(PNMove move)
     {
-        if(disposed || !session.IsActive || move==null || move.GetComponent<EveEntityLoader>()?.LoadContext?.Session!=session || !move.NetworkUsable || actors.Count>=256)throw new InvalidOperationException("Published exact session actor required.");
+        if(disposed || !session.IsActive || move==null || move.UsesTypedMovementTransport || move.GetComponent<EveEntityLoader>()?.LoadContext?.Session!=session || !move.NetworkUsable || actors.Count>=256)throw new InvalidOperationException("Published exact legacy session actor required.");
         var id=move.NetworkIdentity(host);if(actors.ContainsKey(id))throw new InvalidOperationException("Already bound.");
         if(move.GetComponent<EveEntityIdentity>().OwnerId==session.LocalOwnerId.Value)
         {

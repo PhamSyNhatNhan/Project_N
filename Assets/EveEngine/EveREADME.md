@@ -1,5 +1,15 @@
 # EveEngine
 
+## Deferred admission prerequisite (P4, 2026-10-18)
+
+The additive eight-argument scheduler Enqueue overload accepts `canBegin`. A false
+predicate defers factory allocation and rotates pending admission fairly, under the
+same preparation budget and original deadline. Callback failure follows candidate
+failure/cleanup. `EveEntityDirectory.IsReserved` includes preparing/retiring IDs;
+TryGet's published-only visibility is insufficient to detect pending cleanup.
+Mirror hide/show uses this prerequisite to avoid duplicate same-generation enrollment.
+`MaximumResidents` exposes the configured bound for adapter capacity/fence validation.
+
 ## Current prepared-publication work (P3, 2026-10-17)
 
 `EveEntityPreparationScheduler` retains its original Enqueue overload and adds a

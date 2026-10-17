@@ -14,10 +14,12 @@ namespace ProjectN.Coop
         public const uint Asset = 0x504e0002;
         [SyncVar] public PNActorMetadata Metadata;
         [SyncVar] public bool HasBuff;
+        [SyncVar] public bool HasMove;
         [System.NonSerialized] public PNStatFrame State;
         [System.NonSerialized] public long BindingToken;
         private PNActorMetadata initialMetadata;
         private bool initialHasBuff;
+        private bool initialHasMove;
         private bool bound;
         private void ValidateMetadata()
         {
@@ -25,8 +27,9 @@ namespace ProjectN.Coop
                 throw new System.InvalidOperationException("Invalid actor shell metadata.");
             if(bound&&!Metadata.Equals(initialMetadata))throw new System.InvalidOperationException("A published shell binding is immutable; retire and spawn a new shell.");
             if(bound&&HasBuff!=initialHasBuff)throw new System.InvalidOperationException("A published Buff component descriptor is immutable.");
+            if(bound&&HasMove!=initialHasMove)throw new System.InvalidOperationException("A published Move component descriptor is immutable.");
         }
-        public override void OnStartServer(){ValidateMetadata();initialMetadata=Metadata;initialHasBuff=HasBuff;bound=true;}
+        public override void OnStartServer(){ValidateMetadata();initialMetadata=Metadata;initialHasBuff=HasBuff;initialHasMove=HasMove;bound=true;}
         public override void OnSerialize(NetworkWriter writer,bool initialState)
         {
             try{
@@ -44,7 +47,7 @@ namespace ProjectN.Coop
         {if(NetworkManager.singleton is PNNetworkManager manager)manager.RemoveActor(this);}
         public override void OnStartClient()
         {
-            initialMetadata=Metadata;initialHasBuff=HasBuff;bound=true;
+            initialMetadata=Metadata;initialHasBuff=HasBuff;initialHasMove=HasMove;bound=true;
             if(!isServer) ((PNNetworkManager)NetworkManager.singleton).ReceiveActor(this);
         }
         public override void OnStopClient()

@@ -36,6 +36,19 @@ namespace ProjectN.Coop
             public readonly List<EveIReplicaStage> Stages=new List<EveIReplicaStage>();
             public NetworkConnectionToClient OwnerConnection;
             public double AwaitingAt;
+            public PNMove Move;
+            public bool MoveAttached,MoveAwaitingBaseline;
+            public uint MoveRequest;
+            public double LastMoveRequest;
+            public double MoveBaselineStarted;
+            public long MoveReceived;
+            public string MoveControlDigest;
+            public PNMovePacket? MoveBaseline,MoveApplying,MovePose;
+            public IDisposable MoveApplyingLease;
+            public readonly Queue<(PNMovePacket Packet,IDisposable Lease)> MoveControls=new Queue<(PNMovePacket,IDisposable)>();
+            public EveEngine.Movement.MovePoseReport LatestMoveReport;
+            public Action<EveEngine.Movement.MovePoseReport> MoveReport;
+            public Action<Exception> MoveFailure;
         }
         public EveRuntime Runtime;
         public IPNEntityFactory Factory;
@@ -130,11 +143,12 @@ namespace ProjectN.Coop
             awaitingSpawn.Add(binding);
             binding.Candidate=Scheduler.Enqueue(()=>Factory.Get(request),loader=>
             {
-                Factory.Configure(loader,request);loader.GetComponent<EveEntityIdentity>().Assign(new EveEntityId(metadata.Entity),EveId.Parse(metadata.Character),metadata.Owner,metadata.Generation);
+                Factory.Configure(loader,request);ConfigureMove(binding,loader);loader.GetComponent<EveEntityIdentity>().Assign(new EveEntityId(metadata.Entity),EveId.Parse(metadata.Character),metadata.Owner,metadata.Generation);
             },Factory.Return,loader=>
             {
                 if(stopping||fatalSerialization)return;
                 Factory.Published(loader);
+                PublishMove(binding);
             },error=>FailActor(binding,error));
         }
         public void ReceiveActor(PNActorShell shell)
@@ -153,8 +167,9 @@ namespace ProjectN.Coop
                 if(!initialStates.TryGetValue(shell.netId,out var initial)||!ReferenceEquals(initial.Shell,shell))throw new FormatException("Actor lacks initial required state reservation.");
                 var binding=new Binding {Shell=shell,Metadata=metadata,Token=initial.Token};bindings.Add(shell.netId,binding);initialStates.Remove(shell.netId);
                 binding.Candidate=Scheduler.Enqueue(()=>Factory.Get(request),loader=>
-                {Factory.Configure(loader,request);loader.GetComponent<EveEntityIdentity>().Assign(new EveEntityId(metadata.Entity),EveId.Parse(metadata.Character),metadata.Owner,metadata.Generation);},Factory.Return,loader=>
-                {foreach(var stage in binding.Stages){stage.Published();stage.Dispose();}binding.Stages.Clear();PublishBuff(binding);Factory.Published(loader);inbox.Release(shell.netId,binding.Token);SetInput(binding,clientInputReady);},error=>FailActor(binding,error),loader=>{CommitBuff(binding);StageStat(binding,loader);inbox.Apply(shell.netId,binding.Token,bytes=>ApplyLatestState(loader,bytes),bytes=>ApplyRequiredEvent(loader,bytes));},loader=>PrepareBuff(binding,loader));
+                {Factory.Configure(loader,request);ConfigureMove(binding,loader);loader.GetComponent<EveEntityIdentity>().Assign(new EveEntityId(metadata.Entity),EveId.Parse(metadata.Character),metadata.Owner,metadata.Generation);},Factory.Return,loader=>
+                {foreach(var stage in binding.Stages){stage.Published();stage.Dispose();}binding.Stages.Clear();PublishBuff(binding);Factory.Published(loader);PublishMove(binding);inbox.Release(shell.netId,binding.Token);SetInput(binding,clientInputReady);},error=>FailActor(binding,error),loader=>{CommitBuff(binding);StageStat(binding,loader);inbox.Apply(shell.netId,binding.Token,bytes=>ApplyLatestState(loader,bytes),bytes=>ApplyRequiredEvent(loader,bytes));},loader=>PrepareBuff(binding,loader)&&PrepareMove(binding,loader),()=>!session.Entities.IsReserved(new EveEntityId(metadata.Entity)));
+                if(shell.HasMove)RequestMove(binding,true);
                 if(shell.HasBuff)NetworkClient.Send(new PNBuffBaselineRequest{Stream=Stream(binding)});
             }
             catch(Exception error){ProtocolFailure(error,false);}
@@ -241,8 +256,9 @@ namespace ProjectN.Coop
                     writer.Write(string.Join("|",RequiredAdapters.OrderBy(x=>x,StringComparer.Ordinal)));
                     foreach(var item in bindings.Where(x=>observer==null||x.Value.Shell.netIdentity.observers.ContainsKey(observer.connectionId)).OrderBy(x=>x.Value.Metadata.Entity))
                     {
-                        var m=item.Value.Metadata;writer.Write(m.HostSession.ToByteArray());writer.Write(m.Entity);writer.Write(m.Generation);writer.Write(m.Owner);writer.Write(item.Key);writer.Write(m.Character);writer.Write(m.SceneKey);writer.Write(m.EntityKey);writer.Write(item.Value.Shell.HasBuff);
+                        var m=item.Value.Metadata;writer.Write(m.HostSession.ToByteArray());writer.Write(m.Entity);writer.Write(m.Generation);writer.Write(m.Owner);writer.Write(item.Key);writer.Write(m.Character);writer.Write(m.SceneKey);writer.Write(m.EntityKey);writer.Write(item.Value.Shell.HasBuff);writer.Write(item.Value.Shell.HasMove);
                         ulong nonce=0;if(item.Value.Shell.HasBuff){if(observer==null)nonce=(ulong)item.Value.Token;else if(buffPeers.TryGetValue((observer.connectionId,item.Key),out var peer))nonce=peer.Stream.Nonce;}writer.Write(nonce);
+                        ulong moveNonce=0;if(item.Value.Shell.HasMove){if(observer==null)moveNonce=(ulong)item.Value.Token;else if(movePeers.TryGetValue((observer.connectionId,item.Key),out var mp))moveNonce=mp.Stream.Nonce;}writer.Write(moveNonce);
                     }
                 }
                 using(var hash=System.Security.Cryptography.SHA256.Create())return BitConverter.ToString(hash.ComputeHash(stream.ToArray())).Replace("-","");
@@ -294,9 +310,12 @@ namespace ProjectN.Coop
             peer.InputReady=false;
             foreach(var binding in bindings.Values.Where(x=>x.Metadata.Owner==peer.Owner))SetInput(binding,false);
         }
-        private static void SetInput(Binding binding,bool allowed)
+        private void SetInput(Binding binding,bool allowed)
         {
             var loader=binding.Candidate?.Loader;if(loader==null)return;
+            allowed=allowed&&(binding.Shell?.HasMove!=true||binding.MoveAttached&&(NetworkServer.active||binding.Move?.MovementBaselineApplied==true));
+            if(!allowed&&!NetworkServer.active&&binding.Move?.MovementHeld==false&&binding.Shell.HasMove)RequestMove(binding,true);
+            binding.Move?.SetMovementHeld(!allowed);
             var gate=loader.GetComponent<PNNetworkInputGate>()??loader.gameObject.AddComponent<PNNetworkInputGate>();
             bool changed=gate.Blocked!=!allowed;gate.Blocked=!allowed;
             if(!allowed)loader.GetComponent<PNPlayerMove>()?.SetMoveDirection(Vector2.zero);

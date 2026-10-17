@@ -46,6 +46,7 @@ public partial class PNMove : EveMove3D, EveIEntityLoadPreparation
         if (clock != null) ConfigureTimeScale(clock);
         previousScale = 1f;
         base.Load(context);
+        EnsureMovementHold();
     }
 
     protected virtual void ConfigureTimeScale(EveTimeScale timeScale) { }
@@ -126,10 +127,10 @@ public partial class PNMove : EveMove3D, EveIEntityLoadPreparation
         previousScale = 1f;
     }
 
-    protected override void OnDisable() { DetachNetwork(); RestorePhysics(); base.OnDisable(); }
+    protected override void OnDisable() { if(managedMovement){movementHeld=true;initialMovementApplied=false;EnsureMovementHold();}DetachNetwork(); RestorePhysics(); base.OnDisable(); }
     public override void Unload()
     {
-        DetachNetwork();
+        ReleaseNetworkMovement();
         if (controls != null && controls.IsReady) controls.State.Changed -= ControlChanged;
         controls = null;
         RestorePhysics();

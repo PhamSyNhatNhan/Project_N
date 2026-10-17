@@ -19,8 +19,8 @@ public partial class PNMove
     private bool networkKinematic, previousKinematic;
     private bool networkDetached;
     public bool IsPredictedOwner => NetworkRole==PNMoveNetworkRole.Owner;
-    protected override bool CanExecuteMovement => NetworkRole==PNMoveNetworkRole.Local ? base.CanExecuteMovement :
-        IsPredictedOwner && !networkKinematic && loadContext!=null && loadContext.CanUse && OwnerMovement!=null && OwnerMovement.CanWrite;
+    protected override bool CanExecuteMovement => !MovementHeld && (NetworkRole==PNMoveNetworkRole.Local ? base.CanExecuteMovement :
+        IsPredictedOwner && !networkKinematic && loadContext!=null && loadContext.CanUse && OwnerMovement!=null && OwnerMovement.CanWrite);
     private float NetworkScale => OwnerMovement?.Mirror?.Scale ?? 0;
     private float NetworkMoveSpeed => OwnerMovement?.Mirror?.MoveSpeed ?? 0;
     private float NetworkJumpSpeed => OwnerMovement?.Mirror?.JumpSpeed ?? 0;
@@ -29,7 +29,7 @@ public partial class PNMove
         if(NetworkRole==PNMoveNetworkRole.RemoteOwnerHost || NetworkRole==PNMoveNetworkRole.Observer || IsPredictedOwner && networkKinematic)return;
         base.ApplyVelocity(velocity);
     }
-    public bool CanWriteMotion => loadContext!=null && loadContext.CanUse && isActiveAndEnabled &&
+    public bool CanWriteMotion => !MovementHeld && loadContext!=null && loadContext.CanUse && isActiveAndEnabled &&
         (NetworkRole==PNMoveNetworkRole.Local && loadContext.CanMutate || IsPredictedOwner && !networkKinematic && OwnerMovement!=null && OwnerMovement.CanWrite) && MovementTimeScale>0;
     public event Action<byte[]> OwnerPoseReport;
     private readonly List<PNMoveExecution> motionExecutions=new List<PNMoveExecution>();
@@ -39,6 +39,7 @@ public partial class PNMove
     private uint observerSequenceFloor,observerEpochFloor;
     private bool NetworkAllows(EveId id)
     {
+        if(MovementHeld)return false;
         if(!IsPredictedOwner)return true;
         var mirror=OwnerMovement?.Mirror;
         if(mirror==null || mirror.Dead)return false;
@@ -74,7 +75,7 @@ public partial class PNMove
         DetachNetwork(); networkDetached=false; NetworkRole=PNMoveNetworkRole.RemoteOwnerHost; HostMovement=model; SetNetworkKinematic();
     }
     private void SetNetworkKinematic()
-    { previousKinematic=body.isKinematic; networkKinematic=true; if(!body.isKinematic) { body.linearVelocity=Vector3.zero; body.angularVelocity=Vector3.zero; body.isKinematic=true; } }
+    { if(networkKinematic)return;previousKinematic=body.isKinematic; networkKinematic=true; if(!body.isKinematic) { body.linearVelocity=Vector3.zero; body.angularVelocity=Vector3.zero; body.isKinematic=true; } }
     public MovementState ReadMovementState()
     {
         RequireNetworkReady();
@@ -103,6 +104,7 @@ public partial class PNMove
     // One report for each actual FixedUpdate; host timestamps reception, no client time is trusted.
     public void NetworkFixedBoundary()
     {
+        if(managedMovement && NetworkRole==PNMoveNetworkRole.Observer){try{ApplyInitialObserverBoundary();}catch(Exception error){ReportMovementFailure(error);}return;}
         if(!IsPredictedOwner || loadContext==null || !loadContext.CanUse || !isActiveAndEnabled || body==null)return;
         var selected=OwnerMovement;
         try { selected.ApplyBoundary((correction,mirror)=>
@@ -113,6 +115,7 @@ public partial class PNMove
             if(networkKinematic) { body.isKinematic=previousKinematic;networkKinematic=false; }
             SyncPhysicsScale(mirror.Scale);
             savedVelocity=Unity(correction.Recovery.ResumeVelocity); savedAngularVelocity=Unity(correction.Recovery.ResumeAngularVelocity);
+            holdRecovery=correction.Recovery;
             if(mirror.Dead) { savedVelocity=Vector3.zero; savedAngularVelocity=Vector3.zero; }
             if(!frozen)
             {
@@ -121,18 +124,23 @@ public partial class PNMove
                 if((mirror.Rights&MoveRights.Walk)==0 && motionExecutions.Count==0)body.linearVelocity=new Vector3(0,body.linearVelocity.y,0);
             }
             RestoreLocomotionView(correction.State.Grounded,correction.State.VerticalView,correction.Recovery.AwaitingGroundDeparture);
-        }); }
+        });
+        if(managedMovement && !selected.NeedsBaseline && pendingMovementControl!=0){appliedMovementControl=pendingMovementControl;pendingMovementControl=0;initialMovementApplied=true;}
+        }
+        catch(Exception error){ReportMovementFailure(error);return;}
         finally
         {
-            if(ReferenceEquals(OwnerMovement,selected) && NetworkUsable && (selected.NeedsBaseline || selected.Mirror?.Dead==true) && !networkKinematic)SetNetworkKinematic();
+            if(ReferenceEquals(OwnerMovement,selected) && NetworkUsable && (MovementHeld || selected.NeedsBaseline || selected.Mirror?.Dead==true) && !networkKinematic)SetNetworkKinematic();
         }
         if(!ReferenceEquals(OwnerMovement,selected) || !NetworkUsable)return;
-        if(selected.CanWrite && !networkKinematic)
+        if(selected.CanWrite && !networkKinematic && !MovementHeld)
         {
             SyncPhysicsScale(NetworkScale);
-            var bytes=MoveCodec.Encode(OwnerMovement.Report(ReadMovementState()));
-            foreach(Action<byte[]> listener in OwnerPoseReport?.GetInvocationList()??Array.Empty<Delegate>())
-                try { listener(bytes); } catch(Exception error) { Debug.LogException(error,this); }
+            var report=OwnerMovement.Report(ReadMovementState());
+            try{ReportTyped(report);}catch(Exception error){ReportMovementFailure(error);return;}
+            if(!managedMovement && OwnerPoseReport!=null){var bytes=MoveCodec.Encode(report);
+                foreach(Action<byte[]> listener in OwnerPoseReport.GetInvocationList())
+                    try { listener(bytes); } catch(Exception error) { Debug.LogException(error,this); }}
         }
     }
     public bool ApplyObserverPose(double hostRenderTime)
@@ -165,8 +173,8 @@ public partial class PNMove
         if(ObserverMovement!=null) { observerHistoryIdentity=ObserverMovement.Identity;observerSequenceFloor=ObserverMovement.LastSequence;observerEpochFloor=ObserverMovement.LastEpoch; }
         OwnerMovement?.Dispose(); ObserverMovement?.Dispose(); OwnerMovement=null; ObserverMovement=null; HostMovement=null;
         OwnerPoseReport=null;
-        if(NetworkRole!=PNMoveNetworkRole.Local)RestorePhysics();
-        if(networkKinematic && body!=null)body.isKinematic=previousKinematic; networkKinematic=false;
+        if(!managedMovement){if(NetworkRole!=PNMoveNetworkRole.Local)RestorePhysics();
+        if(networkKinematic && body!=null)body.isKinematic=previousKinematic; networkKinematic=false;}
         NetworkRole=PNMoveNetworkRole.Local;
     }
     internal void ReleaseMotion(PNMoveExecution execution) => motionExecutions.Remove(execution);

@@ -23,12 +23,14 @@ namespace ProjectN.Coop
                 (x.Candidate.Loader.GetComponent<PNStat>()==null||x.Candidate.Loader.GetComponent<PNStatReplication>()?.View!=null||subscribedSession.HasAuthority)));
             NetworkLoop.OnLateUpdate+=PumpReplication;
             InitializeBuff();
+            InitializeMove();
         }
         private void SessionFailed(string code,string message)=>ProtocolFailure(new InvalidOperationException(code+": "+message),false);
         private void DisposeReplication()
         {
             NetworkLoop.OnLateUpdate-=PumpReplication;
             DisposeBuff();
+            DisposeMove();
             if(subscribedSession!=null)subscribedSession.ConnectionFailed-=SessionFailed;
             foreach(var binding in bindings.Values.Concat(awaitingSpawn).ToArray()){UnhookStat(binding);if(binding.Shell!=null&&binding.Shell.netId==0)Destroy(binding.Shell.gameObject);}
             foreach(var value in initialStates)if(inbox.Contains(value.Key,value.Value.Token))inbox.Release(value.Key,value.Value.Token);
@@ -51,6 +53,7 @@ namespace ProjectN.Coop
         }
         private void UnhookStat(Binding binding)
         {
+            UnhookMove(binding);
             UnhookBuff(binding);
             if(binding.Stat!=null){binding.Stat.ProjectionFailed-=binding.StatFailure;binding.Stat.LifeObserved-=binding.LifeNotice;}
             foreach(var stage in binding.Stages.AsEnumerable().Reverse())stage.Dispose();binding.Stages.Clear();binding.Stat=null;
@@ -136,7 +139,7 @@ namespace ProjectN.Coop
         {
             if(stopping)return;
             if(fatalSerialization){StopSession();return;}
-            try{PumpBuff();}catch(Exception error){ProtocolFailure(error,NetworkServer.active);return;}
+            try{PumpMove();PumpBuff();}catch(Exception error){ProtocolFailure(error,NetworkServer.active);return;}
             if(!NetworkServer.active)return;
             try
             {
@@ -147,7 +150,7 @@ namespace ProjectN.Coop
                     if(Time.realtimeSinceStartupAsDouble-binding.AwaitingAt>Scheduler.TimeoutMilliseconds/1000d)throw new TimeoutException("Initial Stat capture timed out.");
                     var stat=binding.Candidate.Loader.GetComponent<PNStatReplication>();if(stat!=null&&!stat.CanCaptureReplication){var buffs=binding.Candidate.Loader.GetComponent<PNBuffManager>();if(buffs!=null&&buffs.StateCaptureFaulted)throw new InvalidOperationException("Initial Stat mutation source failed.");continue;}
                     var root=CreateShell<PNActorShell>("Actor "+binding.Metadata.Entity);binding.Shell=root.GetComponent<PNActorShell>();binding.Shell.Metadata=binding.Metadata;
-                    HookStat(binding);HookBuff(binding);binding.Shell.HasBuff=binding.Buff!=null;CaptureStat(binding);
+                    HookStat(binding);HookBuff(binding);binding.Shell.HasBuff=binding.Buff!=null;binding.Shell.HasMove=binding.Move!=null;CaptureStat(binding);
                     NetworkServer.Spawn(root,PNActorShell.Asset,binding.OwnerConnection);bindings.Add(binding.Shell.netId,binding);awaitingSpawn.Remove(binding);
                 }
                 if(Time.realtimeSinceStartupAsDouble-lastStatCapture<.05)return;lastStatCapture=Time.realtimeSinceStartupAsDouble;

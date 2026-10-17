@@ -25,6 +25,7 @@ namespace EveEngine
             internal Action<EveEntityLoader> Configure,Return,Published;
             internal Action<EveEntityLoader> BeforePublish;
             internal Func<EveEntityLoader,bool> PreparePublication;
+            internal Func<bool> CanBegin;
             internal Action<Exception> Failed;
             internal bool Leased,Retiring,Returned;
             internal double Started,RetryAt;
@@ -58,6 +59,7 @@ namespace EveEngine
         public double TimeoutMilliseconds=>profile.TimeoutMs;
         public int PendingCount=>pending.Count;
         public int ResidentCount=>owned.Count;
+        public int MaximumResidents=>profile.Resident;
         public int ActiveCount=>owned.Count(x=>!x.Retiring);
         public int AdmissionCount=>owned.Count(x=>!x.Retiring||x.LastError!=null);
         public double RemainingFrameMs=>Math.Max(0,profile.LifecycleMs-(clock()-frameStart));
@@ -72,10 +74,12 @@ namespace EveEngine
         public Candidate Enqueue(Func<EveEntityLoader> create,Action<EveEntityLoader> configure,Action<EveEntityLoader> returned,Action<EveEntityLoader> published,Action<Exception> failed,Action<EveEntityLoader> beforePublish=null)
             => Enqueue(create,configure,returned,published,failed,beforePublish,null);
         public Candidate Enqueue(Func<EveEntityLoader> create,Action<EveEntityLoader> configure,Action<EveEntityLoader> returned,Action<EveEntityLoader> published,Action<Exception> failed,Action<EveEntityLoader> beforePublish,Func<EveEntityLoader,bool> preparePublication)
+            => Enqueue(create,configure,returned,published,failed,beforePublish,preparePublication,null);
+        public Candidate Enqueue(Func<EveEntityLoader> create,Action<EveEntityLoader> configure,Action<EveEntityLoader> returned,Action<EveEntityLoader> published,Action<Exception> failed,Action<EveEntityLoader> beforePublish,Func<EveEntityLoader,bool> preparePublication,Func<bool> canBegin)
         {
             if(stopping||!session.IsActive||pending.Count>=profile.Pending)throw new InvalidOperationException("Preparation queue is closed or full.");
             var candidate=new Candidate {Create=create??throw new ArgumentNullException(nameof(create)),Configure=configure??throw new ArgumentNullException(nameof(configure)),Return=returned??throw new ArgumentNullException(nameof(returned)),Published=published,Failed=failed,BeforePublish=beforePublish,PreparePublication=preparePublication,Started=clock()};
-            pending.Enqueue(candidate);return candidate;
+            candidate.CanBegin=canBegin;pending.Enqueue(candidate);return candidate;
         }
         private void Return(Candidate candidate)
         {
@@ -123,12 +127,15 @@ namespace EveEngine
                 jobCursor%=work.Length;var job=work[jobCursor++];if(job.Disposed)continue;
                 steps++;try{if(job.Advance())job.Dispose();}catch(Exception error){var failed=job.Failed;job.Dispose();try{failed?.Invoke(error);}catch(Exception callback){UnityEngine.Debug.LogException(callback,null);}}
             }
-            while(pending.Count>0&&HasTime())
+            int admissionChecks=pending.Count;
+            while(pending.Count>0&&HasTime()&&admissionChecks-->0)
             {
                 var next=pending.Peek();
                 if(next.Retiring){pending.Dequeue();continue;}
                 if(clock()-next.Started>profile.TimeoutMs){pending.Dequeue();Fail(next,new TimeoutException("Pending entity timed out."));continue;}
                 if(!session.Cleanup.CanBeginPreparation||AdmissionCount>=profile.Active||ResidentCount>=profile.Resident)break;
+                try{if(next.CanBegin!=null&&!next.CanBegin()){pending.Dequeue();pending.Enqueue(next);continue;}}
+                catch(Exception error){pending.Dequeue();Fail(next,error);continue;}
                 pending.Dequeue();owned.Add(next);
                 try
                 {

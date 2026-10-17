@@ -1,5 +1,9 @@
 # Buff presentation coop — RulesVersion76 / Mod API6
 
+P4 integration is Rules77/network4: Stat/Buff/Move now share fixed catch-up targets
+and pending accounting. Buff semantics below remain unchanged; see
+`Docs/MirrorP4Implementation.md` for Move ownership and current acceptance.
+
 ## Current Mirror path (P3)
 
 See `Docs/MirrorP3Implementation.md` for implementation/acceptance status and limits.

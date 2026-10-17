@@ -39,11 +39,18 @@ namespace ProjectN.Coop {
                         if(!QueueBuffBaseline(stream,out long revision))return false;
                         list.Add(new PNStateFence{Attempt=peer.ResumeChallenge,NetId=item.Key,Adapter=1,Nonce=stream.Stream.Nonce,Entity=b.Metadata.Entity,Generation=b.Metadata.Generation,Revision=revision,Digest=digest});
                     }
+                    if(b.Move!=null)
+                    {
+                        if(!movePeers.TryGetValue((conn.connectionId,item.Key),out var stream)||stream.NeedsBaseline)return false;
+                        if(!QueueMoveBaseline(stream,out long revision))return false;
+                        list.Add(new PNStateFence{Attempt=peer.ResumeChallenge,NetId=item.Key,Adapter=2,Nonce=stream.Stream.Nonce,Entity=b.Metadata.Entity,Generation=b.Metadata.Generation,Revision=revision,Digest=digest});
+                    }
                 }
                 list.Add(new PNStateFence {Attempt=peer.ResumeChallenge,NetId=0,Revision=list.Count,Digest=digest});
                 values=list.ToArray();peerFences[conn.connectionId]=values;
             }
             foreach(var value in values.Where(x=>x.NetId!=0&&x.Adapter==1))if(!buffPeers.TryGetValue((conn.connectionId,value.NetId),out var stream)||stream.SentRevision<value.Revision||stream.Packets.Any(x=>x.Kind==0))return false;
+            foreach(var value in values.Where(x=>x.Adapter==2))if(!movePeers.TryGetValue((conn.connectionId,value.NetId),out var stream)||stream.SentRevision<value.Revision)return false;
             foreach(var value in values){var target=value;target.Session=EveRegistrySession.Context.SessionId;conn.Send(target);}
             return true;
         }
@@ -56,17 +63,18 @@ namespace ProjectN.Coop {
                 if(value.Session!=EveRegistrySession.Context.Coop.AdmittedHostSession)return;
                 if(value.Digest==null||value.Digest.Length!=64||value.Attempt==0)throw new FormatException("State fence header.");
                 if(value.Attempt!=fenceAttempt||value.Digest!=fenceDigest){clientFence.Clear();fenceCount=-1;fenceAttempt=value.Attempt;fenceDigest=value.Digest;}
-                if(value.NetId==0){if(value.Revision<0||value.Revision>640)throw new FormatException("State fence count.");fenceCount=(int)value.Revision;}
-                else {var key=(value.NetId,value.Adapter);if(value.Adapter>1||value.Revision<(value.Adapter==0?1:0)||value.Entity<1||value.Generation<1||value.Adapter==1&&value.Nonce==0||!clientFence.ContainsKey(key)&&clientFence.Count>=640)throw new FormatException("State fence bounds.");if(clientFence.TryGetValue(key,out var existing)&&(existing.Revision!=value.Revision||existing.Nonce!=value.Nonce))throw new FormatException("Conflicting state target.");clientFence[key]=value;}
+                if(value.NetId==0){if(value.Revision<0||value.Revision>Scheduler.MaximumResidents*3)throw new FormatException("State fence count.");fenceCount=(int)value.Revision;}
+                else {var key=(value.NetId,value.Adapter);if(value.Adapter>2||value.Revision<(value.Adapter==1?0:1)||value.Entity<1||value.Generation<1||value.Adapter>0&&value.Nonce==0||!clientFence.ContainsKey(key)&&clientFence.Count>=Scheduler.MaximumResidents*3)throw new FormatException("State fence bounds.");if(clientFence.TryGetValue(key,out var existing)&&(existing.Revision!=value.Revision||existing.Nonce!=value.Nonce))throw new FormatException("Conflicting state target.");clientFence[key]=value;}
             }
             catch(Exception error){ProtocolFailure(error,false);}
         }
         private bool FenceSettled(uint attempt,string digest)
         {
-            if(fenceAttempt!=attempt||fenceDigest!=digest||fenceCount!=clientFence.Count||fenceCount!=bindings.Values.Sum(x=>(x.Candidate?.Loader?.GetComponent<PNStat>()!=null?1:0)+(x.Shell.HasBuff?1:0)))return false;
+            if(fenceAttempt!=attempt||fenceDigest!=digest||fenceCount!=clientFence.Count||fenceCount!=bindings.Values.Sum(x=>(x.Candidate?.Loader?.GetComponent<PNStat>()!=null?1:0)+(x.Shell.HasBuff?1:0)+(x.Shell.HasMove?1:0)))return false;
             foreach(var item in clientFence)
             {
                 if(!bindings.TryGetValue(item.Key.Item1,out var b)||b.Metadata.Entity!=item.Value.Entity||b.Metadata.Generation!=item.Value.Generation)return false;
+                if(item.Key.Item2==2){if((ulong)b.Token!=item.Value.Nonce||b.Move?.MovementBaselineApplied!=true||b.Move.AppliedMovementControl<(ulong)item.Value.Revision||b.MoveAwaitingBaseline)return false;continue;}
                 if(item.Key.Item2==1){if((ulong)b.Token!=item.Value.Nonce||b.Buff?.HasBaseline!=true||b.Buff.AppliedRevision<item.Value.Revision||b.BuffRecords.Count>0||b.BuffAssembly!=null)return false;continue;}
                 var view=b.Candidate?.Loader?.GetComponent<PNStatReplication>()?.View;
                 if(view==null||b.Candidate.Loader.GetComponent<PNStatReplication>().FullViewRevision<item.Value.Revision)return false;

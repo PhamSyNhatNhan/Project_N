@@ -1,4 +1,42 @@
-# Move replication (RulesVersion73)
+# Move replication (RulesVersion77 / Mod API6)
+
+## Current Mirror path (P4)
+
+See `Docs/MirrorP4ImplementationPlan.md`, `Docs/MirrorP4S0Inventory.md` and the newest
+HANDOFF entry for current verification status. Coop uses typed `MovePoseReport`,
+`MoveMirror`, `MoveCorrection` and `MovePoseState` messages through `PNMoveWire`;
+it does not send `MoveCodec` bytes. Core `PNMoveHostWorld.TrackTyped`/`ReceiveTyped`
+share authoritative capture and acceptance with retained legacy facades. Public
+old APIs remain for compatibility; legacy Track/Bind reject a typed-managed actor.
+
+`PNMove.ConfigureNetworkMovement` assigns a binding-owned logical/physics hold.
+Load acquires the physical hold before activation. Attach after activation while
+held, then `StageMovementControl` or `StageObserverMovement`; initial state is only
+applied at a fixed boundary. `MovementBaselineApplied`/`AppliedMovementControl` are
+distinct from entity Ready. `SetMovementHeld` cannot bypass missing owner baseline;
+`ReleaseNetworkMovement`/Unload release owned physics, callbacks and models.
+`MovementReportPublished` is typed; managed mode does not encode the legacy byte
+event. A held component gates producers/input while correction can still advance.
+
+Mirror identity includes session/netId/entity/generation/binding nonce and a request
+generation for rebind/resume. Reliable baseline/control/correction and unreliable
+latest pose use semantic epoch/life/sequence fences; observers receive results,
+not an enum of movement algorithms. Host-local and offline run once. Client movement
+capability never grants gameplay CanMutate or Skill cast authority. Skill networking
+is deferred until summon and projectile are complete.
+
+Move joins Stat/Buff fixed grace targets using body-applied control revision. Receive
+is not apply; void Mirror Send is local enqueue, not delivery ACK. Initial20Hz/100ms/
+history64 and bounded profiles are correctness defaults, not performance claims.
+Same-frame observer hide/show waits for cleanup to return reserved entity IDs before
+new preparation; no forced generation substitution. The scheduler's optional
+CanBegin predicate retains original deadline and allocation/cleanup ownership.
+
+RegisterMotion remains one exclusive planar execution. New algorithms need their
+own collision/clock/interruption behavior; the current wire carries resulting poses
+without per-orbit/sin message kinds. Arbitrary additive/3D composition is not supplied.
+
+## Retained legacy carrier and integration (historical Rules73)
 
 EveEngine.Movement contains pure protocol models and a bounded binary codec. PNMoveConnections binds them to
 published Unity actors. Enrollment/transport remain explicit; adding PNMove to a scene does not create a network.

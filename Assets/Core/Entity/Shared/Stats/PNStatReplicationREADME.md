@@ -1,4 +1,8 @@
-# Current: Mirror Stat + Buff integration (RulesVersion76 / Mod API6)
+# Current: Mirror Stat + Buff + Move integration (RulesVersion77 / Mod API6)
+
+P4/network4 adds Move fixed targets and body-applied readiness beside the unchanged
+Stat contract below. See `Docs/MirrorP4Implementation.md`; Stat/Buff receive accounting
+is shared with pending Move controls, while each adapter retains its diagnostics.
 
 NetworkVersion3 adds Buff baseline/lifecycle alongside the typed Stat adapter below.
 Catch-up coordination lives in Coop/PNStateCatchup.cs with fixed targets keyed by

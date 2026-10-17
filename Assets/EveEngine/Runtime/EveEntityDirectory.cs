@@ -13,6 +13,8 @@ namespace EveEngine
         private readonly Dictionary<EveEntityId, long> current = new Dictionary<EveEntityId, long>();
         private long lastHostId;
         public virtual int Count => entities.Count;
+        // Includes preparing/retiring presences whose cleanup still owns the ID.
+        public bool IsReserved(EveEntityId id)=>current.ContainsKey(id);
         // Read-only, deterministic snapshot of ready entities owned by this session.
         public virtual IReadOnlyList<EveEntityLoader> Snapshot()
             => Array.AsReadOnly(entities.OrderBy(pair => pair.Key.Item1.Value).Where(pair => current.TryGetValue(pair.Key.Item1, out var gen) && gen == pair.Key.Item2 && pair.Value.IsReady)

@@ -23,8 +23,8 @@ namespace ProjectN.Coop
         private int pendingBuffBytes,pendingBuffEvents,hostBuffBytes;
         private int buffPeerCursor;
         public long DroppedOptionalBuffCues {get;private set;}
-        public int PendingBuffBytes=>pendingBuffBytes;
-        public int PendingBuffEvents=>pendingBuffEvents;
+        public int PendingBuffBytes=>pendingBuffBytes-pendingMoveBytes;
+        public int PendingBuffEvents=>pendingBuffEvents-pendingMoveEvents;
         private void InitializeBuff()
         {
             RequiredAdapters.Add(BuffKind);
@@ -51,7 +51,7 @@ namespace ProjectN.Coop
                 {
                     if(peer.OptionalFrame!=Time.frameCount){peer.OptionalFrame=Time.frameCount;peer.OptionalCount=peer.OptionalBytes=0;}
                     if(peer.OptionalCount>=32||peer.OptionalBytes>=16384)continue;body=body??PNBuffWire.Encode(cue);
-                    if(peer.OptionalBytes+body.Length>16384||peer.Bytes+body.Length>8*1024*1024||hostBuffBytes+body.Length>32*1024*1024)continue;
+                    if(peer.OptionalBytes+body.Length>16384||peer.Bytes+body.Length+movePeers.Values.Where(x=>x.Connection==peer.Connection).Sum(x=>(long)x.Bytes)>8*1024*1024||(long)hostBuffBytes+hostMoveBytes+body.Length>32*1024*1024)continue;
                     peer.OptionalCount++;peer.OptionalBytes+=body.Length;EnqueueBuff(peer,2,b.Buff.AppliedRevision,time,body);
                 }
             };
@@ -88,7 +88,7 @@ namespace ProjectN.Coop
         private void EnqueueBuff(BuffPeer peer,byte kind,long revision,double time,byte[] bytes)
         {
             int count=(bytes.Length+PNBuffWire.ChunkBytes-1)/PNBuffWire.ChunkBytes;int charged=checked(bytes.Length+count*160);
-            if(peer.Bytes+charged>8*1024*1024||hostBuffBytes+charged>32*1024*1024){peer.Connection.Disconnect();RemoveBuffPeer(peer);return;}
+            if(peer.Bytes+charged+movePeers.Values.Where(x=>x.Connection==peer.Connection).Sum(x=>(long)x.Bytes)>8*1024*1024||(long)hostBuffBytes+hostMoveBytes+charged>32*1024*1024){peer.Connection.Disconnect();RemoveBuffPeer(peer);return;}
             ulong transfer=checked(++buffTransfer);
             for(int i=0;i<count;i++)
             {
@@ -185,7 +185,7 @@ namespace ProjectN.Coop
                 int perChunks=0,perBytes=0;
                 while(peer.Packets.Count>0&&chunks<32&&bytes<512*1024&&perChunks<8&&perBytes<128*1024)
                 {
-                    var packet=peer.Packets.Dequeue();peer.Connection.Send(packet,Channels.Reliable);int charge=packet.Body.Length+160;peer.Bytes-=charge;hostBuffBytes-=charge;
+                    var packet=peer.Packets.Peek();if(!TakeSendBudget(peer.Connection.connectionId,packet.Body.Length+160))break;peer.Packets.Dequeue();peer.Connection.Send(packet,Channels.Reliable);int charge=packet.Body.Length+160;peer.Bytes-=charge;hostBuffBytes-=charge;
                     chunks++;perChunks++;bytes+=packet.Body.Length;perBytes+=packet.Body.Length;
                     if(packet.Index==packet.Count-1&&packet.Kind!=2)peer.SentRevision=Math.Max(peer.SentRevision,packet.Revision);
                 }
