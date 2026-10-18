@@ -43,6 +43,7 @@ namespace ProjectN.Coop
         private readonly Queue<TransferEnvelope> transferMessages=new Queue<TransferEnvelope>();
         private readonly Dictionary<(long,long),PNWorldTransferNotice> clientTransferHolds=new Dictionary<(long,long),PNWorldTransferNotice>();
         private readonly Dictionary<(long,long),ulong> clientTransferFloors=new Dictionary<(long,long),ulong>();
+        private PNTransferTransitionSource transitionSource;
         private readonly Dictionary<(int,Guid),(int Users,bool Created)> transferSubscriptions=new Dictionary<(int,Guid),(int,bool)>();
         private ulong nextTransferRevision;
         int IPNWorldTransferTransport.MaximumParticipants=>(Policy?.MaximumClients??Profile.MaximumClients)+1;
@@ -165,6 +166,7 @@ namespace ProjectN.Coop
             try
             {
                 value.Validate();var key=(value.Entity,value.Generation);
+                EnsureTransitionSource();transitionSource.OnNotice(value,bindings.Values.Any(b=>b.Metadata.Entity==value.Entity&&b.Metadata.Generation==value.Generation&&b.Metadata.Owner==RoomOwner));
                 if(clientTransferFloors.TryGetValue(key,out var floor)&&value.Revision<=floor)return;
                 if(value.Phase==0)
                 {if(clientTransferHolds.TryGetValue(key,out var current)&&value.Revision<current.Revision)return;if(clientTransferHolds.Count>=128&&!clientTransferHolds.ContainsKey(key))throw new FormatException("Transfer hold bound.");clientTransferHolds[key]=value;}
@@ -174,10 +176,44 @@ namespace ProjectN.Coop
             }
             catch(Exception error){ProtocolFailure(error,false);}
         }
+        // Registered when the client starts so the play session's transition controller can attach before the first notice arrives.
+        // The source lives as long as the client connection (not per play), so a controller created later still finds the same instance.
+        public override void OnStopClient(){base.OnStopClient();if(transitionSource!=null){PNTransitionSources.Unregister(transitionSource);transitionSource=null;}}
+        private void EnsureTransitionSource(){if(transitionSource==null){transitionSource=new PNTransferTransitionSource();PNTransitionSources.Register(transitionSource);}}
         private void DisposeTransferReplication()
         {
             while(transferMessages.Count>0)transferMessages.Dequeue().Lease.Dispose();transferDispatches.Clear();transferSubscriptions.Clear();clientTransferHolds.Clear();clientTransferFloors.Clear();
             if(Transfers!=null&&ReferenceEquals(Transfers.Transport,this))Transfers.Transport=null;
+        }
+    }
+
+    // Client-side early signal: the host told this client its actor starts a world transfer (hold phase). The controller ends the cycle from local
+    // state (view bound, actor ready, input open); this source only opens it before the local view changes.
+    public sealed class PNTransferTransitionSource : IPNTransitionSignalSource
+    {
+        private IPNTransitionSignalSink sink;
+        // Last decision, for diagnostics: why a notice did or did not open a cycle.
+        public string LastDecision { get; private set; } = "none";
+        public int Opened { get; private set; }
+        public void Attach(IPNTransitionSignalSink value) { sink = value; }
+        public void Detach() { sink = null; }
+        public string History { get; private set; } = "";
+        // ownPresence: the notice names this client's own presence (matched through the actor bindings, not through local entity ids).
+        public void OnNotice(PNWorldTransferNotice notice, bool ownPresence)
+        {
+            LastDecision = Decide(notice, ownPresence);
+            History = (History + " " + LastDecision).Trim(); if (History.Length > 160) History = History.Substring(History.Length - 160);
+        }
+        private string Decide(PNWorldTransferNotice notice, bool ownPresence)
+        {
+            if (notice.Phase != 0) return "phase" + notice.Phase;
+            if (!ownPresence) return "other-presence";
+            if (sink == null) return "no-sink";
+            var local = PNLocalWorldContext.Current;
+            if (local == null) return "no-local-view";
+            Opened++;
+            sink.Begin(PNTransitionReason.Transfer, local.World?.DefinitionId.ToString() ?? "", "", false);
+            return "begin";
         }
     }
 }

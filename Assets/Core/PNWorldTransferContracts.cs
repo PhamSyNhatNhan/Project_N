@@ -15,6 +15,12 @@ public sealed class PNWorldPolicy
     public IReadOnlyList<EveId> TransferParticipants { get; }
     public IReadOnlyList<EveId> ActorStateProviders { get; }
     public IReadOnlyList<EveId> WorldStateProviders { get; }
+    // Optional transition screen id for transfers into this world (empty = next step of the selection chain). Presentation only.
+    public EveId TransitionScreen { get; }
+    // Additive overload; the original constructor above keeps its signature for already-built mods.
+    public PNWorldPolicy(PNEmptyWorldPolicy empty,IEnumerable<EveId> participants,IEnumerable<EveId> actorState,IEnumerable<EveId> worldState,EveId transitionScreen)
+        : this(empty,participants,actorState,worldState)
+    { if(transitionScreen.IsValid&&transitionScreen.ToString().Length>128)throw new ArgumentException("Bounded transition screen ID required.");TransitionScreen=transitionScreen; }
     public PNWorldPolicy(PNEmptyWorldPolicy empty=PNEmptyWorldPolicy.Continue,IEnumerable<EveId> participants=null,IEnumerable<EveId> actorState=null,IEnumerable<EveId> worldState=null)
     {
         if(!Enum.IsDefined(typeof(PNEmptyWorldPolicy),empty))throw new ArgumentOutOfRangeException(nameof(empty));Empty=empty;
@@ -33,6 +39,8 @@ public sealed class PNWorldTransferRequest
     public string Spawn { get; }
     public string ReplacementTemplate { get; }
     public string TargetTemplate { get; }
+    // Host-local presentation choice for this transfer (highest priority in the transition screen chain). Not part of the wire or Signature.
+    public EveId TransitionScreen { get; set; }
     public string Signature { get; }
     public IReadOnlyList<long> EntityIds { get; }
     public PNWorldTransferRequest(Guid id,IEnumerable<EveEntityLoader> actors,EveWorldContext destination,string slot=null,string spawn=null,string replacementTemplate=null,string targetTemplate=null)

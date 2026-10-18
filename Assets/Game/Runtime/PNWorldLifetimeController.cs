@@ -142,7 +142,7 @@ public sealed class PNWorldLifetimeController : IDisposable
             var data=(JObject)work.Checkpoint.Data.Read().Single();if((int)data["schema"]!=1)throw new FormatException("Unknown checkpoint schema.");
             if(!work.Started)
             {
-                work.Started=true;world.SetPaused(true);world.RestoreClock((double)data["time"]);var records=(JArray)data["actors"];
+                work.Started=true;RequireResident(world,"restore start");world.SetPaused(true);world.RestoreClock((double)data["time"]);var records=(JArray)data["actors"];
                 if(records.Count>256||records.Select(x=>(string)x["key"]).Distinct().Count()!=records.Count)throw new FormatException("Bounded unique checkpoint actor keys required.");
                 foreach(var record in records.Cast<JObject>())
                 {
@@ -169,9 +169,16 @@ public sealed class PNWorldLifetimeController : IDisposable
             if(work.Candidates.Count>0)scheduler.PublishPrepared(work.Candidates.Select(x=>x.Candidate).ToArray());
             states.Restore(new PNWorldStateContext(world,null,work.References),Record(data["world"]),policy.WorldStateProviders);
             foreach(var candidate in work.Candidates){RestoredActor?.Invoke(candidate.Candidate,candidate.Request);factory.Published(candidate.Candidate.Loader);}
-            world.SetPaused(false);worlds.PublishStaged(world);work.Lease.Dispose();work.Lease=null;work.Receipt.State=PNWorldLifetimeState.Completed;Complete(work);return true;
+            RequireResident(world,"publication");world.SetPaused(false);worlds.PublishStaged(world);work.Lease.Dispose();work.Lease=null;work.Receipt.State=PNWorldLifetimeState.Completed;Complete(work);return true;
         }
         return false;
+    }
+    // A staged world can fail while loading and be unloaded by host cleanup before the restore step runs; name the original cause, not the state error.
+    private static void RequireResident(EveWorldContext world,string step)
+    {
+        if(world.State==EveWorldState.Ready||world.State==EveWorldState.Paused)return;
+        var cause=world.FirstFailure??world.Failure;
+        throw new InvalidOperationException("Restored world left the resident state before "+step+" (state "+world.State+")"+(cause!=null?": "+cause.Message:""),cause);
     }
     private void EnsureBound(Work work){work.StagingBytes=System.Text.Encoding.UTF8.GetByteCount(work.Records.ToString(Formatting.None));if(work.StagingBytes>64L*1024*1024||StagingBytes+StoredBytes>128L*1024*1024)throw new InvalidOperationException("Checkpoint staging budget exceeded.");}
     private static string Key(EveEntityLoader actor)
@@ -185,6 +192,8 @@ public sealed class PNWorldLifetimeController : IDisposable
     {
         if(work.Receipt.State==PNWorldLifetimeState.Failed)return;
         bool unloading=work.Receipt.State==PNWorldLifetimeState.Unloading;
+        // Diagnostic: the failure reason used to live only in Receipt.Error; log it (warning, since callers may expect failures in negative checks).
+        Debug.LogWarning("World lifetime operation failed in state "+work.Receipt.State+" (restore="+work.Restore+", world="+work.Receipt.World.InstanceId+"): "+error);
         work.Receipt.Error=error.Message;work.Receipt.State=PNWorldLifetimeState.Failed;work.Lease?.Dispose();work.Lease=null;
         var world=work.Receipt.World;
         if(work.Restore||unloading)

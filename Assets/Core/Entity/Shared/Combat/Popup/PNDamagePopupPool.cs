@@ -47,7 +47,7 @@ public sealed class PNDamagePopupPool : MonoBehaviour
         position += Vector3.right * (((sequence++ % 3) - 1) * .12f);
         try { popup.Begin(damage, position, color, clock, critical, elements); active.Add(popup); }
         catch { using (EveHotPathMetrics.Measure("popup.destroy")) DestroyObject(popup.gameObject); throw; }
-        if (Application.isPlaying && Camera.main != null) PNDamagePopupBloom.Ensure(Camera.main);
+        if (Application.isPlaying && PNViewCamera.Current != null) PNDamagePopupBloom.Ensure(PNViewCamera.Current);
         PNDamagePopupDiagnostics.Record("after-show", this, popup);
         return popup;
     }

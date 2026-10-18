@@ -83,7 +83,9 @@ public static class PNWorldLifecycleChecks
             Check(b.State==EveWorldState.Ready,"partial load failure isolated from B");
             Reject(()=>worlds.Unload(failed),"failed resource cleanup remains owned for retry");
             Check(session.Worlds.TryGet(failed.InstanceId,failed.Incarnation,out _)&&failed.PendingCleanup>0,"failed world retains directory identity and cleanup");
+            var originalFailure=failed.FirstFailure;Check(originalFailure!=null,"failed load records its first failure");
             PNWorldFixtureProvider.RepairCleanup=true;Check(worlds.Unload(failed),"world cleanup retry succeeds after fault repair");
+            Check(failed.Failure==null&&ReferenceEquals(failed.FirstFailure,originalFailure),"cleanup clears Failure but keeps the original cause for later lifecycle errors");
             var io=session.Worlds.Create(EveId.Parse("fixture:pending"),new string('c',64));bool ioReady=false;io.BeginLoading();io.CompleteLoading();
             io.RegisterCleanup(()=>{if(!ioReady)throw new EveWorldCleanupPendingException("Fixture noncancelable scene IO pending");});
             Reject(()=>session.Worlds.Remove(io),"pending scene IO retains cleanup without pretending completion");

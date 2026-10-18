@@ -8,6 +8,9 @@ using UnityEngine.SceneManagement;
 public sealed class PNDamagePopupBloom : MonoBehaviour
 {
     private static PNDamagePopupBloom current;
+    public static bool Exists => current != null;
+    // Volume layer bit this bloom owns on the camera mask; 0 when absent.
+    public static int VolumeBit => current != null ? 1 << current.gameObject.layer : 0;
     public static PNDamagePopupBloom Ensure(Camera camera)
     {
         using var diagnostic = EveHotPathMetrics.Measure("popup.bloom-ensure");

@@ -68,3 +68,17 @@ và logic mới. README ở Assets/Core/Entity/Shared/Stats/Calculation.
 EN: PNContentModule also registers Core's Scale/Mitigation calculation factories.
 Modifier CalculationId is filtered before grouping; code mods can add new routes
 and logic. Documentation lives in Assets/Core/Entity/Shared/Stats/Calculation.
+
+## Camera director (play session)
+
+`PNCameraDirector` (Assets/Game/Runtime/Camera) owns the one rendering camera of a play session (output Camera + Brain + AudioListener tagged MainCamera under the
+runtime root). World `MainCamera` groups are claimed from `PNWorldPresentation` (`Claim`/`Release`, original state returned under current view visibility); only the
+viewed world's virtual cameras are admitted to the output through a reserved Brain channel chosen at runtime. Use `PNViewCamera.Current` (Core) for popups, buff visuals and
+UI instead of `Camera.main`; subscribe to `PNViewCamera.Updated` for work that must run after Cinemachine wrote the camera. `--pn-legacy-camera` skips the director.
+`PNTransitionController` (same folder) opens one transition screen per local-view change (join, own-actor transfer, world lost),
+closes it when the view, actor, input gate and a rendered frame are ready (real time, min/max display), and isolates a failing
+screen. `IPNCameraService` (Core) is implemented by the director: shake on a private impulse channel (director-owned events only),
+zoom (player base + modifiers, composed from the base each frame and clamped by `PNCameraProfile`), camera-only lock-on rig,
+cinematic rig with runtime blend asset (shots, sequences, waypoint paths, aim), opt-in yaw (billboards/shadows follow only while a yaw override is live),
+bounds (Confiner3D), follow tuning, free orbit, per-request ease and clock, a state snapshot, and handles that report why they ended.
+Full API and rules: `.agents/skills/project-n-camera`.

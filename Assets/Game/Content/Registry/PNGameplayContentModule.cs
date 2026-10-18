@@ -48,6 +48,11 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         var modes=hub.GetOrCreate<PNModeDefinition>();
         modes.Register(new PNModeDefinition(EveId.Parse("project_n:roguelite"),typeof(PNRoguelitePolicy),profile=>new PNRoguelitePolicy(profile)));
         modes.RegisterBase(EveId.Parse("base:roguelite"),EveId.Parse("project_n:roguelite"),"project_n",compatible:(original,replacement)=>true);
+        var screens=hub.GetOrCreate<PNTransitionScreenDefinition>();
+        screens.Register(new PNTransitionScreenDefinition(PNTransitionSelector.DefaultScreen,PNTransitionKind.UiToolkit,PNTransitionPayload.Default,typeof(PNUiToolkitTransitionScreen).FullName,payload=>new PNUiToolkitTransitionScreen(payload)));
+        screens.RegisterBase(EveId.Parse("base:default_transition"),PNTransitionSelector.DefaultScreen,"project_n",compatible:(a,b)=>true);
+        screens.Register(new PNTransitionScreenDefinition(EveId.Parse("project_n:no_transition"),PNTransitionKind.None,PNTransitionPayload.Default,"none",payload=>null));
+        screens.RegisterBase(PNTransitionSelector.NoScreen,EveId.Parse("project_n:no_transition"),"project_n",compatible:(a,b)=>true);
 #endif
         PNGameSkillBindings.RegisterBehaviors(hub);
         PNBuffGameplayContent.Register(hub);

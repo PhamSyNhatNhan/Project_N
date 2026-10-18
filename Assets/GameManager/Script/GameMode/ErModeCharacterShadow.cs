@@ -47,8 +47,11 @@ public sealed class ErModeCharacterShadow : MonoBehaviour, IPNSceneEntityVisual
         float height = Mathf.Max(0f, target.position.y - footOffset - hit.point.y);
         float size = 1f / (1f + height * 0.4f);
         float opacity = 1f / (1f + height * 0.8f);
-        transform.SetPositionAndRotation(hit.point + hit.normal * surfaceOffset,
-            Quaternion.FromToRotation(Vector3.forward, hit.normal));
+        var flat = Quaternion.FromToRotation(Vector3.forward, hit.normal);
+        // While a cinematic with AllowYaw is live, turn the ellipse about the ground normal so its long axis stays across the camera view.
+        var service = Application.isPlaying ? PNViewCamera.Service : null;
+        if (service != null && service.Orientation.YawOverridden) flat = Quaternion.AngleAxis(service.Orientation.Yaw, hit.normal) * flat;
+        transform.SetPositionAndRotation(hit.point + hit.normal * surfaceOffset, flat);
         transform.localScale = new Vector3(width * size, length * size, 1f);
         shadowRenderer.color = new Color(shadowColor.r, shadowColor.g, shadowColor.b,
             shadowColor.a * opacity);

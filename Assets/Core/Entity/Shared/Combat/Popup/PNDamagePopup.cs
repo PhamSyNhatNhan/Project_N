@@ -157,7 +157,7 @@ public sealed class PNDamagePopup : MonoBehaviour
         using (EveHotPathMetrics.Measure("popup.activate")) gameObject.SetActive(true);
         using (EveHotPathMetrics.Measure("popup.mesh")) text.ForceMeshUpdate();
         using (EveHotPathMetrics.Measure("popup.renderers")) renderers = GetComponentsInChildren<MeshRenderer>(true);
-        using (EveHotPathMetrics.Measure("popup.spawn-render")) Render(Camera.main);
+        using (EveHotPathMetrics.Measure("popup.spawn-render")) Render(PNViewCamera.Current);
     }
     private string Icon(string name, Color color)
     {
@@ -170,7 +170,7 @@ public sealed class PNDamagePopup : MonoBehaviour
         using var diagnostic = EveHotPathMetrics.Measure("popup.advance");
         if (!float.IsFinite(deltaTime) || deltaTime < 0f) throw new ArgumentOutOfRangeException(nameof(deltaTime));
         elapsed += deltaTime * (clock != null && clock.isActiveAndEnabled ? clock.Scale : 1f);
-        Render(camera == null ? Camera.main : camera);
+        Render(camera == null ? PNViewCamera.Current : camera);
         return elapsed >= Lifetime;
     }
     private void Render(Camera camera)

@@ -67,7 +67,15 @@ namespace ProjectN.Coop.Tests
                 foreach(var audio in world.PhysicsOwner.GetRootGameObjects().SelectMany(x=>x.GetComponentsInChildren<AudioSource>(true)))if(world!=local.World)Check(audio.mute,"hidden world audio muted");
             }
             var ui=PNGameBootstrap.Runtime.GetComponent<PNUiRuntime>();ui.RefreshUI();Check(ui.HudPlayer!=null&&ui.HudPlayer.GetComponent<EveEntityIdentity>().World==local.World,"HUD binds only the local viewed presence");
-            Check(Camera.main!=null&&Camera.main.gameObject.scene==local.World.PhysicsOwner,"active main camera belongs to the viewed world");
+            var cameraDirector=PNGameBootstrap.Runtime?.GetComponent<PNGameSession>()?.CameraDirector;
+            if(cameraDirector!=null)
+            {
+                Check(Camera.main==cameraDirector.ViewCamera&&Camera.main.enabled,"active main camera is the director output");
+                Check(Camera.allCameras.Count(x=>x.CompareTag("MainCamera")&&x.enabled)==1,"exactly one enabled MainCamera");
+                var live=cameraDirector.Brain.ActiveVirtualCamera as Component;
+                Check(live!=null&&PNWorldGameplay.ForScene(EveRegistrySession.Context,live.gameObject.scene)==local.World||live!=null&&live.transform.parent==cameraDirector.transform,"live virtual camera belongs to the viewed world or is the director fallback rig");
+            }
+            else Check(Camera.main!=null&&Camera.main.gameObject.scene==local.World.PhysicsOwner,"active main camera belongs to the viewed world");
         }
         private IEnumerator Capture(string name)
         {
@@ -158,7 +166,7 @@ namespace ProjectN.Coop.Tests
             try
             {
                 var actors=EveRegistrySession.Context.Entities.Snapshot(restore.World);var type=ModType("WorldSandboxMod.ActorData");
-                Check(restore.State==PNWorldLifetimeState.Completed&&restore.World.Incarnation==2&&actors.Count==2,"restored generated world has new incarnation and no duplicate authored enrollment");
+                Check(restore.State==PNWorldLifetimeState.Completed&&restore.World.Incarnation==2&&actors.Count==2,"restored generated world has new incarnation and no duplicate authored enrollment state="+restore.State+" incarnation="+restore.World.Incarnation+" actors="+actors.Count+" names="+string.Join(",",actors.Select(x=>x.name))+" error="+restore.Error+" worldFailure="+restore.World.Failure);
                 Check(actors.Any(x=>(int)type.GetField("Value").GetValue(x.GetComponent(type))==111)&&actors.All(x=>actors.Contains((EveEntityLoader)type.GetField("Linked").GetValue(x.GetComponent(type)))),"external serializer restores custom data and remaps references to new entities");
                 Check(Count("WorldSandboxMod.SandboxMod","SessionsStarted")==1&&Count("WorldSandboxMod.GeneratedProvider","ReadyCount")==3,"world lifecycle callbacks stay distinct from the single play callback");
                 Mark("finish");
@@ -183,7 +191,7 @@ namespace ProjectN.Coop.Tests
             if(role=="client1")
             {
                 yield return Wait(()=>Has("one-b")&&Has("b"));if(failed)yield break;b=Guid.Parse(File.ReadAllText(Path.Combine(folder,"b")));yield return Wait(()=>OwnReady(b));if(failed)yield break;
-                try{CheckView(b);Check(EveRegistrySession.Context.Entities.Snapshot().Count(x=>x.GetComponent<PNPlayerStat>()!=null&&x.LoadContext.Identity.OwnerId==manager.RoomOwner)==1,"owner has one replica after presence replacement");Mark("client1-b");}catch(Exception error){Fail(error);yield break;}yield return Capture("host-a-client-b");
+                try{CheckView(b);Check(EveRegistrySession.Context.Entities.Snapshot().Count(x=>x.GetComponent<PNPlayerStat>()!=null&&x.LoadContext.Identity.OwnerId==manager.RoomOwner)==1,"owner has one replica after presence replacement");Mark("client1-b");}catch(Exception error){Fail(error);yield break;}yield return Wait(()=>PNTransitionController.Current==null||!PNTransitionController.Current.IsShowing);if(failed)yield break;try{var transition=PNTransitionController.Current;Check(transition==null||transition.ShowCount>=2&&transition.HideCount==transition.ShowCount&&!transition.IsShowing,"join and transfer each opened and closed one transition cycle show="+transition?.ShowCount+" hide="+transition?.HideCount+" showing="+transition?.IsShowing+" source="+PNTransitionSources.Snapshot().OfType<PNTransferTransitionSource>().FirstOrDefault()?.History+" sources="+PNTransitionSources.Snapshot().Count);}catch(Exception error){Fail(error);yield break;}yield return Capture("host-a-client-b");
                 yield return Wait(()=>Has("one-a")&&OwnReady(a));if(failed)yield break;try{CheckView(a);Mark("client1-back");}catch(Exception error){Fail(error);yield break;}
                 yield return Wait(()=>Has("group-b")&&OwnReady(b));if(failed)yield break;try{CheckView(b);Mark("client1-group");}catch(Exception error){Fail(error);yield break;}
             }

@@ -326,7 +326,12 @@ UI owns its Sprite reference cache and clears it on disable/session replacement.
 `LocalOwnerId` defaults to offline owner 0. Co-op bootstrap must assign the local
 peer's owner ID; optional `LocalPlayerId` disambiguates multiple owned players.
 Remote players cannot become the HUD player through a tag lookup. `ViewCamera`
-defaults to `Camera.main` and must be a URP Base camera.
+defaults to `PNViewCamera.Current` (the camera director's output in a play session,
+`Camera.main` otherwise) and must be a URP Base camera. In a session the overlay camera is
+synchronised from `PNViewCamera.Updated`, i.e. after Cinemachine's Brain wrote the pose;
+syncing earlier copies the previous frame (a measured one-frame lag, now 0 of 90 frames).
+The transition screen (`PNUiToolkitTransitionScreen`) uses its own PanelSettings above the HUD
+(sorting 150).
 
 World documents face the camera and follow the projected Sprite quad: horizontal
 anchor is the midpoint of its screen-space left/right edges, vertical anchor is

@@ -82,7 +82,7 @@ public sealed class PNBuffElementVisual : MonoBehaviour
     internal void Remove(PNBuffElementVisualLease lease)
     {grants.Remove(lease);if(grants.Count==0){gameObject.SetActive(false);RetireResources();Release(gameObject);}}
     public void Pulse()=>pulse=1;
-    private void LateUpdate()=>AdvanceVisual(Time.deltaTime,Camera.main);
+    private void LateUpdate()=>AdvanceVisual(Time.deltaTime,PNViewCamera.Current);
 
     // Shape-derived support dimensions projected onto the camera plane, never renderer or collider AABBs.
     private bool ReadBody(Camera camera,out float depth)

@@ -30,6 +30,8 @@ public interface IPNSessionPolicy
     int MaximumClients {get;}
     double GraceSeconds {get;}
     void OnOwnerLeft(Action retire);
+    // Default screen for this mode's transitions; default interface member keeps already-built mode policies compatible.
+    EveEngine.EveId TransitionScreen => default;
 }
 #endif
 #if UNITY_5_3_OR_NEWER

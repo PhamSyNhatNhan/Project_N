@@ -27,6 +27,8 @@ namespace EveEngine
         public string ContentHash { get; }
         public EveWorldState State { get; private set; } = EveWorldState.Creating;
         public Exception Failure { get; private set; }
+        // First failure of this world; kept after cleanup clears Failure so a later lifecycle error can still name the cause.
+        public Exception FirstFailure { get; private set; }
         public bool CanExecute => Session.IsActive && State == EveWorldState.Ready;
         public int LeaseCount => leases.Count;
         public int ActivityLeaseCount=>leases.Values.Count(x=>x.Kind==EveWorldLeaseKind.Activity);
@@ -100,7 +102,7 @@ namespace EveEngine
         }
         public void RestoreClock(double time)
         {if(!Session.HasAuthority||State!=EveWorldState.Ready&&State!=EveWorldState.Paused||Session.Entities.Snapshot(this).Count!=0||double.IsNaN(time)||double.IsInfinity(time)||time<0)throw new InvalidOperationException("Restore clock before restoring resident entities.");GameplayTime=time;}
-        public void Fail(Exception error) { if(State==EveWorldState.Disposed)throw new InvalidOperationException(); Failure=error??throw new ArgumentNullException(nameof(error)); State=EveWorldState.Failed; }
+        public void Fail(Exception error) { if(State==EveWorldState.Disposed)throw new InvalidOperationException(); Failure=error??throw new ArgumentNullException(nameof(error)); FirstFailure=FirstFailure??error; State=EveWorldState.Failed; }
         // Retry retains failed resources and the directory identity. Callers retire members first.
         public void Dispose()
         {

@@ -59,6 +59,13 @@ public sealed class PNWorldTransitionCoordinator : IDisposable,IPNWorldTransferT
     public IPNWorldTransferTransport Transport { get; set; }
     public Func<PNWorldTransferRequest,bool> Admit { get; set; }=request=>true;
     public int PendingCount=>active.Count;
+    // Local-participant observation for the transition screen: the in-flight transfer that includes this actor, if any.
+    public bool TryGetActive(long entity,out PNWorldTransferRequest request,out PNWorldTransferState state)
+    {
+        foreach(var work in active.Values)
+            if(Array.IndexOf(work.Entities,entity)>=0){request=work.Request;state=work.Receipt.State;return true;}
+        request=null;state=default;return false;
+    }
     public IReadOnlyList<PNWorldTransferReceipt> SnapshotReceipts()=>history.Values.Select(x=>x.Item2).ToArray();
     public double MaximumCallbackMilliseconds { get; private set; }
     public PNWorldTransitionCoordinator(EveSessionContext session,PNWorldRuntime worlds,PNPlayerFactory factory,EveEntityPreparationScheduler scheduler)

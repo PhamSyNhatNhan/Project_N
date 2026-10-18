@@ -26,6 +26,26 @@ nâng Unity; chưa triển khai hoặc xác nhận CoreCLR trên Unity 6.7.
 EN: The current backend supports Windows Editor/Standalone Mono. CoreCLR is a
 future adapter behind `EveIModAssemblyLoader`; Unity 6.7 support is unverified.
 
+## Camera and transition screens (additive; Mod API stays 6)
+
+Registered content (no wire change, already part of the content compatibility hash):
+`PNTransitionScreenDefinition` (id, kind `UiToolkit` | `Prefab` | `None`, payload, factory) through
+`context.Register(...)`. The payload is parsed strictly (`PNTransitionPayload.Parse`): colour, text, fadeIn/Out,
+min/max seconds (hard cap 60), coverage, optional prefab path; unknown fields are rejected. Selection chain,
+first that exists and creates successfully: transfer request id (`PNWorldTransferRequest.TransitionScreen`,
+host-local) > world policy (`new PNWorldPolicy(empty, participants, actorState, worldState, transitionScreen)`) >
+mode (`IPNSessionPolicy.TransitionScreen`, a default interface member so existing policies keep working) >
+`project_n:default_transition`. `base:none` shows nothing. A failing screen falls back to the default; screens only
+draw (no input), use real time and are closed by the controller. Clients know a transfer only from the hold notice,
+so they choose by mode/default (the destination world is not on the wire).
+A prefab screen may not contain a Camera or AudioListener, its Canvas sorts above the HUD, takes no input and is
+marked `PNRoomResource`. Use `new PNPrefabTransitionScreen(payload, () => prefab)` or `PNPrefabTransitionScreen.FromResources(path)`.
+Gameplay code reaches the camera through `PNCameraServices.Resolve(session)` (`IPNCameraService`): handles
+(`IPNCameraHandle`: `Ended` with a `PNCameraHandleEnd` reason, refusal codes in `PNCameraRefusal`), `RequestShake/Zoom/LockOn/Cinematic/CinematicSequence/Bounds/FollowTuning/Orbit`,
+`SetProfileLayer`, `State`. Per-request `PNCameraEase` and `PNCameraClock`; details in `.agents/skills/project-n-camera/references/api.md`.
+Example: `Examples/Mods/WorldSandboxMod` (orange UI Toolkit screen, code-built prefab screen, a failing screen).
+Verified with the real DLL compiled from a freshly exported SDK; an older Mod API 6 DLL still loads and runs.
+
 ## Pack and entry point / Pack và điểm vào
 
 Đặt pack dưới `Application.persistentDataPath/Mods/<namespace>/`. Cơ chế chọn

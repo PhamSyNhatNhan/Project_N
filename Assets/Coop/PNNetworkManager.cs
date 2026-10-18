@@ -196,6 +196,7 @@ namespace ProjectN.Coop
             NetworkClient.RegisterHandler<PNWorldFence>(ReceiveWorldFence);
             NetworkClient.RegisterHandler<PNWorldApplied>(ReceiveWorldConfirmation);
             NetworkClient.RegisterHandler<PNWorldTransferNotice>(ReceiveTransferNotice);
+            EnsureTransitionSource();
             NetworkClient.RegisterSpawnHandler(PNSessionShell.Asset,_=>CreateShell<PNSessionShell>("Session shell"),DestroyShell);
             NetworkClient.RegisterSpawnHandler(PNActorShell.Asset,_=>CreateShell<PNActorShell>("Actor shell"),DestroyShell);
             NetworkClient.RegisterHandler<PNResume>(ReceiveResumeClient);

@@ -14,6 +14,8 @@ public sealed class PNGameSession : MonoBehaviour
     public PNLocalWorldContext Local {get;private set;}
     public PNWorldLifetimeController Lifetimes {get;private set;}
     public PNWorldPresentation Presentation {get;private set;}
+    public PNCameraDirector CameraDirector {get;private set;}
+    public PNTransitionController Transitions {get;private set;}
     public static PNGameSession Attach(EveRuntime runtime,EveSessionContext session)
     {
         var service=runtime.GetComponent<PNGameSession>()??runtime.gameObject.AddComponent<PNGameSession>();
@@ -23,6 +25,7 @@ public sealed class PNGameSession : MonoBehaviour
         service.Worlds=new PNWorldRuntime(session,service.Scheduler);
         service.Local=new PNLocalWorldContext(session);
         service.Presentation=runtime.GetComponent<PNWorldPresentation>()??runtime.gameObject.AddComponent<PNWorldPresentation>();service.Presentation.Bind(session,service.Worlds,service.Local);
+        if(!PNCameraDirector.LegacyRequested)service.CameraDirector=PNCameraDirector.Attach(runtime.gameObject,session,service.Worlds,service.Local,service.Presentation);
         var physics=runtime.GetComponent<PNWorldPhysicsLoop>()??runtime.gameObject.AddComponent<PNWorldPhysicsLoop>();physics.Bind(session);
         service.Worlds.BeforeUnload=world=>runtime.GetComponent<PNAreaManager>()?.ReleaseWorld(world);
         service.Factory=new PNPlayerFactory(session,service.Worlds);
@@ -30,6 +33,7 @@ public sealed class PNGameSession : MonoBehaviour
         service.Transfers=new PNWorldTransitionCoordinator(session,service.Worlds,(PNPlayerFactory)service.Factory,service.Scheduler);
         physics.BeforeSimulation+=service.Transfers.FixedBoundary;
         service.Lifetimes=new PNWorldLifetimeController(session,service.Worlds,(PNPlayerFactory)service.Factory,service.Scheduler);
+        if(!PNCameraDirector.LegacyRequested)service.Transitions=PNTransitionController.Attach(runtime.gameObject,session,service.Local,service.Transfers,service.CameraDirector);
         var scenes=UnityEngine.Object.FindObjectsByType<PNPlayerSpawnPoint>().Select(x=>x.gameObject.scene).Distinct().ToArray();
         if(scenes.Length==1){service.Worlds.SetEntryScene(scenes[0]);if(session.Role!=EveSessionRole.Client)service.Presentation.RegisterWorld(service.Worlds.Adopt(scenes[0]));}
         else if(scenes.Length>1)throw new InvalidOperationException("Scene entry requires explicit world selection for multiple scenes.");

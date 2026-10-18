@@ -40,3 +40,12 @@ EveMovesetPlayModeChecks.Run() input test. No test runs automatically.
 EN: EveSwordPlayReview.Run() is an opt-in real ErMode Play Mode review of dynamic Rigidbody Dash and Game View screenshots. Back up unsaved scene, run, read Status/.utmp/EveMeshBladeReview/Results.txt, then stop Play Mode to restore authored scene. It repositions live entities; do not save during review.
 
 VI: EveSwordPlayReview.Run() chạy tường minh trong Play Mode của ErMode để đo Dash trên Rigidbody động và chụp Game View. Sao lưu scene chưa lưu, chạy, đọc Status/.utmp/EveMeshBladeReview/Results.txt rồi dừng Play Mode để khôi phục scene gốc. Nó đổi vị trí entity khi thử; không lưu scene trong lúc thử.
+
+Camera checks (edit mode, Brain in `ManualUpdate`, `director.Advance` driven by hand; not rendered-frame acceptance):
+`PNCameraDirectorChecks.Run()` (claim/release, channel isolation, ExternalCamera, fallback rig, teardown),
+`PNCameraZoomChecks.Run()` (distance/lens/orthographic/no-camera worlds, profile layers),
+`PNCameraCinematicChecks.Run()` (blend in/out, priority, yaw opt-in, Edit Mode billboard stays pitch-only).
+Smoke (`Tests/EveEngine`): `PNTransitionTests`, `PNCameraStackTests`, `PNZoomTests`. Rendered/host/client/real-mod evidence
+comes from disposable Player builds of a project clone (see `Docs/CameraImplementationPlan.md`). `PNBillboardEditorChecks`
+needs the authored ErMode scene to contain the Eve and dummy characters; with the current scene it stops at its content
+precondition before reaching any billboard code.

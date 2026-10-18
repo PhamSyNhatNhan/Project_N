@@ -33,6 +33,7 @@ public sealed class PNUiRuntime : MonoBehaviour
     private bool IsLocalPlayer(PNStat stat)=>stat is PNPlayerStat && stat.GetComponent<EveEntityIdentity>().OwnerId==LocalOwnerId;
     public EveEntityId LocalPlayerId { get; set; }
     public Camera ViewCamera { get; set; }
+    public int WorldLayer => worldLayer;
     public PNStat HudPlayer { get; private set; }
     public int WorldCount => worlds.Count;
     public VisualElement HudRoot => hud?.rootVisualElement;
@@ -82,6 +83,17 @@ public sealed class PNUiRuntime : MonoBehaviour
         localView=PNLocalWorldContext.Current;if(ReferenceEquals(localView?.Session,context))localView.Changed+=ResetMobileInput;
         try { Build(); } catch { Unbind(); throw; }
     }
+    // Copies the view camera onto the world-UI overlay camera. Called after Brain has written the view camera for the frame.
+    private void SyncCamera()
+    {
+        var camera=attachedCamera;
+        if(uiCamera==null || camera==null) return;
+        uiCamera.transform.SetPositionAndRotation(camera.transform.position,camera.transform.rotation);
+        uiCamera.orthographic=camera.orthographic; uiCamera.orthographicSize=camera.orthographicSize;
+        uiCamera.fieldOfView=camera.fieldOfView; uiCamera.nearClipPlane=camera.nearClipPlane;
+        uiCamera.farClipPlane=camera.farClipPlane; uiCamera.rect=camera.rect;
+        uiCamera.projectionMatrix=camera.projectionMatrix;
+    }
     public void Unbind()
     {
         if(boundSession!=null) boundSession.Stopping-=Unbind;
@@ -97,6 +109,7 @@ public sealed class PNUiRuntime : MonoBehaviour
     private void Build()
     {
         if(hud!=null) return;
+        PNViewCamera.Updated-=SyncCamera; PNViewCamera.Updated+=SyncCamera;
         var template=Resources.Load<VisualTreeAsset>("UI/Combat/CombatHud");
         worldTemplate=Resources.Load<VisualTreeAsset>("UI/Combat/CombatWorld");
         styles=Resources.Load<StyleSheet>("UI/Combat/CombatUI");
@@ -154,16 +167,11 @@ public sealed class PNUiRuntime : MonoBehaviour
         if(hud==null) return;
         pause?.Tick();
         hud.rootVisualElement.Q("test-panel").style.display=MenuOpen?DisplayStyle.None:DisplayStyle.Flex;
-        var camera=ViewCamera!=null?ViewCamera:Camera.main;
+        var camera=ViewCamera!=null?ViewCamera:PNViewCamera.Current;
         if(camera!=attachedCamera) ConnectCamera(camera);
-        if(uiCamera!=null && camera!=null)
-        {
-            uiCamera.transform.SetPositionAndRotation(camera.transform.position,camera.transform.rotation);
-            uiCamera.orthographic=camera.orthographic; uiCamera.orthographicSize=camera.orthographicSize;
-            uiCamera.fieldOfView=camera.fieldOfView; uiCamera.nearClipPlane=camera.nearClipPlane;
-            uiCamera.farClipPlane=camera.farClipPlane; uiCamera.rect=camera.rect;
-            uiCamera.projectionMatrix=camera.projectionMatrix;
-        }
+        // With a camera director the sync runs after Brain (PNViewCamera.Updated); Brain's execution order is after this LateUpdate,
+        // so syncing here would copy the previous frame's pose. Outside a director session keep the original per-frame sync.
+        if(PNViewCamera.Service==null) SyncCamera();
         if(!EveRegistrySession.IsReady)
         {
             ClearWorlds(); entities.Clear(); HudPlayer=null; mobile?.Refresh(null); UpdateHud(); UpdateSelection(); UpdateDetails(); return;
@@ -304,6 +312,7 @@ public sealed class PNUiRuntime : MonoBehaviour
         pause?.Dispose(); pause=null;
         mobile?.Dispose(); mobile=null;
         sparkleArtwork?.Dispose();sparkleArtwork=null;
+        PNViewCamera.Updated-=SyncCamera;
         ClearWorlds(); ClearPortraits(); DisconnectCamera();
         if(testButton!=null) testButton.clicked-=ToggleTest;
         if(entitySelect!=null) entitySelect.UnregisterValueChangedCallback(SelectEntity);

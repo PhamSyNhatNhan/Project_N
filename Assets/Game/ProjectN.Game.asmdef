@@ -1,6 +1,6 @@
 {
   "name": "ProjectN.Game",
-  "references": ["EveEngine", "ProjectN.Core", "Unity.InputSystem", "Unity.Cinemachine", "Unity.RenderPipelines.Universal.Runtime", "Unity.RenderPipelines.Core.Runtime"],
+  "references": ["EveEngine", "ProjectN.Core", "Unity.InputSystem", "Unity.Cinemachine", "Unity.RenderPipelines.Universal.Runtime", "Unity.RenderPipelines.Core.Runtime", "UnityEngine.UI"],
   "overrideReferences": true,
   "precompiledReferences": ["Newtonsoft.Json.dll"],
   "autoReferenced": true
