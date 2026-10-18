@@ -28,11 +28,11 @@ namespace EveEngine
         }
         public static void PumpCleanup()
         {
-            if (current?.Cleanup == null) return;
-            current.Cleanup.AdvanceFrame();
-            if (State == EveSessionState.Stopping && current.Cleanup.Scheduler.StopState == Experimental.Lifecycle.CleanupStopState.Blocked && LastError == null)
+            if (current == null) return;
+            current.Cleanup?.AdvanceFrame();
+            if (State == EveSessionState.Stopping && current.Cleanup?.Scheduler.StopState == Experimental.Lifecycle.CleanupStopState.Blocked && LastError == null)
                 LastError = new InvalidOperationException("CleanupBlocked: pending entity cleanup requires explicit retry or restart.");
-            if (State == EveSessionState.Stopping && current.Cleanup.ResidentCount == 0 && LastError == null) End();
+            if (State == EveSessionState.Stopping && (current.Cleanup?.ResidentCount ?? 0) == 0 && LastError == null) End();
         }
 
         internal static void Begin()
@@ -130,6 +130,7 @@ namespace EveEngine
             }
             catch (Exception error)
             {
+                if(EveWorldCleanupPendingException.IsPending(error)){LastError=null;return;}
                 LastError = error;
                 throw;
             }

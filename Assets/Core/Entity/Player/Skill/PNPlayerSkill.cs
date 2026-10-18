@@ -53,8 +53,8 @@ public partial class PNPlayerSkill : PNSkill, IPNEntityResourceOwner
     protected virtual void Start() => StartSetUp();
     protected virtual void AwakeSetUp() { }
     protected virtual void StartSetUp() { }
-    protected override void OnEnable() { base.OnEnable(); if (pc != null) RefreshInput(); }
-    protected override void OnDisable() { try { CancelPlayerDash(); DisableButtons(); } finally { base.OnDisable(); } }
+    protected override void OnEnable() { if(GetComponent<EveEntityIdentity>()?.IsChangingWorld==true)return;base.OnEnable(); if (pc != null) RefreshInput(); }
+    protected override void OnDisable() { if(GetComponent<EveEntityIdentity>()?.IsChangingWorld==true)return;try { CancelPlayerDash(); DisableButtons(); } finally { base.OnDisable(); } }
     protected override void OnDestroy()
     {
         try

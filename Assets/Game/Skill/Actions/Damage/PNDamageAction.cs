@@ -46,6 +46,7 @@ public class PNDamageAction : PNSkillAction
         if (performed || !context.Skill.IsReady || caster.SessionId != sessionId)
             throw new InvalidOperationException("Invalid damage Perform transition or session.");
         var targets = new List<PNStat>();
+        PNWorldGameplay.RequireTargets(context.Skill,context.Targets);
         var identities = new HashSet<EveEntityId>();
         foreach (var target in context.Targets)
         {

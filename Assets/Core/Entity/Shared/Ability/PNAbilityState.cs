@@ -1,6 +1,6 @@
 using System;
 
-public sealed class PNAbilityState : PNAbility
+public sealed partial class PNAbilityState : PNAbility
 {
     private bool active;
     private double? duration;

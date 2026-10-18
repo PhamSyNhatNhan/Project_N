@@ -53,13 +53,15 @@ public abstract class PNAreaInstance : MonoBehaviour, EveIPoolable
 {
     public PNAreaHandle Handle { get; private set; }
     public bool IsRunning { get; private set; }
+    public EveWorldContext World { get; private set; }
     public PNAreaEndReason? EndReason { get; private set; }
     internal bool CleanupFailed { get; set; }
     protected PNAreaManager Manager { get; private set; }
     protected PNAreaDefinition Definition { get; private set; }
     public virtual float RetirementDuration => 0;
+    public virtual void ActorWorldChanging(PNStat actor) { }
     internal void Bind(PNAreaManager manager, PNAreaHandle handle, PNAreaDefinition definition, PNAreaCreateRequest request)
-    { Manager = manager; Handle = handle; Definition = definition; EndReason = null; CleanupFailed = false; IsRunning = true; Initialize(request); }
+    { Manager = manager; World=PNWorldGameplay.ForScene(manager.Session,request.Scene);Handle = handle; Definition = definition; EndReason = null; CleanupFailed = false; IsRunning = true; Initialize(request); }
     protected abstract void Initialize(PNAreaCreateRequest request);
     public abstract void Advance(float gameDelta);
     public virtual void AdvanceRetirement(float gameDelta) { }
@@ -77,7 +79,7 @@ public abstract class PNAreaInstance : MonoBehaviour, EveIPoolable
     public virtual void DisposePooledResources() { }
     public virtual void OnPoolRelease()
     {
-        Manager = null; Definition = null; Handle = default; EndReason = null; IsRunning = false;
+        Manager = null;World=null; Definition = null; Handle = default; EndReason = null; IsRunning = false;
         if (CleanupFailed) throw new InvalidOperationException("Faulted area cleanup; existing pool must evict this instance.");
     }
     protected virtual void OnDisable() { if (IsRunning) Finish(PNAreaEndReason.Disabled); }
@@ -92,7 +94,7 @@ public sealed class PNAreaManager : MonoBehaviour
         internal GameObject Template; internal EveEasyPooling Pool; internal Scene Scene;
         internal readonly Dictionary<GameObject, PNAreaInstance> Instances = new Dictionary<GameObject, PNAreaInstance>();
     }
-    private sealed class Entry { internal EveId Id, ProfileId; internal GameObject Root; internal PNAreaInstance Instance; internal PoolEntry Pool; internal Scene Scene; internal float Retirement; }
+    private sealed class Entry { internal EveId Id, ProfileId; internal GameObject Root; internal PNAreaInstance Instance; internal PoolEntry Pool; internal Scene Scene; internal float Retirement;internal EveWorldContext World;internal IDisposable Lease; }
     private readonly Dictionary<(PNAreaDefinition, Scene), PoolEntry> pools = new Dictionary<(PNAreaDefinition, Scene), PoolEntry>();
     private readonly Dictionary<long, Entry> entries = new Dictionary<long, Entry>();
     private readonly Queue<Action> pending = new Queue<Action>();
@@ -141,6 +143,9 @@ public sealed class PNAreaManager : MonoBehaviour
             if (request == null || request.Source == null || request.Source.SessionId != Session.SessionId || !request.Scene.IsValid() || !request.Scene.isLoaded)
                 throw new ArgumentException("Area requires valid source/session and loaded scene.");
             var p = request.Position;
+            var world=PNWorldGameplay.ForScene(Session,request.Scene);
+            if(world!=null&&!world.CanExecute||request.Owner!=null&&(!PNWorldGameplay.CanExecute(request.Owner)||!ReferenceEquals(request.Owner.GetComponent<EveEntityIdentity>()?.World,world))||request.Follow!=null&&(!PNWorldGameplay.CanExecute(request.Follow)||!ReferenceEquals(request.Follow.GetComponent<EveEntityIdentity>()?.World,world)))
+                throw new InvalidOperationException("Area world/owner/follow is unavailable or crosses worlds.");
             if (!Finite(p.x) || !Finite(p.y) || !Finite(p.z)) throw new ArgumentException("Finite area position required.");
             var definition = Session.Registry.Get<PNAreaDefinition>().GetEffective(request.AreaId);
             definition.ValidateInput(request.Input);
@@ -172,11 +177,12 @@ public sealed class PNAreaManager : MonoBehaviour
             root.hideFlags = HideFlags.DontSave; root.transform.position = p;
             var instance = root.GetComponent<PNAreaInstance>();
             id = ++sequence; var handle = new PNAreaHandle(this, id);
-            entries.Add(id, new Entry { Id = Session.Registry.Get<PNAreaDefinition>().ResolveIdentity(request.AreaId), ProfileId = definition.Id, Root = root, Instance = instance, Pool = pool, Scene = request.Scene });
-            instance.Bind(this, handle, definition, request); root.SetActive(true);
+            entries.Add(id, new Entry { Id = Session.Registry.Get<PNAreaDefinition>().ResolveIdentity(request.AreaId), ProfileId = definition.Id, Root = root, Instance = instance, Pool = pool, Scene = request.Scene,World=world,Lease=world?.AcquireLease("area") });
+            instance.Bind(this, handle, definition, request);PNWorldPresentationRegistration.Register(world,root);root.SetActive(true);
             if (!instance.isActiveAndEnabled) throw new InvalidOperationException("Selected area component must be active after initialization.");
             // Immediate admission occurs after activation, when owned clock effects may be acquired.
             instance.Advance(0);
+            PNWorldPresentationRegistration.Register(world,root);
             if (!instance.IsRunning) throw new InvalidOperationException("Area ended during initialization.");
             receipt.Handle = handle; receipt.Status = PNAreaStatus.Created;
         }
@@ -186,7 +192,7 @@ public sealed class PNAreaManager : MonoBehaviour
             {
                 SafeStop(entry, PNAreaEndReason.RuntimeError);
                 if (entry.Instance.CleanupFailed) { receipt.Error = error; receipt.Status = PNAreaStatus.Failed; return; }
-                entries.Remove(id);
+                entries.Remove(id);entry.Lease?.Dispose();
             }
             if (root != null) { try { pool.Pool.Release(root); } catch (Exception cleanup) { Debug.LogException(cleanup, this); } }
             receipt.Error = error; receipt.Status = PNAreaStatus.Failed;
@@ -234,6 +240,7 @@ public sealed class PNAreaManager : MonoBehaviour
                 try
                 {
                     if (entry.Instance == null) { Return(pair.Key, entry); continue; }
+                    if(entry.World!=null&&!entry.World.CanExecute)continue;
                     if (entry.Instance.IsRunning && !entry.Instance.isActiveAndEnabled) { End(new PNAreaHandle(this, pair.Key), PNAreaEndReason.Disabled); continue; }
                     if (entry.Instance.IsRunning) entry.Instance.Advance(gameDelta);
                     else { entry.Instance.AdvanceRetirement(gameDelta); entry.Retirement -= gameDelta; if (entry.Retirement <= 0) Return(pair.Key, entry); }
@@ -248,7 +255,7 @@ public sealed class PNAreaManager : MonoBehaviour
     {
         // A failed gameplay cleanup keeps its owner; pool eviction is not a cleanup retry.
         if (!ReferenceEquals(entry.Instance, null) && entry.Instance.CleanupFailed) return;
-        entries.Remove(id);
+        entries.Remove(id);entry.Lease?.Dispose();
         if (entry.Instance == null && !ReferenceEquals(entry.Instance, null)) entry.Instance.CleanupFailed = true;
         try { entry.Pool.Pool.Release(entry.Root); } catch (Exception error) { Debug.LogException(error, this); }
     }
@@ -264,6 +271,24 @@ public sealed class PNAreaManager : MonoBehaviour
             }
         });
     }
+    public void ActorWorldChanging(PNStat actor)
+    {
+        if(actor==null)return;
+        if(busy)throw new InvalidOperationException("Area mutations must drain before actor transfer.");
+        foreach(var entry in entries.Values.ToArray())if(entry.Instance!=null&&entry.Instance.IsRunning)entry.Instance.ActorWorldChanging(actor);
+    }
+    public void ReleaseWorld(EveWorldContext world)
+    {
+        if(busy)throw new InvalidOperationException("Area mutation must drain before world teardown.");
+        foreach(var pair in entries.Where(x=>ReferenceEquals(x.Value.World,world)).ToArray())
+        { pair.Value.Instance?.Stop(PNAreaEndReason.SceneUnloaded);Return(pair.Key,pair.Value); }
+        foreach(var pair in pools.Where(x=>PNWorldGameplay.ForScene(Session,x.Value.Scene)==world).ToArray())
+        {
+            if(entries.Values.Any(x=>ReferenceEquals(x.Pool,pair.Value)))throw new InvalidOperationException("World area cleanup remains pending.");
+            foreach(var instance in pair.Value.Instances.Values)instance.DisposePooledResources();
+            pair.Value.Pool.Dispose();DestroyOwned(pair.Value.Template);pools.Remove(pair.Key);
+        }
+    }
     public void Shutdown()
     {
         closing = true; SceneManager.sceneUnloaded -= SceneUnloaded;
@@ -273,7 +298,7 @@ public sealed class PNAreaManager : MonoBehaviour
             try
             {
                 if (!ReferenceEquals(pair.Value.Instance, null)) pair.Value.Instance.Stop(PNAreaEndReason.SessionEnded);
-                entries.Remove(pair.Key);
+                entries.Remove(pair.Key);pair.Value.Lease?.Dispose();
             }
             catch (Exception error) { errors.Add(error); }
         }

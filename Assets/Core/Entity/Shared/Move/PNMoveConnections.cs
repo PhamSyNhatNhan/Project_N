@@ -32,6 +32,7 @@ public sealed class PNMoveHostWorld : IDisposable
     private readonly EveSessionContext session;
     internal readonly Dictionary<MoveIdentity,Actor> Actors=new Dictionary<MoveIdentity,Actor>();
     public bool IsActive => !disposed && session.IsActive;
+    public int TrackedCount=>Actors.Count;
     private bool disposed;
     public Exception LastProtocolError { get; private set; }
     public Exception SamplingFailure(MoveIdentity id) => Actors.TryGetValue(id,out var actor)?actor.Failure:null;
@@ -76,7 +77,7 @@ public sealed class PNMoveHostWorld : IDisposable
         // Carry effective permission IDs, not a closed enum of movement algorithms.
         var permissions=registry.ControlPermissions().Snapshot().Keys.Select(registry.ControlPermissions().ResolveIdentity).Distinct()
             .Where(control.State.IsAllowed).Select(id=>id.ToString());
-        float scale=clock!=null && clock.isActiveAndEnabled?clock.Scale:1;
+        float scale=PNWorldGameplay.CanExecute(move)?(clock!=null && clock.isActiveAndEnabled?clock.Scale:1):0;
         float raw=clock!=null && clock.isActiveAndEnabled?clock.RawScale:1;
         return new MoveMirror(move.NetworkIdentity(session.SessionId),revision,life.LifeRevision,life.Dead,rights,
             (float)stats.Evaluate(EveBuiltInContentModule.MoveSpeed),(float)stats.Evaluate(EveBuiltInContentModule.JumpSpeed),scale,raw,permissions);
@@ -105,6 +106,7 @@ public sealed class PNMoveHostWorld : IDisposable
         catch(Exception error) { actor.Failure=error;return MoveReportResult.NotReady; }
         if(message is MoveBaselineRequest request)return actor.Model.RequestBaseline(request,authenticatedSender)?MoveReportResult.Accepted:MoveReportResult.Stale;
         var report=(MovePoseReport)message;
+        if(!PNWorldGameplay.CanExecute(actor.Move))return MoveReportResult.NotReady;
         var result=actor.Model.Receive(report,authenticatedSender,hostTime);
         if(result==MoveReportResult.Accepted || result==MoveReportResult.Constraint)actor.Move.ApplyAcceptedHostPose();
         return result;

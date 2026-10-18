@@ -18,6 +18,7 @@ namespace EveEngine
         public EveRegistryHub Registry { get; }
         public EveSessionRole Role { get; }
         public EveEntityDirectory Entities { get; }
+        public EveWorldDirectory Worlds { get; }
         public EveContentCompatibility Compatibility { get; }
         public EveCoopSession Coop { get; }
         public bool IsActive { get; internal set; } = true;
@@ -108,6 +109,7 @@ namespace EveEngine
             Role = role;
             Compatibility = compatibility;
             Entities = new EveEntityDirectory(this);
+            Worlds = new EveWorldDirectory(this);
             Coop = new EveCoopSession(this);
         }
     }

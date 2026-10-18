@@ -132,7 +132,7 @@ public partial class PNMove
         {
             if(ReferenceEquals(OwnerMovement,selected) && NetworkUsable && (MovementHeld || selected.NeedsBaseline || selected.Mirror?.Dead==true) && !networkKinematic)SetNetworkKinematic();
         }
-        if(!ReferenceEquals(OwnerMovement,selected) || !NetworkUsable)return;
+        if(!ReferenceEquals(OwnerMovement,selected) || !NetworkUsable || !loadContext.CanExecute)return;
         if(selected.CanWrite && !networkKinematic && !MovementHeld)
         {
             SyncPhysicsScale(NetworkScale);

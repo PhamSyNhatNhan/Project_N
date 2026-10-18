@@ -40,6 +40,7 @@ public class PNHealOperation : PNSkillOperation
             !ReferenceEquals(senderStats.Registry, context.Registry))
             throw new InvalidOperationException("Heal operation requires Ready caster stats and skill.");
         var targets = new List<PNStat>();
+        PNWorldGameplay.RequireTargets(context.Skill,context.Targets);
         var identities = new HashSet<EveEntityId>();
         foreach (var target in context.Targets)
         {

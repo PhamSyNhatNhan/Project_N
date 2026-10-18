@@ -103,6 +103,7 @@ public class PNMotionAction : PNSkillAction
     {
         if (float.IsNaN(delta) || float.IsInfinity(delta) || delta < 0) throw new ArgumentOutOfRangeException(nameof(delta));
         if (!performed || disposed || context == null || IsComplete || delta == 0) return;
+        if(!PNWorldGameplay.CanExecute(context.Skill))return;
         if(movementExecution!=null && !movementExecution.IsValid)return;
         // Host runs authoritative Skill effects for remote owners but never becomes a second pose writer.
         var move=context.Skill.GetComponent<PNMove>();

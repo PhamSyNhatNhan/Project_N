@@ -2,13 +2,14 @@ using System;
 using System.Collections.Generic;
 using EveEngine;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 // EN: One action/projectile invocation owns hit repetition; detector and resolver remain stateless.
 // VI: Một lần action/projectile sở hữu lịch trúng; detector/resolver không giữ lịch damage.
 public sealed class PNHitboxCast : IDisposable
 {
     private EveHitboxQuery query;
-    private readonly PhysicsScene world;
+    private PhysicsScene world;
     private readonly PNHitboxTargets resolver = new PNHitboxTargets();
     private readonly List<PNStat> candidates = new List<PNStat>();
     private readonly Dictionary<EveEntityId, double> lastHits = new Dictionary<EveEntityId, double>();
@@ -59,6 +60,11 @@ public sealed class PNHitboxCast : IDisposable
         querying = true;
         try
         {
+            if(source!=null)
+            {
+                var selected=source.gameObject.scene.GetPhysicsScene();
+                if(selected!=world){var replacement=new EveHitboxQuery(query.Shape,selected);query.Dispose();query=replacement;world=selected;}
+            }
             resolver.Query(query, pose, candidates, source, layerMask, triggers, filter);
             foreach (var target in candidates)
                 if (!lastHits.TryGetValue(target.EntityId, out var previous) ||

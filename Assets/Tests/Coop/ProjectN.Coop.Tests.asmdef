@@ -9,6 +9,8 @@
     "Mirror",
     "Mirror.Transports",
     "Unity.InputSystem",
+    "Unity.RenderPipelines.Core.Runtime",
+    "Unity.RenderPipelines.Universal.Runtime",
     "ProjectN.Input"
   ],
   "autoReferenced": true

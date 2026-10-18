@@ -61,7 +61,7 @@ namespace ProjectN.Coop.Tests
             }
             else
             {
-                yield return Wait(()=>manager.PublishedCount>=3&&manager.ClientInputReady);if(failed)yield break;
+                yield return Wait(()=>manager.PublishedCount>=3&&manager.ClientInputReady&&manager.Worlds.DefaultWorld!=null&&manager.ClientWorldReady(manager.Worlds.DefaultWorld.InstanceId));if(failed)yield break;
                 try
                 {
                     buffs=FindObjectsByType<PNPlayerStat>().Single(x=>x.GetComponent<EveEntityIdentity>().OwnerId==0).GetComponent<PNBuffManager>();

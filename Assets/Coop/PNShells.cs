@@ -5,9 +5,11 @@ namespace ProjectN.Coop
     {
         public const uint Asset = 0x504e0001;
         [SyncVar] public long Owner;
-        [Command]
         public void CmdIntent(System.Guid session,long entity,long generation,long sequence,string command,string payload)
-        {((PNNetworkManager)NetworkManager.singleton).RouteIntent(connectionToClient,session,entity,generation,sequence,command,payload);}
+        {var manager=(PNNetworkManager)NetworkManager.singleton;CmdScopedIntent(session,entity,generation,sequence,command,payload,manager.CommandWorldScope(entity,generation));}
+        [Command]
+        public void CmdScopedIntent(System.Guid session,long entity,long generation,long sequence,string command,string payload,PNWorldBindingScope scope)
+        {((PNNetworkManager)NetworkManager.singleton).RouteIntent(connectionToClient,session,entity,generation,sequence,command,payload,scope);}
     }
     public sealed class PNActorShell : NetworkBehaviour
     {
@@ -25,6 +27,7 @@ namespace ProjectN.Coop
         {
             if(Metadata.HostSession==System.Guid.Empty||Metadata.Entity<=0||Metadata.Generation<=0||Metadata.Owner<0||string.IsNullOrWhiteSpace(Metadata.Character)||Metadata.Character.Length>128||string.IsNullOrWhiteSpace(Metadata.SceneKey)||Metadata.SceneKey.Length>128||Metadata.EntityKey==null||Metadata.EntityKey.Length>128)
                 throw new System.InvalidOperationException("Invalid actor shell metadata.");
+            if(Metadata.World==System.Guid.Empty||Metadata.WorldIncarnation==0||Metadata.MembershipRevision==0||string.IsNullOrWhiteSpace(Metadata.ContentSlot)||Metadata.ContentSlot.Length>128||Metadata.SpawnEntry?.Length>128||Metadata.Template?.Length>128||float.IsNaN(Metadata.Position.x)||float.IsNaN(Metadata.Position.y)||float.IsNaN(Metadata.Position.z)||float.IsInfinity(Metadata.Position.x)||float.IsInfinity(Metadata.Position.y)||float.IsInfinity(Metadata.Position.z))throw new System.FormatException("Invalid world actor metadata.");
             if(bound&&!Metadata.Equals(initialMetadata))throw new System.InvalidOperationException("A published shell binding is immutable; retire and spawn a new shell.");
             if(bound&&HasBuff!=initialHasBuff)throw new System.InvalidOperationException("A published Buff component descriptor is immutable.");
             if(bound&&HasMove!=initialHasMove)throw new System.InvalidOperationException("A published Move component descriptor is immutable.");

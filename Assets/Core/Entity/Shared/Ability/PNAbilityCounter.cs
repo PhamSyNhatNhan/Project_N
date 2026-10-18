@@ -11,7 +11,7 @@ public sealed class PNAbilityCounterGrant
     { Id = id; Amount = amount; Remaining = remaining; }
 }
 
-public sealed class PNAbilityCounter : PNAbility
+public sealed partial class PNAbilityCounter : PNAbility
 {
     private sealed class Grant { public long Id; public int Count; public double? Remaining; }
     private readonly List<Grant> grants = new List<Grant>();

@@ -13,7 +13,7 @@ public class EveGameRuntime : EveRuntime
     private IReadOnlyList<EveContentPack> packs;
     // EN: Bump when executable gameplay rules change, even if JSON stays the same.
     // VI: TÄƒng phiÃªn báº£n khi luáº­t gameplay trong code Ä‘á»•i dÃ¹ JSON váº«n giá»¯ nguyÃªn.
-    public const string CurrentRulesVersion = "project_n:77";
+    public const string CurrentRulesVersion = "project_n:80";
     public override string RulesVersion => CurrentRulesVersion;
 #if UNITY_5_3_OR_NEWER
     internal bool IsBootstrapOwner { get; set; }
@@ -22,7 +22,7 @@ public class EveGameRuntime : EveRuntime
         if (!Application.isPlaying) return;
         if (IsBootstrapOwner) { EnsureContentLoaded(); return; }
         // A scene entry never owns content, even after the previous play has ended.
-        try { PNGameBootstrap.Begin(PNGameBootstrap.Config); }
+        try { PNGameBootstrap.SceneEntry(this); }
         finally { Destroy(this); }
     }
     protected override void BindSession(EveSessionContext session)

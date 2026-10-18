@@ -28,8 +28,8 @@ namespace EveEngine
         public virtual float Scale { get { state.MinScale = minScale; return state.Scale; } }
         public virtual float RawScale => state.RawScale;
         public virtual float EffectiveMinScale { get { state.MinScale = minScale; return state.EffectiveMinScale; } }
-        public virtual float DeltaTime => Time.deltaTime * Scale;
-        public virtual float FixedDeltaTime => Time.fixedDeltaTime * Scale;
+        public virtual float DeltaTime => (float)(context?.GameplayDelta(Time.deltaTime) ?? Time.deltaTime) * Scale;
+        public virtual float FixedDeltaTime => (float)(context?.GameplayDelta(Time.fixedDeltaTime) ?? Time.fixedDeltaTime) * Scale;
         public virtual IReadOnlyList<EveTimeModifier> Modifiers => state.Snapshot();
 
         public virtual long AddTimedModifier(EveId source, EveTimeModifierKind kind, float value, float duration)
@@ -80,7 +80,7 @@ namespace EveEngine
         }
 
         protected virtual void Update() { if (context == null || context.CanMutate) Advance(Time.deltaTime); }
-        protected virtual void OnDisable() => ClearModifiers();
+        protected virtual void OnDisable() { if(GetComponent<EveEntityIdentity>()?.IsChangingWorld!=true)ClearModifiers(); }
         protected virtual void OnValidate() { minScale = Mathf.Clamp01(minScale); Publish(); }
         public virtual void Load(EveEntityLoadContext context)
         { this.context = context ?? throw new ArgumentNullException(nameof(context)); ClearModifiers(); }
@@ -90,7 +90,7 @@ namespace EveEngine
         // VI: Có thể dùng đồng hồ điều khiển tường minh khi ghi đè Update của component.
         public virtual void Advance(float gameDeltaTime)
         {
-            if (context != null && !context.CanMutate) return;
+            if (context != null && !context.CanSimulate) return;
             state.Advance(gameDeltaTime);
             PruneOwners();
             Publish();

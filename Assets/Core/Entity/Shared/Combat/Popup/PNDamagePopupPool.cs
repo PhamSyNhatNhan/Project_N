@@ -24,6 +24,7 @@ public sealed class PNDamagePopupPool : MonoBehaviour
         var root = new GameObject("PN Damage Popup Pool: " + owner.name);
         SceneManager.MoveGameObjectToScene(root, owner.gameObject.scene);
         var pool = root.AddComponent<PNDamagePopupPool>(); pool.prefab = prefab; pool.sessionId = session;
+        PNWorldPresentationRegistration.Register(owner.GetComponent<EveEntityIdentity>()?.World,root);
         PNDamagePopupDiagnostics.Record("create", pool);
         return pool;
     }

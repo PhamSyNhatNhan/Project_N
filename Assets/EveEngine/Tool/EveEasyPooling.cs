@@ -65,6 +65,19 @@ namespace EveEngine
             try { ReleaseItem(item); return true; }
             finally { busy = false; }
         }
+        // A live world transfer changes resource ownership without a pool reset.
+        // Unity's idle pool never owns borrowed references; wrapper counts use our
+        // owned/active sets. The receiving caller must eventually destroy the item.
+        public void ExtractActive(GameObject item)
+        {
+            Enter();
+            try
+            {
+                if(item==null||!active.Contains(item)||!owned.ContainsKey(item))throw new InvalidOperationException("Only a live borrow can leave a pool.");
+                active.Remove(item);owned.Remove(item);
+            }
+            finally { busy=false; }
+        }
         public void ReleaseAll()
         {
             Enter();

@@ -29,6 +29,26 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
 
     public virtual void Register(EveRegistryHub hub)
     {
+#if UNITY_5_3_OR_NEWER
+        var worlds=hub.GetOrCreate<PNWorldDefinition>();
+        var transferParticipants=hub.GetOrCreate<PNWorldTransferParticipantDefinition>();
+        transferParticipants.Register(new PNWorldTransferParticipantDefinition(EveId.Parse("project_n:world_gameplay"),typeof(PNWorldGameplayTransferParticipant),()=>new PNWorldGameplayTransferParticipant()));
+        transferParticipants.RegisterBase(EveId.Parse("base:world_gameplay"),EveId.Parse("project_n:world_gameplay"),"project_n",compatible:(a,b)=>true);
+        var stateProviders=hub.GetOrCreate<PNWorldStateDefinition>();
+        stateProviders.Register(new PNWorldStateDefinition(EveId.Parse("project_n:actor_world_state"),1,8*1024*1024,typeof(PNActorWorldStateProvider),()=>new PNActorWorldStateProvider()));
+        stateProviders.RegisterBase(EveId.Parse("base:actor_world_state"),EveId.Parse("project_n:actor_world_state"),"project_n",compatible:(a,b)=>a.Schema==b.Schema);
+        var templates=hub.GetOrCreate<PNEntityTemplateDefinition>();
+        templates.Register(new PNEntityTemplateDefinition(EveId.Parse("project_n:scene_spawn"),"scene_spawn_v1",(world,slot,spawn)=>
+            world.Slots.Single(x=>x.Id==slot).Roots.Where(x=>x!=null).SelectMany(x=>x.GetComponentsInChildren<PNPlayerSpawnPoint>(true)).Single(x=>x.SpawnEntry==spawn).Prefab));
+        templates.RegisterBase(EveId.Parse("base:scene_spawn"),EveId.Parse("project_n:scene_spawn"),"project_n",compatible:(a,b)=>true);
+        worlds.Register(new PNWorldDefinition(EveId.Parse("project_n:scene_world"),PNWorldDefinition.HashContent("project_n:scene_world/v1/Assets/Scenes/ErMode.unity"),typeof(PNSceneWorldProvider),()=>new PNSceneWorldProvider("Assets/Scenes/ErMode.unity")));
+        worlds.RegisterBase(EveId.Parse("base:scene_world"),EveId.Parse("project_n:scene_world"),"project_n",compatible:(a,b)=>true);
+        worlds.Register(new PNWorldDefinition(EveId.Parse("project_n:generated_world"),PNWorldDefinition.HashContent("project_n:generated_world/v1/empty-main"),typeof(PNGeneratedWorldProvider),()=>new PNGeneratedWorldProvider()));
+        worlds.RegisterBase(EveId.Parse("base:generated_world"),EveId.Parse("project_n:generated_world"),"project_n",compatible:(a,b)=>true);
+        var modes=hub.GetOrCreate<PNModeDefinition>();
+        modes.Register(new PNModeDefinition(EveId.Parse("project_n:roguelite"),typeof(PNRoguelitePolicy),profile=>new PNRoguelitePolicy(profile)));
+        modes.RegisterBase(EveId.Parse("base:roguelite"),EveId.Parse("project_n:roguelite"),"project_n",compatible:(original,replacement)=>true);
+#endif
         PNGameSkillBindings.RegisterBehaviors(hub);
         PNBuffGameplayContent.Register(hub);
         PNAreaGameplayContent.Register(hub);
@@ -130,6 +150,13 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
     // VI: Kiểm tra khung Core được nhận diện với action đã chọn trước khi công bố phiên.
     public virtual void ValidateContent(EveRegistryHub hub)
     {
+#if UNITY_5_3_OR_NEWER
+        foreach(var world in hub.Get<PNWorldDefinition>().Snapshot().Values)
+        {
+            foreach(var id in world.Policy.TransferParticipants)hub.Get<PNWorldTransferParticipantDefinition>().Get(id);
+            foreach(var id in world.Policy.ActorStateProviders.Concat(world.Policy.WorldStateProviders))hub.Get<PNWorldStateDefinition>().Get(id);
+        }
+#endif
         PNSkillBindingContent.Validate(hub);
         foreach (var category in hub.SkillCategories().Snapshot().Values) category.Validate(hub);
         foreach (var definition in hub.Buffs().Snapshot().Values) definition.Validate(hub);

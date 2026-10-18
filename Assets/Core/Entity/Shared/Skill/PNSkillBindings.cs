@@ -63,6 +63,7 @@ public sealed class PNSkillBindingState:IDisposable
     private bool draining,disposed;
     private long next;
     public long Revision {get;private set;}=1;
+    public int ActiveLeaseCount=>leases.Count;
     public bool IsFaulted {get;private set;}
     public event Action<PNSkillBindingChange> Changed;
     public event Action<Exception> Failed;

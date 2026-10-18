@@ -1,5 +1,26 @@
 # EveEngine
 
+## World lifetime and execution (Rules79 / Mod API6)
+
+`EveSessionContext.Worlds` owns instances, incarnation tombstones and scoped cleanup.
+`EveWorldContext` separates publication from execution: Ready/Paused worlds keep
+published entities; only Ready advances gameplay/physics. Entity IDs remain global
+within the play, with a world index and content-slot metadata. `CanUse` permits
+state capture/cleanup; `CanExecute` also requires no actor hold and a runnable world;
+`CanSimulate`/`CanMutate` additionally require gameplay authority. Hold tokens are
+independent leases and do not disable or republish the entity.
+
+World unload drains entities, adapter/Area ownership and leases before reversing
+resource acquisition. Cleanup stops at the first failed resource and retains it
+for retry. `EveWorldCleanupPendingException` represents outstanding noncancelable
+scene IO, leaves the world Unloading and play Stopping, and is pumped without
+pretending completion. Actual failures remain Failed/diagnosable.
+
+`PNWorldPhysicsLoop` in Core explicitly simulates each local physics owner once per
+fixed boundary after Move producers. Ground probes and cached casts resolve the
+actual world owner. Editor-only `RelocateWorldFixture` validates held relocation;
+the production transfer transaction is a later World foundation S5 task.
+
 ## Deferred admission prerequisite (P4, 2026-10-18)
 
 The additive eight-argument scheduler Enqueue overload accepts `canBegin`. A false

@@ -13,7 +13,7 @@ namespace ProjectN.Coop.Tests
             PNWeaverChecks.Run();int checks=0;
             void Check(bool ok,string name){if(!ok)throw new Exception(name);checks++;}
             void Reject(Action run,string name){try{run();}catch{checks++;return;}throw new Exception("Expected rejection: "+name);}
-            var s=new PNMoveStream{Session=Guid.NewGuid(),NetId=5,Entity=42,Generation=3,Nonce=12};
+            var s=new PNMoveStream{Scope=new PNWorldBindingScope{World=Guid.NewGuid(),Incarnation=2,Membership=3,Subscription=4},Session=Guid.NewGuid(),NetId=5,Entity=42,Generation=3,Nonce=12};
             var state=new MovementState(new MoveVector(2,3,4),new MoveVector(0,4,0),-1,false,1);
             var mirror=new MoveMirror(s.Identity,3,2,false,MoveRights.All,5,7,.5f,1,new[]{"base:voluntary_motion"});
             var correction=new MoveCorrection(s.Identity,2,2,3,state,new MoveRecovery(new MoveVector(0,8,0),default,true),MoveCorrectionReason.Constraint,20,7);

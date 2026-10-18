@@ -63,6 +63,8 @@ namespace EveEngine
         public virtual double Evaluate(params EveId[] ids) => Set.Evaluate(ids);
         protected void RequireStatMutation()
         { if (loadContext != null && !loadContext.CanMutate && !loadContext.AllowsModuleAccess) throw new InvalidOperationException("Stat mutation requires published authority or loader initialization/cleanup scope."); }
+        protected void RestoreInitializedSet(EveStatSet replacement)
+        { RequireStatMutation();if(!IsInitialized)throw new InvalidOperationException("Initialize before state restoration.");set=replacement??throw new ArgumentNullException(nameof(replacement)); }
         public virtual void SetSource(EveId sourceId, IEnumerable<EveStatModifier> modifiers) { RequireStatMutation(); Set.SetSource(sourceId, modifiers); }
         public virtual bool RemoveSource(EveId sourceId) { RequireStatMutation(); return Set.RemoveSource(sourceId); }
         public virtual double GetMax(EveId id) => Set.GetMax(id);

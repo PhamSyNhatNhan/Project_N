@@ -18,6 +18,7 @@ public class PNApplyBuffOperation : PNSkillOperation
     {
         if (executed) throw new InvalidOperationException("Operation has already executed or been disposed.");
         if (context == null || !context.Skill.IsReady) throw new InvalidOperationException("Ready skill context required.");
+        PNWorldGameplay.RequireTargets(context.Skill,context.Targets);
         var id = Validate(payload, context.Registry); var source = PNBuffSource.Capture(context.Skill.GetComponent<PNStat>());
         var targets = context.Targets.Distinct().Select(target =>
         {
@@ -43,6 +44,7 @@ public class PNRemoveBuffOperation : PNSkillOperation
     {
         if (executed) throw new InvalidOperationException("Operation has already executed or been disposed.");
         if (context == null || !context.Skill.IsReady) throw new InvalidOperationException("Ready skill context required.");
+        PNWorldGameplay.RequireTargets(context.Skill,context.Targets);
         var id = Validate(payload, context.Registry);
         var targets = context.Targets.Distinct().Select(x => x.GetComponent<PNBuffManager>()).ToArray();
         if (targets.Any(x => x == null || !x.IsReady || !ReferenceEquals(x.Buffs.Registry, context.Registry))) throw new InvalidOperationException("Removal requires Ready targets.");
@@ -74,6 +76,7 @@ public class PNTriggerBuffOperation : PNSkillOperation
     {
         if (executed) throw new InvalidOperationException("Operation already executed or disposed.");
         if (context == null || !context.Skill.IsReady) throw new InvalidOperationException("Ready skill context required.");
+        PNWorldGameplay.RequireTargets(context.Skill,context.Targets);
         var id = Validate(payload, context.Registry, ChangesStacks); var data = (JObject)payload;
         var caster = context.Skill.GetComponent<PNStat>();
         if (caster == null || !caster.IsReady) throw new InvalidOperationException("Ready caster required.");

@@ -51,9 +51,9 @@ namespace ProjectN.Coop.Tests
             bool host=PNGameBootstrap.Config.Role==EveSessionRole.Host;roleName=host?"host":Arg("--pn-move-client=")??"client1";int clients=int.Parse(Arg("--pn-move-clients=")??"3");
             yield return Wait(()=>NetworkManager.singleton is PNNetworkManager m&&m.PublishedCount>=2);if(failed)yield break;var manager=(PNNetworkManager)NetworkManager.singleton;
             if(host){if(Directory.Exists(FileName("NativeMods"))){try{var player=Players().Single(x=>x.GetComponent<EveEntityIdentity>().OwnerId==0);var stat=player.GetComponent<PNStat>();player.GetComponent<PNBuffManager>().Buffs.Apply(new PNBuffApplyRequest(EveId.Parse("native_probe:buff_probe"),new PNBuffSource(EveRegistrySession.Context.SessionId,stat.EntityId)));Check(true,"previous API6 DLL behavior executes on P4 runtime");}catch(Exception e){Fail(e);yield break;}}Mark("host-ready");yield return Wait(()=>Players().Length==clients+1);}
-            else{yield return Wait(()=>manager.ClientInputReady&&Players().Length>=2);Mark(roleName+"-joined");}
+            else{yield return Wait(()=>manager.ClientInputReady&&manager.Worlds.DefaultWorld!=null&&manager.ClientWorldReady(manager.Worlds.DefaultWorld.InstanceId)&&Players().Length>=2);Mark(roleName+"-joined");}
             if(failed)yield break;
-            yield return Wait(()=>Players().Length==clients+1&&(host||manager.ClientInputReady));if(failed)yield break;
+            yield return Wait(()=>Players().Length==clients+1&&(host||manager.ClientInputReady&&manager.Worlds.DefaultWorld!=null&&manager.ClientWorldReady(manager.Worlds.DefaultWorld.InstanceId)&&Players().Single(x=>x.GetComponent<EveEntityIdentity>().OwnerId==manager.RoomOwner).MovementBaselineApplied&&!Players().Single(x=>x.GetComponent<EveEntityIdentity>().OwnerId==manager.RoomOwner).MovementHeld));if(failed)yield break;
             long owner=host?0:EveRegistrySession.Context.LocalOwnerId.Value;var own=Players().Single(x=>x.GetComponent<EveEntityIdentity>().OwnerId==owner);
             if(Arg("--pn-move-fault=") is string fault&&fault.Length>0){yield return FaultCase(host,manager,fault);yield break;}
             try
@@ -160,7 +160,7 @@ namespace ProjectN.Coop.Tests
                 yield return Wait(()=>File.Exists(FileName("fault-go")));if(failed)yield break;
                 if(fault=="wrong-owner")
                 {
-                    try{var shell=FindObjectsByType<PNActorShell>().Single(x=>x.Metadata.Owner==0&&x.HasMove);var stream=new PNMoveStream{Session=shell.Metadata.HostSession,NetId=shell.netId,Entity=shell.Metadata.Entity,Generation=shell.Metadata.Generation,Nonce=(ulong)manager.BindingToken(shell.netId)};NetworkClient.Send(new PNMovePacket{Kind=4,Stream=stream,Request=1,Revision=1,Life=1,Report=new MovePoseReport(stream.Identity,1,1,1,1,new MovementState(new MoveVector(99,1,0),default))},Channels.Unreliable);}catch(Exception e){Fail(e);yield break;}
+                    try{var shell=FindObjectsByType<PNActorShell>().Single(x=>x.Metadata.Owner==0&&x.HasMove);var stream=new PNMoveStream{Scope=manager.BindingWorldScope(shell.netId),Session=shell.Metadata.HostSession,NetId=shell.netId,Entity=shell.Metadata.Entity,Generation=shell.Metadata.Generation,Nonce=(ulong)manager.BindingToken(shell.netId)};NetworkClient.Send(new PNMovePacket{Kind=4,Stream=stream,Request=1,Revision=1,Life=1,Report=new MovePoseReport(stream.Identity,1,1,1,1,new MovementState(new MoveVector(99,1,0),default))},Channels.Unreliable);}catch(Exception e){Fail(e);yield break;}
                 }
                 yield return Wait(()=>manager.HasEnded&&EveRegistrySession.State==EveSessionState.Stopped);if(failed)yield break;
                 try{Check(!NetworkClient.isConnected,"required/owner protocol violation closes client");Check(manager.PendingMoveBytes==0&&manager.PendingMoveEvents==0,"failed stream releases reservations");Mark("fault-client-done");}catch(Exception e){Fail(e);yield break;}

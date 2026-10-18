@@ -1,6 +1,6 @@
 using System;
 
-public sealed class PNAbilityCooldown : PNAbility
+public sealed partial class PNAbilityCooldown : PNAbility
 {
     private int current, maximum;
     private double baseCooldown, reduceFlat, reducePercent, remaining;

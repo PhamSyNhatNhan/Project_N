@@ -26,6 +26,7 @@ namespace ProjectN.Coop.Tests
         private static string Argument(string prefix)=>Environment.GetCommandLineArgs().FirstOrDefault(x=>x.StartsWith(prefix,StringComparison.Ordinal))?.Substring(prefix.Length);
         private void Awake()
         {
+            if(Environment.GetCommandLineArgs().Contains("--pn-foundation-s1"))InputSystem.settings.backgroundBehavior=InputSettings.BackgroundBehavior.IgnoreFocus;
             if(Environment.GetCommandLineArgs().Contains("--pn-peer-test"))PNGameBootstrap.Config.Network.Port=7788;
             if(Environment.GetCommandLineArgs().Contains("--pn-cap-fixture"))PNGameBootstrap.Config.Network.MaximumClients=1;
             string reject=Argument("--pn-reject=");if(reject==null||reject=="capacity")return;
@@ -37,7 +38,7 @@ namespace ProjectN.Coop.Tests
                 {
                     case "version":request.NetworkVersion++;break;
                     case "platform":request.Platform="Mobile";break;
-                    case "mode":request.Mode="fixture:other";break;
+                    case "profile":request.Limits+="fixture";break;
                     case "rules":request.Content.Rules+="fixture";break;
                     case "pack":
                         int i=Array.FindIndex(request.Content.Hashes,x=>x.Key.StartsWith("pack:",StringComparison.Ordinal));

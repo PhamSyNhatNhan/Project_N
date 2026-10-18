@@ -108,6 +108,7 @@ public partial class EveCharacterSkill : PNPlayerSkill, PNSlashVfxPoolOwner
     }
     protected override void OnDisable()
     {
+        if(GetComponent<EveEntityIdentity>()?.IsChangingWorld==true)return;
         try { CancelMoveset(); }
         finally { base.OnDisable(); }
     }

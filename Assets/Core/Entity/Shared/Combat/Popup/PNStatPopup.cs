@@ -65,6 +65,7 @@ public partial class PNStat
         var pool = damagePopupPool; damagePopupPool = null;
         if (pool != null) pool.Retire();
     }
+    public void PrepareWorldPresentationChange()=>RetireDamagePopupPool();
     protected virtual void OnDestroy() => RetireDamagePopupPool();
 }
 #endif

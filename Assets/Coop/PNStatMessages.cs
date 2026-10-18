@@ -8,9 +8,9 @@ using Mirror;
 namespace ProjectN.Coop
 {
     public struct PNStatNotice:NetworkMessage
-    {public uint NetId;public Guid Session;public long Entity,Generation;public PNStatFrame State;}
+    {public uint NetId;public Guid Session;public long Entity,Generation;public PNStatFrame State;public PNWorldBindingScope Scope;}
     public struct PNStateFence:NetworkMessage
-    {public Guid Session;public uint Attempt,NetId;public byte Adapter;public ulong Nonce;public long Entity,Generation,Revision;public string Digest;}
+    {public Guid Session;public uint Attempt,NetId;public byte Adapter;public ulong Nonce;public long Entity,Generation,Revision;public string Digest;public PNWorldBindingScope Scope;}
     public static class PNStatWire
     {
         private static readonly Encoding Utf8=new UTF8Encoding(false,true);

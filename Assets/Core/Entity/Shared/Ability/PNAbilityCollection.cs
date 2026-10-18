@@ -13,7 +13,7 @@ public readonly struct PNAbilityCost
 
 // EN: Entity-local passive state. Never discovers actions, HP, input, objects or effects.
 // VI: Trạng thái thụ động riêng entity; không tìm action, HP, input, object hay hiệu ứng.
-public sealed class PNAbilityCollection : IDisposable
+public sealed partial class PNAbilityCollection : IDisposable
 {
     private readonly Guid ownerId = Guid.NewGuid();
     private readonly Dictionary<EveId, PNAbilityDefinition> definitions = new Dictionary<EveId, PNAbilityDefinition>();

@@ -13,7 +13,12 @@ namespace EveEngine
         public long Generation { get; }
         public long LoadId { get; }
         public bool CanUse => IsValid && IsPublished && (Gate == null || Gate.IsOpen) && Session.IsActive && !Session.IsPublishing;
-        public bool CanMutate => CanUse && Session.HasAuthority;
+        public bool CanMutate => CanSimulate;
+        // Publication/readability remains stable while a world or actor is held.
+        public bool CanExecute => CanUse && !Identity.IsGameplayHeld && (Identity.World == null || Identity.World.CanExecute);
+        public bool CanSimulate => CanExecute && Session.HasAuthority;
+        public bool CanTarget => CanExecute;
+        public double GameplayDelta(double delta) => CanExecute ? delta : 0;
         public bool AllowsModuleAccess => moduleCalls > 0;
         public EveSessionContext Session { get; }
         public EveEntityIdentity Identity { get; }

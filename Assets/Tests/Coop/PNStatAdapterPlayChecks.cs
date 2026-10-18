@@ -41,7 +41,7 @@ namespace ProjectN.Coop.Tests
             var special=EveId.Parse("project_n:fixture_rage");
             if(!host)
             {
-                yield return Wait(()=>part.View!=null&&part.View.Dead&&part.View.Resources[PNContentIds.Health].Current==0&&manager.ClientInputReady);if(failed)yield break;
+                yield return Wait(()=>part.View!=null&&part.View.Dead&&part.View.Resources[PNContentIds.Health].Current==0&&manager.ClientInputReady&&manager.Worlds.DefaultWorld!=null&&manager.ClientWorldReady(manager.Worlds.DefaultWorld.InstanceId));if(failed)yield break;
                 try{Check(PNVitals.TryRead(target,PNContentIds.Health,out var hp,out _,out var dead)&&hp==0&&dead,"dead late-join baseline via PNVitals");Check(!target.IsDead,"replica leaves initialized PNStat unchanged");Check(part.View.Resources.ContainsKey(special),"content-defined special resource baseline");File.WriteAllText(Path.Combine(folder,"joined"),"ready");}catch(Exception e){Fail(e);yield break;}
             }
             else{yield return Wait(()=>File.Exists(Path.Combine(folder,"joined")));if(failed)yield break;}
@@ -61,7 +61,10 @@ namespace ProjectN.Coop.Tests
                         if(phase==3)target.SetCurrent(PNContentIds.Health,target.GetMax(PNContentIds.Health)*.25);
                         if(phase==4)target.RemoveSource(EveId.Parse("fixture:max"));
                         target.SetCurrent(special,phase+1);
-                        var state=part.CaptureState();File.WriteAllText(path,string.Join("|",state.Resources[PNContentIds.Health].Current.ToString("R",System.Globalization.CultureInfo.InvariantCulture),state.Resources[PNContentIds.Health].Max.ToString("R",System.Globalization.CultureInfo.InvariantCulture),state.Dead.ToString(),state.LifeRevision.ToString()));
+                        var state=part.CaptureState();
+                        // Publish the marker only after its contents are closed; another Player polls this path.
+                        File.WriteAllText(path+".pending",string.Join("|",state.Resources[PNContentIds.Health].Current.ToString("R",System.Globalization.CultureInfo.InvariantCulture),state.Resources[PNContentIds.Health].Max.ToString("R",System.Globalization.CultureInfo.InvariantCulture),state.Dead.ToString(),state.LifeRevision.ToString()));
+                        File.Move(path+".pending",path);
                     }catch(Exception e){Fail(e);yield break;}
                     yield return Wait(()=>File.Exists(path+"-ack"));if(failed)yield break;
                 }
@@ -98,7 +101,7 @@ namespace ProjectN.Coop.Tests
                 else if(fault=="malformed")
                 {
                     var shell=FindObjectsByType<PNActorShell>().Single(x=>x.Metadata.Entity==target.EntityId.Value);
-                    var notice=new PNStatNotice{NetId=shell.netId,Session=shell.Metadata.HostSession,Entity=shell.Metadata.Entity,Generation=shell.Metadata.Generation,State=null};
+                    var notice=new PNStatNotice{Scope=manager.BindingWorldScope(shell.netId),NetId=shell.netId,Session=shell.Metadata.HostSession,Entity=shell.Metadata.Entity,Generation=shell.Metadata.Generation,State=null};
                     foreach(var conn in NetworkServer.connections.Values)if(!(conn is LocalConnectionToClient))conn.Send(notice);
                 }
                 if(fault=="host")

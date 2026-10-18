@@ -26,7 +26,7 @@ public partial class PNStat
     public void AdvanceCombatTime(double gameDelta)
     {
         PNAbilityDefinition.RequireSeconds(gameDelta, true);
-        if (IsReady && EveRegistrySession.IsReady) combatAbilities?.Advance(gameDelta);
+        if (IsReady && EveRegistrySession.IsReady && (loadContext==null||loadContext.CanSimulate)) combatAbilities?.Advance(gameDelta);
     }
     protected virtual void Update() => AdvanceCombatTime(Time.deltaTime);
 
@@ -139,7 +139,7 @@ public partial class PNStat
         var session = EveRegistrySession.Context;
         if (!session.HasAuthority) throw new InvalidOperationException("Only offline or host authority can apply combat effects.");
         var loader = combatLoader; if (loader == null) combatLoader = loader = GetComponent<EveEntityLoader>();
-        if (loader == null || !loader.IsReady || loader.SessionId != SessionId ||
+        if (loader == null || !loader.IsReady || loader.LoadContext?.CanSimulate!=true || loader.SessionId != SessionId ||
             !ReferenceEquals(stats.Registry, session.Registry) ||
             !session.Entities.TryGetPublishedPresence(EntityId, loader.Generation, out var registered) || !ReferenceEquals(loader, registered))
             throw new InvalidOperationException("Combat effects require a Ready entity bound to the current registry and session.");

@@ -23,27 +23,27 @@ namespace ProjectN.Coop {
                 var list=new List<PNStateFence>();
                 foreach(var item in bindings.OrderBy(x=>x.Key))
                 {
-                    if(item.Value.Retiring)continue;
+                    if(item.Value.Retiring||!RoomCatchupBinding(item.Value,conn))continue;
                     if(!item.Value.Shell.netIdentity.observers.ContainsKey(conn.connectionId))continue;
                     if(!CaptureStat(item.Value))return false;
                     var b=item.Value;
                     // Full state is reliably pushed before the fixed target; no per-frame ACK protocol.
-                    if(b.Stat!=null)
+                    if(b.Stats.Component!=null)
                     {
-                        conn.Send(new PNStatNotice {NetId=item.Key,Session=b.Metadata.HostSession,Entity=b.Metadata.Entity,Generation=b.Metadata.Generation,State=b.Shell.State});
-                        list.Add(new PNStateFence {Attempt=peer.ResumeChallenge,NetId=item.Key,Entity=b.Metadata.Entity,Generation=b.Metadata.Generation,Revision=b.Shell.State.Revision,Digest=digest});
+                        conn.Send(new PNStatNotice {NetId=item.Key,Session=b.Metadata.HostSession,Entity=b.Metadata.Entity,Generation=b.Metadata.Generation,State=b.Shell.State,Scope=Scope(b,conn)});
+                        list.Add(new PNStateFence {Attempt=peer.ResumeChallenge,NetId=item.Key,Entity=b.Metadata.Entity,Generation=b.Metadata.Generation,Revision=b.Shell.State.Revision,Digest=digest,Scope=Scope(b,conn)});
                     }
-                    if(b.Buff!=null)
+                    if(b.Buffs.Component!=null)
                     {
                         if(!buffPeers.TryGetValue((conn.connectionId,item.Key),out var stream)||stream.Requested)return false;
                         if(!QueueBuffBaseline(stream,out long revision))return false;
-                        list.Add(new PNStateFence{Attempt=peer.ResumeChallenge,NetId=item.Key,Adapter=1,Nonce=stream.Stream.Nonce,Entity=b.Metadata.Entity,Generation=b.Metadata.Generation,Revision=revision,Digest=digest});
+                        list.Add(new PNStateFence{Attempt=peer.ResumeChallenge,NetId=item.Key,Adapter=1,Nonce=stream.Stream.Nonce,Entity=b.Metadata.Entity,Generation=b.Metadata.Generation,Revision=revision,Digest=digest,Scope=Scope(b,conn)});
                     }
-                    if(b.Move!=null)
+                    if(b.Movement.Component!=null)
                     {
                         if(!movePeers.TryGetValue((conn.connectionId,item.Key),out var stream)||stream.NeedsBaseline)return false;
                         if(!QueueMoveBaseline(stream,out long revision))return false;
-                        list.Add(new PNStateFence{Attempt=peer.ResumeChallenge,NetId=item.Key,Adapter=2,Nonce=stream.Stream.Nonce,Entity=b.Metadata.Entity,Generation=b.Metadata.Generation,Revision=revision,Digest=digest});
+                        list.Add(new PNStateFence{Attempt=peer.ResumeChallenge,NetId=item.Key,Adapter=2,Nonce=stream.Stream.Nonce,Entity=b.Metadata.Entity,Generation=b.Metadata.Generation,Revision=revision,Digest=digest,Scope=Scope(b,conn)});
                     }
                 }
                 list.Add(new PNStateFence {Attempt=peer.ResumeChallenge,NetId=0,Revision=list.Count,Digest=digest});
@@ -56,9 +56,10 @@ namespace ProjectN.Coop {
         }
         private void ReceiveFence(PNStateFence value)
         {
-            if(stopping||fatalSerialization)return;
+            if(stopping||!IsPlaying||fatalSerialization)return;
             try
             {
+                if(value.NetId!=0&&bindings.TryGetValue(value.NetId,out var scoped)&&!Scope(scoped).Equals(value.Scope))return;
                 if(value.Attempt<clientResumeFloor||value.Attempt<fenceAttempt)return;
                 if(value.Session!=EveRegistrySession.Context.Coop.AdmittedHostSession)return;
                 if(value.Digest==null||value.Digest.Length!=64||value.Attempt==0)throw new FormatException("State fence header.");
@@ -70,12 +71,12 @@ namespace ProjectN.Coop {
         }
         private bool FenceSettled(uint attempt,string digest)
         {
-            if(fenceAttempt!=attempt||fenceDigest!=digest||fenceCount!=clientFence.Count||fenceCount!=bindings.Values.Sum(x=>(x.Candidate?.Loader?.GetComponent<PNStat>()!=null?1:0)+(x.Shell.HasBuff?1:0)+(x.Shell.HasMove?1:0)))return false;
+            if(fenceAttempt!=attempt||fenceDigest!=digest||fenceCount!=clientFence.Count||fenceCount!=bindings.Values.Where(x=>!x.Retiring&&RoomCatchupBinding(x)).Sum(x=>(x.Candidate?.Loader?.GetComponent<PNStat>()!=null?1:0)+(x.Shell.HasBuff?1:0)+(x.Shell.HasMove?1:0)))return false;
             foreach(var item in clientFence)
             {
-                if(!bindings.TryGetValue(item.Key.Item1,out var b)||b.Metadata.Entity!=item.Value.Entity||b.Metadata.Generation!=item.Value.Generation)return false;
-                if(item.Key.Item2==2){if((ulong)b.Token!=item.Value.Nonce||b.Move?.MovementBaselineApplied!=true||b.Move.AppliedMovementControl<(ulong)item.Value.Revision||b.MoveAwaitingBaseline)return false;continue;}
-                if(item.Key.Item2==1){if((ulong)b.Token!=item.Value.Nonce||b.Buff?.HasBaseline!=true||b.Buff.AppliedRevision<item.Value.Revision||b.BuffRecords.Count>0||b.BuffAssembly!=null)return false;continue;}
+                if(!bindings.TryGetValue(item.Key.Item1,out var b)||b.Metadata.Entity!=item.Value.Entity||b.Metadata.Generation!=item.Value.Generation||!Scope(b).Equals(item.Value.Scope))return false;
+                if(item.Key.Item2==2){if((ulong)b.Token!=item.Value.Nonce||b.Movement.Component?.MovementBaselineApplied!=true||b.Movement.Component.AppliedMovementControl<(ulong)item.Value.Revision||b.Movement.AwaitingBaseline)return false;continue;}
+                if(item.Key.Item2==1){if((ulong)b.Token!=item.Value.Nonce||b.Buffs.Component?.HasBaseline!=true||b.Buffs.Component.AppliedRevision<item.Value.Revision||b.Buffs.Records.Count>0||b.Buffs.Assembly!=null)return false;continue;}
                 var view=b.Candidate?.Loader?.GetComponent<PNStatReplication>()?.View;
                 if(view==null||b.Candidate.Loader.GetComponent<PNStatReplication>().FullViewRevision<item.Value.Revision)return false;
             }

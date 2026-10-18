@@ -45,3 +45,16 @@ public interface IPNNetworkSessionDriver
     void Begin(EveGameRuntime runtime, PNPlayConfig config);
     void End();
 }
+
+// Optional companion capability: existing drivers/mods keep their original interface.
+public interface IPNRoomSessionDriver
+{
+    string ModeId { get; }
+    bool IsRoomOpen { get; }
+    bool IsPlaying { get; }
+    bool CanBeginPlay { get; }
+    void OpenRoom(EveGameRuntime runtime, PNPlayConfig config);
+    void BeginPlay(string modeId);
+    void EndPlay();
+    void CloseRoom();
+}

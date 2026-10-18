@@ -10,6 +10,8 @@ namespace ProjectN.Coop
     public sealed class PNPeer
     {
         public long Owner;
+        public EveContentCompatibility Content;
+        public ulong PlayRevision,EndedRevision,EnrolledRevision;
         public double LastTraffic;
         public PNGraceWindow Grace;
         public double InterruptedAt=>Grace.StartedAt;
@@ -18,10 +20,11 @@ namespace ProjectN.Coop
         public uint ResumeChallenge;
         public uint ResumeFloor;
         public bool SelectPlayer;
+        public bool WantsRoomShell;
     }
     public sealed class PNNetworkAuthenticator : NetworkAuthenticator
     {
-        public const int NetworkVersion=4;
+        public const int NetworkVersion=7;
         public PNNetworkManager Manager;
         private readonly Dictionary<NetworkConnectionToClient,double> pending=new Dictionary<NetworkConnectionToClient,double>();
         public static string PlatformGroup => Application.platform==RuntimePlatform.Android||Application.platform==RuntimePlatform.IPhonePlayer?"Mobile":"PC";
@@ -39,11 +42,10 @@ namespace ProjectN.Coop
             {
                 bool local=conn is LocalConnectionToClient;
                 if(request.Limits!=Manager.Profile.ProtocolLimits)throw new InvalidOperationException("Protocol limit profile mismatch.");
-                var content=PNAdmissionRules.Validate(request,Manager.Runtime.Content.Compatibility,PlatformGroup,Manager.ModeId,NetworkServer.connections.Values.Count(x=>x.authenticationData is PNPeer p&&p.Owner>0),Manager.Policy.MaximumClients,local);
+                var content=PNAdmissionRules.Validate(request,Manager.Runtime.Content.Compatibility,PlatformGroup,null,NetworkServer.connections.Values.Count(x=>x.authenticationData is PNPeer p&&p.Owner>0),Manager.IsPlaying?Manager.Policy.MaximumClients:Manager.Profile.MaximumClients,local);
                 long owner=local?0:Manager.AllocateOwner();
-                if(!local)EveRegistrySession.Context.Coop.AdmitPeer(owner,content);
-                conn.authenticationData=new PNPeer {Owner=owner,LastTraffic=Time.realtimeSinceStartupAsDouble,SelectPlayer=request.SelectPlayer,Grace=new PNGraceWindow(Manager.Profile.GraceSeconds)};
-                conn.Send(new PNAdmissionResponse {Accepted=true,Limits=Manager.Profile.ProtocolLimits,HostSession=EveRegistrySession.Context.SessionId,Owner=owner,Content=PNContentFingerprint.From(Manager.Runtime.Content.Compatibility)});
+                conn.authenticationData=new PNPeer {Owner=owner,Content=content,EndedRevision=Manager.IsPlaying?0:Manager.PlayRevision,LastTraffic=Time.realtimeSinceStartupAsDouble,SelectPlayer=request.SelectPlayer,Grace=new PNGraceWindow(Manager.Profile.GraceSeconds)};
+                conn.Send(new PNAdmissionResponse {Accepted=true,Limits=Manager.Profile.ProtocolLimits,Room=Manager.RoomId,Incarnation=Manager.RoomIncarnation,Owner=owner,Content=PNContentFingerprint.From(Manager.Runtime.Content.Compatibility)});
                 ServerAccept(conn);
             }
             catch(Exception error)
@@ -64,10 +66,7 @@ namespace ProjectN.Coop
             {
                 if(!response.Accepted)throw new InvalidOperationException(response.Reason??"Admission refused.");
                 if(response.Limits!=Manager.Profile.ProtocolLimits)throw new InvalidOperationException("Host protocol limit profile mismatch.");
-                if(response.HostSession==Guid.Empty)throw new InvalidOperationException("Host session missing.");
-                var context=EveRegistrySession.Context;
-                if(context.Role==EveSessionRole.Client)context.Coop.AdmitHost(response.HostSession,response.Content.Read(),response.Owner);
-                else if(response.Owner!=0||response.HostSession!=context.SessionId)throw new InvalidOperationException("Invalid host-local admission.");
+                Manager.AdmitRoom(response.Room,response.Incarnation,response.Owner,response.Content.Read());
                 Manager.AdmittedAt=Time.realtimeSinceStartupAsDouble;ClientAccept();
             }
             catch(Exception error){Manager.LastFailure=error.Message;ClientReject();}

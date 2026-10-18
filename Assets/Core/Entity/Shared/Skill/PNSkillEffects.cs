@@ -218,6 +218,8 @@ public sealed class PNSkillEffectState : IDisposable
     private long nextLease, nextInvocation;
     private int triggerDepth;
     public bool IsDisposed { get; private set; }
+    public int ActiveContributionCount=>leases.Count;
+    public int ActiveExecutionCount=>invocations.Count+auxiliaries.Count;
     public Guid GenerationId { get; } = Guid.NewGuid();
     public event Action<Exception> Failed;
     public event Action<PNSkillInvocation, string> Triggered;

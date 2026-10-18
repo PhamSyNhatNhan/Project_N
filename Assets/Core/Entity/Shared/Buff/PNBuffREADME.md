@@ -1,3 +1,15 @@
+## World execution and owned cleanup (Rules79 / Mod API6)
+
+World pause and actor holds stop authoritative Buff advance without disabling the
+manager, losing contributions or ending publication. State capture/replication and
+cleanup remain available. Live application/trigger requires runnable authority.
+`PNBuffCollection.ReleaseOwned(handle)` ends that exact owned handle through normal
+cleanup while the world is paused or the actor held; it does not apply or trigger
+Buffs. Areas use it to revoke only their grants. A failed revocation remains owned
+for retry. Historical source snapshots remain valid; live targets use world policy.
+Network Buff streams include world incarnation, membership and subscription scope;
+old subscription traffic cannot apply to a new observation of the same actor.
+
 ## Current: Typed Buff presentation and Mirror adapter (RulesVersion76 / Mod API6)
 
 `PNBuffManager` adds `TryCaptureState`, `StateChanged`, `OptionalCuePublished`,

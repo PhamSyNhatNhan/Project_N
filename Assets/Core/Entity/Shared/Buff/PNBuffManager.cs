@@ -118,7 +118,7 @@ public sealed partial class PNBuffManager : MonoBehaviour, EveIEntityLoadStep, E
         }
     }
     public void EntityPublished(EveEntityLoadContext context)
-    { typedStage?.Published(); if(replica!=null)StablePresentation(); publication?.Dispose(); publication = null; if (session.HasAuthority && !isActiveAndEnabled) collection.Suspend(true); }
+    { typedStage?.Published(); if(replica!=null)StablePresentation(); publication?.Dispose(); publication = null; if (session.HasAuthority && context.CanSimulate && !isActiveAndEnabled) collection.Suspend(true); }
     private void LocalMessage(PNBuffWireMessage message)
     {double observed=presentationTime;PublishProjection(()=>LocalMessageCore(message,observed));}
     private void LocalMessageCore(PNBuffWireMessage message,double observed)
@@ -158,11 +158,11 @@ public sealed partial class PNBuffManager : MonoBehaviour, EveIEntityLoadStep, E
         StablePresentation();
     }
     private void Report(Exception error) => Debug.LogException(error, this);
-    private void OnDied(PNDamageResult result) { if (IsReady && session.HasAuthority && !deathObserved) { deathObserved = true; collection.TargetDied(); } }
+    private void OnDied(PNDamageResult result) { if (IsReady && context.CanSimulate && !deathObserved) { deathObserved = true; collection.TargetDied(); } }
     public void Advance(double delta)
     {
         PNBuffCollection.Seconds(delta, true);
-        if (!IsReady || !session.HasAuthority) return;
+        if (!IsReady || !session.HasAuthority || !context.CanSimulate) return;
         var scale = clock != null && clock.isActiveAndEnabled ? clock.Scale : 1;
         var raw = clock != null && clock.isActiveAndEnabled ? Math.Max(0, clock.RawScale) : 1;
         Publisher?.CaptureDiagnostic(presentationTime, scale, raw, "Advance-pre");
@@ -198,8 +198,8 @@ public sealed partial class PNBuffManager : MonoBehaviour, EveIEntityLoadStep, E
             try { Publisher?.Dispose(); Publisher = null; replica?.Dispose(); } catch (Exception cleanup) { Report(cleanup); }
         }
     }
-    private void OnDisable() { if (IsReady && session.HasAuthority) collection.Suspend(true); }
-    private void OnEnable() { if (IsReady && session.HasAuthority) collection.Suspend(false); }
+    private void OnDisable() { if (GetComponent<EveEntityIdentity>()?.IsChangingWorld!=true && IsReady && session.HasAuthority && context.CanSimulate) collection.Suspend(true); }
+    private void OnEnable() { if (GetComponent<EveEntityIdentity>()?.IsChangingWorld!=true && IsReady && session.HasAuthority && context.CanSimulate) collection.Suspend(false); }
     public void Unload()
     {
         typedStage?.Dispose();

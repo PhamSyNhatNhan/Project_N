@@ -1,5 +1,8 @@
 using System;
 using UnityEngine;
+#if UNITY_5_3_OR_NEWER
+using UnityEngine.SceneManagement;
+#endif
 
 namespace EveEngine
 {
@@ -133,8 +136,12 @@ namespace EveEngine
             bool saturated;
             do
             {
+#if UNITY_5_3_OR_NEWER
+                count = gameObject.scene.GetPhysicsScene().SphereCast(origin,groundProbeRadius,Vector3.down,groundHits,distance,groundLayers,QueryTriggerInteraction.Ignore);
+#else
                 count = Physics.SphereCastNonAlloc(origin, groundProbeRadius, Vector3.down,
                     groundHits, distance, groundLayers, QueryTriggerInteraction.Ignore);
+#endif
                 saturated = count == groundHits.Length;
                 if (saturated) Array.Resize(ref groundHits, groundHits.Length * 2);
             } while (saturated);

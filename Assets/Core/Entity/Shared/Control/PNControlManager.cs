@@ -17,7 +17,7 @@ public sealed class PNControlManager : MonoBehaviour, EveIEntityLoadStep
     {
         if (state != null) throw new InvalidOperationException("Control manager already loaded.");
         this.context = context;
-        state = new PNControlState(context.Registry, () => context.CanMutate); state.ObserverFailed += Report;
+        state = new PNControlState(context.Registry, () => context.CanMutate||context.IsValid&&context.AllowsModuleAccess); state.ObserverFailed += Report;
     }
     private void Report(Exception error) => Debug.LogException(error, this);
     public void Unload() { state?.Dispose(); state = null; context = null; }

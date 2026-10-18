@@ -6,9 +6,11 @@ public sealed class PNPlayerSpawnPoint : MonoBehaviour
     public GameObject Prefab;
     public Collider Ground;
     public string SceneKey="project_n:ermode";
+    public string SpawnEntry="player";
+    public string Character="project_n:eve";
     public void Validate()
     {
-        if(string.IsNullOrWhiteSpace(SceneKey)||SceneKey.Length>128||Prefab==null||Ground==null||Prefab.GetComponent<EveEngine.EveEntityLoader>()==null||Prefab.GetComponent<EveEngine.EveEntityIdentity>()==null)
+        if(string.IsNullOrWhiteSpace(SceneKey)||SceneKey.Length>128||string.IsNullOrWhiteSpace(SpawnEntry)||SpawnEntry.Length>128||!EveEngine.EveId.TryParse(Character,out _)||Prefab==null||Ground==null||Prefab.GetComponent<EveEngine.EveEntityLoader>()==null||Prefab.GetComponent<EveEngine.EveEntityIdentity>()==null)
             throw new System.InvalidOperationException("Spawn point requires a stable scene key, entity prefab and scene ground.");
     }
 }

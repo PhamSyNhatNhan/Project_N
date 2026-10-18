@@ -10,6 +10,22 @@ namespace ProjectN.Coop
 {
     public sealed partial class PNNetworkManager
     {
+        private sealed class MoveBindingState
+        {
+            public PNMove Component;
+            public bool Attached,AwaitingBaseline;
+            public uint Request;
+            public double LastRequest;
+            public double BaselineStarted;
+            public long Received;
+            public string ControlDigest;
+            public PNMovePacket? Baseline,Applying,Pose;
+            public IDisposable ApplyingLease;
+            public readonly Queue<(PNMovePacket Packet,IDisposable Lease)> Controls=new Queue<(PNMovePacket,IDisposable)>();
+            public EveEngine.Movement.MovePoseReport LatestReport;
+            public Action<EveEngine.Movement.MovePoseReport> Report;
+            public Action<Exception> Failure;
+        }
         private const string MoveKind="project_n:move";
         private sealed class MovePeer
         {
@@ -29,22 +45,22 @@ namespace ProjectN.Coop
         private void InitializeMove()
         {
             RequiredAdapters.Add(MoveKind);
-            RegisterStateAdapter(MoveKind,()=>bindings.Values.Where(b=>!b.Retiring).All(b=>!b.Shell.HasMove||subscribedSession.HasAuthority||b.Move?.MovementBaselineApplied==true));
-            if(NetworkServer.active){moveWorld=new PNMoveHostWorld(subscribedSession,Scheduler.MaximumResidents);NetworkServer.RegisterHandler<PNMoveRequest>(ReceiveMoveRequest);NetworkServer.RegisterHandler<PNMovePacket>(ReceiveMoveReport);}
-            if(NetworkClient.active)NetworkClient.RegisterHandler<PNMovePacket>(ReceiveMovePacket);
+            RegisterStateAdapter(MoveKind,()=>bindings.Values.Where(b=>!b.Retiring&&RoomCatchupBinding(b)).All(b=>!b.Shell.HasMove||subscribedSession.HasAuthority||b.Movement.Component?.MovementBaselineApplied==true));
+            if(NetworkServer.active){moveWorld=new PNMoveHostWorld(subscribedSession,Scheduler.MaximumResidents);NetworkServer.ReplaceHandler<PNMoveRequest>(ReceiveMoveRequest);NetworkServer.ReplaceHandler<PNMovePacket>(ReceiveMoveReport);}
+            if(NetworkClient.active)NetworkClient.ReplaceHandler<PNMovePacket>(ReceiveMovePacket);
             if(Transport.active!=null&&(NetworkMessages.MaxContentSize(Channels.Unreliable)<PNMoveWire.PoseBytes||NetworkMessages.MaxContentSize(Channels.Reliable)<PNMoveWire.ControlBytes))throw new InvalidOperationException("Move transport limits.");
         }
-        private PNMoveStream MovementStream(Binding b)=>new PNMoveStream{Session=b.Metadata.HostSession,NetId=b.Shell.netId,Entity=b.Metadata.Entity,Generation=b.Metadata.Generation,Nonce=(ulong)b.Token};
+        private PNMoveStream MovementStream(Binding b)=>new PNMoveStream{Session=b.Metadata.HostSession,NetId=b.Shell.netId,Entity=b.Metadata.Entity,Generation=b.Metadata.Generation,Nonce=(ulong)b.Token,Scope=Scope(b)};
         private void ConfigureMove(Binding b,EveEntityLoader loader)
         {
-            b.Move=loader.GetComponent<PNMove>();if(b.Move==null)return;
-            b.Move.ConfigureNetworkMovement();
+            b.Movement.Component=loader.GetComponent<PNMove>();if(b.Movement.Component==null)return;
+            b.Movement.Component.BeginMovementBinding();
             var gate=loader.GetComponent<PNNetworkInputGate>()??loader.gameObject.AddComponent<PNNetworkInputGate>();gate.Blocked=true;
-            b.MoveFailure=e=>ProtocolFailure(e,subscribedSession.HasAuthority);b.Move.MovementFailed+=b.MoveFailure;
+            b.Movement.Failure=e=>{if(subscribedSession.HasAuthority)WorldFailure(b.Metadata.World,e);else ProtocolFailure(e,false);};b.Movement.Component.MovementFailed+=b.Movement.Failure;
         }
         private void PublishMove(Binding b)
         {
-            if(b.Move==null){if(b.Shell?.HasMove==true)throw new FormatException("Required Move component missing.");return;}
+            if(b.Movement.Component==null){if(b.Shell?.HasMove==true)throw new FormatException("Required Move component missing.");return;}
             if(subscribedSession.HasAuthority)
             {
                 // Stat life has to be capturable before Track; deferred host pump completes attachment.
@@ -55,28 +71,29 @@ namespace ProjectN.Coop
         }
         private void AttachClientMove(Binding b)
         {
-            if(b.Move==null||!b.Move.NetworkUsable)return;
+            if(b.Movement.Component==null||!b.Movement.Component.NetworkUsable)return;
             bool owner=b.Metadata.Owner==subscribedSession.LocalOwnerId;
             if(owner)
             {
-                b.Move.BindOwnerMovement(b.Metadata.HostSession);b.Move.OwnerMovement.ExpectBaseline(b.MoveRequest);
-                b.MoveReport=q=>b.LatestMoveReport=q;b.Move.MovementReportPublished+=b.MoveReport;
+                b.Movement.Component.BindOwnerMovement(b.Metadata.HostSession);b.Movement.Component.OwnerMovement.ExpectBaseline(b.Movement.Request);
+                b.Movement.Report=q=>b.Movement.LatestReport=q;b.Movement.Component.MovementReportPublished+=b.Movement.Report;
             }
-            else b.Move.BindObserverMovement(b.Metadata.HostSession);
-            b.MoveAttached=true;
+            else b.Movement.Component.BindObserverMovement(b.Metadata.HostSession);
+            b.Movement.Attached=true;
         }
         private void RequestMove(Binding b,bool fresh)
         {
             if(!b.Shell.HasMove)return;
-            if(fresh){b.MoveRequest=MoveOrder.Next(b.MoveRequest);b.MoveBaselineStarted=Time.realtimeSinceStartupAsDouble;b.MoveAwaitingBaseline=true;b.MoveReceived=0;b.MoveBaseline=null;b.MovePose=null;b.LatestMoveReport=null;while(b.MoveControls.Count>0)b.MoveControls.Dequeue().Lease.Dispose();b.MoveApplyingLease?.Dispose();b.MoveApplyingLease=null;b.MoveApplying=null;b.Move?.SetMovementHeld(true);if(b.Move?.OwnerMovement!=null)b.Move.OwnerMovement.ExpectBaseline(b.MoveRequest);}
-            NetworkClient.Send(new PNMoveRequest{Stream=MovementStream(b),Request=b.MoveRequest});b.LastMoveRequest=Time.realtimeSinceStartupAsDouble;
+            if(fresh){b.Movement.Request=MoveOrder.Next(b.Movement.Request);b.Movement.BaselineStarted=Time.realtimeSinceStartupAsDouble;b.Movement.AwaitingBaseline=true;b.Movement.Received=0;b.Movement.Baseline=null;b.Movement.Pose=null;b.Movement.LatestReport=null;while(b.Movement.Controls.Count>0)b.Movement.Controls.Dequeue().Lease.Dispose();b.Movement.ApplyingLease?.Dispose();b.Movement.ApplyingLease=null;b.Movement.Applying=null;b.Movement.Component?.SetMovementHeld(true);if(b.Movement.Component?.OwnerMovement!=null)b.Movement.Component.OwnerMovement.ExpectBaseline(b.Movement.Request);}
+            NetworkClient.Send(new PNMoveRequest{Stream=MovementStream(b),Request=b.Movement.Request});b.Movement.LastRequest=Time.realtimeSinceStartupAsDouble;
         }
         private void ReceiveMoveRequest(NetworkConnectionToClient conn,PNMoveRequest request)
         {
-            if(stopping||fatalSerialization)return;
+            if(stopping||!IsPlaying||fatalSerialization)return;
             try
             {
-                var s=request.Stream;s.Validate();if(request.Request==0||!(conn.authenticationData is PNPeer)||conn is LocalConnectionToClient||!bindings.TryGetValue(s.NetId,out var b)||b.Move==null||b.Retiring||!b.Shell.netIdentity.observers.ContainsKey(conn.connectionId)||s.Session!=b.Metadata.HostSession||s.Entity!=b.Metadata.Entity||s.Generation!=b.Metadata.Generation)throw new FormatException("Unauthorized Move request.");
+                var s=request.Stream;s.Validate();if(request.Request!=0&&IsRetiredMove(conn,s))return;
+                if(request.Request==0||!(conn.authenticationData is PNPeer)||conn is LocalConnectionToClient||!bindings.TryGetValue(s.NetId,out var b)||b.Movement.Component==null||b.Retiring||!b.Shell.netIdentity.observers.ContainsKey(conn.connectionId)||s.Session!=b.Metadata.HostSession||s.Entity!=b.Metadata.Entity||s.Generation!=b.Metadata.Generation||!AuthorizeWorldRequest(conn,b,s.Scope))throw new FormatException("Unauthorized Move request.");
                 if(movePeers.TryGetValue((conn.connectionId,s.NetId),out var old))
                 {
                     if(s.Nonce<old.Stream.Nonce)return;
@@ -94,13 +111,13 @@ namespace ProjectN.Coop
         }
         private void ReceiveMoveReport(NetworkConnectionToClient conn,PNMovePacket p)
         {
-            if(stopping||fatalSerialization)return;
+            if(stopping||!IsPlaying||fatalSerialization)return;
             try
             {
                 if(p.Kind!=4||!(conn.authenticationData is PNPeer peer))throw new FormatException("Move upstream kind/owner.");
                 if(!movePeers.TryGetValue((conn.connectionId,p.Stream.NetId),out var stream)||!stream.Stream.Equals(p.Stream)||p.Request!=stream.Request||stream.Binding.Retiring)return;
                 if(stream.Binding.Metadata.Owner!=peer.Owner)throw new FormatException("Wrong Move owner.");
-                if(!PeerInputReady(conn)||!stream.Binding.Move.NetworkUsable)return;
+                if(!PeerInputReady(conn)||!WorldInputAllowed(stream.Binding)||!AuthorizeWorldRequest(conn,stream.Binding,p.Stream.Scope)||!stream.Binding.Movement.Component.NetworkUsable)return;
                 var result=moveWorld.ReceiveTyped(p.Report,peer.Owner,NetworkTime.time);
                 if(result==MoveReportResult.WrongOwner||result==MoveReportResult.Malformed)throw new FormatException("Move report rejected.");
             }
@@ -117,7 +134,7 @@ namespace ProjectN.Coop
         }
         private bool QueueMoveBaseline(MovePeer peer,out long revision)
         {
-            revision=0;var b=peer.Binding;var model=moveWorld.TypedModel(peer.Stream.Identity);if(model==null||!b.Move.NetworkUsable||!model.Ready)return false;
+            revision=0;var b=peer.Binding;var model=moveWorld.TypedModel(peer.Stream.Identity);if(model==null||!b.Movement.Component.NetworkUsable||!model.Ready)return false;
             bool owner=b.Metadata.Owner==((PNPeer)peer.Connection.authenticationData).Owner;
             if(owner)
             {
@@ -139,31 +156,31 @@ namespace ProjectN.Coop
         }
         private void ReceiveMovePacket(PNMovePacket p)
         {
-            if(stopping||fatalSerialization||NetworkServer.active)return;
+            if(stopping||!IsPlaying||fatalSerialization||NetworkServer.active)return;
             try
             {
                 if(p.Kind==4)throw new FormatException("Move downstream kind.");
-                if(!bindings.TryGetValue(p.Stream.NetId,out var b)||!MovementStream(b).Equals(p.Stream)||p.Request!=b.MoveRequest||b.Retiring)return;
+                if(!bindings.TryGetValue(p.Stream.NetId,out var b)||!IsClientBindingCurrent(b)||!MovementStream(b).Equals(p.Stream)||p.Request!=b.Movement.Request||b.Retiring)return;
                 if(!b.Shell.HasMove)throw new FormatException("Unexpected Move adapter.");
                 if(p.Kind==3)
-                {if(b.MoveAwaitingBaseline||p.Revision<b.MoveReceived)return;b.MovePose=p;return;}
+                {if(b.Movement.AwaitingBaseline||p.Revision<b.Movement.Received)return;b.Movement.Pose=p;return;}
                 bool owner=b.Metadata.Owner==subscribedSession.LocalOwnerId;
                 if(owner!=(p.Kind<=1))throw new FormatException("Move downstream role.");
                 string controlDigest;using(var w=NetworkWriterPool.Get()){w.WriteMovePacket(p);using(var hash=System.Security.Cryptography.SHA256.Create())controlDigest=Convert.ToBase64String(hash.ComputeHash(w.ToArray()));}
-                if(p.Revision<b.MoveReceived)return;
-                if(p.Revision==b.MoveReceived){if(controlDigest!=b.MoveControlDigest)throw new FormatException("Conflicting Move control revision.");return;}
-                if(b.MoveReceived!=0&&p.Revision!=b.MoveReceived+1)throw new FormatException("Missing required Move control.");
-                if(b.MoveControls.Count>=64||b.MoveControls.Sum(x=>(long)MovePacketBytes(x.Packet))+MovePacketBytes(p)>262144)throw new FormatException("Move pending controls bound.");
-                if(b.MoveAwaitingBaseline && owner && (p.Kind!=0||p.Correction.BaselineRequestId!=b.MoveRequest))return;
-                var lease=ReserveMove(MovePacketBytes(p));b.MoveControls.Enqueue((p,lease));b.MoveReceived=p.Revision;b.MoveControlDigest=controlDigest;
-                if(b.MoveAwaitingBaseline){b.MoveBaseline=p;b.MoveAwaitingBaseline=false;}
+                if(p.Revision<b.Movement.Received)return;
+                if(p.Revision==b.Movement.Received){if(controlDigest!=b.Movement.ControlDigest)throw new FormatException("Conflicting Move control revision.");return;}
+                if(b.Movement.Received!=0&&p.Revision!=b.Movement.Received+1)throw new FormatException("Missing required Move control.");
+                if(b.Movement.Controls.Count>=64||b.Movement.Controls.Sum(x=>(long)MovePacketBytes(x.Packet))+MovePacketBytes(p)>262144)throw new FormatException("Move pending controls bound.");
+                if(b.Movement.AwaitingBaseline && owner && (p.Kind!=0||p.Correction.BaselineRequestId!=b.Movement.Request))return;
+                var lease=ReserveMove(MovePacketBytes(p));b.Movement.Controls.Enqueue((p,lease));b.Movement.Received=p.Revision;b.Movement.ControlDigest=controlDigest;
+                if(b.Movement.AwaitingBaseline){b.Movement.Baseline=p;b.Movement.AwaitingBaseline=false;}
             }
             catch(Exception error){ProtocolFailure(error,false);}
         }
         private bool PrepareMove(Binding b,EveEntityLoader loader)
         {
             bool present=loader.GetComponent<PNMove>()!=null;if(present!=b.Shell.HasMove)throw new FormatException("Move required descriptor mismatch.");
-            return !present||b.MoveBaseline.HasValue;
+            return !present||b.Movement.Baseline.HasValue;
         }
         private bool MoveLifeCompatible(Binding b,PNMovePacket p)
         {
@@ -174,56 +191,56 @@ namespace ProjectN.Coop
         {
             foreach(var b in bindings.Values.Where(x=>!x.Retiring&&x.Shell.HasMove).ToArray())
             {
-                if(Time.realtimeSinceStartupAsDouble-b.MoveBaselineStarted>Profile.AdmissionSeconds&&b.MoveAwaitingBaseline)throw new TimeoutException("Movement baseline deadline.");
-                if(b.MoveAwaitingBaseline&&Time.realtimeSinceStartupAsDouble-b.LastMoveRequest>.5)RequestMove(b,false);
-                if(b.Move==null||b.Candidate.Loader?.IsReady!=true||!b.Move.NetworkUsable)continue;
-                if(b.MoveAttached&&b.Move.NetworkRole==PNMoveNetworkRole.Local)
-                {b.MoveAttached=false;b.Move.MovementReportPublished-=b.MoveReport;RequestMove(b,true);}
-                if(!b.MoveAttached)AttachClientMove(b);
+                if(Time.realtimeSinceStartupAsDouble-b.Movement.BaselineStarted>Profile.AdmissionSeconds&&b.Movement.AwaitingBaseline)throw new TimeoutException("Movement baseline deadline.");
+                if(b.Movement.AwaitingBaseline&&Time.realtimeSinceStartupAsDouble-b.Movement.LastRequest>.5)RequestMove(b,false);
+                if(b.Movement.Component==null||b.Candidate.Loader?.IsReady!=true||!b.Movement.Component.NetworkUsable)continue;
+                if(b.Movement.Attached&&b.Movement.Component.NetworkRole==PNMoveNetworkRole.Local)
+                {b.Movement.Attached=false;b.Movement.Component.MovementReportPublished-=b.Movement.Report;RequestMove(b,true);}
+                if(!b.Movement.Attached)AttachClientMove(b);
                 var life=b.Candidate.Loader.GetComponent<PNStatReplication>()?.View;
-                if(life!=null&&b.MoveControls.Count>0&&b.MoveControls.Peek().Packet.Life<life.LifeRevision){RequestMove(b,true);continue;}
-                if(life!=null&&b.Move.OwnerMovement?.Mirror!=null&&b.Move.OwnerMovement.Mirror.LifeRevision<life.LifeRevision)b.Move.SetMovementHeld(true);
-                if(b.MoveApplying.HasValue&&b.Move.AppliedMovementControl>=(ulong)b.MoveApplying.Value.Revision){b.MoveApplyingLease?.Dispose();b.MoveApplyingLease=null;b.MoveApplying=null;}
-                if(!b.MoveApplying.HasValue&&b.MoveControls.Count>0&&MoveLifeCompatible(b,b.MoveControls.Peek().Packet))
+                if(life!=null&&b.Movement.Controls.Count>0&&b.Movement.Controls.Peek().Packet.Life<life.LifeRevision){RequestMove(b,true);continue;}
+                if(life!=null&&b.Movement.Component.OwnerMovement?.Mirror!=null&&b.Movement.Component.OwnerMovement.Mirror.LifeRevision<life.LifeRevision)b.Movement.Component.SetMovementHeld(true);
+                if(b.Movement.Applying.HasValue&&b.Movement.Component.AppliedMovementControl>=(ulong)b.Movement.Applying.Value.Revision){b.Movement.ApplyingLease?.Dispose();b.Movement.ApplyingLease=null;b.Movement.Applying=null;}
+                if(!b.Movement.Applying.HasValue&&b.Movement.Controls.Count>0&&MoveLifeCompatible(b,b.Movement.Controls.Peek().Packet))
                 {
-                    var next=b.MoveControls.Dequeue();b.MoveApplying=next.Packet;b.MoveApplyingLease=next.Lease;
-                    if(next.Packet.Kind<=1)b.Move.StageMovementControl(next.Packet.Mirror,next.Packet.Correction,(ulong)next.Packet.Revision);
-                    else b.Move.StageObserverMovement(next.Packet.Pose,(ulong)next.Packet.Revision);
+                    var next=b.Movement.Controls.Dequeue();b.Movement.Applying=next.Packet;b.Movement.ApplyingLease=next.Lease;
+                    if(next.Packet.Kind<=1)b.Movement.Component.StageMovementControl(next.Packet.Mirror,next.Packet.Correction,(ulong)next.Packet.Revision);
+                    else b.Movement.Component.StageObserverMovement(next.Packet.Pose,(ulong)next.Packet.Revision);
                 }
-                bool coherent=b.Move.MovementBaselineApplied&&!b.MoveAwaitingBaseline&&(b.Move.OwnerMovement?.Mirror==null||life!=null&&b.Move.OwnerMovement.Mirror.LifeRevision==life.LifeRevision);
-                if(!b.Move.MovementHeld&&(clientInterrupted>=0||paused))RequestMove(b,true);
-                b.Move.SetMovementHeld(!coherent||!clientInputReady||clientInterrupted>=0||paused);
-                if(b.Move.NetworkRole==PNMoveNetworkRole.Observer&&coherent&&!paused&&clientInterrupted<0)
+                bool coherent=b.Movement.Component.MovementBaselineApplied&&!b.Movement.AwaitingBaseline&&(b.Movement.Component.OwnerMovement?.Mirror==null||life!=null&&b.Movement.Component.OwnerMovement.Mirror.LifeRevision==life.LifeRevision);
+                if(!b.Movement.Component.MovementHeld&&(clientInterrupted>=0||paused))RequestMove(b,true);
+                b.Movement.Component.SetMovementHeld(!coherent||!WorldInputAllowed(b)||!clientInputReady||clientInterrupted>=0||paused);
+                if(b.Movement.Component.NetworkRole==PNMoveNetworkRole.Observer&&coherent&&!paused&&clientInterrupted<0)
                 {
-                    if(b.MovePose.HasValue&&b.MovePose.Value.Revision<=(long)b.Move.AppliedMovementControl)
-                    {b.Move.ObserverMovement.Receive(b.MovePose.Value.Pose,true);b.MovePose=null;}
-                    if(!b.Move.MovementHeld)b.Move.ApplyObserverPose(Math.Max(0,NetworkTime.time-Profile.MoveInterpolationSeconds));
+                    if(b.Movement.Pose.HasValue&&b.Movement.Pose.Value.Revision<=(long)b.Movement.Component.AppliedMovementControl)
+                    {b.Movement.Component.ObserverMovement.Receive(b.Movement.Pose.Value.Pose,true);b.Movement.Pose=null;}
+                    if(!b.Movement.Component.MovementHeld)b.Movement.Component.ApplyObserverPose(Math.Max(0,NetworkTime.time-Profile.MoveInterpolationSeconds));
                 }
             }
             if(NetworkTime.time-lastMoveTick<Profile.MoveSendSeconds)return;lastMoveTick=NetworkTime.time;
-            foreach(var b in bindings.Values.Where(x=>!x.Retiring&&x.LatestMoveReport!=null&&x.Move?.MovementHeld==false))
-            {var p=new PNMovePacket{Kind=4,Stream=MovementStream(b),Request=b.MoveRequest,Revision=Math.Max(1,b.MoveReceived),Life=b.Move.OwnerMovement.Mirror.LifeRevision,Report=b.LatestMoveReport};if(!TryMoveSend(null,p,Channels.Unreliable))break;b.LatestMoveReport=null;}
+            foreach(var b in bindings.Values.Where(x=>!x.Retiring&&x.Movement.LatestReport!=null&&x.Movement.Component?.MovementHeld==false))
+            {var p=new PNMovePacket{Kind=4,Stream=MovementStream(b),Request=b.Movement.Request,Revision=Math.Max(1,b.Movement.Received),Life=b.Movement.Component.OwnerMovement.Mirror.LifeRevision,Report=b.Movement.LatestReport};if(!TryMoveSend(null,p,Channels.Unreliable))break;b.Movement.LatestReport=null;}
         }
         private void PumpMove()
         {
             if(!NetworkServer.active){PumpClientMove();return;}
-            foreach(var b in bindings.Values.Where(x=>!x.Retiring&&x.Move!=null).Concat(awaitingSpawn.Where(x=>x.Move!=null)).Distinct().ToArray())
+            foreach(var b in bindings.Values.Where(x=>!x.Retiring&&x.Movement.Component!=null).Concat(awaitingSpawn.Where(x=>x.Movement.Component!=null)).Distinct().ToArray())
             {
-                if(!b.Move.NetworkUsable)continue;
-                if(b.MoveAttached){if(b.Metadata.Owner==0)SetInput(b,hostInterrupted<0);else b.Move.SetMovementHeld(false);continue;}
+                if(!b.Movement.Component.NetworkUsable)continue;
+                if(b.Movement.Attached){if(b.Metadata.Owner==0)SetInput(b,hostInterrupted<0);else b.Movement.Component.SetMovementHeld(false);continue;}
                 if(b.Candidate.Loader.GetComponent<PNStatReplication>()?.CanCaptureReplication!=true)continue;
-                moveWorld.TrackTyped(b.Move,b.Metadata.Owner>0);b.MoveAttached=true;b.Move.SetMovementHeld(false);
+                moveWorld.TrackTyped(b.Movement.Component,b.Metadata.Owner>0);b.Movement.Attached=true;b.Movement.Component.SetMovementHeld(false);
                 if(b.Metadata.Owner==0)SetInput(b,hostInterrupted<0);
             }
             moveWorld.Advance(NetworkTime.time);
-            foreach(var b in bindings.Values.Where(x=>!x.Retiring&&x.MoveAttached))if(moveWorld.SamplingFailure(b.Move.NetworkIdentity(b.Metadata.HostSession)) is Exception error)throw new InvalidOperationException("Move capture failed.",error);
+            foreach(var b in bindings.Values.Where(x=>!x.Retiring&&x.Movement.Attached))if(moveWorld.SamplingFailure(b.Movement.Component.NetworkIdentity(b.Metadata.HostSession)) is Exception error)throw new InvalidOperationException("Move capture failed.",error);
             var peers=movePeers.Values.ToArray();if(peers.Length==0)return;
             bool tick=NetworkTime.time-lastMoveTick>=Profile.MoveSendSeconds;if(tick)lastMoveTick=NetworkTime.time;
             for(int i=0;i<peers.Length;i++)
             {
                 var peer=peers[(i+moveCursor)%peers.Length];var b=peer.Binding;
                 if(b.Retiring||!NetworkServer.connections.ContainsKey(peer.Connection.connectionId)||!b.Shell.netIdentity.observers.ContainsKey(peer.Connection.connectionId)){RemoveMovePeer(peer);continue;}
-                var model=moveWorld.TypedModel(peer.Stream.Identity);if(model==null||!b.Move.NetworkUsable)continue;
+                var model=moveWorld.TypedModel(peer.Stream.Identity);if(model==null||!b.Movement.Component.NetworkUsable)continue;
                 if(peer.NeedsBaseline){if(!QueueMoveBaseline(peer,out _))continue;}
                 else if(peer.MirrorRevision!=model.Mirror.Revision||peer.CorrectionId!=model.LastCorrection.Id)QueueMove(peer,ControlPacket(peer,model,b.Metadata.Owner==((PNPeer)peer.Connection.authenticationData).Owner?(byte)1:(byte)2));
                 while(peer.Queue.Count>0){var item=peer.Queue.Peek();if(!TryMoveSend(peer.Connection,item.Packet,Channels.Reliable))break;peer.Queue.Dequeue();peer.Bytes-=item.Bytes;hostMoveBytes-=item.Bytes;peer.SentRevision=item.Packet.Revision;}
@@ -235,12 +252,12 @@ namespace ProjectN.Coop
         private void RemoveMovePeer(MovePeer peer){hostMoveBytes-=peer.Bytes;peer.Bytes=0;peer.Queue.Clear();movePeers.Remove((peer.Connection.connectionId,peer.Stream.NetId));}
         private void UnhookMove(Binding b)
         {
-            foreach(var p in movePeers.Values.Where(x=>x.Binding==b).ToArray())RemoveMovePeer(p);
-            while(b.MoveControls.Count>0)b.MoveControls.Dequeue().Lease.Dispose();b.MoveApplyingLease?.Dispose();b.MoveApplyingLease=null;
-            if(b.Move!=null){b.Move.MovementReportPublished-=b.MoveReport;b.Move.MovementFailed-=b.MoveFailure;if(subscribedSession?.HasAuthority==true&&b.Move.NetworkUsable)moveWorld?.Untrack(b.Move.NetworkIdentity(b.Metadata.HostSession));b.Move.ReleaseNetworkMovement();}
-            b.Move=null;
+            foreach(var p in movePeers.Values.Where(x=>x.Binding==b).ToArray()){RememberRetiredMove(p);RemoveMovePeer(p);}
+            while(b.Movement.Controls.Count>0)b.Movement.Controls.Dequeue().Lease.Dispose();b.Movement.ApplyingLease?.Dispose();b.Movement.ApplyingLease=null;
+            if(b.Movement.Component!=null){b.Movement.Component.MovementReportPublished-=b.Movement.Report;b.Movement.Component.MovementFailed-=b.Movement.Failure;if(subscribedSession?.HasAuthority==true)moveWorld?.Untrack(new MoveIdentity(b.Metadata.HostSession,b.Metadata.Entity,b.Metadata.Generation));b.Movement.Component.ReleaseNetworkMovement();}
+            b.Movement.Component=null;
         }
-        private void DisposeMove(){foreach(var b in bindings.Values.Concat(awaitingSpawn).ToArray())UnhookMove(b);foreach(var p in movePeers.Values.ToArray())RemoveMovePeer(p);moveWorld?.Dispose();moveWorld=null;}
+        private void DisposeMove(){foreach(var p in movePeers.Values.ToArray())RemoveMovePeer(p);moveWorld?.Dispose();moveWorld=null;}
         private int sendBudgetFrame=-1,sendBudgetBytes,sendBudgetMessages;
         private readonly Dictionary<int,(int Bytes,int Messages)> peerSendBudget=new Dictionary<int,(int,int)>();
         private bool TakeSendBudget(int connection,int bytes)

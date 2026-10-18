@@ -29,13 +29,22 @@ namespace ProjectN.Coop
     public struct PNAdmissionRequest : NetworkMessage
     { public int NetworkVersion; public string Platform,Mode,Limits; public bool SelectPlayer; public PNContentFingerprint Content; }
     public struct PNAdmissionResponse : NetworkMessage
-    { public bool Accepted; public string Reason,Limits; public Guid HostSession; public long Owner; public PNContentFingerprint Content; }
+    { public bool Accepted; public string Reason,Limits; public Guid Room; public ulong Incarnation; public long Owner; public PNContentFingerprint Content; }
+    public struct PNPlayStatus : NetworkMessage
+    { public Guid Room,Session; public ulong Incarnation,Revision; public bool Active; public string Mode; }
+    public struct PNPlayReady : NetworkMessage
+    { public Guid Room,Session; public ulong Incarnation,Revision; public bool Ended; }
     public struct PNActorMetadata
     {
         public Guid HostSession;
         public long Entity,Generation,Owner;
         public string Character,SceneKey,EntityKey;
+        public Guid World;
+        public ulong WorldIncarnation,MembershipRevision;
+        public string ContentSlot,SpawnEntry,Template;
+        public bool Player;
+        public UnityEngine.Vector3 Position;
     }
-    public struct PNHeartbeat : NetworkMessage { public uint Sequence,ResumeFloor; public bool Paused,ResumeRequired; }
-    public struct PNResume : NetworkMessage { public uint Sequence; public bool Acknowledged; public string BindingDigest; }
+    public struct PNHeartbeat : NetworkMessage { public Guid Session; public ulong PlayRevision; public uint Sequence,ResumeFloor; public bool Paused,ResumeRequired; }
+    public struct PNResume : NetworkMessage { public Guid Session; public ulong PlayRevision; public uint Sequence; public bool Acknowledged; public string BindingDigest; }
 }

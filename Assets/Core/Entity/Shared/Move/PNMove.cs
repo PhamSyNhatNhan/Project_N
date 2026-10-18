@@ -9,7 +9,7 @@ public partial class PNMove : EveMove3D, EveIEntityLoadPreparation
     public void PrepareEntityLoad()
     { if (GetComponent<PNControlManager>() == null) gameObject.AddComponent<PNControlManager>(); }
     public override System.Collections.Generic.IEnumerable<System.Type> Dependencies => new[] { typeof(EveStat), typeof(PNControlManager) };
-    private bool Allowed(EveId id) => NetworkAllows(id) && (IsPredictedOwner || controls == null || !controls.IsReady || controls.State.IsAllowed(id));
+    private bool Allowed(EveId id) => PNWorldGameplay.CanExecute(this) && NetworkAllows(id) && (IsPredictedOwner || controls == null || !controls.IsReady || controls.State.IsAllowed(id));
     public override bool CanMove { get => BaseCanMove && Allowed(PNControlIds.Move); set => base.CanMove = value; }
     public override bool CanFlip { get => BaseCanFlip && Allowed(PNControlIds.FaceControl); set => base.CanFlip = value; }
     public override bool CanJump { get => BaseCanJump && Allowed(PNControlIds.Jump); set => base.CanJump = value; }
@@ -50,13 +50,14 @@ public partial class PNMove : EveMove3D, EveIEntityLoadPreparation
     }
 
     protected virtual void ConfigureTimeScale(EveTimeScale timeScale) { }
-    protected override float ResolveTimeScale() => IsPredictedOwner ? NetworkScale : clock != null && clock.isActiveAndEnabled ? clock.Scale : 1f;
+    protected override float ResolveTimeScale() => loadContext?.CanUse==true&&!loadContext.CanExecute?0:IsPredictedOwner ? NetworkScale : clock != null && clock.isActiveAndEnabled ? clock.Scale : 1f;
     protected override float ResolveMoveSpeed() => IsPredictedOwner ? NetworkMoveSpeed : base.ResolveMoveSpeed();
     protected override float ResolveJumpSpeed() => (IsPredictedOwner ? NetworkJumpSpeed : base.ResolveJumpSpeed()) * MovementTimeScale;
 
     protected override void FixedUpdate()
     {
         NetworkFixedBoundary();
+        if(body!=null&&loadContext?.CanUse==true&&!loadContext.CanExecute){SetMoveDirection(Vector2.zero);SyncPhysicsScale(0);return;}
         if (!IsReady || body == null) return;
         float scale = MovementTimeScale;
         SyncPhysicsScale(scale);
@@ -127,7 +128,7 @@ public partial class PNMove : EveMove3D, EveIEntityLoadPreparation
         previousScale = 1f;
     }
 
-    protected override void OnDisable() { if(managedMovement){movementHeld=true;initialMovementApplied=false;EnsureMovementHold();}DetachNetwork(); RestorePhysics(); base.OnDisable(); }
+    protected override void OnDisable() { if(GetComponent<EveEntityIdentity>()?.IsChangingWorld==true)return;if(managedMovement){movementHeld=true;initialMovementApplied=false;EnsureMovementHold();}DetachNetwork(); RestorePhysics(); base.OnDisable(); }
     public override void Unload()
     {
         ReleaseNetworkMovement();

@@ -21,7 +21,7 @@ namespace ProjectN.Coop.Tests
             var state=new PNBuffWireState(12,4,id,id,entity,null,false,new PNBuffNumbers(long.MaxValue,0,null,long.MinValue),PNBuffClock.Entity,2,3,.5,null,data);
             var groups=new Dictionary<EveId,long>{{id,8}};
             var frame=new PNBuffFrame(new PNBuffWireMessage(session,entity,3,8,PNBuffWireKind.Snapshot,new[]{state}),3,groups);
-            var stream=new PNBuffStream{Session=session,NetId=5,Entity=7,Generation=3,Nonce=11};
+            var stream=new PNBuffStream{Scope=new PNWorldBindingScope{World=Guid.NewGuid(),Incarnation=2,Membership=3,Subscription=4},Session=session,NetId=5,Entity=7,Generation=3,Nonce=11};
             var body=PNBuffWire.Encode(frame);
             var packet=new PNBuffPacket{Stream=stream,Transfer=1,Kind=0,Revision=8,Time=3,HostTime=4,Rate=1,Total=body.Length,Index=0,Count=1,Body=body};
             using(var writer=NetworkWriterPool.Get())

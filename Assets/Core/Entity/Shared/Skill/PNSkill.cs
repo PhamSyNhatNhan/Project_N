@@ -9,7 +9,7 @@ using UnityEngine;
 [RequireComponent(typeof(PNAbilityManager))]
 public partial class PNSkill : EveSkill, EveIEntityLoadPreparation, EveIEntityCommitStep
 {
-    protected bool HasGameplayAuthority=>!EveRegistrySession.IsReady||EveRegistrySession.Context.HasAuthority;
+    protected bool HasGameplayAuthority=>(!EveRegistrySession.IsReady||EveRegistrySession.Context.HasAuthority)&&PNWorldGameplay.CanExecute(this);
     public void PrepareEntityLoad()
     { if (GetComponent<PNControlManager>() == null) gameObject.AddComponent<PNControlManager>(); }
     public override IEnumerable<Type> Dependencies => new[] { typeof(PNControlManager) };
@@ -57,8 +57,12 @@ public partial class PNSkill : EveSkill, EveIEntityLoadPreparation, EveIEntityCo
     protected void AdvanceAuxiliaryEffects(float delta) => Effects?.Advance(delta);
     protected virtual void Update()
     { if (!IsReady||!HasGameplayAuthority) return; var clock = GetComponent<EveTimeScale>(); var delta=clock != null && clock.isActiveAndEnabled ? clock.DeltaTime : Time.deltaTime; AdvanceAuxiliaryEffects(delta);AdvanceBindings(delta); }
-    protected virtual void OnDisable() { try{CancelBindingInputs();}finally{SuspendBindingSelections();prepared?.Dispose();prepared = null;EndActivation(true);Effects?.CancelExecutions();} }
+    protected virtual void OnDisable() { if(GetComponent<EveEntityIdentity>()?.IsChangingWorld==true)return;try{CancelBindingInputs();}finally{SuspendBindingSelections();prepared?.Dispose();prepared = null;EndActivation(true);Effects?.CancelExecutions();} }
     protected virtual void OnDestroy() => Unload();
+    public virtual void CancelWorldExecutions()
+    {
+        CancelBindingInputs();TryInterrupt(EveId.Parse("project_n:world_transfer"));prepared?.Dispose();prepared=null;EndActivation(true);Effects?.CancelExecutions();
+    }
     public virtual bool TryInterrupt(EveId reason)
     { if (!reason.IsValid) throw new ArgumentException("Interruption reason required."); return false; }
     private EveRegistryHub registry;

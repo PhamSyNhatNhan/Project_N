@@ -3,6 +3,8 @@ using System.Collections.Generic;
 
 namespace EveEngine
 {
+    public interface EveIRegistrationReferences
+    {void ValidateRegistrationReferences(string owner,System.Collections.Generic.IReadOnlyCollection<string> dependencies);}
     public static class EveModApi
     {
         public const string Version = "6";
@@ -45,6 +47,7 @@ namespace EveEngine
         {
             if (definition == null || definition.Id.Namespace != Namespace)
                 throw new ArgumentException($"Mod definitions must belong to {Namespace}.");
+            (definition as EveIRegistrationReferences)?.ValidateRegistrationReferences(Namespace,new System.Collections.Generic.List<string>(Dependencies.Keys));
             Registry.GetOrCreate<T>().Register(definition);
         }
 

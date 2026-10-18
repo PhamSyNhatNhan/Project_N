@@ -80,6 +80,7 @@ public class PNAbilityManager : MonoBehaviour, EveIEntityLoadStep
         PNAbilityDefinition.RequireSeconds(gameDeltaTime, true);
         if (!IsReady) throw new InvalidOperationException("Cannot advance unloaded entity abilities.");
         if (!isActiveAndEnabled || !gameObject.activeInHierarchy) return;
+        if(!context.CanSimulate)return;
         bool hasClock = clock != null && clock.isActiveAndEnabled;
         abilities.Advance(gameDeltaTime, hasClock ? clock.Scale : 1, hasClock ? clock.RawScale : 1);
     }

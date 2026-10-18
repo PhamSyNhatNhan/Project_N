@@ -1,5 +1,22 @@
 # Move replication (RulesVersion77 / Mod API6)
 
+## World integration (Rules79 / network6)
+
+Every replicated actor belongs to a world incarnation and membership revision;
+Move requests, reports, state and applied fences also carry the peer subscription.
+Interest requires the loaded authenticated subscription and a granted actor batch.
+Initial world input opens only after all initial actor baselines are applied and
+the host confirms the matching fence. This transition is separate from room/grace
+readiness, so a slow world load does not consume the transport interruption grace.
+
+Each world owns a local physics scene; Core simulates once per fixed boundary after
+PNMove producers. Existing P4 report cadence is preserved. World pause stops physics
+and gameplay clocks while transport/cleanup continue. Actor holds also freeze raw
+dynamic bodies without PNMove, restoring their velocity/constraints after each
+held step. Ground sensing/cached queries use the world physics owner. Untracking
+uses immutable binding identity even after loader invalidation. S5 production
+transfer and S6 local presentation selection remain separate work.
+
 ## Current Mirror path (P4)
 
 See `Docs/MirrorP4ImplementationPlan.md`, `Docs/MirrorP4S0Inventory.md` and the newest

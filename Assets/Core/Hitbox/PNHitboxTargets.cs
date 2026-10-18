@@ -26,7 +26,7 @@ public sealed class PNHitboxTargets
             foreach (var collider in colliders)
             {
                 PNStat target = Resolve(collider);
-                if (target == null || !IsCurrent(target, session) || (source != null && target.EntityId == source.EntityId) ||
+                if (target == null || !IsCurrent(target, session) || !PNWorldGameplay.CanExecute(target) || (source != null && (!PNWorldGameplay.CanTarget(source,target)||target.EntityId == source.EntityId)) ||
                     (!includeDead && target.IsDead) || !seen.Add(target.EntityId)) continue;
                 if (filter == null || filter(target)) results.Add(target);
             }

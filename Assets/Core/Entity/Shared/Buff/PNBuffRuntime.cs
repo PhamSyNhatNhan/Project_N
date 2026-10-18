@@ -300,6 +300,22 @@ public sealed partial class PNBuffCollection : IDisposable, PNIBuffPresentationS
     }
     public void RemoveMatching(Func<PNBuffSnapshot, bool> predicate, PNBuffEndReason reason, bool bypass = false)
     { RequireMutation(); if (predicate == null) throw new ArgumentNullException(nameof(predicate)); foreach (var value in Snapshot().Where(predicate)) Remove(value.Handle, reason, bypass); }
+    // Exact resource-owner release is lifecycle work, even while gameplay is held.
+    // It cannot apply/trigger a Buff or select instances by ID.
+    public PNBuffReceipt ReleaseOwned(PNBuffHandle handle)
+    {
+        void RequireCleanup()
+        {
+            var context=Services.Target?.GetComponent<EveEntityLoader>()?.LoadContext;
+            if(IsDisposed||!canMutate()&&(context==null||!context.IsValid||!context.Session.HasAuthority))throw new InvalidOperationException("Buff resource release requires its authoritative lifetime.");
+        }
+        RequireCleanup();var receipt=new PNBuffReceipt();
+        Coordinator.Submit(()=>Execute(receipt,()=>
+        {
+            RequireCleanup();if(!Contains(handle)){receipt.Status=PNBuffStatus.Rejected;return;}
+            EndCore(instances[handle.InstanceId],PNBuffEndReason.Bypass);receipt.Handle=handle;receipt.Status=PNBuffStatus.Removed;
+        }),error=>Abort(receipt,error));return receipt;
+    }
     private PNBuffResourceScope NewResources() => new PNBuffResourceScope(Report);
     private void EndCore(PNBuffInstance value, PNBuffEndReason reason)
     {

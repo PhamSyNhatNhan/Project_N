@@ -73,6 +73,12 @@ public class PNTimeScaleArea : PNAreaInstance
     private Action disabled;
     private PNBuffCollection ownerCollection, followCollection;
     private bool followLost;
+    public override void ActorWorldChanging(PNStat actor)
+    {
+        if(request==null)return;
+        if(request.Follow==actor)followLost=true;
+        if(settings.Dependent&&request.Owner==actor)Finish(PNAreaEndReason.OwnerUnavailable);
+    }
     private PNAreaOwnerSignal followSignal;
     private Action followDisabled;
     private Action<PNDamageResult> followDied;
@@ -116,7 +122,7 @@ public class PNTimeScaleArea : PNAreaInstance
         if (dust == null) dust = new PNTimeScaleDust(transform);
         dust.Initialize(this, VisualSettings);
     }
-    private bool ValidEntity(PNStat entity) => entity != null && entity.IsReady && entity.isActiveAndEnabled && !entity.IsDead && entity.SessionId == Manager.Session.SessionId;
+    private bool ValidEntity(PNStat entity) => entity != null && entity.IsReady && entity.isActiveAndEnabled && !entity.IsDead && entity.SessionId == Manager.Session.SessionId && ReferenceEquals(entity.GetComponent<EveEntityIdentity>()?.World,World);
     private static PNBuffCollection CurrentCollection(PNStat entity)
     { var manager = entity != null ? entity.GetComponent<PNBuffManager>() : null; return manager != null && manager.IsReady ? manager.Buffs : null; }
     private bool SameEntity(PNStat entity, PNBuffSource identity) => ValidEntity(entity) && identity != null && entity.EntityId == identity.EntityId && entity.SessionId == identity.SessionId;
@@ -152,7 +158,7 @@ public class PNTimeScaleArea : PNAreaInstance
             var collider = buffer[i]; buffer[i] = null;
             // Only root body colliders participate, not children/hitboxes.
             var target = collider != null ? collider.GetComponent<PNStat>() : null;
-            if (!ValidEntity(target) || target.gameObject.scene != gameObject.scene) continue;
+            if (!ValidEntity(target) || !ReferenceEquals(target.GetComponent<EveEntityIdentity>()?.World,World)) continue;
             bool selected = (settings.Layers & (1 << target.gameObject.layer)) != 0;
             if (selected == settings.Exclude) continue;
             var clock = target.GetComponent<EveTimeScale>(); var buffs = target.GetComponent<PNBuffManager>();
@@ -176,7 +182,10 @@ public class PNTimeScaleArea : PNAreaInstance
     private static void Revoke(Grant grant)
     {
         // Resolve receipt after its queued Apply, then remove that exact handle.
-        grant.Collection.Coordinator.Submit(() => { if (!grant.Collection.IsDisposed && grant.Receipt.Handle.IsAlive) grant.Collection.Remove(grant.Receipt.Handle, PNBuffEndReason.Bypass, true); });
+        PNBuffReceipt release=null;
+        grant.Collection.Coordinator.Submit(() => { if (!grant.Collection.IsDisposed && grant.Receipt.Handle.IsAlive) release=grant.Collection.ReleaseOwned(grant.Receipt.Handle); });
+        if(release?.Error!=null)throw release.Error;
+        if(!grant.Collection.IsDisposed&&grant.Receipt.Handle.IsAlive)throw new InvalidOperationException("Owned Area Buff release must drain before resource teardown.");
     }
     protected override void Cleanup()
     {
@@ -189,8 +198,10 @@ public class PNTimeScaleArea : PNAreaInstance
         followSignal = null; followDisabled = null;
         ownerSignal = null; disabled = null; ownerCollection = followCollection = null;
         death = null;
-        foreach (var grant in grants.Values.ToArray()) { try { Revoke(grant); } catch (Exception error) { Debug.LogException(error, this); } }
-        grants.Clear(); inside.Clear();
+        var failures=new List<Exception>();
+        foreach (var pair in grants.ToArray()) { try { Revoke(pair.Value);grants.Remove(pair.Key); } catch (Exception error) { failures.Add(error); } }
+        if(failures.Count>0)throw new AggregateException("Owned Area Buff cleanup remains pending.",failures);
+        inside.Clear();
     }
     public override void AdvanceRetirement(float delta)
     { visualAge += delta; float remaining=Mathf.Clamp01(1-visualAge/fadeOut); VisualRadius=endingRadius*Mathf.SmoothStep(0,1,remaining); VisualStrength = endingStrength * remaining; dust?.Advance(delta, VisualStrength, false); }

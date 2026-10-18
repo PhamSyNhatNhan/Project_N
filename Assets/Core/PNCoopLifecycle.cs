@@ -9,6 +9,11 @@ public sealed class PNEntityRequest
     public long Owner;
     public Vector3 Position;
     public bool Player;
+    public EveWorldContext World;
+    public ulong WorldIncarnation;
+    public ulong MembershipRevision=1;
+    public string ContentSlot,SpawnEntry;
+    public string Template;
 }
 public interface IPNEntityFactory : IDisposable
 {

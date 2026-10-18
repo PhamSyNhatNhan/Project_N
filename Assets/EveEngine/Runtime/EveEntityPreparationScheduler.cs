@@ -33,6 +33,8 @@ namespace EveEngine
             public EveEntityLoader Loader {get; internal set;}
             public Exception LastError {get; internal set;}
             public bool IsReturned=>Returned;
+            internal EveWorldContext World;
+            internal IDisposable WorldLease;
         }
         private readonly EveSessionContext session;
         private readonly EvePreparationProfile profile;
@@ -59,6 +61,8 @@ namespace EveEngine
         public double TimeoutMilliseconds=>profile.TimeoutMs;
         public int PendingCount=>pending.Count;
         public int ResidentCount=>owned.Count;
+        public bool HasUnscopedResidents=>owned.Any(x=>x.World==null&&!x.Returned);
+        public bool HasPendingWork(EveWorldContext world)=>pending.Concat(owned).Any(x=>x.World==world&&!x.Returned&&(x.Retiring||x.Loader?.IsReady!=true));
         public int MaximumResidents=>profile.Resident;
         public int ActiveCount=>owned.Count(x=>!x.Retiring);
         public int AdmissionCount=>owned.Count(x=>!x.Retiring||x.LastError!=null);
@@ -83,8 +87,37 @@ namespace EveEngine
         }
         private void Return(Candidate candidate)
         {
-            candidate.Return(candidate.Loader);candidate.Returned=true;owned.Remove(candidate);
+            candidate.Return(candidate.Loader);candidate.Returned=true;owned.Remove(candidate);candidate.WorldLease?.Dispose();candidate.WorldLease=null;
         }
+        public void AssociateWorld(Candidate candidate,EveWorldContext world)
+        {
+            if(candidate==null||candidate.World!=null||world==null||!ReferenceEquals(world.Session,session)||candidate.Loader!=null||candidate.Returned)
+                throw new InvalidOperationException("Associate a pending candidate with its play world once.");
+            candidate.WorldLease=world.AcquireLease("prepare/cleanup",EveWorldLeaseKind.Resident);candidate.World=world;
+        }
+        public bool RetireWorld(EveWorldContext world)
+        {
+            if(world==null||!ReferenceEquals(world.Session,session))throw new ArgumentException("Foreign world.");
+            foreach(var candidate in pending.Concat(owned).Where(x=>ReferenceEquals(x.World,world)).ToArray())Retire(candidate);
+            return !pending.Concat(owned).Any(x=>ReferenceEquals(x.World,world)&&!x.Returned);
+        }
+        public void MovePublishedWorld(Candidate candidate,EveWorldContext destination)
+        {
+            if(candidate==null||candidate.Returned||candidate.Retiring||candidate.Loader?.IsReady!=true||
+                !candidate.Loader.LoadContext.Identity.IsGameplayHeld||!ReferenceEquals(candidate.Loader.LoadContext.Identity.World,destination)||
+                !ReferenceEquals(destination.Session,session))throw new InvalidOperationException("Move a held published candidate within its play.");
+            var lease=destination.AcquireLease("prepare/cleanup",EveWorldLeaseKind.Resident);var previous=candidate.WorldLease;
+            candidate.World=destination;candidate.WorldLease=lease;previous?.Dispose();
+        }
+        public void MovePublishedWorld(EveEntityLoader loader,EveWorldContext destination)
+            =>MovePublishedWorld(owned.Single(x=>ReferenceEquals(x.Loader,loader)&&!x.Returned&&!x.Retiring),destination);
+        public void PublishPrepared(IReadOnlyList<Candidate> candidates)
+        {
+            if(stopping||candidates==null||candidates.Count==0||candidates.Any(x=>!owned.Contains(x)||x.Retiring||x.Returned||x.Loader?.State!=EveEntityLoadState.Prepared))throw new InvalidOperationException("Owned prepared candidates required.");
+            EveEntityLoader.CommitBatch(candidates.Select(x=>x.Loader),()=>{foreach(var candidate in candidates)candidate.BeforePublish?.Invoke(candidate.Loader);});
+            foreach(var candidate in candidates)candidate.Published?.Invoke(candidate.Loader);
+        }
+        public void RetirePublished(EveEntityLoader loader)=>Retire(owned.Single(x=>ReferenceEquals(x.Loader,loader)&&!x.Returned));
         private void Fail(Candidate candidate,Exception error)
         {
             candidate.LastError=error;
@@ -95,7 +128,7 @@ namespace EveEngine
         {
             if(candidate==null||candidate.Returned||candidate.Retiring)return;
             candidate.Retiring=true;
-            if(ReferenceEquals(candidate.Loader,null)){candidate.Returned=true;return;}
+            if(ReferenceEquals(candidate.Loader,null)){candidate.Returned=true;candidate.WorldLease?.Dispose();candidate.WorldLease=null;return;}
             if(candidate.Loader!=null)candidate.Loader.InvalidateAndHide();
             if(candidate.Leased)session.Cleanup.Retire(candidate.Loader);
             else CleanupProvisional(candidate);

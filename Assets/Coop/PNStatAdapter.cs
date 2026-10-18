@@ -10,77 +10,65 @@ namespace ProjectN.Coop
     // Typed Stat adapter shares lifecycle and quota ownership with the manager, not gameplay authority.
     public sealed partial class PNNetworkManager
     {
+        private sealed class StatBindingState
+        {
+            public PNStatReplication Component;
+            public Action<PNStatFrame> LifeNotice;
+            public Action<Exception> Failure;
+            public readonly List<EveIReplicaStage> Stages=new List<EveIReplicaStage>();
+        }
         private const string StatKind="project_n:stat";
-        private EveSessionContext subscribedSession;
-        private double lastStatCapture;
-        private readonly Dictionary<uint,(PNActorShell Shell,long Token)> initialStates=new Dictionary<uint,(PNActorShell,long)>();
-        public void InitializeReplication()
+        private void InitializeStat()
         {
-            if(subscribedSession!=null)return;
-            subscribedSession=EveRegistrySession.Context;
-            subscribedSession.ConnectionFailed+=SessionFailed;
-            RegisterStateAdapter(StatKind,()=>bindings.Values.Where(x=>!x.Retiring).All(x=>x.Candidate?.Loader!=null&&x.Candidate.Loader.IsReady&&
+            RegisterStateAdapter(StatKind,()=>bindings.Values.Where(x=>!x.Retiring&&RoomCatchupBinding(x)).All(x=>x.Candidate?.Loader!=null&&x.Candidate.Loader.IsReady&&
                 (x.Candidate.Loader.GetComponent<PNStat>()==null||x.Candidate.Loader.GetComponent<PNStatReplication>()?.View!=null||subscribedSession.HasAuthority)));
-            NetworkLoop.OnLateUpdate+=PumpReplication;
-            InitializeBuff();
-            InitializeMove();
         }
-        private void SessionFailed(string code,string message)=>ProtocolFailure(new InvalidOperationException(code+": "+message),false);
-        private void DisposeReplication()
-        {
-            NetworkLoop.OnLateUpdate-=PumpReplication;
-            DisposeBuff();
-            DisposeMove();
-            if(subscribedSession!=null)subscribedSession.ConnectionFailed-=SessionFailed;
-            foreach(var binding in bindings.Values.Concat(awaitingSpawn).ToArray()){UnhookStat(binding);if(binding.Shell!=null&&binding.Shell.netId==0)Destroy(binding.Shell.gameObject);}
-            foreach(var value in initialStates)if(inbox.Contains(value.Key,value.Value.Token))inbox.Release(value.Key,value.Value.Token);
-            initialStates.Clear();peerFences.Clear();clientFence.Clear();stateAdapters.Clear();subscribedSession=null;
-        }
+        private void PublishStatStages(Binding binding)=>PublishOwnedStages(binding.Stats.Stages);
+        private void RollbackStatStages(Binding binding)=>DisposeOwnedStages(binding.Stats.Stages);
         private void HookStat(Binding binding)
         {
-            var part=binding.Candidate.Loader.GetComponent<PNStatReplication>();binding.Stat=part;
+            var part=binding.Candidate.Loader.GetComponent<PNStatReplication>();binding.Stats.Component=part;
             if(part==null)return;
             part.UseTypedTransport();
-            binding.StatFailure=error=>ProtocolFailure(new InvalidOperationException("Stat projection actor "+binding.Metadata.Entity,error),true);
-            binding.LifeNotice=frame=>
+            binding.Stats.Failure=error=>WorldFailure(binding.Metadata.World,new InvalidOperationException("Stat projection actor "+binding.Metadata.Entity,error));
+            binding.Stats.LifeNotice=frame=>
             {
-                if(stopping||fatalSerialization||binding.Shell==null||binding.Shell.netId==0)return;
+                if(stopping||!IsPlaying||fatalSerialization||binding.Shell==null||binding.Shell.netId==0)return;
                 PNStatWire.Size(frame);
                 var notice=new PNStatNotice {NetId=binding.Shell.netId,Session=binding.Metadata.HostSession,Entity=binding.Metadata.Entity,Generation=binding.Metadata.Generation,State=frame};
-                foreach(var conn in binding.Shell.netIdentity.observers.Values)if(!(conn is LocalConnectionToClient))conn.Send(notice);
+                foreach(var conn in binding.Shell.netIdentity.observers.Values)if(!(conn is LocalConnectionToClient)&&CanObserveWorld(conn,binding.Metadata.World,binding.Metadata.WorldIncarnation)){notice.Scope=Scope(binding,conn);conn.Send(notice);}
             };
-            part.ProjectionFailed+=binding.StatFailure;part.LifeObserved+=binding.LifeNotice;
+            part.ProjectionFailed+=binding.Stats.Failure;part.LifeObserved+=binding.Stats.LifeNotice;
         }
         private void UnhookStat(Binding binding)
         {
-            UnhookMove(binding);
-            UnhookBuff(binding);
-            if(binding.Stat!=null){binding.Stat.ProjectionFailed-=binding.StatFailure;binding.Stat.LifeObserved-=binding.LifeNotice;}
-            foreach(var stage in binding.Stages.AsEnumerable().Reverse())stage.Dispose();binding.Stages.Clear();binding.Stat=null;
+            if(binding.Stats.Component!=null){binding.Stats.Component.ProjectionFailed-=binding.Stats.Failure;binding.Stats.Component.LifeObserved-=binding.Stats.LifeNotice;}
+            binding.Stats.Component=null;binding.Stats.LifeNotice=null;binding.Stats.Failure=null;
         }
         private bool CaptureStat(Binding binding)
         {
             if(binding.Candidate?.Loader==null||!binding.Candidate.Loader.IsReady)throw new InvalidOperationException("Published actor lost its Ready state: "+binding.Metadata.Entity);
-            if(binding.Stat==null)return true;
+            if(binding.Stats.Component==null)return true;
             var buffs=binding.Candidate.Loader.GetComponent<PNBuffManager>();
             if(buffs!=null&&buffs.StateCaptureFaulted)throw new InvalidOperationException("Stat mutation source failed for actor "+binding.Metadata.Entity);
-            if(!binding.Stat.CanCaptureReplication)return false;
-            var frame=binding.Stat.CaptureState();PNStatWire.Size(frame);
+            if(!binding.Stats.Component.CanCaptureReplication)return false;
+            var frame=binding.Stats.Component.CaptureState();PNStatWire.Size(frame);
             if(!ReferenceEquals(frame,binding.Shell.State)){binding.Shell.State=frame;binding.Shell.SetDirty();}
             return true;
         }
         // Initial decode precedes OnStartClient and gameplay binding; reserve quota here, not later.
         public void ReceiveStat(PNActorShell shell,PNStatFrame frame,bool initial)
         {
-            if(stopping||fatalSerialization||NetworkServer.active)return;
+            if(stopping||!IsPlaying||fatalSerialization||NetworkServer.active)return;
             try
             {
                 if(frame!=null&&frame.LifeOnly)throw new FormatException("Actor snapshot must be full.");
                 if(initial)
                 {
+                    if(!ClientScope(shell.Metadata,out _))throw new FormatException("Initial Stat state requires an authorized loaded world.");
                     if(initialStates.Count>=Profile.PendingBindings||initialStates.ContainsKey(shell.netId))throw new FormatException("Duplicate/overflow initial actor.");
                     long token=checked(++nextToken);shell.BindingToken=token;
-                    var m=shell.Metadata;int metadata=64+System.Text.Encoding.UTF8.GetByteCount(m.Character+m.SceneKey+m.EntityKey);
+                    var m=shell.Metadata;int metadata=144+System.Text.Encoding.UTF8.GetByteCount(m.Character+m.SceneKey+m.EntityKey+m.ContentSlot+m.SpawnEntry+m.Template);
                     inbox.Reserve(shell.netId,token,metadata);initialStates.Add(shell.netId,(shell,token));
                     if(frame!=null)inbox.LatestValue(shell.netId,token,StatKind,frame,PNStatWire.Size(frame));
                     return;
@@ -99,7 +87,7 @@ namespace ProjectN.Coop
         }
         private void ReceiveLife(PNStatNotice notice)
         {
-            if(stopping||fatalSerialization)return;
+            if(stopping||!IsPlaying||fatalSerialization)return;
             try
             {
                 if(notice.State==null||!notice.State.LifeOnly)throw new FormatException("Expected life notice.");
@@ -124,39 +112,21 @@ namespace ProjectN.Coop
             var part=loader.GetComponent<PNStatReplication>();
             if((loader.GetComponent<PNStat>()!=null)!=(part!=null)||((part!=null)!=(frame!=null)))throw new FormatException("Missing/unexpected required Stat baseline.");
             if(part==null)return;
-            var baseline=part.StageState(frame,binding.Metadata.HostSession,binding.Metadata.Generation);binding.Stages.Add(baseline);baseline.Commit();
+            var baseline=part.StageState(frame,binding.Metadata.HostSession,binding.Metadata.Generation);binding.Stats.Stages.Add(baseline);baseline.Commit();
             foreach(var notice in inbox.ReadRequired<PNStatFrame>(binding.Shell.netId,binding.Token,StatKind).Where(x=>x.Revision>frame.Revision).OrderBy(x=>x.Revision))
-            {var stage=part.StageUpdate(notice,binding.Metadata.HostSession,binding.Metadata.Generation);binding.Stages.Add(stage);stage.Commit();}
+            {var stage=part.StageUpdate(notice,binding.Metadata.HostSession,binding.Metadata.Generation);binding.Stats.Stages.Add(stage);stage.Commit();}
         }
         private void ReceiveStatMessage(PNStatNotice notice)
         {
+            if(bindings.TryGetValue(notice.NetId,out var scoped))
+            {if(!Scope(scoped).Equals(notice.Scope)||!ClientScope(scoped.Metadata,out _))return;}
+            else if(initialStates.TryGetValue(notice.NetId,out var initial))
+            {var m=initial.Shell.Metadata;if(!ClientScope(m,out var world)||notice.Scope.World!=m.World||notice.Scope.Incarnation!=m.WorldIncarnation||notice.Scope.Membership!=m.MembershipRevision||notice.Scope.Subscription!=world.Offer.Ticket.Subscription)return;}
+            else return;
             if(notice.State?.LifeOnly==true){ReceiveLife(notice);return;}
             if(!bindings.TryGetValue(notice.NetId,out var binding))return;
             if(notice.Session!=binding.Metadata.HostSession||notice.Entity!=binding.Metadata.Entity||notice.Generation!=binding.Metadata.Generation)return;
             ReceiveStat(binding.Shell,notice.State,false);
-        }
-        private void PumpReplication()
-        {
-            if(stopping)return;
-            if(fatalSerialization){StopSession();return;}
-            try{PumpMove();PumpBuff();}catch(Exception error){ProtocolFailure(error,NetworkServer.active);return;}
-            if(!NetworkServer.active)return;
-            try
-            {
-                // Spawn deferred actors only at drained capture boundaries, within prepare timeout.
-                foreach(var binding in awaitingSpawn.ToArray())
-                {
-                    if(binding.Candidate?.Loader==null||!binding.Candidate.Loader.IsReady||binding.Shell!=null)continue;
-                    if(Time.realtimeSinceStartupAsDouble-binding.AwaitingAt>Scheduler.TimeoutMilliseconds/1000d)throw new TimeoutException("Initial Stat capture timed out.");
-                    var stat=binding.Candidate.Loader.GetComponent<PNStatReplication>();if(stat!=null&&!stat.CanCaptureReplication){var buffs=binding.Candidate.Loader.GetComponent<PNBuffManager>();if(buffs!=null&&buffs.StateCaptureFaulted)throw new InvalidOperationException("Initial Stat mutation source failed.");continue;}
-                    var root=CreateShell<PNActorShell>("Actor "+binding.Metadata.Entity);binding.Shell=root.GetComponent<PNActorShell>();binding.Shell.Metadata=binding.Metadata;
-                    HookStat(binding);HookBuff(binding);binding.Shell.HasBuff=binding.Buff!=null;binding.Shell.HasMove=binding.Move!=null;CaptureStat(binding);
-                    NetworkServer.Spawn(root,PNActorShell.Asset,binding.OwnerConnection);bindings.Add(binding.Shell.netId,binding);awaitingSpawn.Remove(binding);
-                }
-                if(Time.realtimeSinceStartupAsDouble-lastStatCapture<.05)return;lastStatCapture=Time.realtimeSinceStartupAsDouble;
-                foreach(var binding in bindings.Values.Where(x=>!x.Retiring))CaptureStat(binding);
-            }
-            catch(Exception error){ProtocolFailure(error,true);StopSession();}
         }
     }
 }

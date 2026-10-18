@@ -57,11 +57,13 @@ public class PNPlayerMove : PNMove, IPNEntityResourceOwner
 
     protected virtual void OnEnable()
     {
+        if(GetComponent<EveEntityIdentity>()?.IsChangingWorld==true)return;
         pc?.Enable();
     }
 
     protected override void OnDisable()
     {
+        if(GetComponent<EveEntityIdentity>()?.IsChangingWorld==true)return;
         pc?.Disable();
         base.OnDisable();
     }

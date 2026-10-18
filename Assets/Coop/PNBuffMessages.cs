@@ -9,9 +9,9 @@ namespace ProjectN.Coop
 {
     public struct PNBuffStream : IEquatable<PNBuffStream>
     {
-        public Guid Session;public uint NetId;public long Entity,Generation;public ulong Nonce;
-        public bool Equals(PNBuffStream other)=>Session==other.Session&&NetId==other.NetId&&Entity==other.Entity&&Generation==other.Generation&&Nonce==other.Nonce;
-        public void Validate(){if(Session==Guid.Empty||NetId==0||Entity<=0||Generation<=0||Nonce==0)throw new FormatException("Buff stream identity.");}
+        public Guid Session;public uint NetId;public long Entity,Generation;public ulong Nonce;public PNWorldBindingScope Scope;
+        public bool Equals(PNBuffStream other)=>Session==other.Session&&NetId==other.NetId&&Entity==other.Entity&&Generation==other.Generation&&Nonce==other.Nonce&&Scope.Equals(other.Scope);
+        public void Validate(){Scope.Validate();if(Session==Guid.Empty||NetId==0||Entity<=0||Generation<=0||Nonce==0)throw new FormatException("Buff stream identity.");}
     }
     public struct PNBuffBaselineRequest:NetworkMessage {public PNBuffStream Stream;}
     // Every fragment repeats the bounded transfer declaration. Completion is count+exact bytes, not a partial state apply.

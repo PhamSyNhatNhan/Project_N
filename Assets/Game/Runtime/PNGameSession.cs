@@ -9,25 +9,46 @@ public sealed class PNGameSession : MonoBehaviour
     public EveEntityPreparationScheduler Scheduler {get;private set;}
     public IPNEntityFactory Factory {get;private set;}
     public EveSessionContext Session {get;private set;}
+    public PNWorldRuntime Worlds {get;private set;}
+    public PNWorldTransitionCoordinator Transfers {get;private set;}
+    public PNLocalWorldContext Local {get;private set;}
+    public PNWorldLifetimeController Lifetimes {get;private set;}
+    public PNWorldPresentation Presentation {get;private set;}
     public static PNGameSession Attach(EveRuntime runtime,EveSessionContext session)
     {
         var service=runtime.GetComponent<PNGameSession>()??runtime.gameObject.AddComponent<PNGameSession>();
         if(ReferenceEquals(service.Session,session))return service;
-        service.Session=session;service.Factory=new PNPlayerFactory(session);
-        session.RegisterCleanup(service.Factory.Dispose,afterEntities:true);
+        service.Session=session;
         service.Scheduler=new EveEntityPreparationScheduler(session,PNGameBootstrap.Config.Preparation);
+        service.Worlds=new PNWorldRuntime(session,service.Scheduler);
+        service.Local=new PNLocalWorldContext(session);
+        service.Presentation=runtime.GetComponent<PNWorldPresentation>()??runtime.gameObject.AddComponent<PNWorldPresentation>();service.Presentation.Bind(session,service.Worlds,service.Local);
+        var physics=runtime.GetComponent<PNWorldPhysicsLoop>()??runtime.gameObject.AddComponent<PNWorldPhysicsLoop>();physics.Bind(session);
+        service.Worlds.BeforeUnload=world=>runtime.GetComponent<PNAreaManager>()?.ReleaseWorld(world);
+        service.Factory=new PNPlayerFactory(session,service.Worlds);
+        session.RegisterCleanup(service.Factory.Dispose,afterEntities:true);
+        service.Transfers=new PNWorldTransitionCoordinator(session,service.Worlds,(PNPlayerFactory)service.Factory,service.Scheduler);
+        physics.BeforeSimulation+=service.Transfers.FixedBoundary;
+        service.Lifetimes=new PNWorldLifetimeController(session,service.Worlds,(PNPlayerFactory)service.Factory,service.Scheduler);
+        var scenes=UnityEngine.Object.FindObjectsByType<PNPlayerSpawnPoint>().Select(x=>x.gameObject.scene).Distinct().ToArray();
+        if(scenes.Length==1){service.Worlds.SetEntryScene(scenes[0]);if(session.Role!=EveSessionRole.Client)service.Presentation.RegisterWorld(service.Worlds.Adopt(scenes[0]));}
+        else if(scenes.Length>1)throw new InvalidOperationException("Scene entry requires explicit world selection for multiple scenes.");
         if(session.Role==EveSessionRole.Offline && UnityEngine.Object.FindObjectsByType<PNPlayerSpawnPoint>().Length>0)
         {
             var requests=service.Factory.SceneEntities();
             if(PNGameBootstrap.Config.Network.SelectPlayer)requests=requests.Concat(new[]{service.Factory.Player(0)});
             foreach(var request in requests)
-                service.Scheduler.Enqueue(()=>service.Factory.Get(request),loader=>service.Factory.Configure(loader,request),service.Factory.Return,service.Factory.Published,error=>{Debug.LogException(error,service);if(session.IsActive)runtime.EndSession();});
+                {
+                    var candidate=service.Scheduler.Enqueue(()=>service.Factory.Get(request),loader=>service.Factory.Configure(loader,request),service.Factory.Return,service.Factory.Published,error=>{Debug.LogException(error,service);if(session.IsActive)runtime.EndSession();});
+                    service.Scheduler.AssociateWorld(candidate,request.World);
+                }
         }
         return service;
     }
     private void Update()
     {
         if(Session==null || Scheduler==null)return;
+        if(Session.IsActive)Lifetimes.Tick();
         if(Session.IsActive || EveRegistrySession.State==EveSessionState.Stopping)Scheduler.AdvanceFrame();
     }
     public void RetryCleanup()

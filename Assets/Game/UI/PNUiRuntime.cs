@@ -51,6 +51,7 @@ public sealed class PNUiRuntime : MonoBehaviour
     private bool originalUiBit;
     private Guid session;
     private EveSessionContext boundSession;
+    private PNLocalWorldContext localView;
     private EveEntityId selected;
     private DropdownField entitySelect;
     private Label details;
@@ -78,11 +79,13 @@ public sealed class PNUiRuntime : MonoBehaviour
         if(context==null || !context.IsActive) throw new InvalidOperationException("Active session required.");
         if(ReferenceEquals(boundSession,context) && hud!=null) return;
         Unbind(); boundSession=context; boundSession.Stopping+=Unbind;
+        localView=PNLocalWorldContext.Current;if(ReferenceEquals(localView?.Session,context))localView.Changed+=ResetMobileInput;
         try { Build(); } catch { Unbind(); throw; }
     }
     public void Unbind()
     {
         if(boundSession!=null) boundSession.Stopping-=Unbind;
+        if(localView!=null)localView.Changed-=ResetMobileInput;localView=null;
         boundSession=null;
         DisposeUI(); LocalPlayerId=default; ViewCamera=null;
     }
@@ -171,7 +174,7 @@ public sealed class PNUiRuntime : MonoBehaviour
         foreach(var loader in EveRegistrySession.Context.Entities.Snapshot())
         {
             var stat=loader.GetComponent<PNStat>();
-            if(stat==null || !stat.IsReady) continue;
+            if(stat==null || !stat.IsReady || ReferenceEquals(PNLocalWorldContext.Current?.Session,EveRegistrySession.Context)&&!PNLocalWorldContext.Current.Accepts(loader)) continue;
             entities.Add(stat);
             if(!(stat is PNPlayerStat) && !(stat is PNEnemyStat)) continue;
             if(!worlds.TryGetValue(stat.EntityId,out var view))

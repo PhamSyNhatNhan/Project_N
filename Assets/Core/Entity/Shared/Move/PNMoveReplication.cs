@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using EveEngine;
 using EveEngine.Movement;
 using UnityEngine;
@@ -22,6 +23,19 @@ public partial class PNMove
         managedMovement=true; movementHeld=true; initialMovementApplied=false;
         appliedMovementControl=pendingMovementControl=0; initialObserver=null;
         SetMoveDirection(Vector2.zero);
+    }
+    // A new adapter presence owns a new stream namespace. Grace refreshes keep
+    // their existing floors; a shell/world rebind is fenced by its outer scope.
+    public void BeginMovementBinding()
+    {
+        ReleaseNetworkMovement();observerHistoryIdentity=default;observerSequenceFloor=observerEpochFloor=0;
+        ConfigureNetworkMovement();
+    }
+    public void CancelWorldMotion()
+    {
+        bool previous=motionTransition;motionTransition=true;
+        try{foreach(var execution in motionExecutions.ToArray())execution.Invalidate();StopMovement();SetMoveDirection(Vector2.zero);}
+        finally{motionTransition=previous;}
     }
     public void SetMovementHeld(bool held)
     {

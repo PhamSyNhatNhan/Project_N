@@ -12,9 +12,10 @@ namespace ProjectN.Coop
         public uint NetId;
         public long Entity,Generation;
         public ulong Nonce;
+        public PNWorldBindingScope Scope;
         public MoveIdentity Identity=>new MoveIdentity(Session,Entity,Generation);
-        public void Validate(){if(NetId==0||Nonce==0)throw new FormatException("Move stream.");_ = Identity;}
-        public bool Equals(PNMoveStream s)=>Session==s.Session&&NetId==s.NetId&&Entity==s.Entity&&Generation==s.Generation&&Nonce==s.Nonce;
+        public void Validate(){Scope.Validate();if(NetId==0||Nonce==0)throw new FormatException("Move stream.");_ = Identity;}
+        public bool Equals(PNMoveStream s)=>Session==s.Session&&NetId==s.NetId&&Entity==s.Entity&&Generation==s.Generation&&Nonce==s.Nonce&&Scope.Equals(s.Scope);
     }
     public struct PNMoveRequest : NetworkMessage { public PNMoveStream Stream; public uint Request; }
     public struct PNMovePacket : NetworkMessage
@@ -33,8 +34,8 @@ namespace ProjectN.Coop
     {
         public const int ControlBytes=16384,PoseBytes=512;
         private static readonly UTF8Encoding Utf8=new UTF8Encoding(false,true);
-        private static void Stream(NetworkWriter w,PNMoveStream s){s.Validate();w.WriteGuid(s.Session);w.WriteUInt(s.NetId);w.WriteLong(s.Entity);w.WriteLong(s.Generation);w.WriteULong(s.Nonce);}
-        private static PNMoveStream Stream(NetworkReader r){var s=new PNMoveStream{Session=r.ReadGuid(),NetId=r.ReadUInt(),Entity=r.ReadLong(),Generation=r.ReadLong(),Nonce=r.ReadULong()};s.Validate();return s;}
+        private static void Stream(NetworkWriter w,PNMoveStream s){s.Validate();w.WriteGuid(s.Session);w.WriteUInt(s.NetId);w.WriteLong(s.Entity);w.WriteLong(s.Generation);w.WriteULong(s.Nonce);w.WriteWorldBindingScope(s.Scope);}
+        private static PNMoveStream Stream(NetworkReader r){var s=new PNMoveStream{Session=r.ReadGuid(),NetId=r.ReadUInt(),Entity=r.ReadLong(),Generation=r.ReadLong(),Nonce=r.ReadULong(),Scope=r.ReadWorldBindingScope()};s.Validate();return s;}
         private static void Vector(NetworkWriter w,MoveVector v){w.WriteFloat(v.X);w.WriteFloat(v.Y);w.WriteFloat(v.Z);}
         private static MoveVector Vector(NetworkReader r)=>new MoveVector(r.ReadFloat(),r.ReadFloat(),r.ReadFloat());
         private static void State(NetworkWriter w,MovementState s){_ = new MovementState(s.Position,s.Velocity,s.Facing,s.Grounded,s.VerticalView);Vector(w,s.Position);Vector(w,s.Velocity);w.WriteByte((byte)(s.Facing==1?1:0));w.WriteByte(s.VerticalView);}
