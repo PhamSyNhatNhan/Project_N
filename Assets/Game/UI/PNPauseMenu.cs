@@ -13,6 +13,7 @@ internal sealed class PNPauseMenu : IDisposable
     private readonly VisualElement overlay, surface, card, safe, system, core, aura, sky, frontStar, backStar;
     private readonly VisualElement frontStarSecond,backStarSecond;
     private readonly Button toggle, resume;
+    private readonly Button leave;
     private readonly List<Part> parts=new List<Part>();
     private readonly Texture2D lightTexture, coreTexture;
     private readonly List<PNPlayerMove> moves=new List<PNPlayerMove>();
@@ -65,7 +66,7 @@ internal sealed class PNPauseMenu : IDisposable
         card=new VisualElement { name="pause-card", pickingMode=PickingMode.Ignore }; card.AddToClassList("pause-card"); overlay.Add(card);
         resume=new Button(Close) { name="pause-continue", text="Tiếp tục" }; resume.AddToClassList("pause-choice"); resume.AddToClassList("pause-primary"); card.Add(resume);
         foreach(var item in new[]{new[]{"pause-settings","Cài đặt"},new[]{"pause-leave","Rời phòng"}})
-        { var button=new Button { name=item[0], text=item[1] }; button.AddToClassList("pause-choice"); button.SetEnabled(false); card.Add(button); }
+        { var button=new Button { name=item[0], text=item[1] }; button.AddToClassList("pause-choice"); button.SetEnabled(false); card.Add(button); if(item[0]=="pause-leave"){leave=button;button.clicked+=Leave;} }
         int choiceIndex=0;
         foreach(var button in card.Children())
         {
@@ -77,6 +78,8 @@ internal sealed class PNPauseMenu : IDisposable
         menu.AddBinding("<Keyboard>/escape"); menu.AddBinding("<Gamepad>/start");
         menu.performed+=OnMenu; menu.Enable();
     }
+    // Leaves the lobby/run for the Hall. Closing first keeps the menu animation and time scale consistent with a normal resume.
+    private void Leave(){ if(!IsOpen||PNGameFlow.Busy)return; Close(); PNGameFlow.ReturnToHall("Đã rời phòng."); }
     private void OnMenu(InputAction.CallbackContext _) => Toggle();
     private void Toggle() { if(IsOpen)Close();else Open(); }
     public void Open()
@@ -115,6 +118,8 @@ internal sealed class PNPauseMenu : IDisposable
         }
         else ReleaseNeutralInput();
         toggle.SetEnabled(EveRegistrySession.IsReady);
+        var phase=PNGameFlow.Phase;
+        leave?.SetEnabled(EveRegistrySession.IsReady&&(phase==PNFlowPhase.Lobby||phase==PNFlowPhase.Run)&&!PNGameFlow.Busy);
     }
     private sealed class Part
     {

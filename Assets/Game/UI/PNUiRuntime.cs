@@ -6,6 +6,8 @@ using System.Linq;
 using System.Text;
 using EveEngine;
 using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.InputSystem.UI;
 using UnityEngine.Rendering.Universal;
 using UnityEngine.UIElements;
 
@@ -24,6 +26,8 @@ public sealed class PNUiRuntime : MonoBehaviour
     public bool ShowMobileControls { get=>showMobileControls; set=>showMobileControls=value; }
     private PNMobileControls mobile;
     private PNPauseMenu pause;
+    private PNModeMenu modeMenu;
+    private GameObject ownedEventSystem;
     public bool MenuOpen => pause!=null && pause.IsOpen;
     public void OpenMenu()=>pause?.Open();
     public void CloseMenu()=>pause?.Close();
@@ -142,6 +146,16 @@ public sealed class PNUiRuntime : MonoBehaviour
         SetTestExpanded(false);
         mobile=new PNMobileControls(this,root);
         pause=new PNPauseMenu(this,root);
+        modeMenu=new PNModeMenu(this,root);
+        EnsureEventSystem();
+    }
+    // World scenes carry no EventSystem (several worlds can coexist); the UI owns the single one, unless a scene already provides it.
+    private void EnsureEventSystem()
+    {
+        if(ownedEventSystem!=null || FindAnyObjectByType<EventSystem>()!=null) return;
+        ownedEventSystem=new GameObject("PN Event System"); ownedEventSystem.transform.SetParent(transform,false);
+        ownedEventSystem.AddComponent<EventSystem>();
+        ownedEventSystem.AddComponent<InputSystemUIInputModule>().AssignDefaultActions();
     }
     public void SetTestExpanded(bool value)
     {
@@ -166,6 +180,7 @@ public sealed class PNUiRuntime : MonoBehaviour
     {
         if(hud==null) return;
         pause?.Tick();
+        modeMenu?.Tick();
         hud.rootVisualElement.Q("test-panel").style.display=MenuOpen?DisplayStyle.None:DisplayStyle.Flex;
         var camera=ViewCamera!=null?ViewCamera:PNViewCamera.Current;
         if(camera!=attachedCamera) ConnectCamera(camera);
@@ -309,6 +324,8 @@ public sealed class PNUiRuntime : MonoBehaviour
     {
         hudBuffs?.Dispose();hudBuffs=null;
         avatarSparkles?.Clear();healthSparkles?.Clear();avatarSparkles=null;healthSparkles=null;sparklePlayer=null;
+        modeMenu?.Dispose(); modeMenu=null;
+        if(ownedEventSystem!=null){Retire(ownedEventSystem);ownedEventSystem=null;}
         pause?.Dispose(); pause=null;
         mobile?.Dispose(); mobile=null;
         sparkleArtwork?.Dispose();sparkleArtwork=null;

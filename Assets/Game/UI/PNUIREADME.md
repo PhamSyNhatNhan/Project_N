@@ -401,3 +401,17 @@ held-button drag, pause/focus/cancel reset, original five input channels, absenc
 of Jump input and virtual-device disable/rebind. Settings/devices are cleaned up;
 results are MobileResults.txt and HudMinimal/MobileControls.png. Physical phone
 touch ergonomics and a full device/resolution sweep still need device testing.
+
+## Roguelite flow UI (`PNModeMenu`)
+
+Built by `PNUiRuntime.Build` after the pause menu, ticked from `RefreshUI`, disposed with the HUD. Classes `pn-mode-toggle`,
+`pn-flow-panel`/`pn-mode-panel`/`pn-lobby-panel`, `pn-flow-button`, `pn-flow-toast`, `pn-flow-loading` are in `CombatUI.uss` and
+reuse the pause palette (`pn-panel-surface`, rounded, white buttons). Elements (by name): `pn-mode-toggle` (Hall only, left of the pause
+star), mode page (`pn-mode-offline/host/join/close`), join page (`pn-room-list` rows `pn-room-<ip>`, `pn-address`, `pn-join-address`,
+`pn-join-refresh`, `pn-join-back`), lobby panel (`pn-lobby-ready`, `pn-lobby-start`, `pn-lobby-leave`, peer rows, host LAN
+address), toast (`PNGameFlow.Message`, 6 s). `pause-leave` ("Rời phòng") is enabled in the lobby and run and calls
+`PNGameFlow.ReturnToHall`. Every action goes through `PNGameFlow`/`IPNLobbyDriver`. Limits: gameplay input is not blocked while
+a panel is open; the mode button ignores the mobile safe area; text is Vietnamese only.
+
+`PNUiRuntime.EnsureEventSystem` creates `PN Event System` (EventSystem + InputSystemUIInputModule with default actions) as a child of the runtime when no scene provides one and retires it with the HUD; Hall, lobby and run scenes carry none.
+

@@ -82,3 +82,29 @@ zoom (player base + modifiers, composed from the base each frame and clamped by 
 cinematic rig with runtime blend asset (shots, sequences, waypoint paths, aim), opt-in yaw (billboards/shadows follow only while a yaw override is live),
 bounds (Confiner3D), follow tuning, free orbit, per-request ease and clock, a state snapshot, and handles that report why they ended.
 Full API and rules: `.agents/skills/project-n-camera`.
+
+## Roguelite flow: Hall, lobby, run (P5 L1-L5)
+
+Scenes live in `Assets/Game/Scenes/` (`Shared/PNHall`, `Roguelite/PNLobby`, `Test/ErMode`); paths are constants in `PNScenes`
+(`PNEntrySceneMarker.cs`) and each is a registered world: `project_n:hall_world` (`base:hall_world`),
+`project_n:roguelite_lobby` (`base:roguelite_lobby`, empty policy Discard) and `project_n:scene_world` (the run, ErMode).
+- **Entry scene marker.** `PNEntrySceneMarker` on a root object of a startup/entry scene names its world definition and, for an
+  Offline start without `--pn-mode`, the mode (`hall` for PNHall). No marker = old contract (`base:scene_world`, configured mode).
+  `PNGameSession` records the entry definition in `PNWorldRuntime.SetEntryScene(scene, definition)`; a client's default-world
+  replica is matched against that definition, so host and client must have loaded the same entry scene before connecting.
+- **Modes.** `project_n:hall` (`PNHallPolicy`, offline home) and `project_n:roguelite`; `PNPlayConfig.ModeExplicit` is true only
+  when `--pn-mode` was given.
+- **Coordinator.** `PNGameFlow` (static API on a persistent component): `StartRoguelite(Offline|Host|Join, address)`,
+  `ReturnToHall(notice)`, `CanStartRun/StartRun`. Every scene change first ends the current play and waits for Stopped and an idle
+  room driver, then loads the scene (single mode) and begins the play. Offline goes straight to the run scene; Host/Join go to
+  the lobby. `StartRun` (host) locks admissions, creates a `base:scene_world` instance, moves every lobby player with the group
+  transfer (slot = the one carrying the `player` spawn, scene worlds name slots `chunk-N`), then marks the room started.
+  `PNGameFlow.Phase` is derived from the local world's definition. A client whose room closes, or a play that ends unexpectedly,
+  returns to the Hall with a notice. Nothing in the run ends it yet (no win/death flow): leave through the pause menu.
+- **Neutral lobby/LAN contract** is `Assets/Core/PNLobbyContracts.cs` (`IPNLobbyDriver`, `PNLobbyInfo`, `PNLanRoomInfo`);
+  `PNMirrorDriver` implements it next to `IPNRoomSessionDriver`. Game never references Mirror.
+- **World scenes carry no `EventSystem` and no `Global Light 2D`.** Several worlds coexist (lobby + run), and URP 2D allows one global light per layer / Unity one
+  EventSystem; the cameras render with `UniversalRenderer3D`, so 2D lights have no effect anyway. `PNUiRuntime` owns the single EventSystem (created only if no
+  scene provides one). Do not author either into a world scene.
+- UI: `PNModeMenu` (see `UI/PNUIREADME.md`). Limits: the HUD is rebuilt per session, so there is no overlay while a scene loads;
+  the first transition screen can still be closing when the Hall appears.

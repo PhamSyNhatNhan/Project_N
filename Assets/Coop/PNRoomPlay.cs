@@ -36,6 +36,7 @@ namespace ProjectN.Coop
             var policy=PNModeDefinition.Select(Runtime.Content.Registry,mode,Profile);
             if(NetworkServer.connections.Values.Count(c=>c.authenticationData is PNPeer p&&p.Owner>0)>policy.MaximumClients)
                 throw new InvalidOperationException("Selected mode capacity exceeded.");
+            ResetLobbyForPlay();
             ModeId=mode;Policy=policy;PlayRevision=checked(PlayRevision+1);
             IsPlaying=true;PlaySession=Guid.Empty;
             try
@@ -53,7 +54,9 @@ namespace ProjectN.Coop
                 foreach(var request in Factory.SceneEntities())EnrollHost(request,null);
                 if(Profile.SelectPlayer)EnrollHost(DefaultPlayerRequest(0),null);
                 foreach(var conn in NetworkServer.connections.Values.ToArray())if(conn.authenticationData is PNPeer)conn.Send(PlayStatus());
-                if(NetworkClient.isConnected){if(!NetworkClient.ready)NetworkClient.Ready();if(!roomShellRequested){roomShellRequested=true;NetworkClient.AddPlayer();}}
+                // The host's own client sends Ready/AddPlayer only once its connection is authenticated; OnClientConnect does it
+                // right after authentication when the room was opened in the same frame (an earlier send is refused by Mirror).
+                if(NetworkClient.isConnected&&NetworkClient.connection!=null&&NetworkClient.connection.isAuthenticated){if(!NetworkClient.ready)NetworkClient.Ready();if(!roomShellRequested){roomShellRequested=true;NetworkClient.AddPlayer();}}
             }
             catch{EndRoomPlay();throw;}
         }

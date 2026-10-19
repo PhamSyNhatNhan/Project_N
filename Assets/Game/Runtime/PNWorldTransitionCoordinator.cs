@@ -44,6 +44,7 @@ public sealed class PNWorldTransitionCoordinator : IDisposable,IPNWorldTransferT
         public readonly List<IDisposable> SourcePins=new List<IDisposable>();
         public double Started;
         public bool Cancelled,Committed,CutoverStarted,Completing,FinalSuccess;
+        public double GateStarted;
         public ulong CommitBoundary;
     }
     private readonly EveSessionContext session;
@@ -59,6 +60,10 @@ public sealed class PNWorldTransitionCoordinator : IDisposable,IPNWorldTransferT
     public IPNWorldTransferTransport Transport { get; set; }
     public Func<PNWorldTransferRequest,bool> Admit { get; set; }=request=>true;
     public int PendingCount=>active.Count;
+    // Presentation gate: the local transition screen reports whether it already covers the view. Holding waits for it (bounded) so the
+    // world swap is never visible. Purely local; nothing is sent over the wire.
+    public Func<PNWorldTransferRequest,bool> HoldGate { get; set; }
+    public const double HoldGateSeconds=.5;
     // Local-participant observation for the transition screen: the in-flight transfer that includes this actor, if any.
     public bool TryGetActive(long entity,out PNWorldTransferRequest request,out PNWorldTransferState state)
     {
@@ -123,6 +128,13 @@ public sealed class PNWorldTransitionCoordinator : IDisposable,IPNWorldTransferT
                 }
                 work.Receipt.State=PNWorldTransferState.Holding;break;
             case PNWorldTransferState.Holding:
+                if(HoldGate!=null)
+                {
+                    double nowSeconds=Time.realtimeSinceStartupAsDouble;
+                    if(work.GateStarted==0)work.GateStarted=nowSeconds;
+                    bool covered=false;try{covered=HoldGate(work.Request);}catch(Exception error){UnityEngine.Debug.LogException(error);covered=true;}
+                    if(!covered&&nowSeconds-work.GateStarted<HoldGateSeconds)return false;
+                }
                 foreach(var actor in work.Actors)
                 {
                     ValidateActor(actor);

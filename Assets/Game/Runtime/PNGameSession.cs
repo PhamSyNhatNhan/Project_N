@@ -39,7 +39,7 @@ public sealed class PNGameSession : MonoBehaviour
         service.Saves=new PNWorldSaveService(session,service.Worlds,service.Lifetimes,System.IO.Path.Combine(Application.persistentDataPath,"WorldSaves"));
         if(!PNCameraDirector.LegacyRequested)service.Transitions=PNTransitionController.Attach(runtime.gameObject,session,service.Local,service.Transfers,service.CameraDirector);
         var scenes=UnityEngine.Object.FindObjectsByType<PNPlayerSpawnPoint>().Select(x=>x.gameObject.scene).Distinct().ToArray();
-        if(scenes.Length==1){service.Worlds.SetEntryScene(scenes[0]);if(session.Role!=EveSessionRole.Client)service.Presentation.RegisterWorld(service.Worlds.Adopt(scenes[0]));}
+        if(scenes.Length==1){var entryMarker=PNEntrySceneMarker.Find(scenes[0]);service.Worlds.SetEntryScene(scenes[0],entryMarker!=null?EveId.Parse(entryMarker.WorldDefinition):default);if(session.Role!=EveSessionRole.Client)service.Presentation.RegisterWorld(service.Worlds.Adopt(scenes[0]));}
         else if(scenes.Length>1)throw new InvalidOperationException("Scene entry requires explicit world selection for multiple scenes.");
         if(session.Role==EveSessionRole.Offline && UnityEngine.Object.FindObjectsByType<PNPlayerSpawnPoint>().Length>0)
         {

@@ -46,6 +46,7 @@ public sealed class PNTransitionController : MonoBehaviour, IPNTransitionSignalS
         released = false; session = value; local = context; transfers = coordinator; director = cameraDirector; Current = this;
         lastUnscaled = Time.realtimeSinceStartup;
         PNViewCamera.Updated += OnViewCameraUpdated;
+        if (transfers != null) transfers.HoldGate = ScreenCovers;
         binding = EveEventManager.Global.Subscribe<PNLocalWorldBound>(PNLocalWorldBound.Event, (_, notice) =>
         {
             if (released || local == null || notice.Session != local.Session.SessionId) return;
@@ -111,6 +112,15 @@ public sealed class PNTransitionController : MonoBehaviour, IPNTransitionSignalS
     }
 
     // ---- per frame ---------------------------------------------------------------------------------------------------------------
+
+    // True once a transfer that includes the local actor may swap worlds: the screen already covers the view, or there is nothing to wait for.
+    private bool ScreenCovers(PNWorldTransferRequest request)
+    {
+        var actor = local?.Actor;
+        if (released || actor == null || !actor.IsReady || !request.EntityIds.Contains(actor.LoadContext.Identity.Id.Value)) return true;
+        if (machine.Stage == PNTransitionStage.Idle) return false;
+        return machine.Stage != PNTransitionStage.Showing || screen == null || screen.ReadyToHide;
+    }
 
     private void OnViewCameraUpdated() { if (framesSinceView < 1000) framesSinceView++; }
 
@@ -203,6 +213,7 @@ public sealed class PNTransitionController : MonoBehaviour, IPNTransitionSignalS
         if (released) return;
         released = true;
         PNViewCamera.Updated -= OnViewCameraUpdated;
+        if (transfers != null) transfers.HoldGate = null;
         binding?.Dispose(); binding = null;
         foreach (var source in attached) try { source.Detach(); } catch (Exception error) { Debug.LogException(error); }
         attached.Clear();

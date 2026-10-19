@@ -1,1 +1,1 @@
-{"name":"ProjectN.Composition","references":["EveEngine","ProjectN.Core","ProjectN.Game","ProjectN.Coop","Mirror","Mirror.Transports"],"autoReferenced":true}
+{"name":"ProjectN.Composition","references":["EveEngine","ProjectN.Core","ProjectN.Game","ProjectN.Coop","Mirror","Mirror.Components","Mirror.Transports"],"autoReferenced":true}

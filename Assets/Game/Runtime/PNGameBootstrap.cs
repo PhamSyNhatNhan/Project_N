@@ -68,6 +68,9 @@ public static class PNGameBootstrap
         catch { End(); throw; }
     }
     public static bool IsRoomOpen => (driver as IPNRoomSessionDriver)?.IsRoomOpen == true;
+    public static IPNLobbyDriver LobbyDriver => driver as IPNLobbyDriver;
+    // True when no room object, transport or teardown remains, so a new room or play may start.
+    public static bool RoomIdle => !networkRequested && (LobbyDriver?.IsIdle ?? !IsRoomOpen);
     public static string ModeId => networkRequested ? RoomDriver.ModeId : offlineModeId??Config.ModeId;
     public static bool IsPlaying => Runtime != null && Runtime.IsReady;
     public static bool CanBeginPlay => networkRequested ? (driver as IPNRoomSessionDriver)?.CanBeginPlay == true :
@@ -78,6 +81,13 @@ public static class PNGameBootstrap
         // An additive scene is content, never another play command.
         if(sceneEntryConsumed || networkRequested || entry.gameObject.scene != UnityEngine.SceneManagement.SceneManager.GetActiveScene())return;
         sceneEntryConsumed=true;
+        if(Config.Role==EveSessionRole.Offline&&!Config.ModeExplicit)
+        {
+            // A start scene can declare its own offline mode (the Hall); explicit --pn-mode still wins.
+            var marker=PNEntrySceneMarker.Find(entry.gameObject.scene);
+            if(marker!=null&&!string.IsNullOrWhiteSpace(marker.ModeId))
+                Config=new PNPlayConfig(Config.Role,marker.ModeId,Config.Address,Config.Network,Config.Preparation);
+        }
         if(!System.Array.Exists(Environment.GetCommandLineArgs(),x=>x=="--pn-lobby"))Begin(Config);
     }
     private static IPNRoomSessionDriver RoomDriver => driver as IPNRoomSessionDriver ??

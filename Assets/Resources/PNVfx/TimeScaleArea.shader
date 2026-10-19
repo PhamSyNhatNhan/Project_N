@@ -28,7 +28,11 @@ Shader "Project_N/VFX/TimeScaleArea"
                 depth = lerp(UNITY_NEAR_CLIP_VALUE, 1, depth);
                 #endif
                 float3 surfacePosition = ComputeWorldSpacePosition(uv, depth, _AreaInvViewProjection);
-                float nearDepth = UNITY_REVERSED_Z ? 1 : UNITY_NEAR_CLIP_VALUE;
+                #if UNITY_REVERSED_Z
+                float nearDepth = 1;
+                #else
+                float nearDepth = UNITY_NEAR_CLIP_VALUE;
+                #endif
                 float3 origin = ComputeWorldSpacePosition(uv, nearDepth, _AreaInvViewProjection);
                 float3 ray = surfacePosition - origin;
                 float distanceToSurface = length(ray); ray /= max(distanceToSurface, 0.00001);

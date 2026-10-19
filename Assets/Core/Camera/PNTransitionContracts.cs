@@ -68,7 +68,7 @@ public sealed class PNTransitionPayload
     public float MaximumSeconds { get; }
     public PNTransitionCoverage Coverage { get; }
     public string Prefab { get; }
-    public static readonly PNTransitionPayload Default = new PNTransitionPayload(.13f, .35f, .78f, 1f, "Loading", .25f, .25f, .4f, 20f, PNTransitionCoverage.Opaque, null);
+    public static readonly PNTransitionPayload Default = new PNTransitionPayload(.13f, .35f, .78f, 1f, "Loading", 0f, .25f, .4f, 20f, PNTransitionCoverage.Opaque, null);
     public PNTransitionPayload(float r, float g, float b, float a, string text, float fadeIn, float fadeOut, float minimumSeconds, float maximumSeconds, PNTransitionCoverage coverage, string prefab)
     {
         foreach (var value in new[] { r, g, b, a }) if (float.IsNaN(value) || float.IsInfinity(value) || value < 0 || value > 1) throw new ArgumentException("Transition colour components must be within 0..1.");

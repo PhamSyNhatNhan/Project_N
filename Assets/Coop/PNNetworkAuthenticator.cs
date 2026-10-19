@@ -24,7 +24,7 @@ namespace ProjectN.Coop
     }
     public sealed class PNNetworkAuthenticator : NetworkAuthenticator
     {
-        public const int NetworkVersion=7;
+        public const int NetworkVersion=8;
         public PNNetworkManager Manager;
         private readonly Dictionary<NetworkConnectionToClient,double> pending=new Dictionary<NetworkConnectionToClient,double>();
         public static string PlatformGroup => Application.platform==RuntimePlatform.Android||Application.platform==RuntimePlatform.IPhonePlayer?"Mobile":"PC";
@@ -41,6 +41,7 @@ namespace ProjectN.Coop
             try
             {
                 bool local=conn is LocalConnectionToClient;
+                if(!local&&Manager.AdmissionClosed)throw new InvalidOperationException("Run đã bắt đầu: phòng đã đóng, không nhận thêm người chơi.");
                 if(request.Limits!=Manager.Profile.ProtocolLimits)throw new InvalidOperationException("Protocol limit profile mismatch.");
                 var content=PNAdmissionRules.Validate(request,Manager.Runtime.Content.Compatibility,PlatformGroup,null,NetworkServer.connections.Values.Count(x=>x.authenticationData is PNPeer p&&p.Owner>0),Manager.IsPlaying?Manager.Policy.MaximumClients:Manager.Profile.MaximumClients,local);
                 long owner=local?0:Manager.AllocateOwner();

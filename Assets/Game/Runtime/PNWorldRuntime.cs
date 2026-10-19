@@ -32,7 +32,10 @@ public sealed class PNWorldRuntime : IPNWorldRuntime,IPNWorldPopulation
     public event Action<EveWorldContext> WorldReady;
     public event Action<EveWorldContext> WorldUnloading;
     private Scene entryScene;
-    public void SetEntryScene(Scene scene) { if(entryScene.IsValid())throw new InvalidOperationException("Entry scene already recorded.");entryScene=scene; }
+    private EveId entryDefinition=EveId.Parse("base:scene_world");
+    public EveId EntryDefinition=>entryDefinition;
+    public void SetEntryScene(Scene scene,EveId definition=default)
+    { if(entryScene.IsValid())throw new InvalidOperationException("Entry scene already recorded.");entryScene=scene;if(definition.IsValid)entryDefinition=definition; }
     private int activeLoads;
     public PNWorldRuntime(EveSessionContext session,EveEntityPreparationScheduler scheduler)
     {
@@ -51,7 +54,7 @@ public sealed class PNWorldRuntime : IPNWorldRuntime,IPNWorldPopulation
     public EveWorldContext Adopt(Scene scene,Guid instance=default,ulong incarnation=1) => Adopt(scene,instance,incarnation,0);
     private EveWorldContext Adopt(Scene scene,Guid instance,ulong incarnation,ulong subscription)
     {
-        var definition=session.Registry.Get<PNWorldDefinition>().Get(EveId.Parse("base:scene_world"));
+        var definition=session.Registry.Get<PNWorldDefinition>().Get(entryDefinition);
         var world=subscription==0?session.Worlds.Create(instance==Guid.Empty?Guid.NewGuid():instance,incarnation,definition.Id,definition.ContentHash):session.Worlds.CreateReplica(instance,incarnation,definition.Id,definition.ContentHash,subscription);
         var owner=CreateOwner(world);world.RegisterCleanup(()=>UnloadScene(owner));
         world.ConfigurePhysics(owner,Application.isPlaying);world.BeginLoading();
@@ -101,7 +104,7 @@ public sealed class PNWorldRuntime : IPNWorldRuntime,IPNWorldPopulation
         if(session.Role!=EveSessionRole.Client)throw new InvalidOperationException("Replica worlds belong to clients.");
         if(defaultWorld)
         {
-            var selected=session.Registry.Get<PNWorldDefinition>().Get(EveId.Parse("base:scene_world"));
+            var selected=session.Registry.Get<PNWorldDefinition>().Get(entryDefinition);
             if(definition!=selected.Id||!entryScene.IsValid()||!entryScene.isLoaded)throw new InvalidOperationException("Default world does not match the recorded entry content.");
             return Adopt(entryScene,instance,incarnation,subscription);
         }

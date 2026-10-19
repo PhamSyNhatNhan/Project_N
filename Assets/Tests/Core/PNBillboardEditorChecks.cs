@@ -27,7 +27,11 @@ public static class PNBillboardEditorChecks
                     throw new Exception("Character billboard has no camera reference.");
                 count++;
             }
-        if (count != 2) throw new Exception("Expected Eve and dummy billboards.");
+        // Eve is spawned at runtime by the player factory; only the dummy is authored in ErMode. Eve's billboard is checked on its prefab.
+        if (count != 1) throw new Exception("Expected the authored dummy billboard in the scene.");
+        var evePrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Game/Entity/Character/Eve/Prefab/Eve.prefab");
+        if (evePrefab == null || evePrefab.transform.Find("Visual")?.GetComponent<ErModeCharacterBillboard>() == null)
+            throw new Exception("Eve prefab Visual has no billboard.");
         var preview = EditorSceneManager.NewPreviewScene();
         try
         {

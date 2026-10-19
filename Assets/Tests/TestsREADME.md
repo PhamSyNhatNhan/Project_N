@@ -49,3 +49,5 @@ Smoke (`Tests/EveEngine`): `PNTransitionTests`, `PNCameraStackTests`, `PNZoomTes
 comes from disposable Player builds of a project clone (see `Docs/CameraImplementationPlan.md`). `PNBillboardEditorChecks`
 needs the authored ErMode scene to contain the Eve and dummy characters; with the current scene it stops at its content
 precondition before reaching any billboard code.
+
+Hall / lobby / run flow Player fixtures (host + clients, LAN discovery, latency simulation) are kept outside the project in `Tests/Flow` (see its README); they run in a disposable clone, never by Play in the main Editor.

@@ -41,13 +41,20 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         templates.Register(new PNEntityTemplateDefinition(EveId.Parse("project_n:scene_spawn"),"scene_spawn_v1",(world,slot,spawn)=>
             world.Slots.Single(x=>x.Id==slot).Roots.Where(x=>x!=null).SelectMany(x=>x.GetComponentsInChildren<PNPlayerSpawnPoint>(true)).Single(x=>x.SpawnEntry==spawn).Prefab));
         templates.RegisterBase(EveId.Parse("base:scene_spawn"),EveId.Parse("project_n:scene_spawn"),"project_n",compatible:(a,b)=>true);
-        worlds.Register(new PNWorldDefinition(EveId.Parse("project_n:scene_world"),PNWorldDefinition.HashContent("project_n:scene_world/v1/Assets/Scenes/ErMode.unity"),typeof(PNSceneWorldProvider),()=>new PNSceneWorldProvider("Assets/Scenes/ErMode.unity")));
+        worlds.Register(new PNWorldDefinition(EveId.Parse("project_n:scene_world"),PNWorldDefinition.HashContent("project_n:scene_world/v1/Assets/Game/Scenes/Test/ErMode/ErMode.unity"),typeof(PNSceneWorldProvider),()=>new PNSceneWorldProvider("Assets/Game/Scenes/Test/ErMode/ErMode.unity")));
         worlds.RegisterBase(EveId.Parse("base:scene_world"),EveId.Parse("project_n:scene_world"),"project_n",compatible:(a,b)=>true);
+        worlds.Register(new PNWorldDefinition(EveId.Parse("project_n:hall_world"),PNWorldDefinition.HashContent("project_n:hall_world/v1/"+PNScenes.Hall),typeof(PNSceneWorldProvider),()=>new PNSceneWorldProvider(PNScenes.Hall)));
+        worlds.RegisterBase(EveId.Parse("base:hall_world"),EveId.Parse("project_n:hall_world"),"project_n",compatible:(a,b)=>true);
+        // The lobby exists only to gather a roguelite party; once everyone moved on, it is discarded.
+        worlds.Register(new PNWorldDefinition(EveId.Parse("project_n:roguelite_lobby"),PNWorldDefinition.HashContent("project_n:roguelite_lobby/v1/"+PNScenes.Lobby),typeof(PNSceneWorldProvider),()=>new PNSceneWorldProvider(PNScenes.Lobby),new PNWorldPolicy(PNEmptyWorldPolicy.Discard)));
+        worlds.RegisterBase(EveId.Parse("base:roguelite_lobby"),EveId.Parse("project_n:roguelite_lobby"),"project_n",compatible:(a,b)=>true);
         worlds.Register(new PNWorldDefinition(EveId.Parse("project_n:generated_world"),PNWorldDefinition.HashContent("project_n:generated_world/v1/empty-main"),typeof(PNGeneratedWorldProvider),()=>new PNGeneratedWorldProvider()));
         worlds.RegisterBase(EveId.Parse("base:generated_world"),EveId.Parse("project_n:generated_world"),"project_n",compatible:(a,b)=>true);
         var modes=hub.GetOrCreate<PNModeDefinition>();
         modes.Register(new PNModeDefinition(EveId.Parse("project_n:roguelite"),typeof(PNRoguelitePolicy),profile=>new PNRoguelitePolicy(profile)));
         modes.RegisterBase(EveId.Parse("base:roguelite"),EveId.Parse("project_n:roguelite"),"project_n",compatible:(original,replacement)=>true);
+        modes.Register(new PNModeDefinition(EveId.Parse("project_n:hall"),typeof(PNHallPolicy),profile=>new PNHallPolicy(profile)));
+        modes.RegisterBase(EveId.Parse("base:hall"),EveId.Parse("project_n:hall"),"project_n",compatible:(original,replacement)=>true);
         var screens=hub.GetOrCreate<PNTransitionScreenDefinition>();
         screens.Register(new PNTransitionScreenDefinition(PNTransitionSelector.DefaultScreen,PNTransitionKind.UiToolkit,PNTransitionPayload.Default,typeof(PNUiToolkitTransitionScreen).FullName,payload=>new PNUiToolkitTransitionScreen(payload)));
         screens.RegisterBase(EveId.Parse("base:default_transition"),PNTransitionSelector.DefaultScreen,"project_n",compatible:(a,b)=>true);

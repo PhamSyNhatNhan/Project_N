@@ -186,6 +186,7 @@ namespace ProjectN.Coop
             NetworkServer.RegisterHandler<PNPlayReady>(ReceivePlayReady);
             NetworkServer.RegisterHandler<PNHeartbeat>(ReceiveHeartbeat);
             NetworkServer.RegisterHandler<PNResume>(ReceiveResume);
+            ResetLobby();RegisterLobbyServer();
         }
         public override void OnStartClient()
         {
@@ -202,6 +203,7 @@ namespace ProjectN.Coop
             NetworkClient.RegisterHandler<PNResume>(ReceiveResumeClient);
             NetworkClient.RegisterHandler<PNStatNotice>(ReceiveStatMessage);
             NetworkClient.RegisterHandler<PNStateFence>(ReceiveFence);
+            RegisterLobbyClient();
         }
         public static GameObject CreateShell<T>(string name) where T:NetworkBehaviour
         {var root=new GameObject(name);root.SetActive(false);root.AddComponent<NetworkIdentity>();root.AddComponent<PNRoomResource>();root.AddComponent<T>();root.SetActive(true);return root;}
@@ -483,6 +485,7 @@ namespace ProjectN.Coop
             base.LateUpdate();
             if(stopping){PumpRoom();NotifyTeardown();return;}
             PumpRoom();
+            try{PumpLobby();}catch(Exception error){LastFailure=error.Message;}
             try{PumpWorldReplication();}catch(Exception error){ProtocolFailure(error,NetworkServer.active);}
             if(fatalSerialization){StopSession();return;}
             if(NetworkServer.active&&EveRegistrySession.IsReady&&EveRegistrySession.Context.Cleanup.Scheduler.QuarantineCount>0&&(Worlds==null||Scheduler.HasUnscopedResidents)){LastFailure="Authoritative cleanup quarantined; session consistency cannot be established.";StopHost();return;}

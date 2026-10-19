@@ -7,20 +7,23 @@ public sealed class PNPlayConfig
     public EveSessionRole Role { get; }
     public string ModeId { get; }
     public string Address { get; }
+    // True when the mode came from --pn-mode, so a scene's entry marker must not override it.
+    public bool ModeExplicit { get; }
     public PNNetworkProfile Network { get; }
     public EvePreparationProfile Preparation { get; }
-    public PNPlayConfig(EveSessionRole role = EveSessionRole.Offline, string modeId = "roguelite", string address = "localhost", PNNetworkProfile network = null, EvePreparationProfile preparation = null)
+    public PNPlayConfig(EveSessionRole role = EveSessionRole.Offline, string modeId = "roguelite", string address = "localhost", PNNetworkProfile network = null, EvePreparationProfile preparation = null, bool modeExplicit = false)
     {
         if (!Enum.IsDefined(typeof(EveSessionRole), role)) throw new ArgumentOutOfRangeException(nameof(role));
         if (string.IsNullOrWhiteSpace(modeId)) throw new ArgumentException("Mode required.", nameof(modeId));
         if (string.IsNullOrWhiteSpace(address)) throw new ArgumentException("Address required.", nameof(address));
-        Role = role; ModeId = modeId; Address = address;
+        Role = role; ModeId = modeId; Address = address; ModeExplicit = modeExplicit;
         Network=network??new PNNetworkProfile();Preparation=preparation??new EvePreparationProfile();
         Network.Validate();Preparation.Validate();
     }
     public static PNPlayConfig FromArguments(string[] arguments)
     {
         var role = EveSessionRole.Offline; string mode = "roguelite", address = "localhost";
+        bool modeExplicit = false;
         var network=new PNNetworkProfile();
         foreach (string value in arguments ?? Array.Empty<string>())
         {
@@ -29,11 +32,11 @@ public sealed class PNPlayConfig
                 if (!Enum.TryParse(value.Substring(10), true, out role) || !Enum.IsDefined(typeof(EveSessionRole), role))
                     throw new ArgumentException("Invalid --pn-role.");
             }
-            else if (value.StartsWith("--pn-mode=", StringComparison.Ordinal)) mode = value.Substring(10);
+            else if (value.StartsWith("--pn-mode=", StringComparison.Ordinal)) { mode = value.Substring(10); modeExplicit = true; }
             else if (value.StartsWith("--pn-address=", StringComparison.Ordinal)) address = value.Substring(13);
             else if(value=="--pn-no-character")network.SelectPlayer=false;
         }
-        return new PNPlayConfig(role, mode, address, network);
+        return new PNPlayConfig(role, mode, address, network, null, modeExplicit);
     }
 }
 

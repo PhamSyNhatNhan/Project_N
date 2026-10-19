@@ -85,6 +85,8 @@ namespace ProjectN.Coop
         private void RequestMove(Binding b,bool fresh)
         {
             if(!b.Shell.HasMove)return;
+            // After the connection closed (the client leaving, a disconnect callback running cleanup) there is no host to ask; Mirror logs an error otherwise.
+            if(!NetworkClient.isConnected)return;
             if(fresh){b.Movement.Request=MoveOrder.Next(b.Movement.Request);b.Movement.BaselineStarted=Time.realtimeSinceStartupAsDouble;b.Movement.AwaitingBaseline=true;b.Movement.Received=0;b.Movement.Baseline=null;b.Movement.Pose=null;b.Movement.LatestReport=null;while(b.Movement.Controls.Count>0)b.Movement.Controls.Dequeue().Lease.Dispose();b.Movement.ApplyingLease?.Dispose();b.Movement.ApplyingLease=null;b.Movement.Applying=null;b.Movement.Component?.SetMovementHeld(true);if(b.Movement.Component?.OwnerMovement!=null)b.Movement.Component.OwnerMovement.ExpectBaseline(b.Movement.Request);}
             NetworkClient.Send(new PNMoveRequest{Stream=MovementStream(b),Request=b.Movement.Request});b.Movement.LastRequest=Time.realtimeSinceStartupAsDouble;
         }

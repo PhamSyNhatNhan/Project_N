@@ -2,7 +2,7 @@
 
 ## Tieng Viet
 
-Dummy trong `Assets/Scenes/ErMode.unity` dung `DummyStat : PNEnemyStat`,
+Dummy trong `Assets/Game/Scenes/Test/ErMode/ErMode.unity` dung `DummyStat : PNEnemyStat`,
 `EveEntityIdentity`, `EveEntityLoader` va `EveTimeScale`. Loader nap dinh nghia
 `project_n:dummy` tu `StreamingAssets/BaseContent/characters/DummyCharacter.json`:
 HP 200000000/200000000, ATK 0, DEF 0. Khong co AI, skill hay tu dong hoi HP.
