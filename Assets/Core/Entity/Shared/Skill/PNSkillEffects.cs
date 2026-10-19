@@ -55,7 +55,6 @@ public sealed class PNSkillMetadata
         if (!(data is JObject root) || !(root["categoryIds"] is JArray) || root["affectedByAttackSpeed"]?.Type != JTokenType.Boolean)
             throw new FormatException("Activation definition requires categoryIds and affectedByAttackSpeed.");
         var categories = PNSkillEffect.Ids(root["categoryIds"]).Select(x => hub.SkillCategories().ResolveIdentity(x)).Distinct().OrderBy(x => x).ToArray();
-        if (categories.Length == 0) throw new FormatException("Definition categories cannot be empty.");
         foreach (var id in categories) hub.SkillCategories().Get(id);
         var effects = root["effects"] == null ? Array.Empty<PNSkillEffect>() : PNBuffContentBatch.Array(root["effects"]).Select(x => PNSkillEffect.Parse(x, hub)).ToArray();
         var triggers = StandardTriggers.Concat(PNBuffContentBatch.Array(root["triggerIds"]).Select(x => x.Type == JTokenType.String && !string.IsNullOrWhiteSpace(x.Value<string>()) ? x.Value<string>() : throw new FormatException("Trigger string required."))).Distinct().ToArray();

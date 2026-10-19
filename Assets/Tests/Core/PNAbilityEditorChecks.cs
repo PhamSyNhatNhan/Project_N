@@ -34,7 +34,8 @@ public static class PNAbilityEditorChecks
             var hub = new EveRegistryHub(); new PNContentModule().Register(hub);
             hub.GetOrCreate<EveSkillDefinition>();
             var hero = EveId.Parse("test:native_ability_entity");
-            hub.GetOrCreate<EveCharacterDefinition>().Register(new EveCharacterDefinition(hero, Array.Empty<EveInitialStat>()));
+            // PNStat auto-adds PNStatReplication, which reads Health at commit; real entities always have it.
+            hub.GetOrCreate<EveCharacterDefinition>().Register(new EveCharacterDefinition(hero, new[] { new EveInitialStat(PNContentModule.Health, 100d, 100d) }));
             hub.Seal(); EveRegistrySession.Begin(); started = true;
             EveRegistrySession.Start(hub, EveSessionRole.Offline,
                 EveContentCompatibility.Create(hub, Array.Empty<EveContentDocument>(), "test:native_abilities"));

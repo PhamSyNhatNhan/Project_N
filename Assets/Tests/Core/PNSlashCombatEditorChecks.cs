@@ -307,7 +307,8 @@ public static class PNSlashCombatEditorChecks
             Check(repeatedEvents == 10 && angled.GetCurrent(PNContentIds.Health) == 199999900d,
                 "Ten default-damage casts did not produce ten committed hits.");
             RepeatedDamageTrace = trace + "DamageReceived=" + repeatedEvents + ", legacy Inspector changes=" + legacyDisplayChanges;
-            Clear(); EveRegistrySession.End(); started = false;
+            // End the session before destroying entities: Unload (e.g. skill bindings) needs live components in Edit Mode.
+            EveRegistrySession.End(); started = false; Clear();
             Start(EveSessionRole.Client);
             var client = Entity<EveCharacterStat>("Client caster", Vector3.zero, "project_n:eve", true);
             var clientVictim = Entity<DummyStat>("Client victim", new Vector3(.5f, .18f, 0f), "project_n:dummy"); Hurtbox(clientVictim);
@@ -326,8 +327,8 @@ public static class PNSlashCombatEditorChecks
         }
         finally
         {
-            try { Clear(); if (started) EveRegistrySession.End(); }
-            finally { EditorSceneManager.ClosePreviewScene(preview); }
+            try { if (started) EveRegistrySession.End(); }
+            finally { try { Clear(); } finally { EditorSceneManager.ClosePreviewScene(preview); } }
         }
         Check(original.isDirty == dirty, "Slash checks changed gameplay scene.");
         Check(!UnityEngine.Resources.FindObjectsOfTypeAll<MeshCollider>().Any(p => p.gameObject.name == "Eve Hitbox Query Probes"), "Slash query probes leaked.");

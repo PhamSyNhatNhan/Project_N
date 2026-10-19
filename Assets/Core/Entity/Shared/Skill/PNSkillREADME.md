@@ -186,7 +186,7 @@ my_mod:charged_damage. Source Scale group1 +0.2 on that tag increases outgoing
 damage20%; receiver Mitigation uses the same final tag. Buff modifier ownership and
 Attack Speed flags retain their existing contracts.
 
-Activation definitions require root categoryIds (nonempty ID array) and
+Activation definitions require root categoryIds (an ID array; empty is allowed) and
 affectedByAttackSpeed (explicit bool). Registry skill_categories has locked public
 base:attack/skill/ultimate/dash/burst aliases; each definition maps a registered
 Control permission. Code modules may add categories before seal. Category is not an
@@ -211,10 +211,13 @@ activation metadata; use an explicit JSON-backed definition for activation.
 
 CanActivateSkill(skillId) prepares one entity-local invocation, captures Snapshot
 contributions and computes effective categories once. It checks ALL mapped rights,
-skill_all and exact canonical entry ID, rejects an empty effective category set and
-checks positive Attack Speed for flagged definitions before resource commits.
-Dynamic category add/suppress therefore also changes activation gates; suppress
-wins. No separate admission list. The old two-argument CanActivateSkill overload
+skill_all and exact canonical entry ID, and checks positive Attack Speed for flagged
+definitions before resource commits. An empty effective category set is allowed: such
+a skill bypasses every category right (for example a silence that removes Skill/Attack/
+Dash) but is still gated by skill_all and exact-skill leases, and receives no
+category-linked damage tag. Dynamic category add/suppress still changes which category
+rights are checked, but suppressing every category no longer blocks activation by
+itself; use a Control lease to block. No separate admission list. The old two-argument CanActivateSkill overload
 delegates to definition-based admission, not its legacy category argument.
 
 Skill logic calls BeginActivation after its preconditions, then CommitActivation

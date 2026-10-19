@@ -80,7 +80,7 @@ See Assets/Core/Entity/Shared/Buff/PNBuffREADME.md for the contract and schema.
 
 skill_categories is an independent Core registry: initial attack/skill/ultimate/dash/
 burst with locked base aliases and registered Control permission mappings. Concrete
-activation JSON declares categoryIds plus affectedByAttackSpeed, with optional
+activation JSON declares categoryIds (required, may be empty) plus affectedByAttackSpeed, with optional
 effects/triggerIds. Game owns built-in effect validators/factories and templates;
 Core owns the runtime/context contracts. Category/effect references participate in
 pack dependency validation. skill_cast is removed; skill_skill is the new permission.

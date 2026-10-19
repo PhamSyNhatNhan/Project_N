@@ -26,7 +26,8 @@ public partial class PNSkill : EveSkill, EveIEntityLoadPreparation, EveIEntityCo
         var categories = prepared.AdmissionCategories;
         LastControlDecision = Controls.CheckSkill(categories.Select(x => registry.SkillCategories().Get(x).ControlPermissionId), skillId);
         var stat = GetComponent<PNStat>();
-        bool allowed = categories.Count > 0 && LastControlDecision.Allowed && (stat == null || !stat.IsDead) && (!prepared.Metadata.AffectedByAttackSpeed || stat != null && stat.IsReady && stat.Evaluate(PNContentIds.AttackSpeed) > 0);
+        // A skill with no category is allowed; it bypasses category rights but never SkillAll or exact-skill leases.
+        bool allowed = LastControlDecision.Allowed && (stat == null || !stat.IsDead) && (!prepared.Metadata.AffectedByAttackSpeed || stat != null && stat.IsReady && stat.Evaluate(PNContentIds.AttackSpeed) > 0);
         if (!allowed) { prepared.Dispose(); prepared = null; } return allowed;
     }
     public bool CanActivateSkill(EveId category, EveId skillId)
