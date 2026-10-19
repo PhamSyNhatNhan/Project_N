@@ -108,9 +108,9 @@ namespace ProjectN.Coop.Tests
                 move=FindAnyObjectByType<PNPlayerMove>();start=move.transform.position;
                 Check(move.PC!=null&&move.GetComponent<PNPlayerSkill>().PC!=null,"explicit input initialization");
                 Check(move.isActiveAndEnabled&&move.GetComponent<EveEntityLoader>().IsReady,"activation after Ready");
-                var cameraManager=FindObjectsByType<MonoBehaviour>().Single(x=>x.GetType().Name=="CameraManager");
-                var camera=cameraManager.GetType().GetField("virtualCamera",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic).GetValue(cameraManager);
-                Check(camera!=null&&ReferenceEquals(camera.GetType().GetProperty("Follow").GetValue(camera),move.transform),"factory event binds camera after scene entry");
+                // The scene no longer carries the pre-director CameraManager; the director owns the camera and must show the entered world.
+                var cameraState=PNCameraServices.Resolve(EveRegistrySession.Context).State;
+                Check(cameraState.Available&&cameraState.Rig!=PNCameraRigKind.None,"director camera is bound after scene entry");
                 keyboard=InputSystem.AddDevice<Keyboard>();InputSystem.QueueStateEvent(keyboard,new KeyboardState(Key.D));
             }
             catch(Exception e){Fail(e);yield break;}

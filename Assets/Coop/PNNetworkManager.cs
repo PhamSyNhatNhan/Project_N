@@ -399,7 +399,11 @@ namespace ProjectN.Coop
             }
         }
         private void SendHeartbeat()
-        {NetworkClient.Send(new PNHeartbeat {Session=IsPlaying?PlaySession:Guid.Empty,PlayRevision=PlayRevision,Sequence=++heartbeatSequence,ResumeFloor=clientResumeFloor,Paused=paused,ResumeRequired=!clientInputReady||clientInterrupted>=0});lastHeartbeat=Time.realtimeSinceStartupAsDouble;}
+        {
+            // Heartbeats require authentication on the server. In particular, do not race a reliable admission rejection with an unauthorized heartbeat.
+            if(!NetworkClient.isConnected||NetworkClient.connection==null||!NetworkClient.connection.isAuthenticated)return;
+            NetworkClient.Send(new PNHeartbeat {Session=IsPlaying?PlaySession:Guid.Empty,PlayRevision=PlayRevision,Sequence=++heartbeatSequence,ResumeFloor=clientResumeFloor,Paused=paused,ResumeRequired=!clientInputReady||clientInterrupted>=0});lastHeartbeat=Time.realtimeSinceStartupAsDouble;
+        }
         private void Interrupt(PNPeer peer)
         {
             peer.Grace.Interrupt(Time.realtimeSinceStartupAsDouble);

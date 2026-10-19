@@ -13,6 +13,8 @@ public sealed class PNGameSession : MonoBehaviour
     public PNWorldTransitionCoordinator Transfers {get;private set;}
     public PNLocalWorldContext Local {get;private set;}
     public PNWorldLifetimeController Lifetimes {get;private set;}
+    public PNWorldSaveService Saves {get;private set;}
+    public PNWorldBundleService WorldAssets {get;private set;}
     public PNWorldPresentation Presentation {get;private set;}
     public PNCameraDirector CameraDirector {get;private set;}
     public PNTransitionController Transitions {get;private set;}
@@ -21,6 +23,7 @@ public sealed class PNGameSession : MonoBehaviour
         var service=runtime.GetComponent<PNGameSession>()??runtime.gameObject.AddComponent<PNGameSession>();
         if(ReferenceEquals(service.Session,session))return service;
         service.Session=session;
+        service.WorldAssets=(runtime as EveGameRuntime)?.WorldAssets;service.WorldAssets?.BindSession(session);
         service.Scheduler=new EveEntityPreparationScheduler(session,PNGameBootstrap.Config.Preparation);
         service.Worlds=new PNWorldRuntime(session,service.Scheduler);
         service.Local=new PNLocalWorldContext(session);
@@ -33,6 +36,7 @@ public sealed class PNGameSession : MonoBehaviour
         service.Transfers=new PNWorldTransitionCoordinator(session,service.Worlds,(PNPlayerFactory)service.Factory,service.Scheduler);
         physics.BeforeSimulation+=service.Transfers.FixedBoundary;
         service.Lifetimes=new PNWorldLifetimeController(session,service.Worlds,(PNPlayerFactory)service.Factory,service.Scheduler);
+        service.Saves=new PNWorldSaveService(session,service.Worlds,service.Lifetimes,System.IO.Path.Combine(Application.persistentDataPath,"WorldSaves"));
         if(!PNCameraDirector.LegacyRequested)service.Transitions=PNTransitionController.Attach(runtime.gameObject,session,service.Local,service.Transfers,service.CameraDirector);
         var scenes=UnityEngine.Object.FindObjectsByType<PNPlayerSpawnPoint>().Select(x=>x.gameObject.scene).Distinct().ToArray();
         if(scenes.Length==1){service.Worlds.SetEntryScene(scenes[0]);if(session.Role!=EveSessionRole.Client)service.Presentation.RegisterWorld(service.Worlds.Adopt(scenes[0]));}
@@ -52,7 +56,7 @@ public sealed class PNGameSession : MonoBehaviour
     private void Update()
     {
         if(Session==null || Scheduler==null)return;
-        if(Session.IsActive)Lifetimes.Tick();
+        if(Session.IsActive){Saves.Tick();Lifetimes.Tick();}
         if(Session.IsActive || EveRegistrySession.State==EveSessionState.Stopping)Scheduler.AdvanceFrame();
     }
     public void RetryCleanup()

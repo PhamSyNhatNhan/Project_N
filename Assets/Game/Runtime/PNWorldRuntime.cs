@@ -64,7 +64,22 @@ public sealed class PNWorldRuntime : IPNWorldRuntime,IPNWorldPopulation
     }
     public EveWorldContext Create(EveId definition,Guid instance=default,ulong incarnation=1)=>Create(definition,instance,incarnation,0);
     public EveWorldContext CreateStaged(EveId definition,Guid instance,ulong incarnation)=>Create(definition,instance,incarnation,0,true);
-    private EveWorldContext Create(EveId definition,Guid instance,ulong incarnation,ulong subscription,bool deferReady=false)
+    public bool SupportsPersistence(EveWorldContext world)=>entries.TryGetValue(world.InstanceId,out var entry)&&entry.Provider is IPNPortableWorldProvider;
+    public void ValidateLoadDescriptor(EveId definition,Newtonsoft.Json.Linq.JToken descriptor)
+    {
+        var provider=session.Registry.Get<PNWorldDefinition>().Get(definition).Create();
+        try{if(!(provider is IPNPortableWorldProvider portable))throw new NotSupportedException("Selected provider is not portable.");portable.ValidateLoadDescriptor(descriptor);}
+        finally{if(provider is IDisposable disposable)try{disposable.Dispose();}catch{session.RegisterCleanup(disposable.Dispose);throw;}}
+    }
+    public EveWorldContext CreateStaged(EveId definition,Guid instance,ulong incarnation,Newtonsoft.Json.Linq.JToken descriptor)=>Create(definition,instance,incarnation,0,true,descriptor);
+    public Newtonsoft.Json.Linq.JToken CaptureLoadDescriptor(EveWorldContext world)
+    {
+        var build=Get(world);var entry=entries[world.InstanceId];
+        if(!(entry.Provider is IPNPortableWorldProvider portable))throw new NotSupportedException("World provider has no portable load descriptor: "+world.DefinitionId);
+        var descriptor=portable.CaptureLoadDescriptor(build)??throw new InvalidOperationException("Portable provider omitted its descriptor.");
+        portable.ValidateLoadDescriptor(descriptor);return descriptor.DeepClone();
+    }
+    private EveWorldContext Create(EveId definition,Guid instance,ulong incarnation,ulong subscription,bool deferReady=false,Newtonsoft.Json.Linq.JToken descriptor=null)
     {
         if(instance!=Guid.Empty&&entries.ContainsKey(instance))throw new InvalidOperationException("World runtime still owns that logical identity or its pending callbacks.");
         var selected=session.Registry.Get<PNWorldDefinition>().Get(definition);
@@ -75,7 +90,7 @@ public sealed class PNWorldRuntime : IPNWorldRuntime,IPNWorldPopulation
             var owner=CreateOwner(world);
             world.RegisterCleanup(()=>UnloadScene(owner));
             world.ConfigurePhysics(owner,Application.isPlaying);
-            world.BeginLoading();entry.Build=new PNWorldBuildContext(world,owner);
+            world.BeginLoading();entry.Build=new PNWorldBuildContext(world,owner);if(descriptor!=null)entry.Build.SetLoadDescriptor(descriptor);
             entry.Job=scheduler.SchedulePreparation(()=>LoadStep(entry,selected),error=>{world.Fail(error);DisposeLoad(entry);});
         }
         catch(Exception error){world.Fail(error);throw;}
@@ -102,6 +117,8 @@ public sealed class PNWorldRuntime : IPNWorldRuntime,IPNWorldPopulation
             if(activeLoads>=2)return false;
             entry.Provider=definition.Create();
             if(entry.Provider is IDisposable disposable)world.RegisterCleanup(disposable.Dispose);
+            if(entry.Build.LoadDescriptor!=null)
+            {if(!(entry.Provider is IPNPortableWorldProvider portable))throw new NotSupportedException("Selected provider cannot restore a load descriptor.");portable.ValidateLoadDescriptor(entry.Build.LoadDescriptor);}
             entry.Load=entry.Provider.Load(entry.Build)??throw new InvalidOperationException("World provider returned no load job.");activeLoads++;
         }
         if(entry.Load.MoveNext())return false;
@@ -179,6 +196,8 @@ public sealed class PNWorldRuntime : IPNWorldRuntime,IPNWorldPopulation
 // Built-in content provider: paths are selected content, never supplied by peers.
 public sealed class PNSceneWorldProvider : IPNWorldProvider
 {
+    private int ownedAcquisitions;
+    public bool CleanupPending=>ownedAcquisitions!=0;
     private readonly string[] paths;
     private static readonly HashSet<string> acquiring=new HashSet<string>();
     public PNSceneWorldProvider(params string[] paths){this.paths=(string[])paths.Clone();}
@@ -194,11 +213,13 @@ public sealed class PNSceneWorldProvider : IPNWorldProvider
             bool released=false;
             void Release(){if(released)return;acquiring.Remove(path);released=true;}
             var known=new HashSet<Scene>(Enumerable.Range(0,SceneManager.sceneCount).Select(n=>SceneManager.GetSceneAt(n)));
+            bool cleaned=false;ownedAcquisitions++;
             context.Own(()=>{
+                if(cleaned)return;
                 if(operation!=null&&!operation.isDone)throw new EveWorldCleanupPendingException("Owned scene acquisition is still pending.");
                 SceneManager.sceneLoaded-=Loaded;
                 if(!loaded.IsValid())loaded=Enumerable.Range(0,SceneManager.sceneCount).Select(n=>SceneManager.GetSceneAt(n)).SingleOrDefault(s=>s.path==path&&!known.Contains(s));
-                Release();if(loaded.IsValid())PNWorldRuntime.UnloadScene(loaded);
+                Release();if(loaded.IsValid())PNWorldRuntime.UnloadScene(loaded);cleaned=true;ownedAcquisitions--;
             });
             SceneManager.sceneLoaded+=Loaded;
             operation=SceneManager.LoadSceneAsync(path,new LoadSceneParameters(LoadSceneMode.Additive,LocalPhysicsMode.Physics3D));

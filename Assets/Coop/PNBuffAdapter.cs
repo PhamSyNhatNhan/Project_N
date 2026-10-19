@@ -39,6 +39,7 @@ namespace ProjectN.Coop
         private readonly Dictionary<(int,uint),BuffPeer> buffPeers=new Dictionary<(int,uint),BuffPeer>();
         private ulong buffTransfer;
         private int pendingBuffBytes,pendingBuffEvents,hostBuffBytes;
+        public int StaleBuffRequests{get;private set;}
         private int buffPeerCursor;
         public long DroppedOptionalBuffCues {get;private set;}
         public int PendingBuffBytes=>pendingBuffBytes-pendingMoveBytes-pendingWorldBytes;
@@ -92,6 +93,8 @@ namespace ProjectN.Coop
             try
             {
                 var s=request.Stream;s.Validate();if(IsRetiredBuff(conn,s))return;
+                // A request can arrive after its entity's binding was removed (owner replacement/transfer, latency). That is stale, not hostile: drop it without disconnecting the peer.
+                if(conn.authenticationData is PNPeer&&!(conn is LocalConnectionToClient)&&!bindings.ContainsKey(s.NetId)){StaleBuffRequests++;Debug.LogWarning("Ignored stale Buff baseline request for unbound netId "+s.NetId+" from connection "+conn.connectionId);return;}
                 if(!(conn.authenticationData is PNPeer)||conn is LocalConnectionToClient||!bindings.TryGetValue(s.NetId,out var b)||b.Buffs.Component==null||!b.Shell.netIdentity.observers.ContainsKey(conn.connectionId)||s.Session!=b.Metadata.HostSession||s.Entity!=b.Metadata.Entity||s.Generation!=b.Metadata.Generation||!AuthorizeWorldRequest(conn,b,s.Scope))throw new FormatException("Unauthorized Buff baseline request.");
                 if(buffPeers.TryGetValue((conn.connectionId,s.NetId),out var old))
                 {if(old.Stream.Equals(s))return;if(s.Nonce<=old.Stream.Nonce)throw new FormatException("Stale Buff observer nonce.");RemoveBuffPeer(old);}

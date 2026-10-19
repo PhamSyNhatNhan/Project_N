@@ -37,10 +37,11 @@ namespace EveEngine
         public string Namespace { get; }
         public string Version { get; }
         public IReadOnlyDictionary<string, string> Dependencies { get; }
+        public EveAssetCatalogue Assets {get;}
 
         internal EveModRegistrationContext(EveRegistryHub registry, EveContentPack pack)
         {
-            Registry = registry; Namespace = pack.Namespace; Version = pack.Version; Dependencies = pack.Dependencies;
+            Registry = registry; Namespace = pack.Namespace; Version = pack.Version; Dependencies = pack.Dependencies;Assets=pack.Assets;
         }
 
         public void Register<T>(T definition) where T : class, EveIIdentified

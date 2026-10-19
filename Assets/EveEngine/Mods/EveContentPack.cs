@@ -31,14 +31,16 @@ namespace EveEngine
         public IReadOnlyDictionary<string, string> Dependencies { get; }
         public EveModCode Code { get; }
         public bool IsBase { get; }
+        public EveAssetCatalogue Assets {get;}
         internal string ManifestJson { get; }
 
         internal EveContentPack(string directory, string nameSpace, string version,
-            IDictionary<string, string> dependencies, EveModCode code, bool isBase, string manifestJson)
+            IDictionary<string, string> dependencies, EveModCode code, bool isBase, string manifestJson,string assets=null)
         {
             Directory = System.IO.Path.GetFullPath(directory); Namespace = nameSpace; Version = version;
             Dependencies = new ReadOnlyDictionary<string, string>(new Dictionary<string, string>(dependencies ?? new Dictionary<string, string>(), StringComparer.Ordinal));
             Code = code; IsBase = isBase; ManifestJson = manifestJson;
+            Assets=EveAssetCatalogue.Read(Directory,Namespace,assets);
         }
     }
 }

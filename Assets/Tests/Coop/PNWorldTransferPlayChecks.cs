@@ -17,6 +17,7 @@ namespace ProjectN.Coop.Tests
         private string folder,role;
         private PNNetworkManager manager;
         private PNGameSession game;
+        private PNWorldSaveService diskSaves;
         private bool failed;
         private int checks;
         private Guid a,b;
@@ -32,7 +33,7 @@ namespace ProjectN.Coop.Tests
                 var to=Path.Combine(target,file.Substring(source.Length+1));Directory.CreateDirectory(Path.GetDirectoryName(to));
                 if(!File.Exists(to)||!File.ReadAllBytes(to).SequenceEqual(File.ReadAllBytes(file)))File.Copy(file,to,true);
             }
-            var enabled=Path.Combine(target,"enabled.json");const string text="{\"schemaVersion\":1,\"enabledMods\":[\"native_probe\",\"world_probe\",\"world_sandbox\"]}";
+            var enabled=Path.Combine(target,"enabled.json");string text=Directory.Exists(Path.Combine(source,"world_assets"))?"{\"schemaVersion\":1,\"enabledMods\":[\"native_probe\",\"world_probe\",\"world_sandbox\",\"world_assets\"]}":"{\"schemaVersion\":1,\"enabledMods\":[\"native_probe\",\"world_probe\",\"world_sandbox\"]}";
             if(!File.Exists(enabled)||File.ReadAllText(enabled)!=text)File.WriteAllText(enabled,text);
         }
         private void Awake(){if(Arg("--pn-transfer-test=")!=null){PNGameBootstrap.Config.Network.Port=7799;PNGameBootstrap.Config.Network.PendingBindings=2;}}
@@ -46,7 +47,7 @@ namespace ProjectN.Coop.Tests
             File.WriteAllText(Path.Combine(folder,role+".txt"),"FAIL "+error+"\nTransfers:\n"+transfers+"\nNetwork: "+manager?.LastFailure);Debug.LogException(error);try{PNGameBootstrap.End();}catch{}Application.Quit(1);
         }
         private IEnumerator Wait(Func<bool> ready,double seconds=90)
-        {double until=Time.realtimeSinceStartupAsDouble+seconds;while(!failed){bool done=false;try{done=ready();if(!done&&Time.realtimeSinceStartupAsDouble>until)throw new TimeoutException("checks="+checks+" "+manager?.LastFailure);}catch(Exception error){Fail(error);}if(done||failed)yield break;yield return null;}}
+        {double until=Time.realtimeSinceStartupAsDouble+seconds;while(!failed){bool done=false;try{diskSaves?.Tick();done=ready();if(!done&&Time.realtimeSinceStartupAsDouble>until)throw new TimeoutException("checks="+checks+" "+manager?.LastFailure);}catch(Exception error){Fail(error);}if(done||failed)yield break;yield return null;}}
         private EveEntityLoader Player(long owner)
         {
             var all=EveRegistrySession.Context.Entities.Snapshot();var player=all.SingleOrDefault(x=>x.GetComponent<PNPlayerStat>()!=null&&x.LoadContext.Identity.OwnerId==owner);
@@ -97,6 +98,29 @@ namespace ProjectN.Coop.Tests
             try{PNGameBootstrap.OpenRoom(PNGameBootstrap.Config);manager=(PNNetworkManager)NetworkManager.singleton;manager.WorldLoadAllowed=offer=>(role!="client1"||Has("allow-b")||offer.DefaultWorld)&&(role!="client2"||!Has("delay-disconnect")||offer.DefaultWorld);}catch(Exception error){Fail(error);yield break;}
             yield return Wait(()=>NetworkClient.isConnected&&NetworkClient.connection.isAuthenticated&&NetworkClient.localPlayer!=null);if(failed)yield break;role=NetworkServer.active?"host":"client"+manager.RoomOwner;Mark(role+"-lobby");
             if(role=="host")yield return Host();else yield return Client();
+        }
+        private IEnumerator BundleAcceptance()
+        {
+            EveWorldContext first=null,second=null;PNWorldTransferReceipt moving=null;
+            if(Directory.Exists(Path.Combine(folder,"RestartSaves","bundle")))
+            {
+                PNWorldSaveOperation restoring=null;
+                try{diskSaves=new PNWorldSaveService(game.Session,game.Worlds,game.Lifetimes,Path.Combine(folder,"RestartSaves"));restoring=diskSaves.RestoreSaved("bundle");}catch(Exception e){Fail(e);yield break;}
+                yield return Wait(()=>restoring.IsTerminal);if(failed)yield break;
+                try{Check(restoring.State==PNWorldSaveState.Completed,"new host restores bundled world committed by an earlier Player process: "+restoring.Error);first=restoring.Restore.World;Check(game.Session.Entities.Snapshot(first).Any(a=>Math.Abs(a.GetComponent<PNStat>().GetCurrent(PNContentIds.Health)/a.GetComponent<PNStat>().GetMax(PNContentIds.Health)-.25)<.0001),"restarted host retains saved NPC HP before client join");}catch(Exception e){Fail(e);yield break;}
+            }
+            try{first=first??game.Worlds.Create(EveId.Parse("world_assets:scene"));second=game.Worlds.Create(EveId.Parse("world_assets:scene"));}catch(Exception e){Fail(e);yield break;}
+            yield return Wait(()=>first.CanExecute&&second.CanExecute);if(failed)yield break;
+            yield return Wait(()=>game.Session.Entities.Snapshot(first).Count==2&&game.Session.Entities.Snapshot(second).Count==2);if(failed)yield break;
+            try{Check(game.WorldAssets.LoadedCount>=2&&game.WorldAssets.LeaseReferences>=4,"two bundle scene instances share loaded dependency leases");moving=game.Transfers.Request(new PNWorldTransferRequest(Guid.NewGuid(),new[]{Player(1)},first,"chunk-0","player",replacementTemplate:"base:scene_spawn"));}catch(Exception e){Fail(e);yield break;}
+            yield return Wait(()=>moving.IsTerminal);if(failed)yield break;
+            try{Check(moving.State==PNWorldTransferState.Completed&&Player(1).LoadContext.Identity.World==first,"real client joins bundled world through replacement/catch-up: "+moving.Error);moving=game.Transfers.Request(new PNWorldTransferRequest(Guid.NewGuid(),new[]{Player(1)},game.Worlds.DefaultWorld,"main","player",replacementTemplate:"base:scene_spawn"));}catch(Exception e){Fail(e);yield break;}
+            yield return Wait(()=>moving.IsTerminal);if(failed)yield break;
+            try{Check(moving.State==PNWorldTransferState.Completed,"client returns from bundled world: "+moving.Error);}catch(Exception e){Fail(e);yield break;}
+            yield return Wait(()=>game.Worlds.Unload(first));if(failed)yield break;
+            try{Check(second.CanExecute&&game.Session.Entities.Snapshot(second).Count==2&&game.WorldAssets.LoadedCount>=2,"unload one instance preserves second scene actors and shared assets");}catch(Exception e){Fail(e);yield break;}
+            yield return Wait(()=>game.Worlds.Unload(second));if(failed)yield break;
+            try{Check(game.WorldAssets.LeaseReferences==0&&game.WorldAssets.LoadedCount==0,"last scene cleanup releases all bundle dependencies");}catch(Exception e){Fail(e);}
         }
         private IEnumerator Host()
         {
@@ -169,9 +193,11 @@ namespace ProjectN.Coop.Tests
                 Check(restore.State==PNWorldLifetimeState.Completed&&restore.World.Incarnation==2&&actors.Count==2,"restored generated world has new incarnation and no duplicate authored enrollment state="+restore.State+" incarnation="+restore.World.Incarnation+" actors="+actors.Count+" names="+string.Join(",",actors.Select(x=>x.name))+" error="+restore.Error+" worldFailure="+restore.World.Failure);
                 Check(actors.Any(x=>(int)type.GetField("Value").GetValue(x.GetComponent(type))==111)&&actors.All(x=>actors.Contains((EveEntityLoader)type.GetField("Linked").GetValue(x.GetComponent(type)))),"external serializer restores custom data and remaps references to new entities");
                 Check(Count("WorldSandboxMod.SandboxMod","SessionsStarted")==1&&Count("WorldSandboxMod.GeneratedProvider","ReadyCount")==3,"world lifecycle callbacks stay distinct from the single play callback");
-                Mark("finish");
+                if(!Directory.Exists(Path.Combine(folder,"NativeMods","world_assets")))Mark("finish");
             }
             catch(Exception error){Fail(error);yield break;}
+            if(Directory.Exists(Path.Combine(folder,"NativeMods","world_assets")))
+            {yield return BundleAcceptance();if(failed)yield break;Mark("finish");}
             PNWorldTransferReceipt interrupted=null;
             try{Mark("delay-disconnect");interrupted=game.Transfers.Request(new PNWorldTransferRequest(Guid.NewGuid(),new[]{Player(2)},extra,"main","player"));}catch(Exception error){Fail(error);yield break;}
             yield return Wait(()=>interrupted.State==PNWorldTransferState.PreparingDestination);if(failed)yield break;

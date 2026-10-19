@@ -39,6 +39,12 @@ public interface IPNWorldProvider
 {
     IEnumerator Load(PNWorldBuildContext context);
 }
+// Optional companion: descriptor is pure data needed before Load, not post-load actor state.
+public interface IPNPortableWorldProvider
+{
+    Newtonsoft.Json.Linq.JToken CaptureLoadDescriptor(PNWorldBuildContext context);
+    void ValidateLoadDescriptor(Newtonsoft.Json.Linq.JToken descriptor);
+}
 public interface IPNWorldLifecycleParticipant
 {
     void WorldReady(PNWorldBuildContext context);
@@ -77,6 +83,10 @@ public sealed class PNWorldSlot
 }
 public sealed class PNWorldBuildContext
 {
+    private Newtonsoft.Json.Linq.JToken loadDescriptor;
+    public Newtonsoft.Json.Linq.JToken LoadDescriptor => loadDescriptor?.DeepClone();
+    public void SetLoadDescriptor(Newtonsoft.Json.Linq.JToken value)
+    {if(!IsCurrent||slots.Count!=0)throw new InvalidOperationException("Descriptor must precede content loading.");loadDescriptor=value?.DeepClone();}
     public EveWorldContext World { get; }
     public Scene PhysicsScene { get; }
     public PNWorldEnvironment Environment { get; set; }

@@ -7,14 +7,17 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
 
-public enum PNWorldLifetimeState { Capturing,Unloading,Stored,Restoring,Completed,Failed }
+public enum PNWorldLifetimeState { Capturing,Unloading,Stored,Restoring,Completed,Failed,Captured }
 public sealed class PNWorldLifetimeOperation
 {
     public EveWorldContext World { get; internal set; }
     public PNWorldLifetimeState State { get; internal set; }
     public string Error { get; internal set; }
+    public string CleanupError {get;internal set;}
     public bool CleanupPending { get; internal set; }
-    public bool IsTerminal=>!CleanupPending&&(State==PNWorldLifetimeState.Stored||State==PNWorldLifetimeState.Completed||State==PNWorldLifetimeState.Failed);
+    public PNWorldCheckpoint Snapshot {get;internal set;}
+    internal IDisposable CaptureLease;
+    public bool IsTerminal=>!CleanupPending&&(State==PNWorldLifetimeState.Stored||State==PNWorldLifetimeState.Completed||State==PNWorldLifetimeState.Failed||State==PNWorldLifetimeState.Captured);
 }
 public sealed class PNWorldCheckpoint
 {
@@ -23,11 +26,15 @@ public sealed class PNWorldCheckpoint
     public EveId Definition { get; }
     public string ContentHash { get; }
     public PNWorldStateRecord Data { get; }
+    public string DescriptorJson {get;internal set;}
+    public Guid SaveWorldId {get;internal set;}
     internal PNWorldCheckpoint(EveWorldContext world,PNWorldStateRecord data){Instance=world.InstanceId;Incarnation=world.Incarnation;Definition=world.DefinitionId;ContentHash=world.ContentHash;Data=data;}
+    internal PNWorldCheckpoint(Guid instance,ulong incarnation,EveId definition,string hash,PNWorldStateRecord data)
+    {Instance=instance;Incarnation=incarnation;Definition=definition;ContentHash=hash;Data=data;}
 }
 // In-memory only. An Activity lease pins a join/transfer/job; resident actor and
 // binding leases keep resources owned without making an NPC an active occupant.
-public sealed class PNWorldLifetimeController : IDisposable
+public sealed partial class PNWorldLifetimeController : IDisposable
 {
     private sealed class Work
     {
@@ -35,6 +42,8 @@ public sealed class PNWorldLifetimeController : IDisposable
         public PNWorldCheckpoint Checkpoint;
         public IDisposable Job,Lease;
         public bool WasPaused,Restore,Created,Started;
+        public bool SnapshotOnly,Portable,KeepPaused;
+        public string Descriptor;
         public EveEntityLoader[] Actors;
         public Dictionary<string,EveEntityLoader> References;
         public readonly List<(EveEntityPreparationScheduler.Candidate Candidate,PNEntityRequest Request,JObject Record)> Candidates=new List<(EveEntityPreparationScheduler.Candidate,PNEntityRequest,JObject)>();
@@ -85,7 +94,8 @@ public sealed class PNWorldLifetimeController : IDisposable
     {
         Require(world);if(!IsEmpty(world))throw new InvalidOperationException("World has occupants, pending work or activity leases.");
         var actors=session.Entities.Snapshot(world).ToArray();var references=actors.ToDictionary(Key,x=>x);
-        var work=New(world,PNWorldLifetimeState.Capturing);work.WasPaused=world.State==EveWorldState.Paused;
+        string descriptor=worlds.SupportsPersistence(world)?worlds.CaptureLoadDescriptor(world).ToString(Formatting.None):null;
+        var work=New(world,PNWorldLifetimeState.Capturing);work.WasPaused=world.State==EveWorldState.Paused;work.Descriptor=descriptor;
         work.Lease=world.AcquireLease("checkpoint capture");world.SetPaused(true);
         work.Actors=actors;work.References=references;
         work.Job=scheduler.SchedulePreparation(()=>SafeStep(work),error=>Fail(work,error));return work.Receipt;
@@ -96,9 +106,9 @@ public sealed class PNWorldLifetimeController : IDisposable
     {
         if(!session.IsActive||!session.HasAuthority||active.ContainsKey(instance)||session.Worlds.Snapshot().Any(x=>x.InstanceId==instance)||!checkpoints.TryGetValue(instance,out var checkpoint))throw new InvalidOperationException("A stored, nonresident world is required.");
         var selected=session.Registry.Get<PNWorldDefinition>().Get(checkpoint.Definition);if(selected.ContentHash!=checkpoint.ContentHash)throw new InvalidOperationException("Selected world content differs from checkpoint.");
-        if(StoredBytes+StagingBytes+checkpoint.Data.Bytes>128L*1024*1024)throw new InvalidOperationException("Checkpoint restore staging budget exceeded.");
+        if(TrackedBytes+checkpoint.Data.Bytes>128L*1024*1024)throw new InvalidOperationException("Checkpoint restore staging budget exceeded.");
         restoreIncarnations.TryGetValue(instance,out var previous);var incarnation=checked(Math.Max(previous,checkpoint.Incarnation)+1);
-        var world=worlds.CreateStaged(checkpoint.Definition,instance,incarnation);restoreIncarnations[instance]=incarnation;var work=New(world,PNWorldLifetimeState.Restoring);work.StagingBytes=checkpoint.Data.Bytes;work.Restore=true;work.Checkpoint=checkpoint;work.Lease=world.AcquireLease("checkpoint restore");
+        var world=checkpoint.DescriptorJson==null?worlds.CreateStaged(checkpoint.Definition,instance,incarnation):worlds.CreateStaged(checkpoint.Definition,instance,incarnation,JToken.Parse(checkpoint.DescriptorJson));restoreIncarnations[instance]=incarnation;var work=New(world,PNWorldLifetimeState.Restoring);work.StagingBytes=checkpoint.Data.Bytes;work.Restore=true;work.Checkpoint=checkpoint;work.Lease=world.AcquireLease("checkpoint restore");
         work.Job=scheduler.SchedulePreparation(()=>SafeStep(work),error=>Fail(work,error));return work.Receipt;
     }
     public EveWorldContext RecreateDiscarded(EveId definition,Guid instance,ulong previousIncarnation)
@@ -126,8 +136,15 @@ public sealed class PNWorldLifetimeController : IDisposable
             var worldState=states.Capture(new PNWorldStateContext(world,null,work.References),policy.WorldStateProviders);
             var data=new PNWorldStateRecord(new JArray(new JObject{["schema"]=1,["time"]=world.GameplayTime,["actors"]=work.Records,["world"]=worldState.Read()}).ToString(Formatting.None));
             work.StagingBytes=data.Bytes;
-            if(StoredBytes+StagingBytes>128L*1024*1024)throw new InvalidOperationException("Checkpoint store/staging exceeds 128 MiB.");
-            work.Checkpoint=new PNWorldCheckpoint(world,data);work.Lease.Dispose();work.Lease=null;work.Receipt.State=PNWorldLifetimeState.Unloading;
+            if(TrackedBytes>128L*1024*1024)throw new InvalidOperationException("Checkpoint store/staging/IO exceeds 128 MiB.");
+            work.Checkpoint=new PNWorldCheckpoint(world,data){DescriptorJson=work.Descriptor,SaveWorldId=SaveIdentity(world)};work.Receipt.Snapshot=work.Checkpoint;
+            if(work.SnapshotOnly)
+            {
+                if(work.KeepPaused){var receipt=work.Receipt;receipt.CaptureLease=work.Lease;session.RegisterCleanup(()=>{receipt.CaptureLease?.Dispose();receipt.CaptureLease=null;});}
+                else{if(!work.WasPaused)world.SetPaused(false);work.Lease.Dispose();}
+                work.Lease=null;work.Receipt.State=PNWorldLifetimeState.Captured;Complete(work);return true;
+            }
+            work.Lease.Dispose();work.Lease=null;work.Receipt.State=PNWorldLifetimeState.Unloading;
         }
         if(work.Receipt.State==PNWorldLifetimeState.Unloading)
         {
@@ -149,7 +166,7 @@ public sealed class PNWorldLifetimeController : IDisposable
                     var request=new PNEntityRequest{World=world,WorldIncarnation=world.Incarnation,ContentSlot=(string)record["slot"],Template=(string)record["template"],SpawnEntry=(string)record["spawn"],SceneKey=(string)record["scene"],EntityKey=(string)record["entity"],Character=(string)record["character"],Position=ReadVector(record["position"])};
                     var candidate=scheduler.Enqueue(()=>factory.Get(request),loader=>
                     {
-                        factory.Configure(loader,request);EveEntityId id;do{id=session.Role==EveSessionRole.Host?session.Entities.AllocateHostId():session.Entities.AllocateOfflineId();}while(session.Entities.IsReserved(id));loader.GetComponent<EveEntityIdentity>().Assign(id,EveId.Parse(request.Character),0);
+                        factory.Configure(loader,request);StableKey(loader,(string)record["key"]);EveEntityId id;do{id=session.Role==EveSessionRole.Host?session.Entities.AllocateHostId():session.Entities.AllocateOfflineId();}while(session.Entities.IsReserved(id));loader.GetComponent<EveEntityIdentity>().Assign(id,EveId.Parse(request.Character),0);
                         var stage=loader.GetComponent<PNWorldRestoreStage>()??loader.gameObject.AddComponent<PNWorldRestoreStage>();stage.Restore=load=>
                         {
                             states.Restore(new PNWorldStateContext(world,loader,work.References),Record(record["state"]),policy.ActorStateProviders);
@@ -180,9 +197,13 @@ public sealed class PNWorldLifetimeController : IDisposable
         var cause=world.FirstFailure??world.Failure;
         throw new InvalidOperationException("Restored world left the resident state before "+step+" (state "+world.State+")"+(cause!=null?": "+cause.Message:""),cause);
     }
-    private void EnsureBound(Work work){work.StagingBytes=System.Text.Encoding.UTF8.GetByteCount(work.Records.ToString(Formatting.None));if(work.StagingBytes>64L*1024*1024||StagingBytes+StoredBytes>128L*1024*1024)throw new InvalidOperationException("Checkpoint staging budget exceeded.");}
+    private void EnsureBound(Work work){work.StagingBytes=System.Text.Encoding.UTF8.GetByteCount(work.Records.ToString(Formatting.None));if(work.StagingBytes>64L*1024*1024||TrackedBytes>128L*1024*1024)throw new InvalidOperationException("Checkpoint staging budget exceeded.");}
     private static string Key(EveEntityLoader actor)
-    {var key=actor.GetComponent<EveSceneEntityKey>();return actor.GetComponent<PNFactoryEntity>()==null&&key!=null?"content:"+new JArray(actor.LoadContext.Identity.ContentSlot,key.SceneKey,key.EntityKey).ToString(Formatting.None):"dynamic:"+Guid.NewGuid().ToString("N");}
+    {
+        var key=actor.GetComponent<EveSceneEntityKey>();if(actor.GetComponent<PNFactoryEntity>()==null&&key!=null)
+        {var value="content:"+new JArray(actor.LoadContext.Identity.ContentSlot,key.SceneKey,key.EntityKey).ToString(Formatting.None);var marker=actor.GetComponent<PNWorldSaveActorKey>()??actor.gameObject.AddComponent<PNWorldSaveActorKey>();marker.Key=value;marker.Entity=actor.GetComponent<EveEntityIdentity>().Id;marker.Restored=false;return value;}
+        return StableKey(actor);
+    }
     private static JArray Vector(Vector3 value)=>new JArray(value.x,value.y,value.z);
     private static Vector3 ReadVector(JToken value)
     {var a=(JArray)value;if(a.Count!=3)throw new FormatException("Vector3 required.");var v=new Vector3((float)a[0],(float)a[1],(float)a[2]);if(float.IsNaN(v.x)||float.IsInfinity(v.x)||float.IsNaN(v.y)||float.IsInfinity(v.y)||float.IsNaN(v.z)||float.IsInfinity(v.z))throw new FormatException("Finite vector required.");return v;}
@@ -210,7 +231,7 @@ public sealed class PNWorldLifetimeController : IDisposable
     {
         if(work.CleanupAttempts>=3||Time.realtimeSinceStartupAsDouble<work.RetryAt)return false;
         try{if(!worlds.Unload(work.Receipt.World))return false;work.Receipt.CleanupPending=false;Complete(work);return true;}
-        catch(Exception error){work.Receipt.Error=error.Message;work.CleanupAttempts++;work.RetryAt=Time.realtimeSinceStartupAsDouble+.25;return false;}
+        catch(Exception error){work.Receipt.CleanupError=error.Message;work.CleanupAttempts++;work.RetryAt=Time.realtimeSinceStartupAsDouble+.25;return false;}
     }
     public void RetryCleanup(){foreach(var work in active.Values.Where(x=>x.Receipt.CleanupPending)){work.CleanupAttempts=0;work.RetryAt=0;}scheduler.RetryQuarantines();states.Dispose();}
     public void RetryProviderCleanup()=>states.Dispose();
@@ -218,7 +239,7 @@ public sealed class PNWorldLifetimeController : IDisposable
     {
         foreach(var work in active.Values.ToArray()){work.Job?.Dispose();Fail(work,new OperationCanceledException("Play ended."));if(work.Receipt.CleanupPending){work.CleanupAttempts=0;work.RetryAt=0;TryFailureCleanup(work);}}
         if(active.Count!=0)throw new EveWorldCleanupPendingException("World state transition cleanup remains owned.");
-        states.Dispose();checkpoints.Clear();restoreIncarnations.Clear();autoPaused.Clear();attempted.Clear();RestoredActor=null;Failed=null;
+        states.Dispose();checkpoints.Clear();restoreIncarnations.Clear();saveIdentities.Clear();autoPaused.Clear();attempted.Clear();RestoredActor=null;Failed=null;
     }
 }
 #endif

@@ -56,11 +56,15 @@ public static class PNWorldLifetimeChecks
             Check(failed.State==PNWorldLifetimeState.Failed&&checkpoint.CanExecute&&candidates[0].Loader.IsReady&&stat.GetCurrent(PNContentIds.Health)==hp&&life.GetCheckpoint(checkpoint.InstanceId)==null,"capture failure leaves source resident with unchanged HP and no partial checkpoint");
             var captured=life.CaptureAndUnload(checkpoint);Pump(()=>captured.IsTerminal);if(captured.Error!=null)throw new Exception(captured.Error);Check(checkpoint.State==EveWorldState.Disposed&&life.GetCheckpoint(checkpoint.InstanceId)!=null&&candidates.All(x=>x.IsReturned),"validated checkpoint owns state before source entity/world cleanup");
             string stored=life.GetCheckpoint(checkpoint.InstanceId).Data.Json;
+            PNWorldFixtureProvider.InjectLoadFailure=true;var failedLoad=life.Restore(checkpoint.InstanceId);Pump(()=>failedLoad.World.State==EveWorldState.Failed);
+            Pump(()=>worlds.Unload(failedLoad.World));Pump(()=>failedLoad.IsTerminal);PNWorldFixtureProvider.InjectLoadFailure=false;
+            Check(failedLoad.State==PNWorldLifetimeState.Failed&&failedLoad.Error.Contains("Injected partial world load failure")&&failedLoad.World.FirstFailure!=null,"failed staged load cleaned before restore step retains original cause and releases work");
+            Check(life.GetCheckpoint(checkpoint.InstanceId).Data.Json==stored&&life.PendingCount==0,"host-style failed world cleanup does not lose checkpoint or leak restore job");
             PNStateProbe.FailRestore=true;var badRestore=life.Restore(checkpoint.InstanceId);Pump(()=>badRestore.IsTerminal);PNStateProbe.FailRestore=false;
             Check(badRestore.State==PNWorldLifetimeState.Failed&&badRestore.World.State==EveWorldState.Disposed&&session.Entities.Count==0,"restore failure cleans provisional actors and the failed new world");
             Check(life.GetCheckpoint(checkpoint.InstanceId).Data.Json==stored,"failed restore retains the previous valid in-memory checkpoint");
             var restored=life.Restore(checkpoint.InstanceId);Pump(()=>restored.IsTerminal);if(restored.Error!=null)throw new Exception(restored.Error);
-            var actors=session.Entities.Snapshot(restored.World);Check(restored.State==PNWorldLifetimeState.Completed&&restored.World.Incarnation==3&&actors.Count==2,"checkpoint restore creates a new incarnation with exactly the saved actors");
+            var actors=session.Entities.Snapshot(restored.World);Check(restored.State==PNWorldLifetimeState.Completed&&restored.World.Incarnation==4&&actors.Count==2,"checkpoint restore creates a new incarnation with exactly the saved actors");
             Check(restored.World.GameplayTime==3.25&&actors.Any(x=>x.GetComponent<PNStat>().GetCurrent(PNContentIds.Health)==hp),"world clock and NPC authoritative resource state survive checkpoint unload");
             var pure=actors[0].GetComponent<PNStat>();var source=EveId.Parse("fixture:temporary_source");pure.SetSource(source,new[]{new EveStatModifier(PNContentIds.AttackPower,3,0)});var snap=pure.CaptureWorldState();Check(pure.Set.SourceSnapshot().ContainsKey(source),"pure world capture does not end floor-local stat sources");
             using(var service=new PNWorldStateService(session))
@@ -69,10 +73,17 @@ public static class PNWorldLifetimeChecks
                 bool rejected=false;try{service.Validate(context,new PNWorldStateRecord(bad.ToString()),ids);}catch(FormatException){rejected=true;}Check(rejected&&actors[0].IsReady,"incompatible required serializer schema rejects before restoration");
                 PNStateProbe.FailDispose=true;try{service.Capture(context,new[]{EveId.Parse("fixture:state_probe")});}catch(InvalidOperationException){}Check(service.PendingCleanup==1,"serializer cleanup failure remains owned for repair/retry");PNStateProbe.FailDispose=false;service.Dispose();Check(service.PendingCleanup==0,"serializer cleanup retry releases retained provider");
             }
+            var portable=life.CaptureSnapshot(restored.World);Pump(()=>portable.IsTerminal);Check(portable.State==PNWorldLifetimeState.Captured&&restored.World.CanExecute&&actors.All(x=>x.IsReady),"portable capture leaves source resident and authoritative state active");
+            var envelope=life.Export(portable.Snapshot);var imported=life.Import(new PNWorldSaveEnvelope(envelope.Json));var cross=life.Restore(imported);Pump(()=>cross.IsTerminal);if(cross.Error!=null)throw new Exception(cross.Error);
+            var metadata=actors[0].GetComponent<PNWorldSaveActorKey>();var oldEntity=metadata.Entity;var targetRoot=new GameObject("Save key replacement fixture");targetRoot.SetActive(false);targetRoot.AddComponent<EveEntityIdentity>().Assign(new EveEntityId(-9001),EveId.Parse("project_n:dummy"),0);var targetLoader=targetRoot.AddComponent<EveEntityLoader>();
+            try{PNWorldSaveActorKey.Copy(actors[0],targetLoader);Check(targetRoot.GetComponent<PNWorldSaveActorKey>()?.Key==metadata.Key,"replacement preserves a current actor stable save key");UnityEngine.Object.DestroyImmediate(targetRoot.GetComponent<PNWorldSaveActorKey>());metadata.Entity=default;PNWorldSaveActorKey.Copy(actors[0],targetLoader);Check(targetRoot.GetComponent<PNWorldSaveActorKey>()==null,"pooled stale actor metadata cannot impersonate the previous saved actor");}
+            finally{metadata.Entity=oldEntity;UnityEngine.Object.DestroyImmediate(targetRoot);}
+            Check(cross.State==PNWorldLifetimeState.Completed&&cross.World.InstanceId!=restored.World.InstanceId&&session.Entities.Snapshot(cross.World).Count==2,"portable import uses a fresh runtime world and restores two actors");
+            var again=life.CaptureSnapshot(cross.World);Pump(()=>again.IsTerminal);Check(life.Export(again.Snapshot).SaveWorldId==envelope.SaveWorldId,"portable world save identity survives restore and recapture");
             foreach(var world in session.Worlds.Snapshot().ToArray())Pump(()=>worlds.Unload(world));Check(session.Entities.Count==0&&life.PendingCount==0,"all world/state/entity resources drain");
         }
         catch(Exception error){Debug.LogError("Lifetime original failure: "+error);throw;}
-        finally{PNStateProbe.FailCapture=PNStateProbe.FailRestore=PNStateProbe.FailDispose=false;life.Dispose();EveRegistrySession.End();factory.Dispose();}
+        finally{PNWorldFixtureProvider.InjectLoadFailure=false;PNStateProbe.FailCapture=PNStateProbe.FailRestore=PNStateProbe.FailDispose=false;life.Dispose();EveRegistrySession.End();factory.Dispose();}
         return "PASS "+rows.Count+" native world lifetime cases\n"+string.Join("\n",rows);
     }
 }

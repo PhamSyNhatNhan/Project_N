@@ -11,8 +11,10 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 
 public sealed class PNWorldFixtureStat : PNEnemyStat { public override string CharacterDefinitionId => "project_n:dummy"; }
-public sealed class PNWorldFixtureProvider : IPNWorldProvider
+public sealed class PNWorldFixtureProvider : IPNWorldProvider,IPNPortableWorldProvider
 {
+    public Newtonsoft.Json.Linq.JToken CaptureLoadDescriptor(PNWorldBuildContext context)=>new Newtonsoft.Json.Linq.JObject{["fixture"]=1};
+    public void ValidateLoadDescriptor(Newtonsoft.Json.Linq.JToken descriptor){if((int?)descriptor["fixture"]!=1)throw new FormatException("Fixture descriptor mismatch.");}
     public static bool InjectLoadFailure,RepairCleanup=true;
     public IEnumerator Load(PNWorldBuildContext context)
     {

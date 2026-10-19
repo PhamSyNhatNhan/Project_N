@@ -27,6 +27,7 @@ namespace EveEngine
             public string version { get; set; }
             public Dictionary<string, string> dependencies { get; set; }
             public EveCodeDto code { get; set; }
+            public string assets {get;set;}
         }
 
         private sealed class EveCodeDto
@@ -102,12 +103,13 @@ namespace EveEngine
             foreach (string id in packs.Keys.OrderBy(value => value, StringComparer.Ordinal))
                 Visit(packs[id], packs, visiting, visited, ordered);
 
-            return ordered.Select(pack => new EveContentPack(pack.Directory, pack.Manifest.Namespace,
+            var result=ordered.Select(pack => new EveContentPack(pack.Directory, pack.Manifest.Namespace,
                 pack.Manifest.version, pack.Manifest.dependencies,
                 pack.Manifest.code == null ? null : new EveModCode(pack.Manifest.code.apiVersion,
                     pack.Manifest.code.assembly, pack.Manifest.code.entryPoint, pack.Manifest.code.libraries),
                 string.Equals(Path.GetFullPath(pack.Directory), Path.GetFullPath(baseDirectory), StringComparison.OrdinalIgnoreCase),
-                JsonConvert.SerializeObject(pack.Manifest))).ToArray();
+                JsonConvert.SerializeObject(pack.Manifest),pack.Manifest.assets)).ToArray();
+            EveAssetCatalogue.ValidateGraph(result);return result;
         }
 
         public virtual IEnumerable<EveContentDocument> ReadDocuments() => ReadDocuments(ReadPacks());
@@ -124,6 +126,7 @@ namespace EveEngine
                     .OrderBy(value => value, StringComparer.Ordinal))
                 {
                     if (string.Equals(file, Path.Combine(pack.Directory, "manifest.json"), StringComparison.Ordinal)) continue;
+                    if(pack.Assets!=null&&string.Equals(Path.GetFullPath(file),pack.Assets.FilePath,StringComparison.OrdinalIgnoreCase))continue;
                     yield return new EveContentDocument(file, File.ReadAllText(file), pack.Namespace,
                         dependencies: pack.Dependencies.Keys);
                 }

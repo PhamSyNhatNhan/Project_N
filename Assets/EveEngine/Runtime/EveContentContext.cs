@@ -12,6 +12,9 @@ namespace EveEngine
         public bool IsReady => State == EveSessionState.Ready;
         internal EveCodeModSession Mods { get; }
         internal bool UnloadRequested { get; private set; }
+        private readonly System.Collections.Generic.List<Action> resources=new System.Collections.Generic.List<Action>();
+        public void RegisterCleanup(Action cleanup)
+        {if(!IsReady||UnloadRequested)throw new InvalidOperationException("Ready content required.");resources.Add(cleanup??throw new ArgumentNullException(nameof(cleanup)));}
 
         internal EveContentContext(EveCodeModSession mods)
         { Mods = mods ?? throw new ArgumentNullException(nameof(mods)); }
@@ -30,6 +33,7 @@ namespace EveEngine
             if (State == EveSessionState.Stopped) return;
             if (Mods.HasActivePlay) throw new InvalidOperationException("End the play session before unloading content.");
             RequestUnload();
+            for(int i=resources.Count-1;i>=0;i--){resources[i]();resources.RemoveAt(i);}
             Mods.Dispose(); // Retain registry and instances if disposal fails; the owner can retry.
             Registry = null; Compatibility = null; State = EveSessionState.Stopped;
         }

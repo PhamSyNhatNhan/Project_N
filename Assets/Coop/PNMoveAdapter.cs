@@ -40,6 +40,7 @@ namespace ProjectN.Coop
         private readonly Dictionary<(int,uint),MovePeer> movePeers=new Dictionary<(int,uint),MovePeer>();
         private double lastMoveTick;
         private int moveCursor,hostMoveBytes,pendingMoveBytes,pendingMoveEvents;
+        public int StaleMoveRequests{get;private set;}
         public int PendingMoveBytes=>pendingMoveBytes;
         public int PendingMoveEvents=>pendingMoveEvents;
         private void InitializeMove()
@@ -93,6 +94,8 @@ namespace ProjectN.Coop
             try
             {
                 var s=request.Stream;s.Validate();if(request.Request!=0&&IsRetiredMove(conn,s))return;
+                // Stale, not hostile: the entity's binding was removed or is retiring (owner replacement/transfer, latency) before this request arrived.
+                if(request.Request!=0&&conn.authenticationData is PNPeer&&!(conn is LocalConnectionToClient)&&(!bindings.TryGetValue(s.NetId,out var gone)||gone.Retiring)){StaleMoveRequests++;Debug.LogWarning("Ignored stale Move request for netId "+s.NetId+" from connection "+conn.connectionId);return;}
                 if(request.Request==0||!(conn.authenticationData is PNPeer)||conn is LocalConnectionToClient||!bindings.TryGetValue(s.NetId,out var b)||b.Movement.Component==null||b.Retiring||!b.Shell.netIdentity.observers.ContainsKey(conn.connectionId)||s.Session!=b.Metadata.HostSession||s.Entity!=b.Metadata.Entity||s.Generation!=b.Metadata.Generation||!AuthorizeWorldRequest(conn,b,s.Scope))throw new FormatException("Unauthorized Move request.");
                 if(movePeers.TryGetValue((conn.connectionId,s.NetId),out var old))
                 {

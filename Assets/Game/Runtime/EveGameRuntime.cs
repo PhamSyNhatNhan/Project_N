@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using EveEngine;
 using UnityEngine;
 
@@ -11,9 +12,23 @@ public class EveGameRuntime : EveRuntime
     [SerializeField] private string modsFolder = "Mods";
     [SerializeField] private string enabledModsFile = "enabled.json";
     private IReadOnlyList<EveContentPack> packs;
+#if UNITY_5_3_OR_NEWER
+    private PNWorldBundleService bundleService;
+    private System.Guid bundleGeneration;
+    public PNWorldBundleService WorldAssets
+    {
+        get
+        {
+            if(Content==null||!Content.IsReady)throw new System.InvalidOperationException("Ready content required for assets.");
+            if(bundleService==null||bundleGeneration!=Content.GenerationId)
+            {bundleService=new PNWorldBundleService((packs??System.Array.Empty<EveContentPack>()).Where(p=>p.Assets!=null).SelectMany(p=>p.Assets.Bundles));bundleGeneration=Content.GenerationId;Content.RegisterCleanup(bundleService.Dispose);}
+            return bundleService;
+        }
+    }
+#endif
     // EN: Bump when executable gameplay rules change, even if JSON stays the same.
     // VI: TÄƒng phiÃªn báº£n khi luáº­t gameplay trong code Ä‘á»•i dÃ¹ JSON váº«n giá»¯ nguyÃªn.
-    public const string CurrentRulesVersion = "project_n:80";
+    public const string CurrentRulesVersion = "project_n:81";
     public override string RulesVersion => CurrentRulesVersion;
 #if UNITY_5_3_OR_NEWER
     internal bool IsBootstrapOwner { get; set; }
@@ -65,7 +80,17 @@ public class EveGameRuntime : EveRuntime
     protected override EveCodeModSession LoadCodeMods() => ModsAllowed ? new EveCodeModLoader("project_n").Load(packs) : EveCodeModSession.Empty();
 #if UNITY_5_3_OR_NEWER
     protected override IReadOnlyDictionary<string, string> ReadGameplayAssetHashes(EveRegistryHub registry)
-        => PNSlashPrefabContent.Hashes(registry);
+    {
+        var hashes=PNSlashPrefabContent.Hashes(registry).ToDictionary(x=>x.Key,x=>x.Value);
+        foreach(var pack in packs??System.Array.Empty<EveContentPack>())if(pack.Assets!=null)
+        {
+            if(!ModsAllowed)throw new System.NotSupportedException("Mobile does not load mod assets.");
+            hashes.Add("assets:"+pack.Namespace,pack.Assets.Hash);
+            foreach(var bundle in pack.Assets.Bundles)
+            {if(bundle.Target!="StandaloneWindows64"||bundle.UnityVersion!=Application.unityVersion)throw new System.NotSupportedException("Mod bundle target/Unity version differs: "+bundle.Id);hashes.Add("bundle:"+bundle.Id,bundle.Hash);}
+        }
+        return hashes;
+    }
 #endif
 
     protected override IEnumerable<EveIContentModule> CreateContentModules()

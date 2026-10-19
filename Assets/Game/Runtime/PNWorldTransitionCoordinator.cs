@@ -217,6 +217,7 @@ public sealed class PNWorldTransitionCoordinator : IDisposable,IPNWorldTransferT
                     foreach(var actor in work.Actors)
                     {
                         actor.Context.ActivateReplacement();
+                        PNWorldSaveActorKey.Copy(actor.Context.PreviousActor,actor.Context.Actor);
                         foreach(var participant in actor.Participants)participant.Commit(actor.Context);
                         Transport?.Rebind(actor.Context);if(Transport==null)factory.Published(actor.Context.Actor);
                         scheduler.RetirePublished(actor.Context.PreviousActor);
