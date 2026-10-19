@@ -111,13 +111,13 @@ Every loaded entity has `EveEntityIdentity`. Offline loaders allocate negative l
 
 ### Coop contracts
 
-Choose Offline/Host/Client through runtime `sessionRole` before initialization. Use `EveRegistrySession.Context.Coop`; no LAN transport is included yet. Transport must marshal calls onto Unity's main thread and supply the authenticated sender ID from the connection, not from client payloads.
+Choose Offline/Host/Client through runtime `sessionRole` before initialization. Use `EveRegistrySession.Context.Admission` (`EveSessionAdmission`). The Mirror composition (`Assets/Coop`) is the transport; it must marshal calls onto Unity's main thread and supply the authenticated sender ID from the connection, not from client payloads.
 
 1. Exchange `Compatibility` and the host SessionId. Host calls `AdmitPeer`; client calls `AdmitHost` only for its trusted host connection. Reject mismatched protocol, `RulesVersion` or content hashes before spawning. Pack hashes include manifests (even empty packs), canonical JSON and code-registered definitions; filesystem paths/whitespace/property order do not affect them. Array order is retained. Core must bump RulesVersion when executable gameplay rules change.
-2. Host calls `SpawnHost(createInactive, characterId, ownerId)`. The factory must create a **fresh inactive** entity with loader, identity and modules. The engine assigns a host ID, loads modules and activates only on success; failure cleans up and destroys the new object. Send the returned `EveEntitySpawnMessage` to admitted clients, which call `ApplyHostSpawn(message, createInactive)`. Transport must accept these messages only from the host. This is initial spawning; resynchronization of already changed stats/positions is future work.
+2. The Mirror adapters create entities themselves: they allocate a host ID, load the modules and activate only on success. `EveSessionAdmission` no longer spawns entities and the old byte-stream actor replication (`EveActorHostConnection`/`EveActorClientConnection`) was removed in P6; per-entity state travels through typed adapters (`Assets/Coop`).
 3. Register host command handlers with `RegisterCommand`. Deliver `EveEntityCommand` through `HandleCommand(authenticatedPeerId, command)`. It validates admission, host SessionId, increasing sequence per peer, Ready entity, ownership and known command. A handler must validate its gameplay payload, cooldown/range/cost and produce authoritative results. Invalid requests do not invoke handlers. Reconnect with a fresh peer ID; disconnect removes command access, while game code decides whether to despawn the player's entity.
 
-These are transport-independent contracts, not a playable LAN implementation. Transport, world snapshots, late-join state synchronization, movement prediction and Skill/Move result replication remain future work. Local events never become network messages automatically.
+These are transport-independent admission and command contracts; the playable LAN transport is the Mirror composition (`Assets/Coop`). Local events never become network messages automatically.
 
 Deferred by decision: after both Skill and Move are implemented, validate host-only gameplay mutations versus client application of replicated state, including direct stat setters and buff effects. This authority work is not implemented in the current stat API.
 
@@ -220,13 +220,13 @@ Mỗi entity có `EveEntityIdentity`. Offline tự cấp ID âm. Loader host/cli
 
 ### Hợp đồng coop
 
-Chọn Offline/Host/Client qua sessionRole của runtime trước khi khởi tạo. Dùng `EveRegistrySession.Context.Coop`; chưa có transport LAN. Transport phải chuyển lời gọi về main thread Unity và cung cấp peer ID từ kết nối đã xác thực, không tin ID người gửi trong payload client.
+Chọn Offline/Host/Client qua sessionRole của runtime trước khi khởi tạo. Dùng `EveRegistrySession.Context.Admission` (`EveSessionAdmission`). Composition Mirror (`Assets/Coop`) là transport; Transport phải chuyển lời gọi về main thread Unity và cung cấp peer ID từ kết nối đã xác thực, không tin ID người gửi trong payload client.
 
 1. Trao đổi Compatibility và SessionId của host. Host gọi AdmitPeer; client chỉ gọi AdmitHost cho kết nối host tin cậy. Khác giao thức, RulesVersion hoặc hash nội dung thì từ chối trước spawn. Hash gồm manifest (kể cả gói rỗng), JSON chuẩn hóa và định nghĩa đăng ký bằng code; không phụ thuộc đường dẫn máy, khoảng trắng hoặc thứ tự thuộc tính. Giữ thứ tự mảng. Core phải tăng RulesVersion khi luật gameplay trong code đổi.
-2. Host gọi `SpawnHost(createInactive, characterId, ownerId)`. Factory phải tạo entity **mới và chưa active**, có loader, identity và module. Engine cấp ID, nạp rồi mới active; lỗi sẽ dọn và hủy object mới. Gửi EveEntitySpawnMessage trả về tới client đã tham gia; client gọi `ApplyHostSpawn(message, createInactive)`. Transport chỉ được nhận message này từ host. Đây là spawn ban đầu; khôi phục stat/vị trí đã thay đổi sẽ bổ sung sau.
+2. Adapter Mirror tự tạo entity: cấp host ID, nạp module rồi mới active nếu thành công. `EveSessionAdmission` không còn spawn entity và luồng sao chép actor dạng byte cũ (`EveActorHostConnection`/`EveActorClientConnection`) đã bị gỡ ở P6; trạng thái từng entity đi qua adapter có kiểu (`Assets/Coop`).
 3. Đăng ký handler tại host bằng RegisterCommand. Nhận EveEntityCommand qua `HandleCommand(authenticatedPeerId, command)`: kiểm tra peer đã tham gia, phiên host, sequence tăng theo peer, entity Ready, quyền sở hữu và lệnh đã biết. Handler gameplay phải kiểm tra payload, cooldown/tầm/cost và tạo kết quả có thẩm quyền. Yêu cầu sai không gọi handler. Kết nối lại dùng peer ID mới; ngắt kết nối chặn lệnh, còn giữ hay despawn nhân vật do game quyết định.
 
-Đây là hợp đồng độc lập transport, chưa phải LAN chơi được. Transport, snapshot thế giới, đồng bộ người vào muộn, dự đoán di chuyển và truyền kết quả Skill/Move sẽ bổ sung sau. Event nội bộ không tự thành message mạng.
+Đây là hợp đồng tham gia và lệnh độc lập transport; LAN chơi được nằm ở composition Mirror (`Assets/Coop`). Event nội bộ không tự thành message mạng.
 
 Đã thống nhất hoãn: sau khi triển khai xong cả Skill và Move, kiểm chứng quyền host thay đổi gameplay và đường client áp dụng trạng thái đồng bộ, gồm setter stat trực tiếp và hiệu ứng buff. API stat hiện tại chưa triển khai giới hạn quyền này.
 

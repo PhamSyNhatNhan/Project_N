@@ -1,5 +1,8 @@
 # Move replication (RulesVersion77 / Mod API6)
 
+> P6 (2026-10-19): `MoveCodec`, `PNMoveHostConnection` and `PNMoveClientConnection` were removed, along with the `OwnerPoseReport` byte event. `PNMoveConnections.cs` is now `PNMoveHostWorld.cs` and `PNMoveReplication.cs` is `PNMoveTypedTransport.cs` (class names unchanged); `TrackTyped`/`ReceiveTyped` are now `Track`/`Receive`. Passages below describing the byte connections are historical; the Mirror adapter (`Assets/Coop/PNMoveAdapter.cs`) drives the typed seam.
+
+
 ## World integration (Rules79 / network6)
 
 Every replicated actor belongs to a world incarnation and membership revision;

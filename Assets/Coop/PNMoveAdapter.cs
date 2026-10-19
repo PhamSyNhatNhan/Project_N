@@ -123,7 +123,7 @@ namespace ProjectN.Coop
                 if(!movePeers.TryGetValue((conn.connectionId,p.Stream.NetId),out var stream)||!stream.Stream.Equals(p.Stream)||p.Request!=stream.Request||stream.Binding.Retiring)return;
                 if(stream.Binding.Metadata.Owner!=peer.Owner)throw new FormatException("Wrong Move owner.");
                 if(!PeerInputReady(conn)||!WorldInputAllowed(stream.Binding)||!AuthorizeWorldRequest(conn,stream.Binding,p.Stream.Scope)||!stream.Binding.Movement.Component.NetworkUsable)return;
-                var result=moveWorld.ReceiveTyped(p.Report,peer.Owner,NetworkTime.time);
+                var result=moveWorld.Receive(p.Report,peer.Owner,NetworkTime.time);
                 if(result==MoveReportResult.WrongOwner||result==MoveReportResult.Malformed)throw new FormatException("Move report rejected.");
             }
             catch(Exception error){LastFailure=error.Message;conn.Disconnect();}
@@ -144,7 +144,7 @@ namespace ProjectN.Coop
             if(owner)
             {
                 // Request IDs are per owner stream; retries never allocate a new epoch.
-                var result=moveWorld.ReceiveTyped(new MoveBaselineRequest(peer.Stream.Identity,peer.Request),b.Metadata.Owner,NetworkTime.time);
+                var result=moveWorld.Receive(new MoveBaselineRequest(peer.Stream.Identity,peer.Request),b.Metadata.Owner,NetworkTime.time);
                 if(result!=MoveReportResult.Accepted&&result!=MoveReportResult.Stale)return false;
             }
             var p=ControlPacket(peer,model,owner?(byte)0:(byte)2);QueueMove(peer,p);peer.NeedsBaseline=false;revision=p.Revision;return true;
@@ -234,7 +234,7 @@ namespace ProjectN.Coop
                 if(!b.Movement.Component.NetworkUsable)continue;
                 if(b.Movement.Attached){if(b.Metadata.Owner==0)SetInput(b,hostInterrupted<0);else b.Movement.Component.SetMovementHeld(false);continue;}
                 if(b.Candidate.Loader.GetComponent<PNStatReplication>()?.CanCaptureReplication!=true)continue;
-                moveWorld.TrackTyped(b.Movement.Component,b.Metadata.Owner>0);b.Movement.Attached=true;b.Movement.Component.SetMovementHeld(false);
+                moveWorld.Track(b.Movement.Component,b.Metadata.Owner>0);b.Movement.Attached=true;b.Movement.Component.SetMovementHeld(false);
                 if(b.Metadata.Owner==0)SetInput(b,hostInterrupted<0);
             }
             moveWorld.Advance(NetworkTime.time);

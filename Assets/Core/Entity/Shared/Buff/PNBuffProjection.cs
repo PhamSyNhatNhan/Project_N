@@ -116,7 +116,6 @@ public sealed partial class PNBuffManager
         public void Dispose(){Bind(null);PresentationChanged=null;}
     }
     private PNIBuffPresentationSource StablePresentation(){if(presentationProxy==null)presentationProxy=new PresentationProxy(this);presentationProxy.Bind(replica);return presentationProxy;}
-    private bool typedTransport;
     private readonly Dictionary<long,PNBuffWireState> typedStates=new Dictionary<long,PNBuffWireState>();
     private TypedStage typedStage;
     public event Action<PNBuffChange> StateChanged;
@@ -124,7 +123,6 @@ public sealed partial class PNBuffManager
     public event Action<Exception> ProjectionFailed;
     public long AppliedRevision => replica?.Sequence??0;
     public bool HasBaseline => replica!=null&&replica.Status==PNBuffReplicaStatus.Live;
-    public void UseTypedTransport(){typedTransport=true;}
     private void ProjectionFault(Exception error)
     { RuntimeFailure=error;foreach(Action<Exception> listener in ProjectionFailed?.GetInvocationList()??Array.Empty<Delegate>())try{listener(error);}catch(Exception failure){Report(failure);} }
     private void ObserveTyped(PNBuffWireMessage message,double observed)
@@ -192,5 +190,5 @@ public sealed partial class PNBuffManager
         public void Published(){if(published)return;if(disposed||!committed)throw new InvalidOperationException("Uncommitted Buff transaction.");published=true;candidate.AdoptPresentation(before);owner.StablePresentation();deferred.Dispose();deferred=null;owner.typedStage=null;}
         public void Dispose(){if(disposed)return;disposed=true;if(!published){if(committed&&ReferenceEquals(owner.replica,candidate)){owner.replica=before;owner.presentationTime=beforeTime;}candidate.DiscardPrepared();}if(ReferenceEquals(owner.typedStage,this))owner.typedStage=null;deferred=null;}
     }
-    private void UnloadTyped(){typedStage?.Dispose();typedStage=null;projectionPublications.Clear();presentationProxy?.Dispose();presentationProxy=null;typedStates.Clear();typedTransport=false;StateChanged=null;OptionalCuePublished=null;ProjectionFailed=null;}
+    private void UnloadTyped(){typedStage?.Dispose();typedStage=null;projectionPublications.Clear();presentationProxy?.Dispose();presentationProxy=null;typedStates.Clear();StateChanged=null;OptionalCuePublished=null;ProjectionFailed=null;}
 }

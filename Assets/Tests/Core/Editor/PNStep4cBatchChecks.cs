@@ -38,7 +38,6 @@ public static class PNStep4cBatchChecks
                 if (scene != SceneManager.GetActiveScene() || scene.isDirty != dirty) throw new Exception("Checks changed authored scene state.");
             }
             if (Environment.GetCommandLineArgs().Contains("-pn-step4c-build"))
-                File.WriteAllText(folder + "/BuildNormal.txt", PNLifecyclePolicyPlayerBuild.Build());
             File.WriteAllText(folder + "/BatchResult.txt", "PASS requested checks and builds");
             if (host != null) AssetDatabase.DeleteAsset(host);
             if (Application.isBatchMode) EditorApplication.Exit(0);

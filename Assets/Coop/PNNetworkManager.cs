@@ -173,7 +173,7 @@ namespace ProjectN.Coop
                 var context=EveRegistrySession.Context;
                 if(session!=context.SessionId)return;
                 if(!context.Entities.TryGet(new EveEntityId(entity),generation,out _))throw new InvalidOperationException("Stale command binding.");
-                context.Coop.HandleCommand(peer.Owner,new EveEntityCommand(session,entity,sequence,command,payload));
+                context.Admission.HandleCommand(peer.Owner,new EveEntityCommand(session,entity,sequence,command,payload));
             }
             catch(Exception error){LastFailure=error.Message;connection.Disconnect();}
         }
@@ -249,7 +249,7 @@ namespace ProjectN.Coop
             {
                 var session=EveRegistrySession.Context;var metadata=shell.Metadata;
                 if(metadata.Character==null||metadata.Character.Length>128||string.IsNullOrWhiteSpace(metadata.SceneKey)||metadata.SceneKey.Length>128||metadata.EntityKey==null||metadata.EntityKey.Length>128)throw new InvalidOperationException("Invalid bounded actor metadata.");
-                if(session.Role!=EveSessionRole.Client||session.Coop.AdmittedHostSession!=metadata.HostSession||metadata.Entity<=0||metadata.Generation<=0||metadata.Owner<0||shell.netId==0||bindings.ContainsKey(shell.netId))throw new InvalidOperationException("Invalid actor binding.");
+                if(session.Role!=EveSessionRole.Client||session.Admission.AdmittedHostSession!=metadata.HostSession||metadata.Entity<=0||metadata.Generation<=0||metadata.Owner<0||shell.netId==0||bindings.ContainsKey(shell.netId))throw new InvalidOperationException("Invalid actor binding.");
                 if(bindings.Values.Any(x=>x.Metadata.Entity==metadata.Entity))throw new InvalidOperationException("Duplicate actor entity identity.");
                 if(!ClientScope(metadata,out var worldSubscription))throw new FormatException("Actor initial state has no loaded authorized world.");
                 session.Registry.Characters.Get(EveId.Parse(metadata.Character));
@@ -301,7 +301,7 @@ namespace ProjectN.Coop
             if(conn.authenticationData is PNPeer peer && peer.Owner>0)
             {
                 if(IsPlaying)Policy.OnOwnerLeft(()=>RetireOwner(peer.Owner));
-                if(EveRegistrySession.IsReady&&EveRegistrySession.Context.IsActive)EveRegistrySession.Context.Coop.RemovePeer(peer.Owner);
+                if(EveRegistrySession.IsReady&&EveRegistrySession.Context.IsActive)EveRegistrySession.Context.Admission.RemovePeer(peer.Owner);
             }
             PruneRetiredStreams(conn);
             base.OnServerDisconnect(conn);

@@ -1,5 +1,8 @@
 # Buff presentation coop — RulesVersion76 / Mod API6
 
+> P6 (2026-10-19): the byte transport path (PNBuffWireCodec, `ReplicationDelta`, `EveIEntityReplicationPart`/delta classifier, `EveActorHostConnection`/`EveActorClientConnection`, `OptionalReplicationPolicy`) was removed. Passages below that describe it are historical. Current path: typed publisher/projection (`StateChanged`, `OptionalCuePublished`, `TryCaptureState`, `StageState`) plus the Mirror messages in `Assets/Coop`.
+
+
 P4 integration is Rules77/network4: Stat/Buff/Move now share fixed catch-up targets
 and pending accounting. Buff semantics below remain unchanged; see
 `Docs/MirrorP4Implementation.md` for Move ownership and current acceptance.

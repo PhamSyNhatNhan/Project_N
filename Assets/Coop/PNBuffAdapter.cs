@@ -55,7 +55,7 @@ namespace ProjectN.Coop
         private PNBuffStream Stream(Binding b)=>new PNBuffStream{Session=b.Metadata.HostSession,NetId=b.Shell.netId,Entity=b.Metadata.Entity,Generation=b.Metadata.Generation,Nonce=(ulong)b.Token,Scope=Scope(b)};
         private void HookBuff(Binding b)
         {
-            b.Buffs.Component=b.Candidate.Loader.GetComponent<PNBuffManager>();if(b.Buffs.Component==null)return;b.Buffs.Component.UseTypedTransport();
+            b.Buffs.Component=b.Candidate.Loader.GetComponent<PNBuffManager>();if(b.Buffs.Component==null)return;
             b.Buffs.Changed=change=>
             {
                 if(stopping||!IsPlaying||fatalSerialization||b.Shell==null)return;

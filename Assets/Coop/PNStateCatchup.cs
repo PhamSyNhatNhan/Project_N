@@ -61,7 +61,7 @@ namespace ProjectN.Coop {
             {
                 if(value.NetId!=0&&bindings.TryGetValue(value.NetId,out var scoped)&&!Scope(scoped).Equals(value.Scope))return;
                 if(value.Attempt<clientResumeFloor||value.Attempt<fenceAttempt)return;
-                if(value.Session!=EveRegistrySession.Context.Coop.AdmittedHostSession)return;
+                if(value.Session!=EveRegistrySession.Context.Admission.AdmittedHostSession)return;
                 if(value.Digest==null||value.Digest.Length!=64||value.Attempt==0)throw new FormatException("State fence header.");
                 if(value.Attempt!=fenceAttempt||value.Digest!=fenceDigest){clientFence.Clear();fenceCount=-1;fenceAttempt=value.Attempt;fenceDigest=value.Digest;}
                 if(value.NetId==0){if(value.Revision<0||value.Revision>Scheduler.MaximumResidents*3)throw new FormatException("State fence count.");fenceCount=(int)value.Revision;}

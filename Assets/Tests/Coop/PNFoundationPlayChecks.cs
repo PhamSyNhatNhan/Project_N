@@ -152,7 +152,7 @@ namespace ProjectN.Coop.Tests
             PNNetworkManager manager=null;
             yield return Until(()=>NetworkManager.singleton is PNNetworkManager,15);if(failed)yield break;
             manager=(PNNetworkManager)NetworkManager.singleton;
-            if(host&&scenario=="intent")EveRegistrySession.Context.Coop.RegisterCommand(EveId.Parse("fixture:probe"),(_,__)=>commandExecutions++);
+            if(host&&scenario=="intent")EveRegistrySession.Context.Admission.RegisterCommand(EveId.Parse("fixture:probe"),(_,__)=>commandExecutions++);
             if(reject!=null)
             {
                 yield return Until(()=>manager.HasEnded,20);if(failed)yield break;
@@ -176,7 +176,7 @@ namespace ProjectN.Coop.Tests
                 if(host&&scenario!="reject")Check(NetworkServer.connections.Count>=2,"host plus remote connection");
                 if(!host)
                 {
-                    owner=EveRegistrySession.Context.LocalOwnerId.GetValueOrDefault(-1);Check(owner>0&&EveRegistrySession.Context.Coop.AdmittedHostSession!=Guid.Empty,"admitted owner and host session");
+                    owner=EveRegistrySession.Context.LocalOwnerId.GetValueOrDefault(-1);Check(owner>0&&EveRegistrySession.Context.Admission.AdmittedHostSession!=Guid.Empty,"admitted owner and host session");
                     var shell=FindObjectsByType<PNActorShell>().First();
                     Check(!manager.BufferRequired(shell.netId,manager.BindingToken(shell.netId)+1000,new byte[]{1},false)&&NetworkClient.isConnected,"stale callback is rejected without closing a healthy connection");
                     var stale=PNNetworkManager.CreateShell<PNActorShell>("Retired shell callback fixture");
@@ -191,10 +191,10 @@ namespace ProjectN.Coop.Tests
             {
                 var session=EveRegistrySession.Context;var owned=session.Entities.Snapshot().Single(x=>x.GetComponent<EveEntityIdentity>().OwnerId==owner).GetComponent<EveEntityIdentity>();
                 var shell=NetworkClient.localPlayer.GetComponent<PNSessionShell>();
-                shell.CmdIntent(session.Coop.AdmittedHostSession,owned.Id.Value,owned.Generation,1,"fixture:probe","{}");
+                shell.CmdIntent(session.Admission.AdmittedHostSession,owned.Id.Value,owned.Generation,1,"fixture:probe","{}");
                 yield return new WaitForSecondsRealtime(.3f);
                 var other=session.Entities.Snapshot().First(x=>x.GetComponent<EveEntityIdentity>().OwnerId==0).GetComponent<EveEntityIdentity>();
-                shell.CmdIntent(session.Coop.AdmittedHostSession,other.Id.Value,other.Generation,2,"fixture:probe","{}");
+                shell.CmdIntent(session.Admission.AdmittedHostSession,other.Id.Value,other.Generation,2,"fixture:probe","{}");
                 yield return Until(()=>manager.HasEnded,15);if(failed)yield break;
                 Check(!EveRegistrySession.IsReady,"forged target owner is disconnected");
             }

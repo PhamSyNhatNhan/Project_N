@@ -5,7 +5,7 @@ using EveEngine;
 using UnityEngine;
 
 [DisallowMultipleComponent]
-public sealed partial class PNBuffManager : MonoBehaviour, EveIEntityLoadStep, EveIEntityLoadPreparation, EveIEntityCommitStep, EveIEntityReplicationPart, EveIFrozenEntityReplicationPart, EveIReplicationDeltaClassifier
+public sealed partial class PNBuffManager : MonoBehaviour, EveIEntityLoadStep, EveIEntityLoadPreparation, EveIEntityCommitStep
 {
     private static readonly ConditionalWeakTable<EveSessionContext, PNBuffMutationCoordinator> coordinators = new ConditionalWeakTable<EveSessionContext, PNBuffMutationCoordinator>();
     private PNBuffCollection collection;
@@ -15,69 +15,9 @@ public sealed partial class PNBuffManager : MonoBehaviour, EveIEntityLoadStep, E
     private bool deathObserved;
     private EveEntityLoadContext context;
     private IDisposable publication;
-    public EveId ReplicationId => EveId.Parse("project_n:buff_presentation");
     public bool StateCaptureFaulted => RuntimeFailure != null || collection != null && (collection.Coordinator.IsFaulted || collection.IsDisposed);
     public bool CanCaptureState => IsReady && collection != null && !collection.Coordinator.IsMutating && !collection.Coordinator.IsFaulted && !publishingProjection;
     public bool CanCaptureReplication => IsReady && Publisher != null && !collection.Coordinator.IsMutating && !publishingProjection;
-    public event Action<byte[]> ReplicationDelta;
-    public EveReplicationTraffic ClassifyReplicationDelta(byte[] payload)
-    {
-        if (payload == null || payload.Length < 10 || payload.Length > 1048585 || payload[8] > 1)
-            throw new FormatException("Invalid Buff replication prefix.");
-        return payload[8] == 1 ? EveReplicationTraffic.Optional : EveReplicationTraffic.Required;
-    }
-    private byte[] EncodeReplication(PNBuffWireMessage message)
-        => EncodeReplication(message, presentationTime);
-    private static byte[] EncodeReplication(PNBuffWireMessage message, double time)
-    {
-        var body = PNBuffWireCodec.Encode(message); var bytes = new byte[body.Length + 9];
-        Buffer.BlockCopy(BitConverter.GetBytes(time), 0, bytes, 0, 8); bytes[8] = 0; Buffer.BlockCopy(body, 0, bytes, 9, body.Length); return bytes;
-    }
-    private static (double, PNBuffWireMessage) DecodeReplication(byte[] payload)
-    {
-        if (payload == null || payload.Length < 10 || payload.Length > 1048585 || payload[8] != 0) throw new FormatException("Buff actor payload size/kind.");
-        double now = BitConverter.ToDouble(payload, 0); PNBuffCollection.Seconds(now, true);
-        var body = new byte[payload.Length - 9]; Buffer.BlockCopy(payload, 9, body, 0, body.Length); return (now, PNBuffWireCodec.Decode<PNBuffWireMessage>(body));
-    }
-    public byte[] CaptureReplication() { if (Publisher == null) throw new InvalidOperationException("Host Buff publisher required."); return EncodeReplication(Publisher.Snapshot()); }
-    public Func<byte[]> FreezeReplication()
-    { if (!CanCaptureReplication) throw new InvalidOperationException("Buff capture requires drained mutation boundary."); var snapshot = Publisher.Snapshot(); double time = presentationTime; return () => EncodeReplication(snapshot, time); }
-    private sealed class ReplicaStage : EveIReplicaStage
-    {
-        private readonly PNBuffManager owner; private readonly PNBuffReplica candidate; private readonly double now; private readonly PNBuffWireMessage packet; private readonly bool replacing;
-        private IDisposable deferred; private bool committed, published;
-        public ReplicaStage(PNBuffManager owner, PNBuffReplica candidate, double now, PNBuffWireMessage packet, bool replacing)
-        { this.owner = owner; this.candidate = candidate; this.now = now; this.packet = packet; this.replacing = replacing; }
-        public void Commit()
-        { deferred = candidate.DeferPresentation(); candidate.ApplyLifecycle(packet, now); owner.replica = candidate; owner.presentationTime = now; committed = true; }
-        public void Published() { published = true; deferred?.Dispose(); deferred = null; }
-        public void Dispose()
-        { if (!published && (replacing || committed)) { candidate.Dispose(); } deferred = null; }
-    }
-    public EveIReplicaStage StageReplication(byte[] payload, Guid authoritativeSession, long generation)
-    {
-        if (session == null || session.HasAuthority || !context.IsValid) throw new InvalidOperationException("Initialized client Buff module required.");
-        var decoded = DecodeReplication(payload); var packet = decoded.Item2;
-        if (packet.SessionId != authoritativeSession || packet.TargetId != target.EntityId || packet.Epoch != generation || packet.Kind != PNBuffWireKind.Snapshot) throw new FormatException("Buff snapshot identity.");
-        // Validate selected profile/state without constructing presenters or changing the retained replica.
-        using (var probe = new PNBuffReplica(session.Registry, authoritativeSession, target.EntityId, render: false)) probe.ApplyLifecycle(packet, decoded.Item1);
-        bool replacing = replica == null; var candidate = replica ?? new PNBuffReplica(session.Registry, authoritativeSession, target.EntityId, target, RenderPresentation);
-        return new ReplicaStage(this, candidate, decoded.Item1, packet, replacing);
-    }
-    public void ApplyReplicationDelta(byte[] payload, Guid authoritativeSession, long generation)
-    {
-        if (!IsReady || session.HasAuthority || replica == null) throw new InvalidOperationException("Published client presenter required.");
-        if (payload != null && payload.Length >= 10 && payload.Length <= 1048585 && payload[8] == 1)
-        {
-            double time = BitConverter.ToDouble(payload, 0); PNBuffCollection.Seconds(time, true);
-            var body = new byte[payload.Length - 9]; Buffer.BlockCopy(payload, 9, body, 0, body.Length); var cue = PNBuffWireCodec.Decode<PNBuffOptionalCueMessage>(body);
-            if (cue.SessionId != authoritativeSession || cue.TargetId != target.EntityId || cue.Epoch != generation) throw new FormatException("Optional Buff cue identity.");
-            presentationTime = time; replica.Receive(cue, time); return;
-        }
-        var decoded = DecodeReplication(payload); var packet = decoded.Item2;
-        if (packet.SessionId != authoritativeSession || packet.Epoch != generation) throw new FormatException("Buff actor identity.");
-        presentationTime = decoded.Item1; replica.ApplyLifecycle(packet, presentationTime);
-    }
     public Exception RuntimeFailure { get; private set; }
     private PNBuffReplica replica;
     private double presentationTime;
@@ -127,13 +67,6 @@ public sealed partial class PNBuffManager : MonoBehaviour, EveIEntityLoadStep, E
         using (EveHotPathMetrics.Measure("buff.local-presentation")) replica?.ApplyLifecycle(message, observed);
         if(context==null||!context.CanUse||replica==null)return;
         ObserveTyped(message,observed);
-        var listeners = typedTransport ? null : ReplicationDelta; if (listeners == null) return;
-        using (EveHotPathMetrics.Measure("buff.encode"))
-        {
-            byte[] data; using (EveHotPathMetrics.Measure("buff.codec")) data = EncodeReplication(message,observed);
-            if (EveHotPathMetrics.Active) { EveHotPathMetrics.Increment("wire.buff.messages." + message.Kind); EveHotPathMetrics.Increment("wire.buff.body-bytes", data.Length - 9); }
-            using (EveHotPathMetrics.Measure("fanout.observers")) foreach (Action<byte[]> observer in listeners.GetInvocationList()) try { observer(data); } catch (Exception error) { Report(error); }
-        }
     }
     private void LocalCue(PNBuffOptionalCueMessage message)
     {double observed=presentationTime;PublishProjection(()=>LocalCueCore(message,observed));}
@@ -142,12 +75,6 @@ public sealed partial class PNBuffManager : MonoBehaviour, EveIEntityLoadStep, E
         if (context==null||!context.CanUse) return; using (EveHotPathMetrics.Measure("buff.local-cue-presentation")) replica?.Receive(message, observed);
         if(context==null||!context.CanUse||replica==null)return;
         ObserveTypedCue(message,observed);
-        var listeners = typedTransport ? null : ReplicationDelta; if (listeners == null) return;
-        byte[] bytes;
-        using (EveHotPathMetrics.Measure("cue.codec"))
-        { var body = PNBuffWireCodec.Encode(message); bytes = new byte[body.Length + 9]; Buffer.BlockCopy(BitConverter.GetBytes(observed), 0, bytes, 0, 8); bytes[8] = 1; Buffer.BlockCopy(body, 0, bytes, 9, body.Length); }
-        if (EveHotPathMetrics.Active) { EveHotPathMetrics.Increment("wire.cue.messages"); EveHotPathMetrics.Increment("wire.cue.body-bytes", bytes.Length - 9); }
-        using (EveHotPathMetrics.Measure("fanout.cue-observers")) foreach (Action<byte[]> observer in listeners.GetInvocationList()) try { observer(bytes); } catch (Exception error) { Report(error); }
     }
     // Called only after the network adapter authenticates the host/session and maps this target.
     public void BindClientPresentation(Guid authoritativeSession, EveEntityId targetId, PNBuffReplicaPolicy policy = null)
@@ -208,7 +135,6 @@ public sealed partial class PNBuffManager : MonoBehaviour, EveIEntityLoadStep, E
         Publisher?.Dispose(); Publisher = null; replica?.Dispose(); replica = null; UnloadTyped();
         collection = null; target = null; clock = null; session = null;
         context = null; publication = null;
-        ReplicationDelta = null;
     }
     private void OnDestroy() => Unload();
 }

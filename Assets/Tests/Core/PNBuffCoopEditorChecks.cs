@@ -63,8 +63,8 @@ public static class PNBuffCoopEditorChecks
             var visual = other.GetComponentInChildren<PNBuffElementVisual>(); var remote = new PNBuffReplica(hub, source.SessionId, other.EntityId, other);
             try
             {
-                remote.Receive(PNBuffWireCodec.Decode<PNBuffWireMessage>(PNBuffWireCodec.Encode(otherManager.Publisher.Snapshot())), 0);
-                Check(remote.Snapshot().Count == otherManager.Replica.Snapshot().Count && other.GetComponentInChildren<PNBuffElementVisual>().GrantCount == 2, "Proxy consumes wire snapshot without gameplay Buff execution");
+                remote.Receive(otherManager.Publisher.Snapshot(), 0);
+                Check(remote.Snapshot().Count == otherManager.Replica.Snapshot().Count && other.GetComponentInChildren<PNBuffElementVisual>().GrantCount == 2, "Proxy consumes snapshot message without gameplay Buff execution");
                 var state = remote.Snapshot()[0]; var snapshot = new PNBuffWireMessage(source.SessionId, other.EntityId, remote.Epoch, remote.Sequence + 1, PNBuffWireKind.Snapshot, new[] { state });
                 remote.Receive(snapshot, 0); Check(other.GetComponentInChildren<PNBuffElementVisual>() == visual, "Resync retains existing grouped renderer");
                 remote.Receive(new PNBuffWireMessage(source.SessionId, other.EntityId, remote.Epoch, remote.Sequence + 1, PNBuffWireKind.Snapshot), 0);

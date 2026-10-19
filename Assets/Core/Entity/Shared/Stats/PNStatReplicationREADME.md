@@ -1,5 +1,8 @@
 # Current: Mirror Stat + Buff + Move integration (RulesVersion77 / Mod API6)
 
+> P6 (2026-10-19): `PNStatCodec`, `ReplicationDelta`, `CaptureReplication/FreezeReplication/StageReplication/ApplyReplicationDelta` and `UseTypedTransport` were removed. Only the typed `CaptureState/StageState/StageUpdate/ApplyState` entry points remain; passages below about byte deltas are historical.
+
+
 P4/network4 adds Move fixed targets and body-applied readiness beside the unchanged
 Stat contract below. See `Docs/MirrorP4Implementation.md`; Stat/Buff receive accounting
 is shared with pending Move controls, while each adapter retains its diagnostics.

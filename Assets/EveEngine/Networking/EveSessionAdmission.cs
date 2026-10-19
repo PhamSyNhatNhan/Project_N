@@ -4,19 +4,6 @@ using UnityEngine;
 
 namespace EveEngine
 {
-    // EN: Explicit spawn message sent by the host after the entity is ready.
-    // VI: Thông điệp spawn tường minh do host gửi sau khi entity sẵn sàng.
-    public sealed class EveEntitySpawnMessage
-    {
-        public Guid SessionId { get; }
-        public long EntityId { get; }
-        public string CharacterId { get; }
-        public long OwnerId { get; }
-        public long Generation { get; }
-        public EveEntitySpawnMessage(Guid sessionId, long entityId, string characterId, long ownerId, long generation = 1)
-        { SessionId = sessionId; EntityId = entityId; CharacterId = characterId; OwnerId = ownerId; Generation = generation; }
-    }
-
     // EN: Client intent; the transport supplies the authenticated sender separately.
     // VI: Ý định từ client; transport cung cấp danh tính người gửi đã xác thực riêng.
     public sealed class EveEntityCommand
@@ -30,9 +17,9 @@ namespace EveEngine
         { SessionId = sessionId; EntityId = entityId; Sequence = sequence; CommandId = commandId; PayloadJson = payloadJson; }
     }
 
-    // EN: Transport-independent admission, spawning and host command validation for one session.
-    // VI: Kiểm tra tham gia, spawn và lệnh tại host cho một phiên, độc lập transport.
-    public class EveCoopSession
+    // EN: Transport-independent peer/host admission and host command validation for one session.
+    // VI: Kiểm tra tham gia và lệnh tại host cho một phiên, độc lập transport.
+    public class EveSessionAdmission
     {
         private readonly EveSessionContext session;
         private readonly Dictionary<long, long> peers = new Dictionary<long, long>();
@@ -41,7 +28,7 @@ namespace EveEngine
         private Guid remoteHostSession;
         public Guid AdmittedHostSession => remoteHostSession;
         public bool IsPeerAdmitted(long peerId) => session.IsActive && session.Role == EveSessionRole.Host && peers.ContainsKey(peerId);
-        public EveCoopSession(EveSessionContext session)
+        public EveSessionAdmission(EveSessionContext session)
         { this.session = session ?? throw new ArgumentNullException(nameof(session)); }
 
         protected virtual void RequireRole(EveSessionRole role)
@@ -81,51 +68,6 @@ namespace EveEngine
             if (localOwnerId <= 0) throw new ArgumentOutOfRangeException(nameof(localOwnerId));
             AdmitHost(hostSessionId, compatibility);
             session.AdmitLocalOwner(localOwnerId);
-        }
-
-        public virtual EveEntitySpawnMessage SpawnHost(Func<EveEntityLoader> createInactive, EveId characterId, long ownerId = 0)
-        {
-            RequireRole(EveSessionRole.Host);
-            if (ownerId < 0 || (ownerId != 0 && !peers.ContainsKey(ownerId))) throw new InvalidOperationException("Owner is not admitted.");
-            session.Registry.Characters.Get(characterId);
-            var id = session.Entities.AllocateHostId();
-            Spawn(createInactive, id, characterId, ownerId);
-            return new EveEntitySpawnMessage(session.SessionId, id.Value, characterId.ToString(), ownerId);
-        }
-
-        public virtual EveEntityLoader ApplyHostSpawn(EveEntitySpawnMessage message, Func<EveEntityLoader> createInactive)
-        {
-            RequireRole(EveSessionRole.Client);
-            if (message == null || remoteHostSession == Guid.Empty || message.SessionId != remoteHostSession)
-                throw new InvalidOperationException("Spawn is not from the admitted host session.");
-            if (message.EntityId <= 0 || message.OwnerId < 0 || message.Generation <= 0) throw new ArgumentException("Invalid spawn identity.");
-            var characterId = EveId.Parse(message.CharacterId);
-            session.Registry.Characters.Get(characterId);
-            return Spawn(createInactive, new EveEntityId(message.EntityId), characterId, message.OwnerId, message.Generation);
-        }
-
-        protected virtual EveEntityLoader Spawn(Func<EveEntityLoader> createInactive, EveEntityId id, EveId characterId, long ownerId, long generation = 1)
-        {
-            if (createInactive == null) throw new ArgumentNullException(nameof(createInactive));
-            var loader = createInactive() ?? throw new InvalidOperationException("Spawn factory returned no loader.");
-            try
-            {
-                if (loader.gameObject.activeInHierarchy || loader.State != EveEntityLoadState.Idle)
-                    throw new InvalidOperationException("Spawn factory must create a fresh inactive entity.");
-                var identity = loader.GetComponent<EveEntityIdentity>();
-                if (identity == null) throw new InvalidOperationException("Spawn requires an entity identity.");
-                identity.Assign(id, characterId, ownerId, generation);
-                loader.Load(session.Registry);
-                loader.gameObject.SetActive(true);
-                if (!loader.IsReady) throw new InvalidOperationException("Entity stopped during activation.");
-                return loader;
-            }
-            catch
-            {
-                try { loader.Unload(); }
-                finally { UnityEngine.Object.Destroy(loader.gameObject); }
-                throw;
-            }
         }
 
         // EN: Gameplay modules register explicit handlers; local events never become network messages automatically.

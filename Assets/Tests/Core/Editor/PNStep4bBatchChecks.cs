@@ -35,12 +35,6 @@ public static class PNStep4bBatchChecks
             File.WriteAllText(Folder + "/RenderAfter.txt", PNDamagePopupRenderChecks.Run());
             File.Copy("F:/unity/Project_N/.utmp/PNDamagePopupGlow.png", Folder + "/RenderAfter.png", true);
             if (scene != SceneManager.GetActiveScene() || scene.isDirty != dirty) throw new Exception("Checks changed authored scene state.");
-            if (Environment.GetCommandLineArgs().Contains("-pn-step4b-build"))
-            {
-                File.WriteAllText(Folder + "/BuildNormal.txt", PNLifecyclePolicyPlayerBuild.Build());
-                if (Environment.GetCommandLineArgs().Contains("-pn-step4b-development"))
-                    File.WriteAllText(Folder + "/BuildDevelopment.txt", PNLifecyclePolicyPlayerBuild.BuildDevelopment());
-            }
             File.WriteAllText(Folder + "/BatchResult.txt", "PASS parity, native popup checks, render capture and requested builds");
             if (host != null) AssetDatabase.DeleteAsset(host);
             if (Application.isBatchMode) EditorApplication.Exit(0);

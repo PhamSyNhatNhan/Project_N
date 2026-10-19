@@ -29,7 +29,6 @@ namespace ProjectN.Coop
         {
             var part=binding.Candidate.Loader.GetComponent<PNStatReplication>();binding.Stats.Component=part;
             if(part==null)return;
-            part.UseTypedTransport();
             binding.Stats.Failure=error=>WorldFailure(binding.Metadata.World,new InvalidOperationException("Stat projection actor "+binding.Metadata.Entity,error));
             binding.Stats.LifeNotice=frame=>
             {

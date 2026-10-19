@@ -75,7 +75,7 @@ public sealed class PNBuffCountdownPlayReview : MonoBehaviour
         var playerManager = player.GetComponent<PNBuffManager>(); var p = playerManager.Buffs; var e = enemy.GetComponent<PNBuffManager>().Buffs;
         var profile = EveRegistrySession.Current.Buffs().Get(EveId.Parse("project_n:timescale_reduction"));
         Check(profile.Countdown != null && profile.Countdown.Slot == PNBuffCountdownSlot.BottomRight, "Stock timescale reduction opts in to the BottomRight countdown");
-        long messages = 0; Action<byte[]> count = _ => messages++; playerManager.ReplicationDelta += count;
+        long messages = 0; Action<PNBuffChange> count = _ => messages++; playerManager.StateChanged += count;
         PNBuffHandle Slow(PNBuffCollection buffs, double seconds) => buffs.Apply(new PNBuffApplyRequest(EveId.Parse("project_n:timescale_reduction"), source,
             new JObject { { "reduction", 0 }, { "minimumReduction", 0 }, { "duration", seconds } })).Handle;
         var longPlayer = Slow(p, 8); var longEnemy = Slow(e, 8); var shortEnemy = Slow(e, 2);
@@ -119,7 +119,7 @@ public sealed class PNBuffCountdownPlayReview : MonoBehaviour
         p.Remove(longPlayer, PNBuffEndReason.Bypass, true); e.Remove(longEnemy, PNBuffEndReason.Bypass, true);
         yield return new WaitForSeconds(.35f); ui.RefreshUI(); yield return null;
         Check(hud.childCount == 0 && world.childCount == 0, "Ended Buffs leave no placeholder slots");
-        playerManager.ReplicationDelta -= count;
+        playerManager.StateChanged -= count;
         Status = "PASS " + checks;
     }
     private IEnumerator Guarded(IEnumerator sequence)

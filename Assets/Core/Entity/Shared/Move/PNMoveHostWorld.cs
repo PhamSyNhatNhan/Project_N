@@ -6,7 +6,7 @@ using EveEngine;
 using EveEngine.Movement;
 
 // One authoritative movement world shared by all peers. Transport supplies authenticated sender IDs.
-// Enrollment is explicit, like EveActorHostConnection; no connection is created by a gameplay entity.
+// Enrollment is explicit; no gameplay entity enrolls itself.
 public sealed class PNMoveHostWorld : IDisposable
 {
     internal sealed class Actor
@@ -34,7 +34,6 @@ public sealed class PNMoveHostWorld : IDisposable
     public bool IsActive => !disposed && session.IsActive;
     public int TrackedCount=>Actors.Count;
     private bool disposed;
-    public Exception LastProtocolError { get; private set; }
     public Exception SamplingFailure(MoveIdentity id) => Actors.TryGetValue(id,out var actor)?actor.Failure:null;
     private double lastSample=-1;
     private readonly int capacity;
@@ -47,12 +46,10 @@ public sealed class PNMoveHostWorld : IDisposable
         this.session=session; session.Stopping+=Dispose;
     }
     public void Track(PNMove move,bool remoteOwned)
-    {if(move==null||!move.IsReady||move.UsesTypedMovementTransport)throw new InvalidOperationException("Published legacy movement required.");TrackTyped(move,remoteOwned);}
-    public void TrackTyped(PNMove move,bool remoteOwned)
     {
         if(!IsActive || move==null || !move.NetworkUsable || move.GetComponent<EveEntityLoader>()?.LoadContext?.Session!=session)throw new InvalidOperationException("Published same-session Move required.");
         var identity=move.NetworkIdentity(session.SessionId);var entity=move.GetComponent<EveEntityIdentity>();
-        if(Actors.ContainsKey(identity) || Actors.Count>=capacity || remoteOwned && (entity.OwnerId<=0 || !session.Coop.IsPeerAdmitted(entity.OwnerId)))throw new InvalidOperationException("Move enrollment/owner/capacity.");
+        if(Actors.ContainsKey(identity) || Actors.Count>=capacity || remoteOwned && (entity.OwnerId<=0 || !session.Admission.IsPeerAdmitted(entity.OwnerId)))throw new InvalidOperationException("Move enrollment/owner/capacity.");
         var actor=new Actor{Move=move,Remote=remoteOwned};
         var mirror=ReadMirror(actor,1);
         actor.Model=new MoveHostModel(identity,entity.OwnerId,mirror,move.ReadMovementState(),move.ReadMovementRecovery(),new Constraints(move)){Ready=true};
@@ -87,17 +84,9 @@ public sealed class PNMoveHostWorld : IDisposable
         if(!Actors.TryGetValue(id,out var actor))return;
         Actors.Remove(id);actor.Move.PoseRelocated-=actor.Relocation;actor.Move.DetachNetwork();actor.Model.Dispose();
     }
-    public MoveReportResult Receive(byte[] bytes,long authenticatedSender,double hostTime)
+    public MoveReportResult Receive(MoveMessage message,long authenticatedSender,double hostTime)
     {
-        if(!IsActive || !session.Coop.IsPeerAdmitted(authenticatedSender))return MoveReportResult.WrongOwner;
-        MoveMessage message;
-        try { message=MoveCodec.Decode(bytes) as MoveMessage; }
-        catch(FormatException error) { LastProtocolError=error;return MoveReportResult.Malformed; }
-        return ReceiveTyped(message,authenticatedSender,hostTime);
-    }
-    public MoveReportResult ReceiveTyped(MoveMessage message,long authenticatedSender,double hostTime)
-    {
-        if(!IsActive || !session.Coop.IsPeerAdmitted(authenticatedSender))return MoveReportResult.WrongOwner;
+        if(!IsActive || !session.Admission.IsPeerAdmitted(authenticatedSender))return MoveReportResult.WrongOwner;
         if(!(message is MovePoseReport) && !(message is MoveBaselineRequest))return MoveReportResult.Malformed;
         if(!Actors.TryGetValue(message.Identity,out var actor) || !actor.Remote)return MoveReportResult.WrongIdentity;
         if(!actor.Move.NetworkUsable || actor.Move.HostMovement!=actor.Model)return MoveReportResult.NotReady;
@@ -169,120 +158,10 @@ public sealed class PNMoveHostWorld : IDisposable
         var correction=actor.Model.Correct(state,recovery,MoveCorrectionReason.Teleport);
         actor.Move.ApplyHostRelocation(correction,actor.Model.Mirror);return correction;
     }
-    public PNMoveHostConnection Connect(long admittedPeer)
-    { if(!IsActive || !session.Coop.IsPeerAdmitted(admittedPeer))throw new InvalidOperationException("Admitted peer required.");return new PNMoveHostConnection(this,admittedPeer); }
     public MoveHostModel TypedModel(MoveIdentity identity)=>Actors.TryGetValue(identity,out var actor)?actor.Model:null;
     public void Dispose()
     {
         if(disposed)return;disposed=true;session.Stopping-=Dispose;
         foreach(var id in Actors.Keys.ToArray())Untrack(id);
     }
-}
-// B: latest pose per presence. D: full mirror + correction pair. A refused offered batch is immutable.
-// Storage bounded by 256 enrolled actors plus one offered batch; no gameplay tick staggering.
-public sealed class PNMoveHostConnection : IDisposable
-{
-    private readonly PNMoveHostWorld world;
-    private readonly long peer;
-    private readonly Dictionary<MoveIdentity,byte[][]> latest=new Dictionary<MoveIdentity,byte[][]>();
-    private KeyValuePair<MoveIdentity,byte[][]>[] pending;
-    private double lastTime=-1;
-    private bool disposed;
-    internal PNMoveHostConnection(PNMoveHostWorld world,long peer) { this.world=world;this.peer=peer; }
-    public int PendingActors => latest.Count+(pending?.Length??0);
-    public void Advance(double hostTime)
-    {
-        if(disposed || !world.IsActive)return;
-        if(double.IsNaN(hostTime) || double.IsInfinity(hostTime) || hostTime<0 || hostTime<lastTime)throw new ArgumentOutOfRangeException(nameof(hostTime));
-        if(lastTime>=0 && hostTime-lastTime<.05)return;lastTime=hostTime;
-        foreach(var stale in latest.Keys.Where(id=>!world.Actors.ContainsKey(id)).ToArray())latest.Remove(stale);
-        foreach(var pair in world.Actors)
-        {
-            var actor=pair.Value;if(!actor.Move.NetworkUsable || !actor.Model.Ready)continue;
-            var model=actor.Model;
-            latest[pair.Key]=actor.Remote && model.Owner==peer ? new[]{MoveCodec.Encode(model.Mirror),MoveCodec.Encode(model.LastCorrection)} : new[]{MoveCodec.Encode(model.Sample(hostTime))};
-        }
-    }
-    public bool Send(Func<byte[][],bool> accept)
-    {
-        if(disposed || !world.IsActive)return false;if(accept==null)throw new ArgumentNullException(nameof(accept));
-        if(pending==null) { if(latest.Count==0)return false;pending=latest.ToArray();latest.Clear(); }
-        var bytes=pending.SelectMany(pair=>pair.Value).Select(b=>(byte[])b.Clone()).ToArray();
-        if(!accept(bytes))return false;pending=null;return true;
-    }
-    public void Dispose() { disposed=true;latest.Clear();pending=null; }
-}
-public sealed class PNMoveClientConnection : IDisposable
-{
-    private sealed class RequestCounter { internal uint Value; }
-    private static readonly ConditionalWeakTable<EveSessionContext,RequestCounter> requestCounters=new ConditionalWeakTable<EveSessionContext,RequestCounter>();
-    private readonly EveSessionContext session;
-    private readonly Guid host;
-    private readonly Dictionary<MoveIdentity,PNMove> actors=new Dictionary<MoveIdentity,PNMove>();
-    private readonly Dictionary<MoveIdentity,Action<byte[]>> subscriptions=new Dictionary<MoveIdentity,Action<byte[]>>();
-    private readonly Dictionary<MoveIdentity,byte[]> reports=new Dictionary<MoveIdentity,byte[]>();
-    private readonly Dictionary<MoveIdentity,byte[]> baselineRequests=new Dictionary<MoveIdentity,byte[]>();
-    private byte[][] pending;
-    private bool disposed;
-    public Exception LastError { get; private set; }
-    public PNMoveClientConnection(EveSessionContext session,Guid admittedHost)
-    {
-        if(session==null || !session.IsActive || session.Role!=EveSessionRole.Client || !session.LocalOwnerId.HasValue || session.Coop.AdmittedHostSession!=admittedHost || admittedHost==Guid.Empty)
-            throw new InvalidOperationException("Trusted owner and host admission required.");
-        this.session=session;host=admittedHost;session.Stopping+=Dispose;
-    }
-    public void Bind(PNMove move)
-    {
-        if(disposed || !session.IsActive || move==null || move.UsesTypedMovementTransport || move.GetComponent<EveEntityLoader>()?.LoadContext?.Session!=session || !move.NetworkUsable || actors.Count>=256)throw new InvalidOperationException("Published exact legacy session actor required.");
-        var id=move.NetworkIdentity(host);if(actors.ContainsKey(id))throw new InvalidOperationException("Already bound.");
-        if(move.GetComponent<EveEntityIdentity>().OwnerId==session.LocalOwnerId.Value)
-        {
-            move.BindOwnerMovement(host);Action<byte[]> listener=bytes=>reports[id]=(byte[])bytes.Clone();
-            move.OwnerPoseReport+=listener;subscriptions.Add(id,listener);
-            var counter=requestCounters.GetValue(session,_=>new RequestCounter());counter.Value=MoveOrder.Next(counter.Value);
-            move.OwnerMovement.ExpectBaseline(counter.Value);
-            baselineRequests[id]=MoveCodec.Encode(new MoveBaselineRequest(id,counter.Value));
-            reports[id]=baselineRequests[id];
-        }
-        else move.BindObserverMovement(host);
-        actors.Add(id,move);
-    }
-    public bool Receive(byte[] bytes)
-    {
-        if(disposed || !session.IsActive)return false;
-        try
-        {
-            var message=MoveCodec.Decode(bytes);var id=message is MoveMirror m?m.Identity:((MoveMessage)message).Identity;
-            if(id.Session!=host || !actors.TryGetValue(id,out var move) || !move.NetworkUsable)return false;
-            if(move.NetworkRole==PNMoveNetworkRole.Owner)return move.ReceiveOwnerMessage(message);
-            return message is MovePoseState state && move.ObserverMovement!=null && move.ObserverMovement.Receive(state,true);
-        }
-        catch(Exception error) { LastError=error;return false; }
-    }
-    public void AdvanceObservers(double estimatedHostTime)
-    {
-        if(disposed || !session.IsActive)return;
-        foreach(var pair in actors.ToArray())
-        {
-            if(!pair.Value.NetworkUsable) { Unbind(pair.Key);continue; }
-            if(pair.Value.NetworkRole==PNMoveNetworkRole.Observer)pair.Value.ApplyObserverPose(Math.Max(0,estimatedHostTime-.1));
-        }
-    }
-    public bool SendReports(Func<byte[][],bool> accept)
-    {
-        if(disposed || !session.IsActive)return false;if(accept==null)throw new ArgumentNullException(nameof(accept));
-        foreach(var pair in baselineRequests.ToArray())
-            if(actors.TryGetValue(pair.Key,out var move) && move.OwnerMovement?.NeedsBaseline==true)reports[pair.Key]=pair.Value;
-            else baselineRequests.Remove(pair.Key);
-        if(pending==null) { if(reports.Count==0)return false;pending=reports.Values.Select(b=>(byte[])b.Clone()).ToArray();reports.Clear(); }
-        if(!accept(pending.Select(b=>(byte[])b.Clone()).ToArray()))return false;pending=null;return true;
-    }
-    public void Unbind(MoveIdentity id)
-    {
-        if(!actors.TryGetValue(id,out var move))return;
-        if(subscriptions.TryGetValue(id,out var subscription)) { move.OwnerPoseReport-=subscription;subscriptions.Remove(id); }
-        reports.Remove(id);baselineRequests.Remove(id);actors.Remove(id);move.DetachNetwork();
-    }
-    public void Dispose()
-    { if(disposed)return;disposed=true;session.Stopping-=Dispose;foreach(var id in actors.Keys.ToArray())Unbind(id);reports.Clear();baselineRequests.Clear();pending=null; }
 }

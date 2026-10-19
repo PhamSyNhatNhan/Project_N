@@ -43,13 +43,10 @@ public static class PNLifecycleRuntimeEditorChecks
         }
         void Begin(EveSessionRole role) { EveRegistrySession.Begin(); EveRegistrySession.Start(hub, role, compatibility); }
         void Finish() { if (EveRegistrySession.State != EveSessionState.Stopped) EveRegistrySession.End(); int safety = 1000; while (EveRegistrySession.State == EveSessionState.Stopping && safety-- > 0) EveRegistrySession.PumpCleanup(); if (EveRegistrySession.State != EveSessionState.Stopped) throw new Exception("Fixture cleanup did not finish."); }
-        var wire = new List<byte[]>(); var boundaries = new List<int>(); Guid hostSession; long hostEnd, hostSnapshot;
-        var modelPolicy = new ModelPolicy(8, 1048576, 65536, 1024, 1024, 128, 1048576, 1048576, 32, 8, 3, 5000, 5000, 5000, 5000, 20000, 60000);
         var cleanupPolicy = new CleanupPolicy(24, 24, 16, 2, 32, 1, 2, 1);
         try
         {
-            Begin(EveSessionRole.Host); var session = EveRegistrySession.Context; hostSession = session.SessionId;
-            session.ConfigureSnapshots(8, new EveEntityPreparationBudget(1, 2, 2), () => time);
+            Begin(EveSessionRole.Host); var session = EveRegistrySession.Context;
             double visualTime = 0; int detachedReleased = 0;
             var detached = PNBuffDetachedEffects.Configure(session, 1, 1, () => visualTime, true);
             Check(detached.TryCreate(PNBuffEndReason.Expired, 100, resources => resources.Own(new PNBuffRelease(() => detachedReleased++))), "detached presentation owns independent resources");
@@ -74,30 +71,13 @@ public static class PNLifecycleRuntimeEditorChecks
             var source = PNBuffSource.Capture(b.GetComponent<PNStat>());
             manager.Buffs.Apply(new PNBuffApplyRequest(EveId.Parse("base:burn"), source));
             Check(manager.Publisher.Epoch == a.Generation && manager.Replica.Epoch == a.Generation, "Buff epoch comes from actor generation");
-            using (var host = new EveActorHostConnection(session, 1, modelPolicy, () => time, compatibility))
-            {
-                host.Track(a); host.Track(b); host.CaptureSnapshot();
-                using (var secondPeer = new EveActorHostConnection(session, 2, modelPolicy, () => time, compatibility))
-                {
-                    secondPeer.Track(a); secondPeer.Track(b); secondPeer.CaptureSnapshot();
-                    int previousCaptures = session.Snapshots.Captures; session.Snapshots.AdvanceFrame();
-                    Check(session.Snapshots.Captures == previousCaptures + 1 && host.Protocol.Phase == HostPhase.PreparingSnapshot && secondPeer.Protocol.Phase == HostPhase.PreparingSnapshot, "same-scope peers share one immutable capture and hold delta during serialization");
-                    manager.Buffs.Apply(new PNBuffApplyRequest(EveId.Parse("base:burn"), source));
-                    Check(host.Protocol.BufferedMessages > 0 && secondPeer.Protocol.BufferedMessages > 0, "post-cut Buff updates remain held until Applied");
-                }
-                void Record() { int guard = 100; while (session.Snapshots.PendingJobs > 0 && guard-- > 0) session.Snapshots.AdvanceFrame(); while (host.Send(4, batch => { foreach (var packet in batch) wire.Add(packet); return true; })) { host.Protocol.ReleaseAccepted((int)host.Protocol.AcceptedBytes); } boundaries.Add(wire.Count); }
-                Record(); hostSnapshot = host.Protocol.SnapshotId; hostEnd = host.Protocol.EndSequence; host.Applied(new AppliedAck(1, hostSnapshot, hostEnd));
-                manager.Buffs.Apply(new PNBuffApplyRequest(EveId.Parse("base:burn"), source)); Record();
-                host.Protocol.RequestSnapshot(time); host.CaptureSnapshot(); Record(); host.Applied(new AppliedAck(1, host.Protocol.SnapshotId, host.Protocol.EndSequence));
-                var replacement = Factory(); replacement.GetComponent<EveEntityIdentity>().Assign(new EveEntityId(771001), EveId.Parse("project_n:dummy"), 0, 2); replacement.Prepare(hub);
-                Check(!session.Entities.TryGet(new EveEntityId(771001), out _) && a.IsReady, "new reservation hides bare lookup without publishing candidate");
-                var oldHealth = a.GetComponent<PNStat>().GetCurrent(PNContentIds.Health);
-                a.GetComponent<PNStat>().ReceiveDamage(source.Snapshot.CreateDamage(1, false, 0, PNContentIds.Magic, PNContentIds.Fire));
-                Check(a.GetComponent<PNStat>().GetCurrent(PNContentIds.Health) < oldHealth, "published old target receives damage while its replacement prepares");
-                EveEntityLoader.CommitBatch(new[] { replacement }); replacement.gameObject.SetActive(true); replacement.GetComponent<PNBuffManager>().Advance(0);
-                Check(!a.IsReady && !a.gameObject.activeInHierarchy && session.Entities.TryGet(new EveEntityId(771001), 2, out var found) && found == replacement, "generation replacement invalidates/hides old object");
-                host.Track(replacement); Record(); host.Despawn(771001); Record();
-            }
+            var replacement = Factory(); replacement.GetComponent<EveEntityIdentity>().Assign(new EveEntityId(771001), EveId.Parse("project_n:dummy"), 0, 2); replacement.Prepare(hub);
+            Check(!session.Entities.TryGet(new EveEntityId(771001), out _) && a.IsReady, "new reservation hides bare lookup without publishing candidate");
+            var oldHealth = a.GetComponent<PNStat>().GetCurrent(PNContentIds.Health);
+            a.GetComponent<PNStat>().ReceiveDamage(source.Snapshot.CreateDamage(1, false, 0, PNContentIds.Magic, PNContentIds.Fire));
+            Check(a.GetComponent<PNStat>().GetCurrent(PNContentIds.Health) < oldHealth, "published old target receives damage while its replacement prepares");
+            EveEntityLoader.CommitBatch(new[] { replacement }); replacement.gameObject.SetActive(true); replacement.GetComponent<PNBuffManager>().Advance(0);
+            Check(!a.IsReady && !a.gameObject.activeInHierarchy && session.Entities.TryGet(new EveEntityId(771001), 2, out var found) && found == replacement, "generation replacement invalidates/hides old object");
             var fallbackTarget = Factory(false); fallbackTarget.GetComponent<EveEntityIdentity>().Assign(new EveEntityId(771004), EveId.Parse("project_n:dummy"), 0); fallbackTarget.Load(hub); fallbackTarget.gameObject.SetActive(true);
             var fallbackBuffs = fallbackTarget.GetComponent<PNBuffManager>(); fallbackBuffs.Advance(0);
             EveHotPathMetrics.Enabled = true; EveHotPathMetrics.Drain();
@@ -121,29 +101,6 @@ public static class PNLifecycleRuntimeEditorChecks
             Check(b.IsReady && source.LoadedSource == null, "source reference never rebinds to a pooled component with a new load/generation");
             Finish();
             Check(detached.IsDisposed && detachedReleased == 2, "session end releases detached resources independent of actor leases");
-            Begin(EveSessionRole.Client); session = EveRegistrySession.Context; session.ConfigureCleanup(cleanupPolicy, () => time, () => 0);
-            using (var client = new EveActorClientConnection(session, hostSession, 1, modelPolicy, () => time, message => Factory(), loader => { UnityEngine.Object.DestroyImmediate(loader.gameObject); }, compatibility))
-            {
-                int cursor = 0;
-                void Replay(int end) { while (cursor < end) client.Receive(wire[cursor++]); }
-                void Advance() { int safety = 100; while (client.Protocol.Phase == ClientPhase.Preparing || client.Protocol.NeedsPreparation().Count > 0) { time++; client.AdvanceFrame(new EveEntityPreparationBudget(2, 2, 2)); if (--safety == 0) throw new Exception("Client did not publish: " + client.Protocol.Phase + " " + client.Protocol.Failure + " " + session.ConnectionFailureMessage); } }
-                Replay(boundaries[0]); Check(client.Protocol.Phase == ClientPhase.Preparing && session.Entities.Snapshot().Count == 0, "snapshot receipt alone does not expose objects"); Advance();
-                var ack = client.TakeAppliedAck(); Check(ack.HasValue && ack.Value.EndSequence == hostEnd && ack.Value.SnapshotId == hostSnapshot, "Applied ack emitted after actual batch commit");
-                Check(session.Entities.TryGet(new EveEntityId(771001), out var target) && session.Entities.Snapshot().Count == 2, "client runtime directory contains published actors");
-                Check((target.transform.position - new Vector3(2, 0, 1)).sqrMagnitude < .0001f, "client applies captured spawn/snapshot pose before publication");
-                var replica = target.GetComponent<PNBuffManager>().Replica; var visual = target.GetComponentInChildren<PNBuffElementVisual>();
-                Check(replica.Snapshot().Count == 1 && visual != null && target.GetComponent<PNBuffManager>().Publisher == null, "client builds Buff presenter without gameplay publisher");
-                Reject(() => target.GetComponent<PNBuffManager>().Buffs.Apply(new PNBuffApplyRequest(EveId.Parse("base:burn"), new PNBuffSource(session.SessionId, new EveEntityId(771002)))), "client cannot run Buff gameplay");
-                Replay(boundaries[1]); Check(replica.Snapshot().Single().Stacks == 3 && target.GetComponentInChildren<PNBuffElementVisual>() == visual, "ordered post-cut and live Buff deltas update retained renderer");
-                Replay(boundaries[2]); Advance(); client.TakeAppliedAck();
-                Check(target.GetComponent<PNBuffManager>().Replica == replica && target.GetComponentInChildren<PNBuffElementVisual>() == visual, "resync preserves same-generation actor/renderer");
-                Replay(boundaries[3]); Advance();
-                bool nextReady = session.Entities.TryGet(new EveEntityId(771001), 2, out var next);
-                Check(!target.IsReady && !target.gameObject.activeInHierarchy && nextReady && next != target, "client generation replacement hides old immediately");
-                Check(session.Cleanup.ResidentCount >= session.Entities.Snapshot().Count, "waiting cleanup remains resident");
-                Replay(boundaries[4]); Check(!session.Entities.TryGet(new EveEntityId(771001), out _) && !next.gameObject.activeInHierarchy, "Despawn hides real Unity object before cleanup");
-            }
-            Finish(); Check(session.Cleanup.ResidentCount == 0 && session.Entities.Count == 0, "inactive session drains cleanup to zero");
 
             Begin(EveSessionRole.Client); session = EveRegistrySession.Context;
             var c = Factory(false); c.GetComponent<EveEntityIdentity>().Assign(new EveEntityId(771100), EveId.Parse("project_n:dummy"), 0); c.Prepare(hub); c.GetComponent<PNLifecycleCommitProbe>().FailCommit = true;
@@ -177,10 +134,10 @@ public static class PNLifecycleRuntimeEditorChecks
         finally
         {
             try { Finish(); } finally { foreach (var root in roots) if (root != null) UnityEngine.Object.DestroyImmediate(root); EditorSceneManager.ClosePreviewScene(preview); }
-            File.WriteAllLines(Path.Combine(folder, "NativeResults.txt"), evidence); File.WriteAllText(Path.Combine(folder, "RecordedWire.json"), JsonConvert.SerializeObject(wire.Select(Convert.ToBase64String), Formatting.Indented));
+            File.WriteAllLines(Path.Combine(folder, "NativeResults.txt"), evidence);
             if (original.isDirty != dirty) throw new Exception("Original scene dirty state changed.");
         }
-        string result = "PASS " + checks + " native Prepared/Commit + host-record/client-replay checks; policy values are test inputs only";
+        string result = "PASS " + checks + " native Prepared/Commit, replacement, detached-effect, pool and cleanup checks; policy values are test inputs only";
         File.AppendAllText(Path.Combine(folder, "NativeResults.txt"), result); return result;
     }
 }

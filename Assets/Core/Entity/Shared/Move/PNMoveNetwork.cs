@@ -31,7 +31,6 @@ public partial class PNMove
     }
     public bool CanWriteMotion => !MovementHeld && loadContext!=null && loadContext.CanUse && isActiveAndEnabled &&
         (NetworkRole==PNMoveNetworkRole.Local && loadContext.CanMutate || IsPredictedOwner && !networkKinematic && OwnerMovement!=null && OwnerMovement.CanWrite) && MovementTimeScale>0;
-    public event Action<byte[]> OwnerPoseReport;
     private readonly List<PNMoveExecution> motionExecutions=new List<PNMoveExecution>();
     private ulong nextExecution;
     private bool motionTransition;
@@ -52,7 +51,7 @@ public partial class PNMove
     public void BindOwnerMovement(Guid hostSession)
     {
         RequireNetworkReady();
-        if(loadContext.Session.Role!=EveSessionRole.Client || loadContext.Session.Coop.AdmittedHostSession!=hostSession ||
+        if(loadContext.Session.Role!=EveSessionRole.Client || loadContext.Session.Admission.AdmittedHostSession!=hostSession ||
             !loadContext.Session.LocalOwnerId.HasValue || loadContext.Identity.OwnerId!=loadContext.Session.LocalOwnerId.Value)
             throw new InvalidOperationException("Admitted local owner required.");
         DetachNetwork(); networkDetached=false; NetworkRole=PNMoveNetworkRole.Owner;
@@ -62,7 +61,7 @@ public partial class PNMove
     public void BindObserverMovement(Guid hostSession)
     {
         RequireNetworkReady();
-        if(loadContext.Session.Role!=EveSessionRole.Client || loadContext.Session.Coop.AdmittedHostSession!=hostSession)throw new InvalidOperationException("Admitted host required.");
+        if(loadContext.Session.Role!=EveSessionRole.Client || loadContext.Session.Admission.AdmittedHostSession!=hostSession)throw new InvalidOperationException("Admitted host required.");
         DetachNetwork(); networkDetached=false; NetworkRole=PNMoveNetworkRole.Observer;
         var id=NetworkIdentity(hostSession);
         ObserverMovement=new MoveObserverModel(id,id.Equals(observerHistoryIdentity)?observerSequenceFloor:0,id.Equals(observerHistoryIdentity)?observerEpochFloor:0); ObserverMovement.SetReady(true); SetNetworkKinematic();
@@ -138,9 +137,6 @@ public partial class PNMove
             SyncPhysicsScale(NetworkScale);
             var report=OwnerMovement.Report(ReadMovementState());
             try{ReportTyped(report);}catch(Exception error){ReportMovementFailure(error);return;}
-            if(!managedMovement && OwnerPoseReport!=null){var bytes=MoveCodec.Encode(report);
-                foreach(Action<byte[]> listener in OwnerPoseReport.GetInvocationList())
-                    try { listener(bytes); } catch(Exception error) { Debug.LogException(error,this); }}
         }
     }
     public bool ApplyObserverPose(double hostRenderTime)
@@ -172,7 +168,6 @@ public partial class PNMove
         foreach(var execution in motionExecutions.ToArray())execution.Invalidate();
         if(ObserverMovement!=null) { observerHistoryIdentity=ObserverMovement.Identity;observerSequenceFloor=ObserverMovement.LastSequence;observerEpochFloor=ObserverMovement.LastEpoch; }
         OwnerMovement?.Dispose(); ObserverMovement?.Dispose(); OwnerMovement=null; ObserverMovement=null; HostMovement=null;
-        OwnerPoseReport=null;
         if(!managedMovement){if(NetworkRole!=PNMoveNetworkRole.Local)RestorePhysics();
         if(networkKinematic && body!=null)body.isKinematic=previousKinematic; networkKinematic=false;}
         NetworkRole=PNMoveNetworkRole.Local;

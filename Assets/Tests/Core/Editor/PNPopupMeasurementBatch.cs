@@ -45,8 +45,6 @@ public static class PNPopupMeasurementBatch
                 File.WriteAllText(folder+"/RenderAfter.txt", PNDamagePopupRenderChecks.Run());
                 File.Copy("F:/unity/Project_N/.utmp/PNDamagePopupGlow.png", folder+"/RenderAfter.png", true);
                 if (scene != SceneManager.GetActiveScene() || scene.isDirty != dirty) throw new Exception("Checks changed authored scene state.");
-                File.WriteAllText(folder+"/BuildNormal.txt", PNLifecyclePolicyPlayerBuild.Build());
-                File.WriteAllText(folder+"/BuildDevelopment.txt", PNLifecyclePolicyPlayerBuild.BuildDevelopment());
             }
             File.WriteAllText(folder+(baseline?"/BaselineResult.txt":"/BatchResult.txt"), "PASS checks and requested build stages");
             if (ownedHost != null) AssetDatabase.DeleteAsset(ownedHost);

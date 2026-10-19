@@ -81,7 +81,7 @@ namespace ProjectN.Coop
                         throw new InvalidOperationException("Play offer arrived before cleanup.");
                     Policy=PNModeDefinition.Select(Runtime.Content.Registry,value.Mode,Profile);
                     ModeId=value.Mode;PlayRevision=value.Revision;PlaySession=value.Session;
-                    StartPlayRuntime(EveSessionRole.Client);EveRegistrySession.Context.Coop.AdmitHost(PlaySession,hostContent,RoomOwner);
+                    StartPlayRuntime(EveSessionRole.Client);EveRegistrySession.Context.Admission.AdmitHost(PlaySession,hostContent,RoomOwner);
                     IsPlaying=true;ResetPlayState();InitializeReplication();
                     NetworkClient.Send(new PNPlayReady{Room=RoomId,Incarnation=RoomIncarnation,Revision=PlayRevision,Session=PlaySession});
                     NetworkClient.Ready();if(!roomShellRequested){roomShellRequested=true;NetworkClient.AddPlayer();}
@@ -104,7 +104,7 @@ namespace ProjectN.Coop
             if(value.Ended){if(!IsPlaying)peer.EndedRevision=value.Revision;return;}
             if(!IsPlaying)return;
             if(peer.PlayRevision==PlayRevision)return;
-            EveRegistrySession.Context.Coop.AdmitPeer(peer.Owner,peer.Content);ResetPeerPlay(peer);
+            EveRegistrySession.Context.Admission.AdmitPeer(peer.Owner,peer.Content);ResetPeerPlay(peer);
             if(Worlds.DefaultWorld!=null)SubscribeWorld(conn,Worlds.DefaultWorld);
         }
         public override void OnServerReady(NetworkConnectionToClient conn)

@@ -20,7 +20,7 @@ namespace EveEngine
         public EveEntityDirectory Entities { get; }
         public EveWorldDirectory Worlds { get; }
         public EveContentCompatibility Compatibility { get; }
-        public EveCoopSession Coop { get; }
+        public EveSessionAdmission Admission { get; }
         public bool IsActive { get; internal set; } = true;
         private bool stoppingNotified;
         public event Action Stopping;
@@ -59,13 +59,7 @@ namespace EveEngine
         public bool HasAuthority => Role != EveSessionRole.Client;
         public bool IsPublishing { get; internal set; }
         private long nextLoadId;
-        private long nextConnectionIncarnation;
         internal long AllocateLoadId() => checked(++nextLoadId);
-        internal void ReserveConnectionIncarnation(long value)
-        {
-            if (Role != EveSessionRole.Host || !IsActive || value != checked(nextConnectionIncarnation + 1)) throw new InvalidOperationException("Host connections require the next session-monotonic incarnation.");
-            nextConnectionIncarnation = value;
-        }
         public EveEntityCleanupQueue Cleanup { get; private set; }
         public EveEntityCommitPolicy CommitPolicy { get; private set; }
         public double LastCommitMilliseconds { get; internal set; }
@@ -73,9 +67,6 @@ namespace EveEngine
         public int CommitWarnings { get; internal set; }
         public void ConfigureCommit(EveEntityCommitPolicy policy)
         { if (!IsActive || CommitPolicy != null) throw new InvalidOperationException("Configure commit profile once."); CommitPolicy = policy ?? throw new ArgumentNullException(nameof(policy)); }
-        public EveActorSnapshotScheduler Snapshots { get; private set; }
-        public EveActorSnapshotScheduler ConfigureSnapshots(int maximumJobs, EveEntityPreparationBudget serializationBudget, Func<double> monotonicMs)
-        { if (!IsActive || Snapshots != null) throw new InvalidOperationException("Configure snapshots once."); return Snapshots = new EveActorSnapshotScheduler(maximumJobs, serializationBudget, monotonicMs); }
         public EveEntityCleanupQueue ConfigureCleanup(Experimental.Lifecycle.CleanupPolicy policy, Func<double> monotonicClock, Func<double> remainingFrameBudget)
         {
             if (!IsActive || Cleanup != null) throw new InvalidOperationException("Cleanup must be configured once in an active session.");
@@ -110,7 +101,7 @@ namespace EveEngine
             Compatibility = compatibility;
             Entities = new EveEntityDirectory(this);
             Worlds = new EveWorldDirectory(this);
-            Coop = new EveCoopSession(this);
+            Admission = new EveSessionAdmission(this);
         }
     }
 }
