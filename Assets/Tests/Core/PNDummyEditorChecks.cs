@@ -69,7 +69,9 @@ public static class PNDummyEditorChecks
             int hits = 0, deaths = 0;
             stat.DamageReceived += hit => hits++;
             stat.Died += hit => deaths++;
-            var damage = sender.SendDamage(stat, 1024f, PNContentModule.Physical, PNContentModule.Fire);
+            // Explicit zero iframe duration: a default hit would open the receiver's iframe window, and any hit inside it is
+            // reduced by the iframe multiplier (even one that also carries duration 0), which would distort the kill check below.
+            var damage = stat.ReceiveDamage(sender.CreateDamage(1024f, false, 0d, PNContentModule.Physical, PNContentModule.Fire));
             if (damage.AppliedDamage != 1024f || stat.GetCurrent(PNContentModule.Health) != 199998976f || hits != 1)
                 throw new Exception("Dummy damage delivery failed.");
             stat.SetCurrent(PNContentModule.Health, 64f);

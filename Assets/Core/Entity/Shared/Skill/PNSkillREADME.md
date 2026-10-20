@@ -319,3 +319,39 @@ Area input is validated by its selected definition. Action/Operation disposal do
 not end the manager-owned region; the returned receipt/handle controls that lifetime.
 Use [PNAreaREADME](../../../Area/PNAreaREADME.md) for pooling, authority, JSON and
 owner/source/follow contracts. Generic Buff Action intentionally remains Buff-only.
+
+## Context without a live skill, source-independent Operations (projectile P0-C)
+
+`PNSkillActionContext` has two virtual accessors: `Source` (a `PNBuffSource`) and `World` (`EveWorldContext`). A
+context built with a live `PNSkill` behaves exactly as before: `Source` captures the skill entity's stat on each read
+(it throws when that stat is not ready or is dead, like the former direct capture) and `World` is that entity's world.
+A subclass may use the new `protected` constructor (no `PNSkill`; `Skill == null`, no invocation, no contributions) and
+override `Source`/`World` to carry a frozen source, e.g. a projectile after its shooter died or unloaded.
+`PNWorldGameplay.RequireTargets(EveWorldContext world, targets)` validates targets for such a context: they must be in
+that world (null = no world), executable, and the world must be runnable; the source entity is not consulted.
+
+`PNSkillOperationDefinition.SourceIndependent` marks an Operation that reads attribution/world only from the context.
+Registered `true`: `apply_buff`, `remove_buff`, `bypass_remove_buff`, `trigger_buff`, `change_buff_stacks`.
+Everything else (heal, slash hit, create area, motion, VFX) still needs a live skill and must not be run from a
+detached context. The migrated Operations keep their former behavior for skill contexts; `trigger_buff` reads only
+the caster identity (no combat capture) so a dead caster still works. The check that a frozen plan only runs
+`SourceIndependent` Operations belongs to the code that executes it (P0-B).
+
+## Frozen OnHit plan (projectile P0-B)
+
+`PNSkillEffectState.FreezeOnHit(context)` fixes, at launch time, every effect an `OnHit` would run: authored effects of the
+entry skill and of the profile, Snapshot contributions, and the Live contributions as they are at that moment. It uses the same
+gathering code as `Fire` (one private helper), so the frozen set equals what `Fire("OnHit")` would run now. Call it after
+`BeginAction` of a context that allows contributions, while the invocation is alive and the session is authoritative; otherwise it
+throws. The result `PNSkillHitSnapshot` keeps no skill, invocation or source entity: `EntrySkillId`, `Categories` (may be empty),
+`Tags`, `Effects` (OnHit, Operation kind, definition `SourceIndependent`) and `Skipped` (Action kind, or an Operation that needs
+the live skill). Only `OnHit` is supported; other triggers are the Operation's own business.
+
+`Execute(hitContext, target, point, direction, hitIndex, admission)` runs the frozen effects for one hit and returns a
+`PNSkillHitReport` (`Executed`, `Skipped`, `Errors`); it never throws for a failing effect and does not undo committed damage.
+`hitContext` is the caller's detached context (supplies `Source`, `World`, `Registry`, `Data`). Selectors: target `HitTarget|None`,
+position `Hit|Target|None`, direction `Invocation` (the `direction` argument) `|ToTarget` (target position minus `point`) `|None`;
+`Self` and `InvocationTargets` follow the effect's `missing` policy (Skip = counted as skipped, Error = reported). `hitScope: PerHit`
+effects run once per hit index per `PNSkillHitAdmission` (one admission per projectile); `PerTarget` effects are not deduplicated
+here. The plan only runs in the session it was frozen in (otherwise a failure is reported), and nested execution is limited to
+depth 8 like `Fire`.

@@ -64,6 +64,8 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         PNGameSkillBindings.RegisterBehaviors(hub);
         PNBuffGameplayContent.Register(hub);
         PNAreaGameplayContent.Register(hub);
+        PNProjectileGameplayContent.Register(hub);
+        PNShaderWarmupContent.Register(hub);
         motionReferences.Clear();
         // Activation identities are not action profiles and do not duplicate their tuning.
         foreach (var entry in new[] { EveAttackEntry, EveSkillEntry, EveUltimateEntry, EveBurstEntry })
@@ -83,19 +85,19 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
           'skill': {'recoveryId':'project_n:player_dash_ready','applyCooldownReduction':true,
             'abilities':[{'id':'project_n:player_dash_ready','kind':'Cooldown','showInUI':true,'iconPath':'','displayOrder':0,'maximum':3,'initialAmount':3,
               'cooldown':5,'recovery':'PerStack','autoRecover':true,'clock':'Game'}]},
-          'action': {'id':'base:motion_action','start':{},'perform':{'distance':3,'duration':0.16,'ignoreEntities':true,'permissionId':'base:motion_voluntary'},'exit':{},'cancel':{}}
+          'action': {'id':'base:motion_action','start':{},'perform':{'distance':1.5,'duration':0.16,'ignoreEntities':true,'permissionId':'base:motion_voluntary'},'exit':{},'cancel':{}}
         }")));
         var operations = hub.GetOrCreate<PNSkillOperationDefinition>();
         operations.Register(new PNSkillOperationDefinition(EveId.Parse("project_n:apply_buff"), typeof(PNApplyBuffOperation), (data, content) => { PNApplyBuffOperation.Validate(data, content); }, PNSkillContextRequirements.Targets,
-            (data, context) => context.Require<PNBuffDefinition>(PNBuffContentBatch.Object(data)["buffId"], "buffId")));
+            (data, context) => context.Require<PNBuffDefinition>(PNBuffContentBatch.Object(data)["buffId"], "buffId"), sourceIndependent: true));
         operations.Register(new PNSkillOperationDefinition(EveId.Parse("project_n:remove_buff"), typeof(PNRemoveBuffOperation), (data, content) => { PNRemoveBuffOperation.Validate(data, content); }, PNSkillContextRequirements.None,
-            (data, context) => context.Require<PNBuffDefinition>(PNBuffContentBatch.Object(data)["buffId"], "buffId")));
+            (data, context) => context.Require<PNBuffDefinition>(PNBuffContentBatch.Object(data)["buffId"], "buffId"), sourceIndependent: true));
         operations.Register(new PNSkillOperationDefinition(EveId.Parse("project_n:bypass_remove_buff"), typeof(PNBypassRemoveBuffOperation), (data, content) => { PNRemoveBuffOperation.Validate(data, content); }, PNSkillContextRequirements.None,
-            (data, context) => context.Require<PNBuffDefinition>(PNBuffContentBatch.Object(data)["buffId"], "buffId")));
+            (data, context) => context.Require<PNBuffDefinition>(PNBuffContentBatch.Object(data)["buffId"], "buffId"), sourceIndependent: true));
         operations.Register(new PNSkillOperationDefinition(EveId.Parse("project_n:trigger_buff"), typeof(PNTriggerBuffOperation), (data, content) => { PNTriggerBuffOperation.Validate(data, content); }, PNSkillContextRequirements.None,
-            (data, context) => context.Require<PNBuffDefinition>(PNBuffContentBatch.Object(data)["buffId"], "buffId")));
+            (data, context) => context.Require<PNBuffDefinition>(PNBuffContentBatch.Object(data)["buffId"], "buffId"), sourceIndependent: true));
         operations.Register(new PNSkillOperationDefinition(EveId.Parse("project_n:change_buff_stacks"), typeof(PNChangeBuffStacksOperation), (data, content) => { PNTriggerBuffOperation.Validate(data, content, true); }, PNSkillContextRequirements.None,
-            (data, context) => context.Require<PNBuffDefinition>(PNBuffContentBatch.Object(data)["buffId"], "buffId")));
+            (data, context) => context.Require<PNBuffDefinition>(PNBuffContentBatch.Object(data)["buffId"], "buffId"), sourceIndependent: true));
         operations.Register(new PNSkillOperationDefinition(SlashVfxOperation, typeof(PNSlashVfxOperation)));
         operations.Register(new PNSkillOperationDefinition(LockMovementOperation, typeof(PNLockMovementOperation)));
         operations.Register(new PNSkillOperationDefinition(SlashHitOperation, typeof(PNSlashHitOperation)));
@@ -149,6 +151,7 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         if (typeof(PNBuffAction).IsAssignableFrom(implementation)) PNBuffAction.Validate(data.Perform, hub);
 #if UNITY_5_3_OR_NEWER
         else if (typeof(PNAreaAction).IsAssignableFrom(implementation)) PNAreaAction.Validate(data.Perform, hub);
+        else if (typeof(PNProjectileAction).IsAssignableFrom(implementation)) PNProjectileAction.Validate(data.Perform, hub);
 #endif
         else if (typeof(PNMotionAction).IsAssignableFrom(implementation)) hub.ControlPermissions().Get(PNMotionSettings.Parse(data.Perform).PermissionId);
         else if (typeof(EveSweepAction).IsAssignableFrom(implementation))
@@ -173,6 +176,7 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         foreach (var category in hub.SkillCategories().Snapshot().Values) category.Validate(hub);
         foreach (var definition in hub.Buffs().Snapshot().Values) definition.Validate(hub);
         foreach (var definition in hub.Get<PNAreaDefinition>().Snapshot().Values) definition.Validate(hub);
+        foreach (var definition in hub.Get<PNProjectileDefinition>().Snapshot().Values) definition.Validate(hub);
         foreach(var reference in motionReferences)ValidateReference(reference.id,hub.Skills,reference.owner,reference.dependencies);
         foreach (var definition in hub.Skills.Snapshot().Values)
         {
@@ -184,6 +188,7 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
             if (typeof(PNBuffAction).IsAssignableFrom(action.ImplementationType)) PNBuffAction.Validate(data.Action.Perform, hub);
 #if UNITY_5_3_OR_NEWER
             if (typeof(PNAreaAction).IsAssignableFrom(action.ImplementationType)) PNAreaAction.Validate(data.Action.Perform, hub);
+            else if (typeof(PNProjectileAction).IsAssignableFrom(action.ImplementationType)) PNProjectileAction.Validate(data.Action.Perform, hub);
 #endif
             data.Action.ValidateTags(hub);
             var metadata = data.Skill as JObject;
@@ -258,6 +263,8 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
                 if (buffId?.Type == JTokenType.String) ValidateReference(EveId.Parse(buffId.Value<string>()), hub.Buffs(), contentNamespace, dependencies);
                 var areaId = (phasePayload as JObject)?["data"]?["areaId"];
                 if (areaId?.Type == JTokenType.String) ValidateReference(EveId.Parse(areaId.Value<string>()), hub.Get<PNAreaDefinition>(), contentNamespace, dependencies);
+                var projectileId = (phasePayload as JObject)?["data"]?["projectileId"];
+                if (projectileId?.Type == JTokenType.String) ValidateReference(EveId.Parse(projectileId.Value<string>()), hub.Get<PNProjectileDefinition>(), contentNamespace, dependencies);
             }
             if ((phasePayload as JObject)?["permissionId"]?.Type == JTokenType.String)
                 ValidateReference(EveId.Parse(phasePayload["permissionId"].Value<string>()), hub.ControlPermissions(), contentNamespace, dependencies);
@@ -289,6 +296,7 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
             }
             if (obj["buffId"]?.Type == JTokenType.String) ValidateReference(EveId.Parse(obj["buffId"].Value<string>()), hub.Buffs(), owner, dependencies);
             if (obj["areaId"]?.Type == JTokenType.String) ValidateReference(EveId.Parse(obj["areaId"].Value<string>()), hub.Get<PNAreaDefinition>(), owner, dependencies);
+            if (obj["projectileId"]?.Type == JTokenType.String) ValidateReference(EveId.Parse(obj["projectileId"].Value<string>()), hub.Get<PNProjectileDefinition>(), owner, dependencies);
             if (obj["statId"]?.Type == JTokenType.String) ValidateReference(EveId.Parse(obj["statId"].Value<string>()), hub.Stats, owner, dependencies);
             foreach (var tag in PNSkillEffect.Ids(obj["tags"])) ValidateReference(tag, hub.Tags(), owner, dependencies);
             foreach (var value in obj.Properties()) ValidateEffectReferences(value.Value, hub, owner, dependencies);

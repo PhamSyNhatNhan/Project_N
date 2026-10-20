@@ -353,6 +353,7 @@ public sealed class PNUiRuntime : MonoBehaviour
     }
     private sealed class WorldView : IDisposable
     {
+        private const float RingGlowMargin=6f;      // room for the enemy ring's halo; matches PNHudGlow's 6 px feather
         private readonly PNUiRuntime owner;
         private readonly PNStat stat;
         private readonly GameObject obj;
@@ -361,6 +362,10 @@ public sealed class PNUiRuntime : MonoBehaviour
         private readonly ProgressBar health;
         private readonly SpriteRenderer characterSprite;
         private readonly PNBuffView buffs;
+        // Enemies draw their Buff row in a second document above the health ring, so a Buff appearing or disappearing never changes the document that holds the bar.
+        private readonly GameObject buffObj; private readonly UIDocument buffDocument; private readonly VisualElement buffRoot;
+        private readonly PNLoricaOverlay lorica;
+        private float previousLorica=-1f;
         private readonly Dictionary<EveId,AbilityCard> cards=new Dictionary<EveId,AbilityCard>();
         private bool initialSnapshot=true;
         public WorldView(PNUiRuntime owner, PNStat stat)
@@ -387,18 +392,56 @@ public sealed class PNUiRuntime : MonoBehaviour
             root.Q("enemy-vitals").style.display=stat is PNEnemyStat || stat is PNPlayerStat && !owner.IsLocalPlayer(stat)?DisplayStyle.Flex:DisplayStyle.None;
             grid=root.Q("ability-grid"); grid.style.display=owner.IsLocalPlayer(stat)?DisplayStyle.Flex:DisplayStyle.None;
             health=root.Q<ProgressBar>("enemy-hp");
-            if(stat is PNEnemyStat || stat is PNPlayerStat && !owner.IsLocalPlayer(stat))buffs=new PNBuffView(owner,root.Q("enemy-buffs"),true);
+            if(stat is PNEnemyStat)
+            {
+                buffObj=new GameObject("Combat UI buffs "+stat.EntityId); buffObj.layer=owner.worldLayer; buffObj.transform.SetParent(owner.transform,false);
+                buffDocument=buffObj.AddComponent<UIDocument>(); buffDocument.panelSettings=owner.worldSettings;
+                buffDocument.worldSpaceSizeMode=WorldSpaceSizeMode.Fixed; buffDocument.worldSpaceSize=new Vector2(PNBuffView.Width,18);
+                buffDocument.pivot=Pivot.BottomCenter; buffDocument.visualTreeAsset=owner.worldTemplate;
+                buffRoot=buffDocument.rootVisualElement; buffRoot.styleSheets.Add(owner.styles); buffRoot.pickingMode=PickingMode.Ignore; IgnorePicking(buffRoot);
+                var buffCollider=buffObj.GetComponent<BoxCollider>(); if(buffCollider!=null){buffCollider.isTrigger=true;buffCollider.enabled=false;}
+                buffRoot.Q("world-root").AddToClassList("enemy-world");
+                buffRoot.Q("enemy-hp-ring").style.display=DisplayStyle.None; buffRoot.Q("ability-grid").style.display=DisplayStyle.None;
+                root.Q("enemy-buffs").style.display=DisplayStyle.None;
+                buffs=new PNBuffView(owner,buffRoot.Q("enemy-buffs"),true);
+            }
+            else if(stat is PNPlayerStat && !owner.IsLocalPlayer(stat))buffs=new PNBuffView(owner,root.Q("enemy-buffs"),true);
+            if(stat is PNEnemyStat)
+            {
+                lorica=new PNLoricaOverlay();health.hierarchy.Add(lorica);
+                // Soft feathered halo around the ring like the player HUD's; the ring document has 6 px of room for it below (see Refresh).
+                root.Q("world-root").style.paddingBottom=RingGlowMargin; root.Q("enemy-hp-ring").Insert(0,new PNHudGlow(false,new Color(1f,.84f,.84f)));
+            }
+        }
+        // Lorica overlay on the health bar and the glass-shatter effect on the frame lorica goes from above 0 to 0 (the break).
+        private void PresentLorica(PNEnemyStat enemy,Camera camera)
+        {
+            bool has=PNLoricaView.TryRead(enemy,out var ratio,out var recovery);
+            lorica.Present(has,ratio,recovery,Time.unscaledTime);
+            if(has && previousLorica>0f && ratio<=0f && characterSprite!=null && characterSprite.enabled)
+            { var bounds=characterSprite.bounds; PNLoricaShatter.Play(stat.gameObject.scene,bounds.center,bounds.size,stat.GetComponent<EveTimeScale>(),characterSprite.sortingLayerID,characterSprite.sortingOrder+5,camera!=null?-camera.transform.forward*.3f:Vector3.zero,characterSprite.sprite,characterSprite.flipX); }
+            previousLorica=has?ratio:-1f;
         }
         public void Refresh(Camera camera)
         {
-            if(buffs!=null){buffs.Bind(stat.GetComponent<PNBuffManager>());buffs.Animate();root.Q("world-root").style.width=PNBuffView.Width;document.worldSpaceSize=new Vector2(PNBuffView.Width,Math.Max(14,buffs.Height+18));}
+            if(buffs!=null)
+            {
+                buffs.Bind(stat.GetComponent<PNBuffManager>());buffs.Animate();root.Q("world-root").style.width=PNBuffView.Width;
+                if(buffDocument!=null)
+                {
+                    // Ring document: constant size. Buff document: sits right above the ring (the row keeps its 4 px gap through the container margin).
+                    document.worldSpaceSize=new Vector2(PNBuffView.Width,14+2*RingGlowMargin);
+                    buffRoot.Q("world-root").style.width=PNBuffView.Width; buffDocument.worldSpaceSize=new Vector2(PNBuffView.Width,Math.Max(14,buffs.Height+4));
+                }
+                else document.worldSpaceSize=new Vector2(PNBuffView.Width,Math.Max(14,buffs.Height+18));
+            }
             var interactionCollider=obj.GetComponent<BoxCollider>();
             if(interactionCollider!=null) { interactionCollider.isTrigger=true; interactionCollider.enabled=false; }
             // Rebuilt Toolkit documents have no resolved layout until a panel update.
             // Hide for that frame rather than project a NaN anchor or invent a scale.
             float referenceHeight=owner.HudRoot.resolvedStyle.height;
             if(float.IsNaN(referenceHeight) || float.IsInfinity(referenceHeight) || referenceHeight<=0)
-            { root.style.display=DisplayStyle.None; return; }
+            { root.style.display=DisplayStyle.None; if(buffRoot!=null)buffRoot.style.display=DisplayStyle.None; return; }
             bool visible=!owner.MenuOpen && camera!=null && stat.IsReady && stat.isActiveAndEnabled && stat.gameObject.activeInHierarchy && PNVitals.TryRead(stat,PNContentIds.Health,out _,out _,out var dead) && !dead;
             var position=stat.transform.position+(stat is PNPlayerStat?owner.playerOffset:owner.enemyOffset);
             if(camera!=null && characterSprite!=null && characterSprite.enabled && characterSprite.sprite!=null)
@@ -424,7 +467,7 @@ public sealed class PNUiRuntime : MonoBehaviour
                 var screen=camera.WorldToViewportPoint(position);
                 visible=screen.z>0 && screen.x>=0 && screen.x<=1 && screen.y>=0 && screen.y<=1;
             }
-            root.style.display=visible?DisplayStyle.Flex:DisplayStyle.None;
+            root.style.display=visible?DisplayStyle.Flex:DisplayStyle.None; if(buffRoot!=null)buffRoot.style.display=visible?DisplayStyle.Flex:DisplayStyle.None;
             if(!visible) return;
             obj.transform.SetPositionAndRotation(position,camera.transform.rotation);
             float depth=camera.WorldToViewportPoint(position).z;
@@ -432,7 +475,10 @@ public sealed class PNUiRuntime : MonoBehaviour
             // Native world mesh uses centimeters. Match the overlay's logical pixel scale.
             float pixelsToWorld=visibleHeight/Math.Max(1,referenceHeight);
             obj.transform.localScale=Vector3.one*(100*pixelsToWorld*owner.worldScale);
+            if(buffObj!=null) obj.transform.position-=camera.transform.up*(RingGlowMargin*pixelsToWorld*owner.worldScale);      // the glow margin under the ring does not move the ring
+            if(buffObj!=null){ buffObj.transform.SetPositionAndRotation(position+camera.transform.up*(14f*pixelsToWorld*owner.worldScale),camera.transform.rotation); buffObj.transform.localScale=obj.transform.localScale; }
             if(stat is PNEnemyStat || stat is PNPlayerStat && !owner.IsLocalPlayer(stat)) Health(health,stat,false);
+            if(lorica!=null) PresentLorica((PNEnemyStat)stat,camera);
             else
             {
                 var manager=stat.GetComponent<PNAbilityManager>();
@@ -468,7 +514,7 @@ public sealed class PNUiRuntime : MonoBehaviour
                 initialSnapshot=false;
             }
         }
-        public void Dispose(){buffs?.Dispose();Retire(obj);}
+        public void Dispose(){buffs?.Dispose();Retire(obj);if(buffObj!=null)Retire(buffObj);}
     }
     private sealed class AbilityCard
     {

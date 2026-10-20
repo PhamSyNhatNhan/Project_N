@@ -20,6 +20,15 @@ public class PNSkillEffectsNativeProbe : PNSkill
     public float Speed => ExecutionSpeed;
     public void Tick(float delta) => AdvanceAuxiliaryEffects(delta);
 }
+// Detached context carrying a frozen source, standing in for a projectile.
+public sealed class PNSkillEffectsNativeHost : PNSkillActionContext
+{
+    private readonly PNBuffSource frozen;
+    public PNSkillEffectsNativeHost(EveRegistryHub hub, PNBuffSource source, IEnumerable<PNStat> targets)
+        : base(PNSkillEffectsNativeProbe.Attack, null, hub, targets, null, null, null) { frozen = source; }
+    public override PNBuffSource Source => frozen;
+    public override EveWorldContext World => null;
+}
 public sealed class PNSkillEffectsNativeModule : EveIContentModule
 {
     public void Register(EveRegistryHub hub)
@@ -108,6 +117,24 @@ public static class PNSkillEffectsEditorChecks
                 action.Exit(context);
             }
             skill.End();
+            // P0-B: freeze the real Buff-granted OnHit, destroy the shooter entity, then run the frozen effects.
+            {
+                var shooter = Entity("Frozen shooter", 989003, new Vector3(0, 0, 3)); var shooterStat = shooter.GetComponent<PNStat>(); var shooterSkill = shooter.GetComponent<PNSkillEffectsNativeProbe>();
+                var shooterBuffs = shooter.GetComponent<PNBuffManager>().Buffs;
+                var shooterGrant = shooterBuffs.Apply(new PNBuffApplyRequest(EveId.Parse("base:buff_skill_effect_template"), PNBuffSource.Capture(shooterStat)));
+                PNSkillHitSnapshot plan;
+                Check(shooterSkill.Begin(PNSkillEffectsNativeProbe.Attack), "Frozen shooter begins Attack with the registered Buff contribution.");
+                using (var action = shooterSkill.CreateAction(PNSkillEffectsNativeProbe.Attack, out var freezeContext, new[] { receiver }))
+                { action.Start(freezeContext); plan = shooterSkill.Effects.FreezeOnHit(freezeContext); action.Cancel(freezeContext); }
+                shooterSkill.End(); shooterBuffs.Remove(shooterGrant.Handle);
+                var shooterSource = PNBuffSource.Capture(shooterStat); var shooterId = shooterStat.EntityId;
+                Check(plan.Effects.Count == 1 && plan.Skipped.Count == 0, "FreezeOnHit keeps the Buff-granted Burn OnHit effect.");
+                shooter.GetComponent<EveEntityLoader>().Unload(); UnityEngine.Object.DestroyImmediate(shooter);
+                var report = plan.Execute(new PNSkillEffectsNativeHost(hub, shooterSource, new[] { receiver }), receiver, receiver.transform.position, Vector3.right, 0, new PNSkillHitAdmission());
+                var frozenBurn = buffs.Snapshot().FirstOrDefault(x => x.SourceId == shooterId);
+                Check(report.Executed == 1 && report.Errors.Count == 0 && frozenBurn != null && frozenBurn.Stacks == 1, "Frozen Burn applies with the destroyed shooter's attribution.");
+                if (frozenBurn != null) buffs.Remove(frozenBurn.Handle, PNBuffEndReason.Bypass, true);
+            }
             var live = state.Contribute("live", new PNSkillContribution(Rule("Live", "OnHit", "HitTarget"), hub));
             skill.Begin(PNSkillEffectsNativeProbe.Attack);
             using (var action = skill.CreateAction(PNSkillEffectsNativeProbe.Attack, out var context, new[] { receiver }))

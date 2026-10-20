@@ -51,10 +51,16 @@ public class PNSkillOperationDefinition : PNSkillExecutionDefinition<PNSkillOper
     private readonly Action<JToken, EveRegistryHub> validator;
     private readonly Action<JToken, PNContentReferenceContext> referenceValidator;
     public PNSkillContextRequirements RequiredContext { get; }
+    // True when the Operation reads its attribution/world only from the context (Source/World) and never needs the live
+    // Skill, so it may run from a frozen context (e.g. a projectile OnHit plan) after the source skill/entity is gone.
+    public bool SourceIndependent { get; }
     public PNSkillOperationDefinition(EveId id, Type implementationType) : this(id, implementationType, null) { }
     public PNSkillOperationDefinition(EveId id, Type implementationType, Action<JToken, EveRegistryHub> validate) : this(id, implementationType, validate, PNSkillContextRequirements.None) { }
     public PNSkillOperationDefinition(EveId id, Type implementationType, Action<JToken, EveRegistryHub> validate, PNSkillContextRequirements requiredContext,
-        Action<JToken, PNContentReferenceContext> validateReferences = null) : base(id, implementationType) { validator = validate; RequiredContext = requiredContext; referenceValidator = validateReferences; }
+        Action<JToken, PNContentReferenceContext> validateReferences = null) : this(id, implementationType, validate, requiredContext, validateReferences, false) { }
+    public PNSkillOperationDefinition(EveId id, Type implementationType, Action<JToken, EveRegistryHub> validate, PNSkillContextRequirements requiredContext,
+        Action<JToken, PNContentReferenceContext> validateReferences, bool sourceIndependent) : base(id, implementationType)
+    { validator = validate; RequiredContext = requiredContext; referenceValidator = validateReferences; SourceIndependent = sourceIndependent; }
     public void ValidateReferences(JToken data, PNContentReferenceContext context) => referenceValidator?.Invoke(data, context);
     public void ValidatePayload(JToken data, EveRegistryHub hub) => validator?.Invoke(data, hub);
 }

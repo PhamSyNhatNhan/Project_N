@@ -259,6 +259,35 @@ public sealed class PNSkillEffectState : IDisposable
     { invocations.Remove(invocation); foreach (var auxiliary in auxiliaries.Where(x => x.Parent == invocation && !x.Independent).ToArray()) try { Retire(auxiliary, true); } catch (Exception error) { Report(error); } }
     internal void Report(Exception error)
     { foreach (Action<Exception> handler in Failed?.GetInvocationList() ?? Array.Empty<Delegate>()) try { handler(error); } catch { } Debug.LogException(error, skill); }
+    // The single place that decides which categories, tags and effects a trigger runs; Fire and FreezeOnHit both use it so the
+    // live path and the frozen path cannot drift apart. `frozen` replaces the contribution list (OnHit passes the values it fixed).
+    private (IReadOnlyList<EveId> Categories, IReadOnlyList<EveId> Tags, PNSkillEffect[] Effects) Gather(PNSkillActionContext context, string trigger, PNSkillContribution[] frozen)
+    {
+        var invocation = context.Invocation;
+        var values = frozen ?? Combined(trigger == "OnActivated" ? invocation.ActivationSnapshot : context.ContributionSnapshot);
+        var categories = trigger == "OnActivated" ? invocation.AdmissionCategories : Categories(invocation, values);
+        var tags = Tags(context, values, categories);
+        var authored = trigger == "OnActivated" ? invocation.Metadata.Effects : invocation.Metadata.Effects.Concat(context.AuthoredEffects);
+        var effects = authored.Concat(values.Where(x => x.Matches(invocation.SkillId, categories)).SelectMany(x => x.Effects)).Where(x => x.Trigger == trigger).ToArray();
+        return (categories, tags, effects);
+    }
+    // EN: Fix, at launch time, everything an OnHit would run (authored + matching contributions, Live ones frozen now), so the
+    //     result can run later without this skill, invocation or source entity. Call after BeginAction of a context that allows
+    //     contributions. Only Operation effects whose definition is SourceIndependent are kept; the rest are listed in Skipped.
+    // VI: Đóng băng lúc bắn mọi thứ OnHit sẽ chạy; kết quả chạy sau được mà không cần skill/invocation/nguồn.
+    public PNSkillHitSnapshot FreezeOnHit(PNSkillActionContext context)
+    {
+        if (context == null) throw new ArgumentNullException(nameof(context));
+        var invocation = context.Invocation;
+        if (invocation == null || invocation.IsEnded || !ReferenceEquals(invocation.State, this) || !context.AllowContributions || !context.HasBegun)
+            throw new InvalidOperationException("FreezeOnHit requires a begun context of a live invocation of this skill that allows contributions.");
+        RequireAuthority();
+        var plan = Gather(context, "OnHit", null);
+        var kept = new List<PNSkillEffect>(); var skipped = new List<PNSkillEffect>();
+        foreach (var effect in plan.Effects)
+            if (effect.Kind == "Operation" && hub.Operations().Get(effect.Id).SourceIndependent) kept.Add(effect); else skipped.Add(effect);
+        return new PNSkillHitSnapshot(hub, invocation.SkillId, plan.Categories, plan.Tags, kept, skipped);
+    }
     internal void Fire(PNSkillActionContext context, string trigger, PNStat hit, Vector3? point, PNSkillContribution[] frozen = null, int hitIndex = 0)
     {
         if (IsDisposed || context.Invocation == null || context.Invocation.IsEnded || !context.AllowContributions) return;
@@ -267,11 +296,7 @@ public sealed class PNSkillEffectState : IDisposable
         RequireAuthority(); if (triggerDepth >= 8) { Report(new InvalidOperationException("Skill trigger depth exceeded.")); return; }
         var invocation = context.Invocation;
         if (!invocation.Metadata.TriggerIds.Contains(trigger)) { Report(new ArgumentException("Undeclared Skill trigger: " + trigger)); return; }
-        var values = frozen ?? Combined(trigger == "OnActivated" ? invocation.ActivationSnapshot : context.ContributionSnapshot);
-        var categories = trigger == "OnActivated" ? invocation.AdmissionCategories : Categories(invocation, values);
-        var tags = Tags(context, values, categories);
-        var authored = trigger == "OnActivated" ? invocation.Metadata.Effects : invocation.Metadata.Effects.Concat(context.AuthoredEffects);
-        var effects = authored.Concat(values.Where(x => x.Matches(invocation.SkillId, categories)).SelectMany(x => x.Effects)).Where(x => x.Trigger == trigger).ToArray();
+        var plan = Gather(context, trigger, frozen); var categories = plan.Categories; var tags = plan.Tags; var effects = plan.Effects;
         triggerDepth++;
         try
         {
@@ -341,4 +366,101 @@ public sealed class PNSkillEffectState : IDisposable
         foreach (var auxiliary in auxiliaries.ToArray()) try { Retire(auxiliary, true); } catch (Exception error) { Report(error); }
         foreach (var lease in leases) lease.Owner = null; leases.Clear(); Triggered = null; Failed = null;
     }
+}
+
+// EN: OnHit effects fixed at launch time (see PNSkillEffectState.FreezeOnHit). Immutable; it keeps no skill, invocation or
+//     source entity, so it can run after they are gone. Each projectile executes it with its own PNSkillHitAdmission.
+// VI: Effect OnHit đã đóng băng lúc bắn (xem FreezeOnHit). Bất biến; không giữ skill/invocation/nguồn nên chạy được sau khi chúng mất.
+public sealed class PNSkillHitSnapshot
+{
+    [ThreadStatic] private static int depth;
+    private readonly EveRegistryHub hub;
+    public EveId EntrySkillId { get; }
+    public IReadOnlyList<EveId> Categories { get; }
+    public IReadOnlyList<EveId> Tags { get; }
+    // OnHit Operation effects whose definition is SourceIndependent, in the order Fire would run them.
+    public IReadOnlyList<PNSkillEffect> Effects { get; }
+    // Effects of the OnHit set that cannot run detached (Action kind, or an Operation that needs the live skill).
+    public IReadOnlyList<PNSkillEffect> Skipped { get; }
+    internal PNSkillHitSnapshot(EveRegistryHub hub, EveId entrySkillId, IReadOnlyList<EveId> categories, IReadOnlyList<EveId> tags,
+        IEnumerable<PNSkillEffect> effects, IEnumerable<PNSkillEffect> skipped)
+    {
+        this.hub = hub; EntrySkillId = entrySkillId; Categories = categories; Tags = tags;
+        Effects = Array.AsReadOnly(effects.ToArray()); Skipped = Array.AsReadOnly(skipped.ToArray());
+    }
+
+    // EN: Run the frozen effects for one hit. `hitContext` supplies Source/World/Registry/Data (e.g. the projectile's detached
+    //     context); `direction` is the projectile heading; `point` is the hit point (also the origin of the ToTarget direction).
+    //     Supported selectors: target HitTarget|None, position Hit|Target|None, direction Invocation|ToTarget|None. Self and
+    //     InvocationTargets have no meaning here and follow the effect's `missing` policy. A failing effect is reported and does
+    //     not stop the others or undo damage already committed. Needs the same ready authoritative session the plan was frozen in.
+    public PNSkillHitReport Execute(PNSkillActionContext hitContext, PNStat target, Vector3? point, Vector3? direction, int hitIndex, PNSkillHitAdmission admission)
+    {
+        if (hitContext == null) throw new ArgumentNullException(nameof(hitContext));
+        if (admission == null) throw new ArgumentNullException(nameof(admission));
+        var report = new PNSkillHitReport();
+        if (!EveRegistrySession.IsReady || !EveRegistrySession.Context.HasAuthority || !ReferenceEquals(hub, EveRegistrySession.Current) || !ReferenceEquals(hitContext.Registry, hub))
+        { report.Failures.Add(new InvalidOperationException("Frozen hit effects need the authoritative session they were frozen in.")); return report; }
+        if (depth >= 8) { report.Failures.Add(new InvalidOperationException("Skill trigger depth exceeded.")); return report; }
+        depth++;
+        try
+        {
+            foreach (var effect in Effects)
+            {
+                if (effect.OncePerHit && !admission.Admit(effect, hitIndex)) { report.Skipped++; continue; }
+                try { if (Run(effect, hitContext, target, point, direction)) report.Executed++; else report.Skipped++; }
+                catch (Exception error) { report.Failures.Add(error); }
+            }
+        }
+        finally { depth--; }
+        return report;
+    }
+    private bool Run(PNSkillEffect effect, PNSkillActionContext hitContext, PNStat target, Vector3? point, Vector3? direction)
+    {
+        bool Missing(string reason) { if (effect.Missing == "Error") throw new InvalidOperationException(reason); return false; }
+        PNStat[] targets;
+        if (effect.Target == "HitTarget") { if (target == null) return Missing("Missing effect target."); targets = new[] { target }; }
+        else if (effect.Target == "None") targets = Array.Empty<PNStat>();
+        else return Missing("Effect target " + effect.Target + " is not available to a frozen hit.");
+        Vector3? position;
+        if (effect.Position == "Hit") position = point;
+        else if (effect.Position == "Target") position = targets.Length == 0 ? (Vector3?)null : targets[0].transform.position;
+        else if (effect.Position == "None") position = null;
+        else return Missing("Effect position " + effect.Position + " is not available to a frozen hit.");
+        Vector3? heading;
+        if (effect.Direction == "Invocation") heading = direction;
+        else if (effect.Direction == "ToTarget") heading = targets.Length == 0 || !point.HasValue ? (Vector3?)null : targets[0].transform.position - point.Value;
+        else if (effect.Direction == "None") heading = null;
+        else return Missing("Effect direction " + effect.Direction + " is not available to a frozen hit.");
+        if (effect.Position != "None" && !position.HasValue || effect.Direction != "None" && (!heading.HasValue || heading.Value.x == 0 && heading.Value.y == 0 && heading.Value.z == 0))
+            return Missing("Missing effect position/direction.");
+        var execution = new PNHitExecutionContext(hitContext, EntrySkillId, Categories, targets, heading, position);
+        using (var operation = hub.Operations().Get(effect.Id).Create()) operation.Execute(execution, effect.Data);
+        return true;
+    }
+}
+
+// Per-projectile state for `hitScope: PerHit` effects: each effect runs at most once per hit index.
+public sealed class PNSkillHitAdmission
+{
+    private readonly HashSet<(PNSkillEffect, int)> admitted = new HashSet<(PNSkillEffect, int)>();
+    internal bool Admit(PNSkillEffect effect, int hitIndex) => admitted.Add((effect, hitIndex));
+}
+
+public sealed class PNSkillHitReport
+{
+    public int Executed { get; internal set; }
+    public int Skipped { get; internal set; }
+    internal readonly List<Exception> Failures = new List<Exception>();
+    public IReadOnlyList<Exception> Errors => Failures.AsReadOnly();
+}
+
+// Operation context for one frozen effect: no skill, attribution and world come from the projectile's own context.
+internal sealed class PNHitExecutionContext : PNSkillActionContext
+{
+    private readonly PNSkillActionContext parent;
+    internal PNHitExecutionContext(PNSkillActionContext parent, EveId skillId, IEnumerable<EveId> categories, IEnumerable<PNStat> targets, Vector3? direction, Vector3? position)
+        : base(skillId, parent.Data, parent.Registry, targets, direction, position, categories) { this.parent = parent; }
+    public override PNBuffSource Source => parent.Source;
+    public override EveWorldContext World => parent.World;
 }

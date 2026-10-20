@@ -31,6 +31,8 @@ namespace EveEngine
         public virtual float DeltaTime => (float)(context?.GameplayDelta(Time.deltaTime) ?? Time.deltaTime) * Scale;
         public virtual float FixedDeltaTime => (float)(context?.GameplayDelta(Time.fixedDeltaTime) ?? Time.fixedDeltaTime) * Scale;
         public virtual IReadOnlyList<EveTimeModifier> Modifiers => state.Snapshot();
+        // Number of active modifiers, without copying them (cheap check for clocks that are usually untouched).
+        public virtual int ModifierCount => state.Count;
 
         public virtual long AddTimedModifier(EveId source, EveTimeModifierKind kind, float value, float duration)
         {

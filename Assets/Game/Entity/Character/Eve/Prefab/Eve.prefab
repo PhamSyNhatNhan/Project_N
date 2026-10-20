@@ -349,7 +349,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PNPlayerMove
   groundLayers:
     serializedVersion: 2
-    m_Bits: 1
+    m_Bits: 8193
   maxGroundSlope: 50
   groundProbeDistance: 0.06
   groundProbeRadius: 0.09

@@ -56,11 +56,11 @@ public static class EveBurstBuffEditorChecks
             var external = EveId.Parse("test:external_momentum_owner"); stat.SetSource(external, new[] { new EveStatModifier(PNContentIds.AttackPower, .2, 2), new EveStatModifier(PNContentIds.AttackSpeed, 7, 0) });
             skill.Hold(); AdvanceUntil(() => skill.RisingMomentum != null && enemies.All(x => Burn(x) >= 2));
             Check(skill.RisingMomentum.Stacks == 1 && enemies.All(x => Burn(x) == 2), "Repeat hitting two targets adds one Momentum tier and Burn to each: momentum=" + skill.RisingMomentum.Stacks + "; burn=" + string.Join(",", enemies.Select(Burn)));
-            Check(Math.Abs(stat.Evaluate(PNContentIds.AttackPower) - 143) < 1e-8 && stat.Evaluate(PNContentIds.AttackSpeed) == 167, "Momentum ATK is additive in group2; speed is ten percentage points.");
+            Check(Math.Abs(stat.Evaluate(PNContentIds.AttackPower) - 113) < 1e-8 && stat.Evaluate(PNContentIds.AttackSpeed) == 167, "Momentum ATK is additive in group2 (Burst flat +100 routes after the groups: 10*(1+.2+.1)+100); speed is ten percentage points.");
             AdvanceUntil(() => skill.RisingMomentum?.Stacks == 2 && enemies.All(x => Burn(x) >= 3));
             Check(enemies.All(x => Burn(x) == 3) && stat.Evaluate(PNContentIds.AttackSpeed) == 177, "Next hit in same held chain accumulates second tier.");
             skill.Release(); Check(skill.RisingMomentum?.Stacks == 2, "Release retains bonus until current stroke finishes."); AdvanceUntil(() => !skill.IsBusy);
-            Check(skill.RisingMomentum == null && stat.Evaluate(PNContentIds.AttackPower) == 132 && stat.Evaluate(PNContentIds.AttackSpeed) == 157, "End of held chain removes only its modifiers, preserving Burst/equipment.");
+            Check(skill.RisingMomentum == null && stat.Evaluate(PNContentIds.AttackPower) == 112 && stat.Evaluate(PNContentIds.AttackSpeed) == 157, "End of held chain removes only its modifiers, preserving Burst/equipment.");
             Check(enemies.All(x => Burn(x) == 3), "Ending chain leaves target Burn alive.");
             foreach (var enemy in enemies) enemy.gameObject.SetActive(false); skill.SlashStacks.Clear(); skill.SlashStacks.Add(1); skill.Release(); skill.Hold(); AdvanceUntil(() => !skill.IsBusy);
             Check(skill.RisingMomentum == null && skill.SlashStacks.Current == 0, "Miss consumes slash resource but grants no Momentum; exhausted chain resets."); skill.Release();

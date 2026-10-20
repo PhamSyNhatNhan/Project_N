@@ -3,7 +3,7 @@
 PNWorldSaveEnvelope and PNWorldFileStore are Unity-free bounded data/IO contracts.
 Game integration is PNWorldLifetimeController + PNWorldSaveService, reached through
 PNGameSession.Saves. See Docs/WorldFoundationContracts.md and the S9/S10 reports for
-lifecycle and evidence. Public API additions retain ModAPI6 ABI; rules are project_n:82.
+lifecycle and evidence. Public API additions retain ModAPI6 ABI; rules are project_n:89.
 
 CaptureSnapshot requires a resident authority world with no player/activity/pending
 preparation. IPNPortableWorldProvider is optional; borrowed/adopted worlds without it

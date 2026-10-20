@@ -47,10 +47,28 @@ public class PNCombatSourceSnapshot
         SessionId = original.SessionId; SourceId = original.SourceId; stats = original.stats; canCreate = original.canCreate;
     }
     public virtual double Evaluate(params EveId[] ids) => stats.Evaluate(ids);
+    // Scale route of the captured modifiers selected by ids (stats or tags), applied to a caller-supplied value:
+    // (input + Σbefore) × Π(1 + Σgroup) + Σafter. Read only; later changes to the source never reach this capture.
+    // Used for launch-time factors such as projectile speed/scale/lifetime (no damage-type tag is required here).
+    public virtual double Calculate(double input, params EveId[] ids)
+    {
+        RequireReady();
+        if (ids == null) throw new ArgumentNullException(nameof(ids));
+        return stats.Calculate(PNContentIds.Scale, input, ids);
+    }
     protected void RequireReady() { if (!canCreate()) throw new InvalidOperationException("Combat snapshot requires its active authoritative session."); }
+    // One formula source: the four-argument overload is PrepareDamage + CreateDamage(prepared), so a subclass that
+    // overrides PrepareDamage also changes this overload. Subclasses that only override this overload are unchanged.
     public virtual PNDamage CreateDamage(double amount, bool canCrit, double? iframeDuration, params EveId[] tags)
     {
         using (EveHotPathMetrics.Measure("combat.create-snapshot"))
+            return CreateDamage(PrepareDamage(amount, canCrit, iframeDuration, tags));
+    }
+    // Computes everything that does not depend on the critical roll. A launcher can prepare once and create many
+    // packets, each with its own roll; the result no longer reads the source, so later modifier changes do not apply.
+    public virtual PNPreparedDamage PrepareDamage(double amount, bool canCrit, double? iframeDuration, params EveId[] tags)
+    {
+        using (EveHotPathMetrics.Measure("combat.prepare-damage"))
         {
         RequireReady(); PNHeal.RequireAmount(amount);
         if (tags == null) throw new ArgumentNullException(nameof(tags));
@@ -58,11 +76,37 @@ public class PNCombatSourceSnapshot
         double outgoing = stats.Calculate(PNContentIds.Scale, amount, stats.GetType() == typeof(PNStatSet) ? canonical.Values : (EveId[])canonical.Values.Clone());
         double rate = stats.TryGetBase(PNContentIds.CritRate, out _) ? stats.Evaluate(PNContentIds.CritRate) : 0;
         double critDamage = stats.TryGetBase(PNContentIds.CritDamage, out _) ? stats.Evaluate(PNContentIds.CritDamage) : 150;
-        double chance = Math.Max(0, Math.Min(100, rate)) / 100;
-        bool critical = canCrit && (chance >= 1 || chance > 0 && random.NextDouble() < chance);
-        if (critical) outgoing *= critDamage / 100; PNHeal.RequireAmount(outgoing);
-        return new PNDamage(SessionId, SourceId, outgoing, canonical, iframeDuration, canCrit, critical, rate, critDamage);
+        return new PNPreparedDamage(SessionId, SourceId, outgoing, canonical, iframeDuration, canCrit, rate, critDamage);
         }
+    }
+    // Rolls with the same rule as CreateDamage: never when CanCrit is false, always at 100%, otherwise random < chance.
+    public virtual bool RollCritical(PNPreparedDamage prepared)
+    {
+        RequireOwn(prepared);
+        double chance = Math.Max(0, Math.Min(100, prepared.CritRate)) / 100;
+        return prepared.CanCrit && (chance >= 1 || chance > 0 && random.NextDouble() < chance);
+    }
+    public virtual PNDamage CreateDamage(PNPreparedDamage prepared)
+    {
+        RequireReady(); RequireOwn(prepared);
+        return CreateDamage(prepared, RollCritical(prepared));
+    }
+    // The caller supplies the roll, so several packets can share one result.
+    public virtual PNDamage CreateDamage(PNPreparedDamage prepared, bool critical)
+    {
+        using (EveHotPathMetrics.Measure("combat.create-prepared"))
+        {
+        RequireReady(); RequireOwn(prepared);
+        if (critical && !prepared.CanCrit) throw new ArgumentException("A prepared damage that cannot crit cannot be rolled critical.", nameof(critical));
+        double outgoing = prepared.Amount;
+        if (critical) outgoing *= prepared.CritDamage / 100; PNHeal.RequireAmount(outgoing);
+        return new PNDamage(SessionId, SourceId, outgoing, prepared.Canonical, prepared.IFrameDuration, prepared.CanCrit, critical, prepared.CritRate, prepared.CritDamage);
+        }
+    }
+    private void RequireOwn(PNPreparedDamage prepared)
+    {
+        if (prepared == null) throw new ArgumentNullException(nameof(prepared));
+        if (prepared.SessionId != SessionId || prepared.SourceId != SourceId) throw new ArgumentException("Prepared damage belongs to another source or session.", nameof(prepared));
     }
     public virtual PNHeal CreateHeal(double amount)
     { RequireReady(); PNHeal.RequireAmount(amount); return new PNHeal(SessionId, SourceId, stats.Calculate(PNContentIds.Scale, amount, PNContentIds.Heal), amount); }

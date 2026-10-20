@@ -61,6 +61,12 @@ public class PNTimeScaleArea : PNAreaInstance
     }
     private readonly Dictionary<EveEntityId, Grant> grants = new Dictionary<EveEntityId, Grant>();
     private readonly Dictionary<EveEntityId, PNStat> inside = new Dictionary<EveEntityId, PNStat>();
+    // Projectiles are not entities: the area places its modifiers straight on their own clock, owned by this area (see PollProjectiles).
+    private sealed class ProjectileGrant { internal PNProjectileClock Clock; internal long Scale, Minimum; }
+    private readonly Dictionary<long, ProjectileGrant> projectileGrants = new Dictionary<long, ProjectileGrant>();
+    private readonly List<PNProjectileHandle> projectileHits = new List<PNProjectileHandle>();
+    private readonly HashSet<long> projectileInside = new HashSet<long>();
+    private PNProjectileManager projectiles;
     private Collider[] buffer = new Collider[32];
     private PNTimeScaleAreaSettings settings;
     private PNAreaCreateRequest request;
@@ -118,6 +124,7 @@ public class PNTimeScaleArea : PNAreaInstance
             disabled = () => Finish(PNAreaEndReason.OwnerUnavailable); ownerSignal.Disabled += disabled;
         }
         elapsed = 0; pollElapsed = pollPeriod; visualAge = 0; VisualStrength = 0; VisualRadius = 0;
+        projectiles = PNProjectileManager.Find(Manager.Session, gameObject.scene); projectileGrants.Clear();
         PNTimeScaleAreaRendering.Register(this);
         if (dust == null) dust = new PNTimeScaleDust(transform);
         dust.Initialize(this, VisualSettings);
@@ -142,7 +149,7 @@ public class PNTimeScaleArea : PNAreaInstance
         dust.Advance(gameDelta, VisualStrength, true);
         pollElapsed += gameDelta;
         if (pollElapsed < pollPeriod) return;
-        pollElapsed %= pollPeriod; Poll();
+        pollElapsed %= pollPeriod; Poll(); PollProjectiles();
     }
     private void Poll()
     {
@@ -179,6 +186,36 @@ public class PNTimeScaleArea : PNAreaInstance
             grants[pair.Key] = new Grant { Collection = collection, Receipt = receipt };
         }
     }
+    // Projectiles inside the radius (and not excluded by the layer rule, which treats them as the Projectile layer) get the same two clock
+    // modifiers an entity gets through the Buff, owned by this area. A projectile that left, ended or whose clock was reset is released.
+    private void PollProjectiles()
+    {
+        projectileInside.Clear();
+        int layer = LayerMask.NameToLayer("Projectile");
+        bool selected = layer >= 0 && (settings.Layers & (1 << layer)) != 0;
+        if (projectiles != null && selected != settings.Exclude)
+        {
+            projectileHits.Clear(); projectiles.QueryRunning(World, transform.position, settings.Radius, projectileHits);
+            foreach (var handle in projectileHits)
+            {
+                if (!projectiles.TryGetClock(handle, out var clock) || !clock.isActiveAndEnabled) continue;
+                projectileInside.Add(handle.InstanceId);
+                if (projectileGrants.ContainsKey(handle.InstanceId)) continue;
+                var grant = new ProjectileGrant { Clock = clock };
+                grant.Scale = clock.AddOwnedModifier(buffId, EveTimeModifierKind.Scale, -settings.Reduction, this);
+                try { grant.Minimum = clock.AddOwnedModifier(buffId, EveTimeModifierKind.MinScaleReduction, settings.MinimumReduction, this); }
+                catch { clock.RemoveModifier(grant.Scale); throw; }
+                projectileGrants[handle.InstanceId] = grant;
+            }
+        }
+        foreach (var id in projectileGrants.Keys.Where(x => !projectileInside.Contains(x)).ToArray()) { ReleaseProjectile(projectileGrants[id]); projectileGrants.Remove(id); }
+    }
+    private static void ReleaseProjectile(ProjectileGrant grant)
+    {
+        // The clock may already belong to another projectile (pooled object); modifier ids are unique per clock, so only ours is removed.
+        if (grant.Clock == null) return;
+        grant.Clock.RemoveModifier(grant.Scale); grant.Clock.RemoveModifier(grant.Minimum);
+    }
     private static void Revoke(Grant grant)
     {
         // Resolve receipt after its queued Apply, then remove that exact handle.
@@ -200,6 +237,8 @@ public class PNTimeScaleArea : PNAreaInstance
         death = null;
         var failures=new List<Exception>();
         foreach (var pair in grants.ToArray()) { try { Revoke(pair.Value);grants.Remove(pair.Key); } catch (Exception error) { failures.Add(error); } }
+        foreach (var pair in projectileGrants.ToArray()) { try { ReleaseProjectile(pair.Value); projectileGrants.Remove(pair.Key); } catch (Exception error) { failures.Add(error); } }
+        projectileInside.Clear(); projectileHits.Clear();
         if(failures.Count>0)throw new AggregateException("Owned Area Buff cleanup remains pending.",failures);
         inside.Clear();
     }
@@ -210,7 +249,7 @@ public class PNTimeScaleArea : PNAreaInstance
         PNTimeScaleAreaRendering.Unregister(this); VisualStrength = 0; VisualRadius = 0;
         dust?.Reset(); VisualSettings = null;
         Array.Clear(buffer, 0, buffer.Length);
-        settings = null; request = null; ownerIdentity = followIdentity = null;
+        settings = null; request = null; ownerIdentity = followIdentity = null; projectiles = null;
         base.OnPoolRelease();
     }
     public override void DisposePooledResources() { PNTimeScaleAreaRendering.Unregister(this); dust?.Dispose(); dust = null; }

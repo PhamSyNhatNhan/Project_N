@@ -28,7 +28,7 @@ public class EveGameRuntime : EveRuntime
 #endif
     // EN: Bump when executable gameplay rules change, even if JSON stays the same.
     // VI: TÄƒng phiÃªn báº£n khi luáº­t gameplay trong code Ä‘á»•i dÃ¹ JSON váº«n giá»¯ nguyÃªn.
-    public const string CurrentRulesVersion = "project_n:82";
+    public const string CurrentRulesVersion = "project_n:89";
     public override string RulesVersion => CurrentRulesVersion;
 #if UNITY_5_3_OR_NEWER
     internal bool IsBootstrapOwner { get; set; }
@@ -45,8 +45,10 @@ public class EveGameRuntime : EveRuntime
         if (!Application.isPlaying) return;
         // Register before binding, so partial initialization also has a cleanup owner.
         session.RegisterCleanup(() => GetComponent<PNAreaManager>()?.Shutdown());
+        session.RegisterCleanup(() => GetComponent<PNProjectileManager>()?.Shutdown());
         session.RegisterCleanup(() => GetComponent<PNUiRuntime>()?.Unbind());
         PNAreaManager.Attach(this);
+        PNProjectileManager.Attach(this, PNGameBootstrap.Config.Projectiles);
         PNUiRuntime.Attach(this);
         PNGameSession.Attach(this, session);
     }

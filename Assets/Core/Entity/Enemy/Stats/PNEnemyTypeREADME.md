@@ -76,3 +76,9 @@ content; it verifies Dummy, Elite, Boss, legacy fallback, entity isolation, unch
 stats/player behavior, idempotent Load, unload/reload and invalid initialization.
 
 Executable RulesVersion is `project_n:42`; DLL Mod API remains 2 (additive APIs).
+
+## Lorica
+
+`PNEnemyStat` also owns the lorica mechanic: a Resource stat (`base:lorica`) that shares 60% of every hit with health while it is above 0, breaks into a 7 s stun
+(`lorica_break` Buff, not dispellable, boss removes it with bypass) and then refills with a 5 s lock (`lorica_recovery`). Per-enemy tuning is `data.lorica {share, breakSeconds,
+recoverySeconds}` in the character JSON, all optional; the amount is the `base:lorica` stat. Full design and status: `Docs/EnemyLoricaDesign.md`.

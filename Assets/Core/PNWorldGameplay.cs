@@ -17,6 +17,16 @@ public static class PNWorldGameplay
     public static bool CanTarget(MonoBehaviour source,MonoBehaviour target)=>SameWorld(source,target)&&CanExecute(source)&&CanExecute(target);
     public static void RequireTargets(MonoBehaviour source,IEnumerable<PNStat> targets)
     { foreach(var target in targets)if(!CanTarget(source,target))throw new InvalidOperationException("Live target is held, unavailable or in another world."); }
+    // Source-independent form: the targets must belong to the given world (null = no world) and be able to execute.
+    // The source entity is not consulted, so a dead or unloaded source does not block its detached effects.
+    public static void RequireTargets(EveWorldContext world,IEnumerable<PNStat> targets)
+    {
+        if(targets==null)throw new ArgumentNullException(nameof(targets));
+        if(world!=null&&!world.CanExecute)throw new InvalidOperationException("Live target is held, unavailable or in another world.");
+        foreach(var target in targets)
+            if(target==null||!ReferenceEquals(target.GetComponent<EveEntityIdentity>()?.World,world)||!CanExecute(target))
+                throw new InvalidOperationException("Live target is held, unavailable or in another world.");
+    }
 #if UNITY_5_3_OR_NEWER
     public static EveWorldContext ForScene(EveSessionContext session,UnityEngine.SceneManagement.Scene scene)
     {

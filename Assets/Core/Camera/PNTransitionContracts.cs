@@ -183,7 +183,8 @@ public sealed class PNTransitionMachine
     public float Elapsed(double now) => Stage == PNTransitionStage.Idle ? 0 : (float)Math.Max(0, now - started);
 
     // conditionsMet: view bound to the target world, actor ready, input gate open, camera cut and one frame rendered.
-    public PNTransitionAction Update(double now, bool conditionsMet, bool screenReady, bool screenFinished, out PNTransitionContext reopened)
+    // holding: the caller still has to finish work under the cover (shader warm-up); the cycle then neither hides nor expires until it is released.
+    public PNTransitionAction Update(double now, bool conditionsMet, bool screenReady, bool screenFinished, out PNTransitionContext reopened, bool holding = false)
     {
         reopened = null;
         switch (Stage)
@@ -191,9 +192,9 @@ public sealed class PNTransitionMachine
             case PNTransitionStage.Showing:
             {
                 double elapsed = now - started;
-                bool expired = elapsed >= Context.MaximumSeconds;
+                bool expired = !holding && elapsed >= Context.MaximumSeconds;
                 bool minimumShown = elapsed >= Context.MinimumSeconds;
-                if (expired || conditionsMet && minimumShown && screenReady)
+                if (expired || !holding && conditionsMet && minimumShown && screenReady)
                 { Stage = PNTransitionStage.Hiding; ForcedHide = expired && !conditionsMet; hideStarted = now; Phase = PNTransitionPhase.Revealing; return PNTransitionAction.StartHide; }
                 return PNTransitionAction.None;
             }

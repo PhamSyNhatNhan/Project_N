@@ -40,9 +40,9 @@ public static class PNSharedDashEditorChecks
             Check(first.Skills.Count==0 && first.DashRecovery.Current==3,"Shared Dash depends on character skill data.");
             Check(first.DashInput.PressImmediately,"Default Dash is not configured for immediate press.");
             var body=first.GetComponent<Rigidbody>();Check(first.TryDash(),"Default Dash cannot activate.");
-            first.TickDash(.08f);Check(Math.Abs(body.position.x-1.5f)<.01,"Default Dash did not move real Rigidbody during motion.");
+            first.TickDash(.08f);Check(Math.Abs(body.position.x-.75f)<.01,"Default Dash did not move real Rigidbody during motion.");
             Check(!first.TryDash(),"Default Dash reentered its own invocation.");
-            first.TickDash(.08f);Check(Math.Abs(body.position.x-3)<.01 && !first.IsDashing,"Default Dash did not finish configured distance.");
+            first.TickDash(.08f);Check(Math.Abs(body.position.x-1.5)<.01 && !first.IsDashing,"Default Dash did not finish configured distance.");
             Check(body.interpolation==RigidbodyInterpolation.Interpolate,"Default Dash did not restore interpolation.");
             Check(first.DashRecovery.Current==2 && second.DashRecovery.Current==3,"Dash charges are shared between entities.");
             var manager=first.GetComponent<PNAbilityManager>();manager.Advance(2);Check(first.TryDash(),"Second Dash failed.");first.TickDash(.2f);

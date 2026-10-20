@@ -16,11 +16,23 @@ public class PNSkillActionContext
     public virtual IReadOnlyList<PNStat> Targets { get; }
     public virtual Vector3? Direction { get; }
     public virtual Vector3? Position { get; }
+    // EN: Attribution for source-independent Operations. A skill context captures its live Skill's stat (new capture per read;
+    //     throws when that stat is not ready or is dead, exactly like the former direct capture). A context without a skill
+    //     returns null unless a subclass supplies a frozen source.
+    // VI: Nguồn gán cho Operation không phụ thuộc skill sống. Ngữ cảnh có skill chụp stat của Skill mỗi lần đọc; không có skill thì null
+    //     trừ khi lớp con cấp nguồn đã đóng băng.
+    public virtual PNBuffSource Source => Skill != null ? PNBuffSource.Capture(Skill.GetComponent<PNStat>()) : null;
+    // EN: World used to validate live targets; the skill entity's world by default (null for an entity outside any world).
+    // VI: World dùng để kiểm mục tiêu sống; mặc định là world của entity skill.
+    public virtual EveWorldContext World => Skill != null ? Skill.GetComponent<EveEntityIdentity>()?.World : null;
     public PNSkillInvocation Invocation { get; }
     public EveId EntrySkillId => Invocation?.SkillId ?? SkillId;
     public long InvocationId => Invocation?.Id ?? 0;
     public Guid InvocationGeneration => Invocation?.GenerationId ?? Guid.Empty;
     internal bool AllowContributions { get; }
+    internal bool HasBegun => begun;
+    // True when FreezeOnHit may be called now: a begun context of a live invocation that allows contributions.
+    public bool CanFreezeOnHit => begun && AllowContributions && Invocation != null && !Invocation.IsEnded;
     internal PNSkillContribution[] ContributionSnapshot = Array.Empty<PNSkillContribution>();
     internal IReadOnlyList<PNSkillEffect> AuthoredEffects = Array.Empty<PNSkillEffect>();
     private bool begun, completed;
@@ -33,15 +45,25 @@ public class PNSkillActionContext
         : this(skill, skillId, data, registry, targets, direction, null, true, null) { }
     public PNSkillActionContext(PNSkill skill, EveId skillId, PNSkillData data, EveRegistryHub registry,
         IEnumerable<PNStat> targets, Vector3? direction, PNSkillInvocation invocation, bool allowContributions = true, Vector3? position = null, IEnumerable<EveId> categories = null)
+        : this(skill, skillId, data, registry, targets, direction, invocation, allowContributions, position, categories, false) { }
+    // EN: Context with no live skill (Skill == null, no invocation, no contributions), e.g. a projectile carrying a frozen
+    //     source. Such a context only serves Operations registered SourceIndependent and must override Source/World.
+    // VI: Ngữ cảnh không có skill sống (Skill == null, không invocation); dùng cho đạn mang nguồn đã đóng băng.
+    //     Chỉ phục vụ Operation SourceIndependent và nên ghi đè Source/World.
+    protected PNSkillActionContext(EveId skillId, PNSkillData data, EveRegistryHub registry,
+        IEnumerable<PNStat> targets, Vector3? direction, Vector3? position, IEnumerable<EveId> categories)
+        : this(null, skillId, data, registry, targets, direction, null, false, position, categories, true) { }
+    private PNSkillActionContext(PNSkill skill, EveId skillId, PNSkillData data, EveRegistryHub registry,
+        IEnumerable<PNStat> targets, Vector3? direction, PNSkillInvocation invocation, bool allowContributions, Vector3? position, IEnumerable<EveId> categories, bool detached)
     {
-        Skill = skill ?? throw new ArgumentNullException(nameof(skill));
+        if (!detached) Skill = skill ?? throw new ArgumentNullException(nameof(skill));
         if (!skillId.IsValid) throw new ArgumentException("Skill ID is required.", nameof(skillId));
         SkillId = skillId;
         Data = data;
-        if (data == null && invocation == null && skill.CurrentInvocation == null) throw new ArgumentNullException(nameof(data));
+        if (!detached && data == null && invocation == null && skill.CurrentInvocation == null) throw new ArgumentNullException(nameof(data));
         if (registry == null || !registry.IsSealed) throw new ArgumentException("Sealed registry required.", nameof(registry));
         Registry = registry;
-        Invocation = invocation ?? skill.CurrentInvocation; AllowContributions = allowContributions; Position = position;
+        Invocation = detached ? null : invocation ?? skill.CurrentInvocation; AllowContributions = allowContributions; Position = position;
         frozenCategories = categories == null ? null : Array.AsReadOnly(categories.ToArray());
         if (position.HasValue && (float.IsNaN(position.Value.x) || float.IsInfinity(position.Value.x) || float.IsNaN(position.Value.y) || float.IsInfinity(position.Value.y) || float.IsNaN(position.Value.z) || float.IsInfinity(position.Value.z))) throw new ArgumentException("Effect position must be finite.");
         if (Invocation != null && allowContributions) Invocation.Contexts.Add(this);

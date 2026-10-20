@@ -2,15 +2,16 @@
 using UnityEngine;
 using UnityEngine.UIElements;
 
-// A small feathered white outline, drawn behind the HUD; no textures or materials owned.
+// A small feathered outline (white by default, tinted for the enemy ring), drawn behind the HUD; no textures or materials owned.
 internal sealed class PNHudGlow : VisualElement
 {
-    private readonly bool circle;
+    private readonly bool circle; private readonly Color tint = Color.white;
     private float fill=1;
     public float Fill
     {
         set { float next=Mathf.Clamp01(value); if(next==fill)return; fill=next; MarkDirtyRepaint(); }
     }
+    public PNHudGlow(bool circle, Color tint) : this(circle) { this.tint=tint; }
     public PNHudGlow(bool circle)
     {
         this.circle=circle;
@@ -29,7 +30,7 @@ internal sealed class PNHudGlow : VisualElement
         for(int layer=0;layer<3;layer++)
         {
             painter.lineWidth=12-4*layer;
-            painter.strokeColor=new Color(1,1,1,circle?.012f+.008f*layer:.015f+.01f*layer);
+            painter.strokeColor=new Color(tint.r,tint.g,tint.b,circle?.012f+.008f*layer:.015f+.01f*layer);
             painter.BeginPath();
             if(circle)
                 painter.Arc(contentRect.center,Mathf.Min(width,height)*.5f,Angle.Degrees(0),Angle.Degrees(360));

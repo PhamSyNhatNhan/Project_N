@@ -150,6 +150,23 @@ PNDamage snapshots optional IFrameDuration without selecting a receiver fallback
 `CreateDamage(amount,canCrit,iframeDuration,tags)` preserves existing virtual outgoing
 implementations; existing overloads and the original packet constructor remain available.
 No additional crit roll or outgoing bonus calculation is performed when attaching duration.
+
+Prepared damage (`PNCombatSourceSnapshot`, projectile P0-A): `PrepareDamage(amount,canCrit,iframe,tags)`
+returns an immutable `PNPreparedDamage` holding the outgoing amount BEFORE the critical roll (sender Scale
+applied), the captured crit rate/damage, iframe and canonical tags. `CreateDamage(prepared)` rolls with
+`RollCritical(prepared)` and builds the packet; `CreateDamage(prepared, critical)` takes the caller's roll so
+packets can share it. `CreateDamage(amount,canCrit,iframe,tags)` is now `PrepareDamage` +
+`CreateDamage(prepared)`, so one formula serves both and a subclass overriding `PrepareDamage` also changes
+the four-argument overload (subclasses overriding only the four-argument overload behave as before). A prepared
+damage no longer reads the source, so later modifier changes do not apply; it is rejected by a snapshot of
+another source/session. Metrics: `combat.create-snapshot` (wrapper), `combat.prepare-damage`,
+`combat.create-prepared`.
+
+`PNCombatSourceSnapshot.Calculate(input, ids)` (projectile P0-A2, virtual, read only) runs the Scale route of the
+captured modifiers selected by `ids` (stats or tags; no damage-type tag needed) on a caller-supplied value:
+`(input + Σbefore) × Π(1 + Σ group ≥ 1) + Σafter`, clamped nonnegative, same as `PNStat.Calculate(Scale, ...)` at
+capture time. Requires the active authoritative session; unknown ids, no ids, null ids and non-finite input are
+rejected. Later modifier changes on the source do not reach an existing capture.
 PNDamageResult reports IFrameMultiplier, IFrameBefore, IFrameAfter and
 ResolvedIFrameDuration; CalculatedDamage/popup includes iframe reduction. Reduced hits
 remain successful hits and still emit DamageReceived/rewards normally.
@@ -169,3 +186,9 @@ has been added. Calls are committed sequentially by the existing receive path.
 
 Verification: Tests/EveEngine/PNIFrameTests.cs and PNIFrameEditorChecks.Run() cover
 signed/zero/missing duration, defaults, two sources, clock, rejection and lifecycle.
+
+## Receiver absorption hook (RulesVersion89)
+
+`ReceiveDamage` calls two virtual hooks around the health commit: `AbsorbDamage(damage, damageType, calculated, out absorption)` (calculation only, returns the health
+loss, default = the whole final amount) and `CommitAbsorption(result, absorption)` (after health is written). `PNEnemyStat` uses them for lorica (`Docs/EnemyLoricaDesign.md`).
+`PNDamageResult` gained `LoricaBefore/LoricaAfter/LoricaAbsorbed/LoricaBroke` (zero for receivers without lorica); `AppliedDamage` is still the health lost, so popups show it.

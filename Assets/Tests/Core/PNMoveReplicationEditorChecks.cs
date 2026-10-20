@@ -106,8 +106,9 @@ public static class PNMoveReplicationEditorChecks
         var docs=new EveDirectoryContentSource(Path.Combine(Application.streamingAssetsPath,"BaseContent"),Path.Combine(Application.persistentDataPath,"Mods"),Array.Empty<string>()).ReadDocuments().ToArray();
         var hub=new EveContentBootstrap().Build(new EveIContentModule[]{new PNContentModule(),new PNGameplayContentModule(),new PNSkillEffectsNativeModule(),new PNMoveFaultModule()},docs);
         var compatibility=EveContentCompatibility.Create(hub,docs,"test:move_native");
-        void Begin(EveSessionRole role) { EveRegistrySession.Begin();EveRegistrySession.Start(hub,role,compatibility); }
-        void End() { if(EveRegistrySession.State!=EveSessionState.Stopped)EveRegistrySession.End();foreach(var root in roots)if(root!=null)UnityEngine.Object.DestroyImmediate(root);roots.Clear(); }
+        var projectileManagers=new List<PNProjectileManager>();
+        void Begin(EveSessionRole role) { EveRegistrySession.Begin();EveRegistrySession.Start(hub,role,compatibility); var projectileRoot=new GameObject("Move check projectile manager");roots.Add(projectileRoot);var projectileManager=projectileRoot.AddComponent<PNProjectileManager>();projectileManager.Initialize(EveRegistrySession.Context,new PNProjectileProfile{MaxActive=20});projectileManager.ManualAdvance=true;projectileManagers.Add(projectileManager); }
+        void End() { foreach(var created in projectileManagers)if(created!=null)created.Shutdown();projectileManagers.Clear();if(EveRegistrySession.State!=EveSessionState.Stopped)EveRegistrySession.End();foreach(var root in roots)if(root!=null)UnityEngine.Object.DestroyImmediate(root);roots.Clear(); }
         PNMoveNativeProbe Actor(long id,long owner,string skillKind=null)
         {
             var root=new GameObject("Disposable Move actor");roots.Add(root);root.SetActive(false);root.transform.position=new Vector3((id%100)*4,1.02f,0);

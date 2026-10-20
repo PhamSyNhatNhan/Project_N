@@ -50,6 +50,7 @@ public static class PNBuffGameplayContent
         Add("buff_skill_effect_template", data => new PNBuffSkillEffectBehavior(data), "{'duration':5,'clock':'Game','contribution':{'readMode':'Snapshot','categoryIds':['base:attack'],'effects':[{'trigger':'OnHit','kind':'Operation','id':'base:apply_buff','data':{'buffId':'base:burn'},'target':'HitTarget'}]}}", new[] { "buff" });
         PNTimeScaleBuffContent.Register(hub);
         EveBurstBuffContent.Register(hub);
+        PNLoricaBuffContent.Register(hub);
         foreach (var definition in registry.Snapshot().Values.Where(x => x.Id.Namespace == "project_n"))
             registry.RegisterBase(new EveId("base", definition.Id.Path), definition.Id, "project_n", compatible: (original, replacement) => true);
     }

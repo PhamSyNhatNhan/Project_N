@@ -84,7 +84,7 @@ alone do not interrupt or end Burst. See Core/Entity/Shared/Control/PNControlREA
 PNGameplayContentModule owns the public IDs and registers PNMotionAction under
 project_n:motion_action / base:motion_action, alongside SweepAction. It also
 registers project_n:player_dash / base:player_dash before any entity is created.
-Default data is distance3, duration.16, ignoreEntities=true, three entity-owned
+Default data is distance1.5, duration.16, ignoreEntities=true, three entity-owned
 PerStack charges recovering5s, Game clock, opt-in entity CDR. Compatible registry
 Action and default Dash data overrides are supported; all definitions are validated
 before entities load. The logic stays in PNPlayerSkill, not a registered skill class.
@@ -139,13 +139,21 @@ chain until release, without switching to the normal combo in the same hold.
   invocations; idle >1s resets the combo. Only normal/Repeat attack timelines use
   live `attack_speed / 100` after EveTimeScale. Zero speed blocks new normal attacks
   and pauses existing ones. Skill/Dash/Ulti timings do not use ATK Speed.
-- Skill: target-directed rush with no damage, using skillStopDistance (.28),
-  independently of Repeat/Ulti targetStopDistance (.65); on accepted activation gains5 Burst
-  points outside Burst, or5 slash stacks inside it. Grants a10s next-normal-Attack
-  state, refreshed on Skill reuse. Only a normal Tap Attack consumes it; Repeat and
-  Ulti do not. The empowered normal attack now rushes first, then creates a fresh enlarged slash.
-  Its movement and slash share the normal-attack speed clock. Consumes the state
-  at attack acceptance; Dash cancellation does not restore it.
+- Skill (RulesVersion86): a Dash-like glide, not a target rush. It follows the current or last movement direction like Dash (no target
+  acquisition) over the `eve_skill_rush` profile: distance 2, duration .16, `ignoreEntities` true; `skillStopDistance` no longer exists.
+  It has its own 5 s cooldown and does not spend Dash charges or create Dash's TimeScale area. When the glide starts, the profile's
+  `OnActionStart` effect runs `base:create_projectile` (position Self, direction Invocation): three `base:eve_skill_homing` projectiles
+  (`project_n:homing` derived in code: speed 7, size .175, turnRate 540, homeAfter .25, life 3.5 s Time, Reacquire, no gravity, small glowing trail
+  from `PNTrailHomingProjectile`). The volley aims at the nearest live Enemy-layer target within `aimRadius` 8 (else along the glide
+  direction): the base direction is that target, the sides are +-30 degrees (`spread` 30) and the middle one is tilted 30 degrees up
+  (`pitches [0,30,0]`) so the shots converge when they home. Each projectile deals 150% ATK (physical + fire/ice/lightning tags, can crit,
+  iframe default) and is the damage prepared once for the volley. Reward unchanged: on accepted activation gains 5 Burst points outside
+  Burst, or 5 slash stacks inside it, grants a 10s next-normal-Attack state (refreshed on reuse) and subtracts 2s from Ultimate recovery.
+  Only a normal Tap Attack consumes the state; Repeat and Ulti do not. The empowered normal attack rushes first, then creates a fresh
+  enlarged slash. Its movement and slash share the normal-attack speed clock. Consumes the state at attack acceptance; Dash cancellation
+  does not restore it. Three projectiles on one target share the target's iframe: with the default iframe the later hits of a converging
+  volley can land at the fixed .3 multiplier (a measured volley of ATK 10 dealt 34.5 instead of 45). Projectiles are authority-only until
+  projectile networking exists.
 - Dash: always follows current/last movement direction, with NO target acquisition.
   Standing still retains the last movement direction. Three charges, PerStack recovery5s; subsequent use preserves the active
   recovery. Uses its full configured dashDistance regardless of nearby target distance.
@@ -184,7 +192,7 @@ Targets come from the active session's deterministic ready-entity snapshot, limi
 to same scene, alive/enabled hostile entities within TargetRange. Ordinary casts
 choose nearest planar distance; Ulti chooses lowest absolute HP after charging,
 then nearest distance, then entity ID for ties. Missing targets use the last movement
-direction. Skill forces immediate sprite facing while preserving movement locks.
+direction. Skill forces immediate sprite facing (along its glide) while preserving movement locks.
 Each cast keeps its selected direction/target through its phase; next Attack/Repeat
 acquires again. Rush stops short of targets and capsule sweeps clip solid obstacles,
 ignore self/children and ground contacts parallel to motion. The capsule query

@@ -11,11 +11,20 @@ public static class PNContentIds
     public static readonly EveId UltimateTag = EveId.Parse("project_n:ultimate");
     public static readonly EveId DashTag = EveId.Parse("project_n:dash");
     public static readonly EveId BurstTag = EveId.Parse("project_n:burst");
+    // Projectile modifiers: ordinary tags in the shared tag registry, read from the launch-time source snapshot.
+    public static readonly EveId ProjectileSpeed = EveId.Parse("project_n:projectile_speed");
+    public static readonly EveId ProjectileScale = EveId.Parse("project_n:projectile_scale");
+    public static readonly EveId ProjectileDamage = EveId.Parse("project_n:projectile_damage");
+    public static readonly EveId ProjectileLifetime = EveId.Parse("project_n:projectile_lifetime");
     public static readonly EveId NormalEnemy = EveId.Parse("project_n:normal");
     public static readonly EveId EliteEnemy = EveId.Parse("project_n:elite");
     public static readonly EveId BossEnemy = EveId.Parse("project_n:boss");
     public static readonly EveId Heal = EveId.Parse("project_n:heal");
     public static readonly EveId Health = EveId.Parse("project_n:health");
+    // Enemy damage-sharing resource (see PNEnemyStat) and its two Buffs.
+    public static readonly EveId Lorica = EveId.Parse("project_n:lorica");
+    public static readonly EveId LoricaBreak = EveId.Parse("project_n:lorica_break");
+    public static readonly EveId LoricaRecovery = EveId.Parse("project_n:lorica_recovery");
     public static readonly EveId AttackPower = EveId.Parse("project_n:attack_power");
     public static readonly EveId AttackSpeed = EveId.Parse("project_n:attack_speed");
     public static readonly EveId CooldownReduction = EveId.Parse("project_n:cooldown_reduction");

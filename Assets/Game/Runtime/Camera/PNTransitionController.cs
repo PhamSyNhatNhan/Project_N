@@ -55,6 +55,7 @@ public sealed class PNTransitionController : MonoBehaviour, IPNTransitionSignalS
         // Joining (and late joining) is a transition until a world and a ready actor are published, if this play expects a local actor.
         joinPending = PNGameBootstrap.Config.Network.SelectPlayer;
         value.RegisterCleanup(Release);
+        PNShaderWarmup.Begin(value);
     }
 
     // ---- signals -----------------------------------------------------------------------------------------------------------------
@@ -132,7 +133,7 @@ public sealed class PNTransitionController : MonoBehaviour, IPNTransitionSignalS
 
     private bool ConditionsMet()
     {
-        if (local?.World == null) return false;
+        if (local?.World == null || !PNShaderWarmup.IsDone) return false;
         var actor = local.Actor;
         if (actor == null) return !PNGameBootstrap.Config.Network.SelectPlayer;
         if (!actor.IsReady) return false;
@@ -150,12 +151,16 @@ public sealed class PNTransitionController : MonoBehaviour, IPNTransitionSignalS
         float delta = Time.realtimeSinceStartup - lastUnscaled; lastUnscaled = Time.realtimeSinceStartup;
         AttachSources();
         PollLocalState();
+        if (local?.World != null) PNShaderWarmup.AddWorld(local.World);
+        bool warming = !PNShaderWarmup.Pump();
+        if (warming && machine.Stage == PNTransitionStage.Showing) machine.SetPhase(PNTransitionPhase.Loading, PNShaderWarmup.Fraction);
         bool met = ConditionsMet();
         bool ready = screen == null || screen.ReadyToHide;
         bool finished = screen == null || screen.Finished;
-        var action = machine.Update(now, met, ready, finished, out var reopened);
+        var action = machine.Update(now, met, ready, finished, out var reopened, warming);
         if (action == PNTransitionAction.StartHide)
         {
+            Debug.Log("Transition hide after " + machine.Elapsed(now).ToString("0.00") + " s (" + (machine.ForcedHide ? "timeout" : "ready") + "), shader warm-up done=" + PNShaderWarmup.IsDone);
             try { screen?.Hide(machine.ForcedHide ? "timeout" : "ready"); } catch (Exception error) { LastFailure = error.Message; Debug.LogException(error); }
             SetCover(false);
         }

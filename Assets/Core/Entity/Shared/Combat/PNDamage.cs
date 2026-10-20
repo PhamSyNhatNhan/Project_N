@@ -12,6 +12,33 @@ internal sealed class PNCombatTags
     internal readonly IReadOnlyList<EveId> ReadOnly;
     internal PNCombatTags(EveId[] owned) { Values = owned; ReadOnly = Array.AsReadOnly(owned); }
 }
+// EN: Outgoing damage computed before the critical roll. Immutable; created only by a combat snapshot.
+// VI: Sát thương gây ra đã tính trước lúc tung crit. Bất biến; chỉ snapshot chiến đấu tạo được.
+public sealed class PNPreparedDamage
+{
+    internal readonly PNCombatTags Canonical;
+    public Guid SessionId { get; }
+    public EveEntityId SourceId { get; }
+    // Outgoing amount after the Scale route and before any critical multiplier.
+    public double Amount { get; }
+    public bool CanCrit { get; }
+    public double CritRate { get; }
+    public double CritDamage { get; }
+    public double? IFrameDuration { get; }
+    public IReadOnlyList<EveId> Tags => Canonical.ReadOnly;
+    internal PNPreparedDamage(Guid sessionId, EveEntityId sourceId, double amount, PNCombatTags tags,
+        double? iframeDuration, bool canCrit, double critRate, double critDamage)
+    {
+        if (tags == null) throw new ArgumentNullException(nameof(tags));
+        if (iframeDuration.HasValue && (double.IsNaN(iframeDuration.Value) || double.IsInfinity(iframeDuration.Value)))
+            throw new ArgumentOutOfRangeException(nameof(iframeDuration));
+        if (double.IsNaN(amount) || double.IsInfinity(amount) || amount < 0d) throw new ArgumentOutOfRangeException(nameof(amount));
+        if (double.IsNaN(critRate) || double.IsInfinity(critRate) || double.IsNaN(critDamage) || double.IsInfinity(critDamage) || critDamage < 0d)
+            throw new ArgumentException("Invalid critical-hit snapshot.");
+        SessionId = sessionId; SourceId = sourceId; Amount = amount; Canonical = tags;
+        IFrameDuration = iframeDuration; CanCrit = canCrit; CritRate = critRate; CritDamage = critDamage;
+    }
+}
 public sealed class PNDamage
 {
     private readonly PNCombatTags preparedTags;
@@ -80,6 +107,14 @@ public sealed class PNDamage
 
 // EN: Distinguishes calculated damage from actual HP loss, including overkill and the death transition.
 // VI: Phân biệt damage tính ra và HP thực mất, gồm overkill và thời điểm chuyển sang chết.
+// EN: What a receiver resource (lorica) takes from one hit besides health; `default` = nothing.
+// VI: Phần resource khác (lorica) của người nhận hấp thụ trong một đòn, ngoài máu; `default` = không có.
+public struct PNDamageAbsorption
+{
+    public double LoricaBefore, LoricaAfter;
+    public bool LoricaBroke;
+}
+
 public sealed class PNDamageResult
 {
     public PNDamage Damage { get; }
@@ -94,11 +129,17 @@ public sealed class PNDamageResult
     public double IFrameBefore { get; }
     public double IFrameAfter { get; }
     public double ResolvedIFrameDuration { get; }
+    // Lorica part of the hit (all zero/false for receivers without lorica, or while it is down, or for true damage).
+    public double LoricaBefore { get; }
+    public double LoricaAfter { get; }
+    public double LoricaAbsorbed => LoricaBefore - LoricaAfter;
+    public bool LoricaBroke { get; }
 
     internal PNDamageResult(PNDamage damage, EveEntityId targetId, double calculatedDamage,
         double healthBefore, double healthAfter, double iframeMultiplier = 1d,
-        double iframeBefore = 0d, double iframeAfter = 0d, double resolvedIFrameDuration = 0d)
+        double iframeBefore = 0d, double iframeAfter = 0d, double resolvedIFrameDuration = 0d, PNDamageAbsorption absorption = default)
     {
+        LoricaBefore = absorption.LoricaBefore; LoricaAfter = absorption.LoricaAfter; LoricaBroke = absorption.LoricaBroke;
         Damage = damage;
         TargetId = targetId;
         CalculatedDamage = calculatedDamage;

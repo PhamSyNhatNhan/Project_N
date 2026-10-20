@@ -45,6 +45,7 @@ public static class EveMovesetEditorChecks
         EveRegistrySession.Start(hub, EveSessionRole.Offline, EveContentCompatibility.Create(hub, docs, "test:eve_moveset"));
         var areaRoot = new GameObject("Eve moveset area fixture"); SceneManager.MoveGameObjectToScene(areaRoot, preview);
         var areaManager = areaRoot.AddComponent<PNAreaManager>(); areaManager.Initialize(EveRegistrySession.Context);
+        var projectileManager = areaRoot.AddComponent<PNProjectileManager>(); projectileManager.Initialize(EveRegistrySession.Context, new PNProjectileProfile { MaxActive = 20 }); projectileManager.ManualAdvance = true;
         try
         {
             var caster = Entity<EveCharacterStat>("Eve moveset probe", Vector3.zero, "project_n:eve");
@@ -122,7 +123,7 @@ public static class EveMovesetEditorChecks
         }
         finally
         {
-            try { areaManager.Shutdown(); EveRegistrySession.End(); }
+            try { projectileManager.Shutdown(); areaManager.Shutdown(); EveRegistrySession.End(); }
             finally { EditorSceneManager.ClosePreviewScene(preview); }
         }
         Check(original.isDirty == dirty, "Eve test changed active scene dirty state.");

@@ -56,6 +56,7 @@ public class PNContentModule : EveIContentModule, EveIContentFinalizeModule, Eve
         hub.NameRegistry<PNEnemyTypeDefinition>("enemy_types");
         var stats = hub.GetOrCreate<EveStatDefinition>();
         stats.Register(new EveStatDefinition(Health, EveStatKind.Resource, EveMaxChangePolicy.PreserveRatio, EveStatReplication.Everyone));
+        stats.Register(new EveStatDefinition(PNContentIds.Lorica, EveStatKind.Resource, EveMaxChangePolicy.PreserveRatio, EveStatReplication.Everyone));
         stats.Register(new EveStatDefinition(AttackPower, EveStatKind.Number));
         stats.Register(new EveStatDefinition(PNContentIds.AttackSpeed, EveStatKind.Number));
         stats.Register(new EveStatDefinition(PNContentIds.CooldownReduction, EveStatKind.Number));
@@ -77,6 +78,8 @@ public class PNContentModule : EveIContentModule, EveIContentFinalizeModule, Eve
         foreach (var id in new[] { Physical, Magic, True, Fire, Ice, Lightning, PNContentIds.Heal })
             tags.Register(new PNTagDefinition(id));
         foreach (var id in new[] { PNContentIds.AttackTag, PNContentIds.SkillTag, PNContentIds.UltimateTag, PNContentIds.DashTag, PNContentIds.BurstTag })
+            tags.Register(new PNTagDefinition(id));
+        foreach (var id in new[] { PNContentIds.ProjectileSpeed, PNContentIds.ProjectileScale, PNContentIds.ProjectileDamage, PNContentIds.ProjectileLifetime })
             tags.Register(new PNTagDefinition(id));
 
         var calculations = hub.GetOrCreate<PNStatCalculationDefinition>();
@@ -119,7 +122,10 @@ public class PNContentModule : EveIContentModule, EveIContentFinalizeModule, Eve
     {
         // Covers code-registered character definitions as well as JSON.
         foreach (var character in hub.Characters.Snapshot().Values)
+        {
             PNEnemyContent.ResolveType(character.Data, hub);
+            PNLoricaSettings.Parse(character.Data);
+        }
     }
 
     public virtual void ValidateCharacterReferences(EveId characterId, object data, string contentNamespace,

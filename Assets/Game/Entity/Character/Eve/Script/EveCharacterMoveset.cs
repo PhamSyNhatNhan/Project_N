@@ -160,6 +160,13 @@ public partial class EveCharacterSkill
         if (length == 0) return Vector3.right;
         return new Vector3((float)(direction.x / length), 0, (float)(direction.z / length));
     }
+    // Current or last movement direction on the ground plane (the Dash rule): no target acquisition.
+    private Vector3 MovementDirection()
+    {
+        var direction = ResolveAttackDirection(); direction.y = 0;
+        double length = Math.Sqrt((double)direction.x * direction.x + (double)direction.z * direction.z);
+        return length == 0 ? Vector3.right : new Vector3((float)(direction.x / length), 0, (float)(direction.z / length));
+    }
     private void Face(Vector3 direction)
     {
         var move = GetComponent<PNPlayerMove>();
@@ -214,11 +221,11 @@ public partial class EveCharacterSkill
         if (!CanBegin() || !CanActivateSkill(PNControlIds.Skill, PNGameplayContentModule.EveSkillEntry) || !Controls.IsAllowed(PNControlIds.VoluntaryMotion) || !skillRecovery.CanConsume()) return false;
         return RunCast(PNGameplayContentModule.EveSkillEntry, () => {
             SyncCooldowns(); skillRecovery.TryConsume();
-            CurrentCast = EveCast.Skill; castDirection = SelectDirection(false, out castTarget); Face(castDirection); LockSequence();
+            CurrentCast = EveCast.Skill; castTarget = null; castDirection = MovementDirection(); Face(castDirection); LockSequence();
             ownedAbilities.GrantState(EmpowermentId);
             if (IsInBurst) stacks.Add(moveset.SkillStacks); else gauge.Add(moveset.SkillGauge);
             ultimateRecovery.ReduceRemaining(moveset.SkillUltimateReduction);
-            StartMotion(EveCastPhase.Motion,castDirection,moveset.SkillMotion,moveset.SkillStopDistance);
+            StartMotion(EveCastPhase.Motion,castDirection,moveset.SkillMotion);
         });
     }
     protected override EveId PlayerDashSkillId => EveId.Parse("base:eve_dash");

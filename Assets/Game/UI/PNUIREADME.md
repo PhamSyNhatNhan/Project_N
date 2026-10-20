@@ -415,3 +415,9 @@ a panel is open; the mode button ignores the mobile safe area; text is Vietnames
 
 `PNUiRuntime.EnsureEventSystem` creates `PN Event System` (EventSystem + InputSystemUIInputModule with default actions) as a child of the runtime when no scene provides one and retires it with the HUD; Hall, lobby and run scenes carry none.
 
+- Enemy world panel layout (2026-10-21): an enemy's Buff row is drawn in a **second UIDocument** placed right above the health ring (the first document holds only the ring and never changes when a Buff appears or
+  disappears). Before the split the ring moved 2 px horizontally while a Buff was shown (measured on an enemy with only a Burn). Remote players keep the single-document layout.
+- Enemy lorica overlay (RulesVersion89): enemies with the `base:lorica` stat get a silver-blue glass rim over the 90x8 HP bar (`PNLoricaOverlay`, Painter2D, no image, static): width follows
+  the lorica ratio, an almost clear body with three nested blue-grey outlines deepening toward the rounded border, no streaks or veins; it fades out in 0.35 s on a break and is dimmer during `lorica_recovery`.
+  The light-red ring keeps its colour and gets a soft halo like the player HUD (`PNHudGlow` with a tint, `RingGlowMargin` 6 px: the ring document is 26 px tall, the ring's world anchor is lowered 6 px).
+  When lorica goes from above 0 to 0 a Voronoi glass-shard and glass-dust effect (`PNLoricaShatter`, default look Glass (Mirror selectable)) plays on the enemy; its shaders are compiled by `PNShaderWarmup` under the transition cover. See `Docs/EnemyLoricaDesign.md`.

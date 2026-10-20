@@ -11,20 +11,21 @@ public sealed class PNPlayConfig
     public bool ModeExplicit { get; }
     public PNNetworkProfile Network { get; }
     public EvePreparationProfile Preparation { get; }
-    public PNPlayConfig(EveSessionRole role = EveSessionRole.Offline, string modeId = "roguelite", string address = "localhost", PNNetworkProfile network = null, EvePreparationProfile preparation = null, bool modeExplicit = false)
+    public PNProjectileProfile Projectiles { get; }
+    public PNPlayConfig(EveSessionRole role = EveSessionRole.Offline, string modeId = "roguelite", string address = "localhost", PNNetworkProfile network = null, EvePreparationProfile preparation = null, bool modeExplicit = false, PNProjectileProfile projectiles = null)
     {
         if (!Enum.IsDefined(typeof(EveSessionRole), role)) throw new ArgumentOutOfRangeException(nameof(role));
         if (string.IsNullOrWhiteSpace(modeId)) throw new ArgumentException("Mode required.", nameof(modeId));
         if (string.IsNullOrWhiteSpace(address)) throw new ArgumentException("Address required.", nameof(address));
         Role = role; ModeId = modeId; Address = address; ModeExplicit = modeExplicit;
-        Network=network??new PNNetworkProfile();Preparation=preparation??new EvePreparationProfile();
-        Network.Validate();Preparation.Validate();
+        Network=network??new PNNetworkProfile();Preparation=preparation??new EvePreparationProfile();Projectiles=projectiles??new PNProjectileProfile();
+        Network.Validate();Preparation.Validate();Projectiles.Validate();
     }
     public static PNPlayConfig FromArguments(string[] arguments)
     {
         var role = EveSessionRole.Offline; string mode = "roguelite", address = "localhost";
         bool modeExplicit = false;
-        var network=new PNNetworkProfile();
+        var network=new PNNetworkProfile();var projectiles=new PNProjectileProfile();
         foreach (string value in arguments ?? Array.Empty<string>())
         {
             if (value.StartsWith("--pn-role=", StringComparison.Ordinal))
@@ -35,8 +36,9 @@ public sealed class PNPlayConfig
             else if (value.StartsWith("--pn-mode=", StringComparison.Ordinal)) { mode = value.Substring(10); modeExplicit = true; }
             else if (value.StartsWith("--pn-address=", StringComparison.Ordinal)) address = value.Substring(13);
             else if(value=="--pn-no-character")network.SelectPlayer=false;
+            else if(value.StartsWith("--pn-projectile-cap=",StringComparison.Ordinal)){if(!int.TryParse(value.Substring(20),out var cap))throw new ArgumentException("Invalid --pn-projectile-cap.");projectiles.MaxActive=cap;}
         }
-        return new PNPlayConfig(role, mode, address, network, null, modeExplicit);
+        return new PNPlayConfig(role, mode, address, network, null, modeExplicit, projectiles);
     }
 }
 

@@ -223,7 +223,6 @@
                   "junctionSize": 0.15,
                   "junctionGlow": 0.14
                 },
-                "skillStopDistance": 0.28,
                 "empoweredStopDistance": 0.4,
                 "skillMotion": "base:eve_skill_rush",
                 "empoweredMotion": "base:eve_empowered_rush",
@@ -914,9 +913,9 @@
               "id": "base:motion_action",
               "start": {},
               "perform": {
-                "distance": 4,
+                "distance": 2,
                 "duration": 0.16,
-                "ignoreEntities": false,
+                "ignoreEntities": true,
                 "permissionId": "base:motion_voluntary"
               },
               "exit": {},
@@ -925,7 +924,30 @@
             "categoryIds": [
               "base:skill"
             ],
-            "affectedByAttackSpeed": false
+            "affectedByAttackSpeed": false,
+            "effects": [
+              {
+                "trigger": "OnActionStart",
+                "kind": "Operation",
+                "id": "base:create_projectile",
+                "position": "Self",
+                "direction": "Invocation",
+                "data": {
+                  "projectileId": "base:eve_skill_homing",
+                  "input": {},
+                  "count": 3,
+                  "spread": 30,
+                  "pitches": [0, 30, 0],
+                  "aimRadius": 8,
+                  "layerMask": 128,
+                  "damage": {
+                    "value": { "amount": 150, "statId": "base:attack_power" },
+                    "canCrit": true,
+                    "tags": ["base:physical", "base:fire", "base:ice", "base:lightning"]
+                  }
+                }
+              }
+            ]
           }
         },
         {
@@ -1026,7 +1048,7 @@
             "action": {
               "id": "base:motion_action",
               "perform": {
-                "distance": 2,
+                "distance": 1.5,
                 "duration": 0.16,
                 "ignoreEntities": true,
                 "permissionId": "base:motion_voluntary"
@@ -1054,7 +1076,7 @@
                     "minimumReduction": 0.9,
                     "duration": 15,
                     "dependent": false,
-                    "layerMask": 128,
+                    "layerMask": 384,
                     "layerMode": "Include"
                   }
                 }

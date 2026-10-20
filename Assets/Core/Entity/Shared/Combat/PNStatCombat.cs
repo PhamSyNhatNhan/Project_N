@@ -97,7 +97,7 @@ public partial class PNStat
         var stats = RequireCombatReady();
         if (damage == null) throw new ArgumentNullException(nameof(damage));
         if (damage.SessionId != SessionId) throw new ArgumentException("Damage belongs to another session.", nameof(damage));
-        stats.ResolveDamageType(damage.Tags);
+        var damageType = stats.ResolveDamageType(damage.Tags);
         double iframeBefore = IFrameRemaining;
         double duration = damage.IFrameDuration ?? DefaultIFrameDuration;
         double iframeAfter = iframeBefore > 0d ? Math.Max(0d, iframeBefore - duration) : Math.Abs(duration);
@@ -109,11 +109,15 @@ public partial class PNStat
         if (double.IsNaN(calculated) || double.IsInfinity(calculated) || calculated < 0d)
             throw new InvalidOperationException("Incoming damage must be finite and nonnegative.");
         double before = GetCurrent(PNContentIds.Health);
-        double after = Math.Max(0d, before - calculated);
+        var absorption = default(PNDamageAbsorption);
+        double healthLoss = before == 0d ? calculated : AbsorbDamage(damage, damageType, calculated, out absorption);
+        if (double.IsNaN(healthLoss) || healthLoss < 0d || healthLoss > calculated + 1e-9) throw new InvalidOperationException("Absorbed damage must leave a finite health loss between 0 and the incoming amount.");
+        double after = Math.Max(0d, before - healthLoss);
         var result = new PNDamageResult(damage, EntityId, calculated, before, after,
-            multiplier, iframeBefore, before == 0d ? iframeBefore : iframeAfter, duration);
+            multiplier, iframeBefore, before == 0d ? iframeBefore : iframeAfter, duration, absorption);
         if (before == 0d) return result;
         SetCurrent(PNContentIds.Health, after);
+        CommitAbsorption(result, absorption);
         if (iframeAfter == 0d) iframeState.End();
         else if (iframeState.IsActive) iframeState.RefreshDuration(iframeAfter);
         else iframeState.TryActivate(iframeAfter);
@@ -127,6 +131,14 @@ public partial class PNStat
     
         }
     }
+
+    // EN: Hook between the final incoming amount (after DEF, Mitigation and iframe) and the health commit. Returns the health loss, which defaults
+    //     to the whole amount. It must only calculate: a rejected hit cannot change anything. CommitAbsorption applies `absorption` after health.
+    // VI: Điểm móc giữa số sát thương cuối (sau DEF, Mitigation, iframe) và lúc ghi HP; trả số HP bị trừ (mặc định là toàn bộ). Chỉ tính toán,
+    //     không đổi trạng thái; CommitAbsorption áp phần hấp thụ sau khi ghi HP.
+    protected virtual double AbsorbDamage(PNDamage damage, PNDamageTypeDefinition damageType, double calculated, out PNDamageAbsorption absorption)
+    { absorption = default; return calculated; }
+    protected virtual void CommitAbsorption(PNDamageResult result, PNDamageAbsorption absorption) { }
 
     protected virtual void OnDamageReceived(PNDamageResult result) => NotifyCombat(DamageReceived, result);
     protected virtual void OnDied(PNDamageResult result) => NotifyCombat(Died, result);

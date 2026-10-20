@@ -4,6 +4,18 @@ using System.Linq;
 using EveEngine;
 using Newtonsoft.Json.Linq;
 
+// Shared entry check for the buff Operations. A context with a live Skill keeps the former rules exactly (ready skill, live
+// source-skill world check); a detached context (Skill == null) validates targets against its own World instead.
+internal static class PNBuffOperationContext
+{
+    internal static void Require(PNSkillActionContext context)
+    {
+        if (context == null || context.Skill != null && !context.Skill.IsReady) throw new InvalidOperationException("Ready skill context required.");
+        if (context.Skill != null) PNWorldGameplay.RequireTargets(context.Skill, context.Targets);
+        else PNWorldGameplay.RequireTargets(context.World, context.Targets);
+    }
+}
+
 public class PNApplyBuffOperation : PNSkillOperation
 {
     private bool executed;
@@ -17,9 +29,8 @@ public class PNApplyBuffOperation : PNSkillOperation
     public override void Execute(PNSkillActionContext context, JToken payload)
     {
         if (executed) throw new InvalidOperationException("Operation has already executed or been disposed.");
-        if (context == null || !context.Skill.IsReady) throw new InvalidOperationException("Ready skill context required.");
-        PNWorldGameplay.RequireTargets(context.Skill,context.Targets);
-        var id = Validate(payload, context.Registry); var source = PNBuffSource.Capture(context.Skill.GetComponent<PNStat>());
+        PNBuffOperationContext.Require(context);
+        var id = Validate(payload, context.Registry); var source = context.Source ?? throw new InvalidOperationException("Buff source required.");
         var targets = context.Targets.Distinct().Select(target =>
         {
             var manager = target.GetComponent<PNBuffManager>();
@@ -43,8 +54,7 @@ public class PNRemoveBuffOperation : PNSkillOperation
     public override void Execute(PNSkillActionContext context, JToken payload)
     {
         if (executed) throw new InvalidOperationException("Operation has already executed or been disposed.");
-        if (context == null || !context.Skill.IsReady) throw new InvalidOperationException("Ready skill context required.");
-        PNWorldGameplay.RequireTargets(context.Skill,context.Targets);
+        PNBuffOperationContext.Require(context);
         var id = Validate(payload, context.Registry);
         var targets = context.Targets.Distinct().Select(x => x.GetComponent<PNBuffManager>()).ToArray();
         if (targets.Any(x => x == null || !x.IsReady || !ReferenceEquals(x.Buffs.Registry, context.Registry))) throw new InvalidOperationException("Removal requires Ready targets.");
@@ -75,17 +85,28 @@ public class PNTriggerBuffOperation : PNSkillOperation
     public override void Execute(PNSkillActionContext context, JToken payload)
     {
         if (executed) throw new InvalidOperationException("Operation already executed or disposed.");
-        if (context == null || !context.Skill.IsReady) throw new InvalidOperationException("Ready skill context required.");
-        PNWorldGameplay.RequireTargets(context.Skill,context.Targets);
+        PNBuffOperationContext.Require(context);
         var id = Validate(payload, context.Registry, ChangesStacks); var data = (JObject)payload;
-        var caster = context.Skill.GetComponent<PNStat>();
-        if (caster == null || !caster.IsReady) throw new InvalidOperationException("Ready caster required.");
+        // Only the caster's identity is read (no combat capture), so a skill context keeps the former ready-stat rule and a
+        // detached context uses its frozen source, which stays valid after the source entity died or unloaded.
+        EveEntityId casterId; Guid casterSession;
+        if (context.Skill != null)
+        {
+            var caster = context.Skill.GetComponent<PNStat>();
+            if (caster == null || !caster.IsReady) throw new InvalidOperationException("Ready caster required.");
+            casterId = caster.EntityId; casterSession = caster.SessionId;
+        }
+        else
+        {
+            var source = context.Source ?? throw new InvalidOperationException("Ready caster required.");
+            casterId = source.EntityId; casterSession = source.SessionId;
+        }
         var collections = context.Targets.Distinct().Select(x => x.GetComponent<PNBuffManager>()).ToArray();
-        if (collections.Any(x => x == null || !x.IsReady || !ReferenceEquals(x.Buffs.Registry, context.Registry) || x.Buffs.SessionId != caster.SessionId))
+        if (collections.Any(x => x == null || !x.IsReady || !ReferenceEquals(x.Buffs.Registry, context.Registry) || x.Buffs.SessionId != casterSession))
             throw new InvalidOperationException("Ready same-session targets required.");
         executed = true;
         foreach (var manager in collections)
-            foreach (var instance in manager.Buffs.Snapshot().Where(x => x.Id == id && (data["sourceSelection"].Value<string>() == "All" || x.SourceId == caster.EntityId)))
+            foreach (var instance in manager.Buffs.Snapshot().Where(x => x.Id == id && (data["sourceSelection"].Value<string>() == "All" || x.SourceId == casterId)))
                 results.Add(ChangesStacks ? manager.Buffs.ChangeStacks(instance.Handle, PNBuffContentBatch.Integer(data, "delta")) : manager.Buffs.Trigger(instance.Handle));
     }
     public override void Dispose() { executed = true; }
