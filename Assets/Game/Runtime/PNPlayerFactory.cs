@@ -86,6 +86,7 @@ public sealed class PNPlayerFactory : IPNWorldEntityFactory
             if(request.Player)Spawn(request);
             session.Registry.Characters.Get(EveId.Parse(request.Character));
             var prefab=session.Registry.Get<PNEntityTemplateDefinition>().Get(EveId.Parse(request.Template)).Resolve(Resolve(request),request.ContentSlot,request.SpawnEntry);
+            if(request.Player)prefab=PNPlayerPrefabCatalog.For(session,request.Character,prefab);
             if(!pools.TryGetValue((request.World.InstanceId,prefab),out var pool))
             {
                 pool=new EveEasyPooling(prefab);pools.Add((request.World.InstanceId,prefab),pool);
@@ -115,7 +116,7 @@ public sealed class PNPlayerFactory : IPNWorldEntityFactory
         var gate=loader.GetComponent<PNNetworkInputGate>();if(gate!=null)gate.Blocked=false;
         if(!request.Player&&string.IsNullOrEmpty(request.Template))return;
         var spawn=request.Player?Spawn(request):null;var root=loader.gameObject;
-        if(spawn!=null&&(request.SceneKey!=spawn.SceneKey||request.Character!=spawn.Character))throw new InvalidOperationException("Player factory content/scene mismatch.");
+        if(spawn!=null&&request.SceneKey!=spawn.SceneKey)throw new InvalidOperationException("Player factory content/scene mismatch.");
             SceneManager.MoveGameObjectToScene(root,worlds.Get(request.World).PhysicsScene);
             root.transform.position=request.Position;
             // Explicit initialization occurs before prepare. Awake reuses these same input owners.

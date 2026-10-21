@@ -7,6 +7,8 @@ internal sealed class PNPauseDrawing : VisualElement
 {
     internal enum Shape { Orbit, FrontOrbit, Dial, Star, Icon, ButtonHalo }
     private readonly Shape shape;
+    // Corner radius of the ButtonHalo outline (the pause buttons' 19; other buttons set their own).
+    internal float HaloRadius = 19, RingAlpha = .35f, RingWidth = 1f;
     public PNPauseDrawing(Shape shape)
     {
         this.shape=shape; pickingMode=PickingMode.Ignore; generateVisualContent+=Draw;
@@ -26,8 +28,8 @@ internal sealed class PNPauseDrawing : VisualElement
         if(shape==Shape.Star || shape==Shape.Icon)return;
         if(shape==Shape.ButtonHalo)
         {
-            for(int i=0;i<3;i++){p.strokeColor=new Color(1,1,1,.025f+i*.015f);p.lineWidth=12-i*4;RoundRect(p,contentRect,19);p.Stroke();}
-            p.strokeColor=new Color(1,1,1,.35f);p.lineWidth=1;RoundRect(p,contentRect,19);p.Stroke();return;
+            for(int i=0;i<3;i++){p.strokeColor=new Color(1,1,1,.025f+i*.015f);p.lineWidth=12-i*4;RoundRect(p,contentRect,HaloRadius);p.Stroke();}
+            p.strokeColor=new Color(1,1,1,RingAlpha);p.lineWidth=RingWidth;RoundRect(p,contentRect,HaloRadius);p.Stroke();return;
         }
         p.strokeColor=new Color(1,1,1,shape==Shape.Dial?.32f:.64f);p.lineWidth=1;
         if(shape==Shape.Dial)

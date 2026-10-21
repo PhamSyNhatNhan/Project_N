@@ -28,7 +28,12 @@ public sealed class PNUiRuntime : MonoBehaviour
     private PNPauseMenu pause;
     private PNModeMenu modeMenu;
     private GameObject ownedEventSystem;
-    public bool MenuOpen => pause!=null && pause.IsOpen;
+    private PNMenuFlow menuFlow;
+    // Any local menu that owns the screen: the pause menu or the mode / setup / character flow (HUD, mobile controls and world UI hide for both).
+    public bool MenuOpen => PauseOpen || FlowOpen;
+    internal bool PauseOpen => pause!=null && pause.IsOpen;
+    internal bool FlowOpen => menuFlow!=null && menuFlow.IsOpen;
+    internal PNMenuFlow MenuFlow => menuFlow;
     public void OpenMenu()=>pause?.Open();
     public void CloseMenu()=>pause?.Close();
     internal void ResetMobileInput()=>mobile?.Reset();
@@ -146,7 +151,8 @@ public sealed class PNUiRuntime : MonoBehaviour
         SetTestExpanded(false);
         mobile=new PNMobileControls(this,root);
         pause=new PNPauseMenu(this,root);
-        modeMenu=new PNModeMenu(this,root);
+        modeMenu=new PNModeMenu(this,root,pause);
+        menuFlow=new PNMenuFlow(this,root);
         EnsureEventSystem();
     }
     // World scenes carry no EventSystem (several worlds can coexist); the UI owns the single one, unless a scene already provides it.
@@ -180,7 +186,10 @@ public sealed class PNUiRuntime : MonoBehaviour
     {
         if(hud==null) return;
         pause?.Tick();
+        menuFlow?.Tick();
         modeMenu?.Tick();
+        // A menu action can end the session (and unbind this UI) from inside its Tick.
+        if(hud==null) return;
         hud.rootVisualElement.Q("test-panel").style.display=MenuOpen?DisplayStyle.None:DisplayStyle.Flex;
         var camera=ViewCamera!=null?ViewCamera:PNViewCamera.Current;
         if(camera!=attachedCamera) ConnectCamera(camera);
@@ -325,6 +334,7 @@ public sealed class PNUiRuntime : MonoBehaviour
         hudBuffs?.Dispose();hudBuffs=null;
         avatarSparkles?.Clear();healthSparkles?.Clear();avatarSparkles=null;healthSparkles=null;sparklePlayer=null;
         modeMenu?.Dispose(); modeMenu=null;
+        menuFlow?.Dispose(); menuFlow=null;
         if(ownedEventSystem!=null){Retire(ownedEventSystem);ownedEventSystem=null;}
         pause?.Dispose(); pause=null;
         mobile?.Dispose(); mobile=null;

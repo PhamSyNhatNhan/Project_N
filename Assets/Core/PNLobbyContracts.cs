@@ -6,6 +6,8 @@ public struct PNLobbyPeerInfo
 {
     public long Owner;
     public bool Host, Ready, Local;
+    // Character the peer picked in the character menu (a registered playable character id), empty until it picks one.
+    public string Character;
     public string Label => Host ? "Chủ phòng" : "Người chơi " + Owner;
 }
 public sealed class PNLobbyInfo
@@ -36,6 +38,8 @@ public interface IPNLobbyDriver
     // Null when no room is open.
     PNLobbyInfo Lobby { get; }
     void SetReady(bool ready);
+    // Tells the host which playable character the local player picked (the host validates it). Safe to call before a room exists (ignored).
+    void SetCharacter(string characterId);
     // Host only. A locked room refuses new admissions and stops advertising.
     void LockAdmissions(bool locked);
     // Host only. Tells every peer the run has started.

@@ -78,6 +78,7 @@ namespace ProjectN.Composition
         public string LastFailure=>manager?.LastFailure??lastFailure;
         public PNLobbyInfo Lobby=>manager?.GetLobbyInfo();
         public void SetReady(bool ready)=>manager?.SetLobbyReady(ready);
+        public void SetCharacter(string characterId)=>manager?.SetLobbyCharacter(characterId);
         public void LockAdmissions(bool locked)
         {
             if(manager==null)throw new InvalidOperationException("No room.");

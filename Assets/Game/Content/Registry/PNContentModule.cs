@@ -125,6 +125,7 @@ public class PNContentModule : EveIContentModule, EveIContentFinalizeModule, Eve
         {
             PNEnemyContent.ResolveType(character.Data, hub);
             PNLoricaSettings.Parse(character.Data);
+            PNPlayableSettings.Parse(character.Data);
         }
     }
 

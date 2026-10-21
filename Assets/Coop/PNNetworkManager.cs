@@ -308,14 +308,25 @@ namespace ProjectN.Coop
         }
         private void RetireOwner(long owner)
         {
-            foreach(var binding in bindings.Values.Concat(awaitingSpawn).Where(x=>x.Metadata.Owner==owner).ToArray())
-            {
-                if(binding.Shell!=null&&binding.Shell.netId!=0)
-                {binding.Retiring=true;binding.RetiringAt=Time.realtimeSinceStartupAsDouble;DetachBuffPublication(binding);Scheduler.Retire(binding.Candidate);continue;}
-                CleanupBinding(binding);Scheduler.Retire(binding.Candidate);
-                if(binding.Shell!=null){bindings.Remove(binding.Shell.netId);NetworkServer.Destroy(binding.Shell.gameObject);}
-                awaitingSpawn.Remove(binding);
-            }
+            foreach(var binding in bindings.Values.Concat(awaitingSpawn).Where(x=>x.Metadata.Owner==owner).ToArray())RetireBinding(binding);
+        }
+        private void RetireBinding(Binding binding)
+        {
+            if(binding.Shell!=null&&binding.Shell.netId!=0)
+            {binding.Retiring=true;binding.RetiringAt=Time.realtimeSinceStartupAsDouble;DetachBuffPublication(binding);Scheduler.Retire(binding.Candidate);return;}
+            CleanupBinding(binding);Scheduler.Retire(binding.Candidate);
+            if(binding.Shell!=null){bindings.Remove(binding.Shell.netId);NetworkServer.Destroy(binding.Shell.gameObject);}
+            awaitingSpawn.Remove(binding);
+        }
+        // Host: the owner picked another character in the lobby. The actor is retired and a new one enrolled at the same place, same world.
+        private void RespawnAs(long owner,string character)
+        {
+            var old=bindings.Values.Concat(awaitingSpawn).FirstOrDefault(x=>!x.Retiring&&x.Metadata.Player&&x.Metadata.Owner==owner);
+            if(old==null||old.Metadata.Character==character||subscribedSession==null||!subscribedSession.Worlds.TryGet(old.Metadata.World,old.Metadata.WorldIncarnation,out var world))return;
+            var loader=old.Candidate?.Loader;
+            var request=new PNEntityRequest{Player=true,Owner=owner,World=world,WorldIncarnation=world.Incarnation,ContentSlot=old.Metadata.ContentSlot,SpawnEntry=old.Metadata.SpawnEntry,Template=old.Metadata.Template,Character=character,SceneKey=old.Metadata.SceneKey,EntityKey="",Position=loader!=null&&loader.IsReady?loader.transform.position:old.Metadata.Position};
+            var connection=old.OwnerConnection;
+            RetireBinding(old);EnrollHost(request,connection);
         }
         public override void OnClientDisconnect()
         { LastFailure=LastFailure??"Host connection ended.";EndPlay(); }

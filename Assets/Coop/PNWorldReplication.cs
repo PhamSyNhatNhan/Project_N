@@ -60,8 +60,13 @@ namespace ProjectN.Coop
             Worlds.WorldReady+=WorldBecameReady;Worlds.WorldUnloading+=WorldWillUnload;
 
         }
+        // The owner's lobby pick (validated when it was accepted) decides which character spawns; without one the spawn point's character does.
         private PNEntityRequest DefaultPlayerRequest(long owner)
-            =>Factory is IPNWorldEntityFactory factory&&Worlds.DefaultWorld!=null?factory.Player(owner,Worlds.DefaultWorld,null,null):Factory.Player(owner);
+        {
+            var request=Factory is IPNWorldEntityFactory factory&&Worlds.DefaultWorld!=null?factory.Player(owner,Worlds.DefaultWorld,null,null):Factory.Player(owner);
+            if(lobbyCharacter.TryGetValue(owner,out var chosen))request.Character=chosen;
+            return request;
+        }
         private bool WorldCanPublish(Binding binding)
             =>subscribedSession!=null&&subscribedSession.Worlds.TryGet(binding.Metadata.World,binding.Metadata.WorldIncarnation,out var world)&&(world.State==EveWorldState.Ready||world.State==EveWorldState.Paused);
         private void WorldFailure(Guid id,Exception error)

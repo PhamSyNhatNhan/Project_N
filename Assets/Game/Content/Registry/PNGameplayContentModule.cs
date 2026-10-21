@@ -51,7 +51,9 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         worlds.Register(new PNWorldDefinition(EveId.Parse("project_n:generated_world"),PNWorldDefinition.HashContent("project_n:generated_world/v1/empty-main"),typeof(PNGeneratedWorldProvider),()=>new PNGeneratedWorldProvider()));
         worlds.RegisterBase(EveId.Parse("base:generated_world"),EveId.Parse("project_n:generated_world"),"project_n",compatible:(a,b)=>true);
         var modes=hub.GetOrCreate<PNModeDefinition>();
-        modes.Register(new PNModeDefinition(EveId.Parse("project_n:roguelite"),typeof(PNRoguelitePolicy),profile=>new PNRoguelitePolicy(profile)));
+        var rogueliteListing=new PNModeListing("Roguelite","Vượt qua các căn phòng, một mình hoặc cùng bạn bè trong mạng LAN.",new[]{231,185,143},"",0,
+            new[]{new PNModeStartOption("solo","Chơi đơn",PNModeStart.Offline),new PNModeStartOption("host","Tạo phòng LAN",PNModeStart.Host),new PNModeStartOption("join","Vào phòng LAN",PNModeStart.Join)});
+        modes.Register(new PNModeDefinition(EveId.Parse("project_n:roguelite"),typeof(PNRoguelitePolicy),profile=>new PNRoguelitePolicy(profile),rogueliteListing));
         modes.RegisterBase(EveId.Parse("base:roguelite"),EveId.Parse("project_n:roguelite"),"project_n",compatible:(original,replacement)=>true);
         modes.Register(new PNModeDefinition(EveId.Parse("project_n:hall"),typeof(PNHallPolicy),profile=>new PNHallPolicy(profile)));
         modes.RegisterBase(EveId.Parse("base:hall"),EveId.Parse("project_n:hall"),"project_n",compatible:(original,replacement)=>true);

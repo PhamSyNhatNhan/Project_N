@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "characters": [
+    {
+      "id": "project_n:eve_2",
+      "portraitPath": "UI/Portraits/Eve_Icon",
+      "data": {
+        "playable": {
+          "name": "Eve 2",
+          "description": "Kiếm sĩ nhanh nhẹn, lướt qua kẻ địch và tung loạt đạn tự dẫn.",
+          "accent": [231, 185, 143],
+          "availability": "default",
+          "prefab": "eve_2"
+        }
+      },
+      "stats": [
+        {
+          "statId": "base:health",
+          "base": 100,
+          "initialCurrent": 40
+        },
+        {
+          "statId": "base:attack_power",
+          "base": 10
+        },
+        {
+          "statId": "base:attack_speed",
+          "base": 100
+        },
+        {
+          "statId": "base:cooldown_reduction",
+          "base": 0
+        },
+        {
+          "statId": "base:crit_rate",
+          "base": 20
+        },
+        {
+          "statId": "base:crit_damage",
+          "base": 150
+        },
+        {
+          "statId": "base:defense",
+          "base": 5
+        },
+        {
+          "statId": "base:move_speed",
+          "base": 3
+        },
+        {
+          "statId": "base:jump_speed",
+          "base": 3.2
+        }
+      ],
+      "skill": []
+    }
+  ]
+}

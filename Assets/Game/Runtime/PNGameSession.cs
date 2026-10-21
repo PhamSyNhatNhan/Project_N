@@ -45,7 +45,13 @@ public sealed class PNGameSession : MonoBehaviour
         if(session.Role==EveSessionRole.Offline && UnityEngine.Object.FindObjectsByType<PNPlayerSpawnPoint>().Length>0)
         {
             var requests=service.Factory.SceneEntities();
-            if(PNGameBootstrap.Config.Network.SelectPlayer)requests=requests.Concat(new[]{service.Factory.Player(0)});
+            if(PNGameBootstrap.Config.Network.SelectPlayer)
+            {
+                // Alone, the character is the one picked in the menu (the profile's last), when it is registered, playable and allowed.
+                var player=service.Factory.Player(0);var picked=PickedCharacter(session);
+                if(picked!=null)player.Character=picked;
+                requests=requests.Concat(new[]{player});
+            }
             foreach(var request in requests)
                 {
                     var candidate=service.Scheduler.Enqueue(()=>service.Factory.Get(request),loader=>service.Factory.Configure(loader,request),service.Factory.Return,service.Factory.Published,error=>{Debug.LogException(error,service);if(session.IsActive)runtime.EndSession();});
@@ -53,6 +59,13 @@ public sealed class PNGameSession : MonoBehaviour
                 }
         }
         return service;
+    }
+    private static string PickedCharacter(EveSessionContext session)
+    {
+        string id=PNPlayerProfileService.Current.LastCharacter;
+        if(string.IsNullOrEmpty(id)||!EveId.TryParse(id,out var parsed))return null;
+        try{var playable=PNPlayableSettings.Parse(session.Registry.Characters.Get(parsed).Data);return playable!=null&&PNPlayerProfileService.CanPlay(id,playable)?id:null;}
+        catch(Exception e) when(e is System.Collections.Generic.KeyNotFoundException||e is FormatException){return null;}
     }
     private void Update()
     {

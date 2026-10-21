@@ -1,0 +1,1458 @@
+fileFormatVersion: 2
+guid: 10569a0321c97bd4aa9b09d4d518b1de
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: 1223945385206768649
+    second: UI_Icon_Charator_0
+  - first:
+      213: 6781486485338481480
+    second: UI_Icon_Charator_1
+  - first:
+      213: 1862566847603168834
+    second: UI_Icon_Charator_2
+  - first:
+      213: -6476341229755149144
+    second: UI_Icon_Charator_3
+  - first:
+      213: 5445153891496232837
+    second: UI_Icon_Charator_4
+  - first:
+      213: -6268819059596620358
+    second: UI_Icon_Charator_5
+  - first:
+      213: 2019232346699868173
+    second: UI_Icon_Charator_6
+  - first:
+      213: 9149536425477745694
+    second: UI_Icon_Charator_7
+  - first:
+      213: -3302464165158286648
+    second: UI_Icon_Charator_8
+  - first:
+      213: -6205609033230106587
+    second: UI_Icon_Charator_9
+  - first:
+      213: -603632203430896021
+    second: UI_Icon_Charator_10
+  - first:
+      213: -3606413740140579190
+    second: UI_Icon_Charator_11
+  - first:
+      213: 8153591203908063635
+    second: UI_Icon_Charator_12
+  - first:
+      213: 3233300309511115107
+    second: UI_Icon_Charator_13
+  - first:
+      213: -6506396603103539745
+    second: UI_Icon_Charator_14
+  - first:
+      213: 4050424947295984473
+    second: UI_Icon_Charator_15
+  - first:
+      213: 2975434663545949888
+    second: UI_Icon_Charator_16
+  - first:
+      213: -4608177351931033786
+    second: UI_Icon_Charator_17
+  - first:
+      213: 1854031279843247834
+    second: UI_Icon_Charator_18
+  - first:
+      213: -6154161493895939610
+    second: UI_Icon_Charator_19
+  - first:
+      213: -2449436797221759291
+    second: UI_Icon_Charator_20
+  - first:
+      213: -1808963683848288586
+    second: UI_Icon_Charator_21
+  - first:
+      213: -3852926940709878567
+    second: UI_Icon_Charator_22
+  - first:
+      213: -3277548276404917886
+    second: UI_Icon_Charator_23
+  - first:
+      213: 6556106582793537703
+    second: UI_Icon_Charator_24
+  - first:
+      213: -2770343997792605376
+    second: UI_Icon_Charator_25
+  - first:
+      213: 5745040425867489628
+    second: UI_Icon_Charator_26
+  - first:
+      213: -8664205787510191173
+    second: UI_Icon_Charator_27
+  - first:
+      213: -3973167368952197288
+    second: UI_Icon_Charator_28
+  - first:
+      213: -590333187500691700
+    second: UI_Icon_Charator_29
+  - first:
+      213: -4809747444150489263
+    second: UI_Icon_Charator_30
+  - first:
+      213: -5665982042762006036
+    second: UI_Icon_Charator_31
+  - first:
+      213: -6162627220880266093
+    second: UI_Icon_Charator_32
+  - first:
+      213: 6243434964735525090
+    second: UI_Icon_Charator_33
+  - first:
+      213: 3860937030717217939
+    second: UI_Icon_Charator_34
+  - first:
+      213: -1010442349694549545
+    second: UI_Icon_Charator_35
+  - first:
+      213: 714513161382640135
+    second: UI_Icon_Charator_36
+  - first:
+      213: -73684494359694901
+    second: UI_Icon_Charator_37
+  - first:
+      213: 5735646237889815959
+    second: UI_Icon_Charator_38
+  - first:
+      213: 834021801588494367
+    second: UI_Icon_Charator_39
+  - first:
+      213: -7778184585201817913
+    second: UI_Icon_Charator_40
+  - first:
+      213: 3519023921053382804
+    second: UI_Icon_Charator_41
+  - first:
+      213: -3011102976182354186
+    second: UI_Icon_Charator_42
+  - first:
+      213: -8741370868451580272
+    second: UI_Icon_Charator_43
+  - first:
+      213: 1368166451412684268
+    second: UI_Icon_Charator_44
+  - first:
+      213: 1659737297047410425
+    second: UI_Icon_Charator_45
+  - first:
+      213: 2653178018461748868
+    second: UI_Icon_Charator_46
+  - first:
+      213: 983322930426750828
+    second: UI_Icon_Charator_47
+  - first:
+      213: -1492298085048513910
+    second: UI_Icon_Charator_48
+  - first:
+      213: -4396174841976124602
+    second: UI_Icon_Charator_49
+  - first:
+      213: -4053483971374459499
+    second: UI_Icon_Charator_50
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationMethod: 0
+  spriteTessellationDetail: -1
+  spriteGeometrySubdivision: -1
+  textureType: 0
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 0
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: UI_Icon_Charator_0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 1921
+        width: 29
+        height: 127
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9046ab5d7d35cf010800000000000000
+      internalID: 1223945385206768649
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UI_Icon_Charator_1
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 1886
+        width: 25
+        height: 43
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 84366bf470eac1e50800000000000000
+      internalID: 6781486485338481480
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UI_Icon_Charator_2
+      rect:
+        serializedVersion: 2
+        x: 1
+        y: 1968
+        width: 10
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2465ec9fdaa29d910800000000000000
+      internalID: 1862566847603168834
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UI_Icon_Charator_3
+      rect:
+        serializedVersion: 2
+        x: 1
+        y: 1959
+        width: 10
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8a45a34f6f96f16a0800000000000000
+      internalID: -6476341229755149144
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UI_Icon_Charator_4
+      rect:
+        serializedVersion: 2
+        x: 58
+        y: 277
+        width: 1990
+        height: 1771
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 58708f95d92119b40800000000000000
+      internalID: 5445153891496232837
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UI_Icon_Charator_5
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 1756
+        width: 27
+        height: 139
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: abd8b87674ea009a0800000000000000
+      internalID: -6268819059596620358
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UI_Icon_Charator_6
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 1875
+        width: 8
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: d082608fe11c50c10800000000000000
+      internalID: 2019232346699868173
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UI_Icon_Charator_7
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 1769
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e1c291417eea9fe70800000000000000
+      internalID: 9149536425477745694
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UI_Icon_Charator_8
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 1759
+        width: 10
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8ca8848c65a4b22d0800000000000000
+      internalID: -3302464165158286648
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UI_Icon_Charator_9
+      rect:
+        serializedVersion: 2
+        x: 1
+        y: 1864
+        width: 7
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5204d57867f31e9a0800000000000000
+      internalID: -6205609033230106587
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UI_Icon_Charator_10
+      rect:
+        serializedVersion: 2
+        x: 1
+        y: 1797
+        width: 10
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b6ed38b85b77f97f0800000000000000
+      internalID: -603632203430896021
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UI_Icon_Charator_11
+      rect:
+        serializedVersion: 2
+        x: 1
+        y: 1741
+        width: 20
+        height: 20
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a8635d99fc173fdc0800000000000000
+      internalID: -3606413740140579190
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UI_Icon_Charator_12
+      rect:
+        serializedVersion: 2
+        x: 7
+        y: 1812
+        width: 8
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 39190b81000672170800000000000000
+      internalID: 8153591203908063635
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UI_Icon_Charator_13
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 1745
+        width: 11
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3611290308dfedc20800000000000000
+      internalID: 3233300309511115107
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UI_Icon_Charator_14
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 1729
+        width: 11
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: fdd843803c2a4b5a0800000000000000
+      internalID: -6506396603103539745
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UI_Icon_Charator_15
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 1649
+        width: 27
+        height: 91
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 95b15fc8700063830800000000000000
+      internalID: 4050424947295984473
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UI_Icon_Charator_16
+      rect:
+        serializedVersion: 2
+        x: 7
+        y: 1662
+        width: 8
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 0ce4a0ddf0eda4920800000000000000
+      internalID: 2975434663545949888
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UI_Icon_Charator_17
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 1629
+        width: 19
+        height: 24
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 64786241d177c00c0800000000000000
+      internalID: -4608177351931033786
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UI_Icon_Charator_18
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 1570
+        width: 23
+        height: 59
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ad6058d30a7dab910800000000000000
+      internalID: 1854031279843247834
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UI_Icon_Charator_19
+      rect:
+        serializedVersion: 2
+        x: 3
+        y: 1634
+        width: 8
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6e9f1f93ab6089aa0800000000000000
+      internalID: -6154161493895939610
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UI_Icon_Charator_20
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 1541
+        width: 22
+        height: 40
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5c693d9e53ad10ed0800000000000000
+      internalID: -2449436797221759291
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UI_Icon_Charator_21
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 1561
+        width: 10
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6b604a42d1545e6e0800000000000000
+      internalID: -1808963683848288586
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UI_Icon_Charator_22
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 1369
+        width: 30
+        height: 172
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9d484717c57a78ac0800000000000000
+      internalID: -3852926940709878567
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UI_Icon_Charator_23
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 1425
+        width: 10
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 289e0b2353fc382d0800000000000000
+      internalID: -3277548276404917886
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UI_Icon_Charator_24
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 1421
+        width: 5
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7a842098338fbfa50800000000000000
+      internalID: 6556106582793537703
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UI_Icon_Charator_25
+      rect:
+        serializedVersion: 2
+        x: 4
+        y: 1417
+        width: 7
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 04bafe9dfc2cd89d0800000000000000
+      internalID: -2770343997792605376
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UI_Icon_Charator_26
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 1349
+        width: 22
+        height: 24
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c51371c24db7abf40800000000000000
+      internalID: 5745040425867489628
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UI_Icon_Charator_27
+      rect:
+        serializedVersion: 2
+        x: 1
+        y: 1329
+        width: 18
+        height: 20
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: bbb429ebdbe82c780800000000000000
+      internalID: -8664205787510191173
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UI_Icon_Charator_28
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 1286
+        width: 22
+        height: 43
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 85f4e6424597cd8c0800000000000000
+      internalID: -3973167368952197288
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UI_Icon_Charator_29
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 1289
+        width: 11
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c0fa5ebf717bec7f0800000000000000
+      internalID: -590333187500691700
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UI_Icon_Charator_30
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 1245
+        width: 17
+        height: 44
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 15f2114ce28504db0800000000000000
+      internalID: -4809747444150489263
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UI_Icon_Charator_31
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 1157
+        width: 23
+        height: 88
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ce1bd6d0a536e51b0800000000000000
+      internalID: -5665982042762006036
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UI_Icon_Charator_32
+      rect:
+        serializedVersion: 2
+        x: 10
+        y: 1228
+        width: 12
+        height: 25
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 39c67409133f97aa0800000000000000
+      internalID: -6162627220880266093
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UI_Icon_Charator_33
+      rect:
+        serializedVersion: 2
+        x: 1
+        y: 1185
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2e08053750325a650800000000000000
+      internalID: 6243434964735525090
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UI_Icon_Charator_34
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 1069
+        width: 23
+        height: 96
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 39c1d08f5cdc49530800000000000000
+      internalID: 3860937030717217939
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UI_Icon_Charator_35
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 1137
+        width: 11
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7d1027859003af1f0800000000000000
+      internalID: -1010442349694549545
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UI_Icon_Charator_36
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 1105
+        width: 7
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 70abd834fe57ae900800000000000000
+      internalID: 714513161382640135
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UI_Icon_Charator_37
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 1000
+        width: 23
+        height: 69
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: bc17c30c7583afef0800000000000000
+      internalID: -73684494359694901
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UI_Icon_Charator_38
+      rect:
+        serializedVersion: 2
+        x: 3
+        y: 1017
+        width: 8
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7956ab65ddb199f40800000000000000
+      internalID: 5735646237889815959
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UI_Icon_Charator_39
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 929
+        width: 31
+        height: 64
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f101d92e86a039b00800000000000000
+      internalID: 834021801588494367
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UI_Icon_Charator_40
+      rect:
+        serializedVersion: 2
+        x: 1
+        y: 993
+        width: 19
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 7c660a194565e0490800000000000000
+      internalID: -7778184585201817913
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UI_Icon_Charator_41
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 925
+        width: 6
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 4983d729c9516d030800000000000000
+      internalID: 3519023921053382804
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UI_Icon_Charator_42
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 912
+        width: 9
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6fe7782fbc96636d0800000000000000
+      internalID: -3011102976182354186
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UI_Icon_Charator_43
+      rect:
+        serializedVersion: 2
+        x: 7
+        y: 922
+        width: 8
+        height: 15
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 096eef7428960b680800000000000000
+      internalID: -8741370868451580272
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UI_Icon_Charator_44
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 844
+        width: 23
+        height: 77
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ced4f028324bcf210800000000000000
+      internalID: 1368166451412684268
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UI_Icon_Charator_45
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 721
+        width: 31
+        height: 130
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9f65afa2742980710800000000000000
+      internalID: 1659737297047410425
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UI_Icon_Charator_46
+      rect:
+        serializedVersion: 2
+        x: 1
+        y: 805
+        width: 9
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 48e8944c95bf1d420800000000000000
+      internalID: 2653178018461748868
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UI_Icon_Charator_47
+      rect:
+        serializedVersion: 2
+        x: 11
+        y: 787
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: c67259fcef675ad00800000000000000
+      internalID: 983322930426750828
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UI_Icon_Charator_48
+      rect:
+        serializedVersion: 2
+        x: 3
+        y: 757
+        width: 7
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a8a00b55cca4a4be0800000000000000
+      internalID: -1492298085048513910
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UI_Icon_Charator_49
+      rect:
+        serializedVersion: 2
+        x: 14
+        y: 729
+        width: 8
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 64b018de546adf2c0800000000000000
+      internalID: -4396174841976124602
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: UI_Icon_Charator_50
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 701
+        width: 17
+        height: 21
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5955c77edc12fb7c0800000000000000
+      internalID: -4053483971374459499
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      UI_Icon_Charator_0: 1223945385206768649
+      UI_Icon_Charator_1: 6781486485338481480
+      UI_Icon_Charator_10: -603632203430896021
+      UI_Icon_Charator_11: -3606413740140579190
+      UI_Icon_Charator_12: 8153591203908063635
+      UI_Icon_Charator_13: 3233300309511115107
+      UI_Icon_Charator_14: -6506396603103539745
+      UI_Icon_Charator_15: 4050424947295984473
+      UI_Icon_Charator_16: 2975434663545949888
+      UI_Icon_Charator_17: -4608177351931033786
+      UI_Icon_Charator_18: 1854031279843247834
+      UI_Icon_Charator_19: -6154161493895939610
+      UI_Icon_Charator_2: 1862566847603168834
+      UI_Icon_Charator_20: -2449436797221759291
+      UI_Icon_Charator_21: -1808963683848288586
+      UI_Icon_Charator_22: -3852926940709878567
+      UI_Icon_Charator_23: -3277548276404917886
+      UI_Icon_Charator_24: 6556106582793537703
+      UI_Icon_Charator_25: -2770343997792605376
+      UI_Icon_Charator_26: 5745040425867489628
+      UI_Icon_Charator_27: -8664205787510191173
+      UI_Icon_Charator_28: -3973167368952197288
+      UI_Icon_Charator_29: -590333187500691700
+      UI_Icon_Charator_3: -6476341229755149144
+      UI_Icon_Charator_30: -4809747444150489263
+      UI_Icon_Charator_31: -5665982042762006036
+      UI_Icon_Charator_32: -6162627220880266093
+      UI_Icon_Charator_33: 6243434964735525090
+      UI_Icon_Charator_34: 3860937030717217939
+      UI_Icon_Charator_35: -1010442349694549545
+      UI_Icon_Charator_36: 714513161382640135
+      UI_Icon_Charator_37: -73684494359694901
+      UI_Icon_Charator_38: 5735646237889815959
+      UI_Icon_Charator_39: 834021801588494367
+      UI_Icon_Charator_4: 5445153891496232837
+      UI_Icon_Charator_40: -7778184585201817913
+      UI_Icon_Charator_41: 3519023921053382804
+      UI_Icon_Charator_42: -3011102976182354186
+      UI_Icon_Charator_43: -8741370868451580272
+      UI_Icon_Charator_44: 1368166451412684268
+      UI_Icon_Charator_45: 1659737297047410425
+      UI_Icon_Charator_46: 2653178018461748868
+      UI_Icon_Charator_47: 983322930426750828
+      UI_Icon_Charator_48: -1492298085048513910
+      UI_Icon_Charator_49: -4396174841976124602
+      UI_Icon_Charator_5: -6268819059596620358
+      UI_Icon_Charator_50: -4053483971374459499
+      UI_Icon_Charator_6: 2019232346699868173
+      UI_Icon_Charator_7: 9149536425477745694
+      UI_Icon_Charator_8: -3302464165158286648
+      UI_Icon_Charator_9: -6205609033230106587
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

@@ -10,6 +10,10 @@ public sealed class PNModeDefinition : EveIIdentified
     public string Implementation => ImplementationType.FullName;
     [JsonIgnore] public Type ImplementationType { get; }
     private readonly Func<PNNetworkProfile, IPNSessionPolicy> factory;
+    // Menu presentation only (null = not listed, like the Hall); it never takes part in selection or compatibility.
+    [JsonIgnore] public PNModeListing Listing { get; }
+    public PNModeDefinition(EveId id, Type implementationType, Func<PNNetworkProfile, IPNSessionPolicy> factory, PNModeListing listing)
+        : this(id, implementationType, factory) { Listing = listing; }
     public PNModeDefinition(EveId id, Type implementationType, Func<PNNetworkProfile, IPNSessionPolicy> factory)
     {
         if (!id.IsValid || implementationType == null || implementationType.IsAbstract || implementationType.ContainsGenericParameters || !typeof(IPNSessionPolicy).IsAssignableFrom(implementationType))

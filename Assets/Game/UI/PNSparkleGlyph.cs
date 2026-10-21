@@ -9,29 +9,34 @@ internal class PNSparkleGlyph : VisualElement
     private readonly VisualElement halo;
     private sealed class Core : VisualElement
     {
-        private readonly bool hollow;
-        internal Core(bool hollow)
+        private readonly bool hollow, filled; private readonly Color color;
+        internal Core(bool hollow, bool filled, Color color)
         {
-            this.hollow=hollow;pickingMode=PickingMode.Ignore;
+            this.hollow=hollow;this.filled=filled;this.color=color;pickingMode=PickingMode.Ignore;
             style.position=Position.Absolute;style.left=0;style.right=0;style.top=0;style.bottom=0;
             generateVisualContent+=Draw;
         }
         private void Draw(MeshGenerationContext context)
         {
             var p=context.painter2D;p.lineJoin=LineJoin.Round;
-            PNSparklePath.Draw(p,contentRect.center,new Vector2(contentRect.width*.5f- (hollow?.8f:0),contentRect.height*.5f-(hollow?.8f:0)),hollow);
-            if(hollow){p.lineWidth=Mathf.Clamp(contentRect.width*.047f,.8f,1.6f);p.strokeColor=Color.white;p.Stroke();}
-            else{p.fillColor=Color.white;p.Fill();}
+            // A filled plump star (the pause toggle's shape, filled) is the lobby's lit ready mark; plain `filled` glints keep the thin path.
+            bool plump=hollow||filled;
+            PNSparklePath.Draw(p,contentRect.center,new Vector2(contentRect.width*.5f-(plump?.8f:0),contentRect.height*.5f-(plump?.8f:0)),plump);
+            if(hollow&&!filled){p.lineWidth=Mathf.Clamp(contentRect.width*.047f,.8f,1.6f);p.strokeColor=color;p.Stroke();}
+            else{p.fillColor=color;p.Fill();if(filled){p.lineWidth=1.2f;p.strokeColor=Color.white;p.Stroke();}}
         }
     }
-    internal PNSparkleGlyph(bool hollow)
+    internal PNSparkleGlyph(bool hollow):this(hollow,false,Color.white){}
+    // `filled` with `hollow` = the plump pause-toggle star filled with `color` (and its solid soft halo); `color` colours the core.
+    internal PNSparkleGlyph(bool hollow,bool filled,Color color)
     {
         pickingMode=PickingMode.Ignore;style.overflow=Overflow.Visible;
         halo=new VisualElement {name="sparkle-soft-halo",pickingMode=PickingMode.Ignore};
         halo.style.position=Position.Absolute;halo.style.left=Length.Percent(-50);halo.style.top=Length.Percent(-50);
         halo.style.width=Length.Percent(200);halo.style.height=Length.Percent(200);
-        halo.style.backgroundImage=PNSparkleArtwork.Texture(hollow);halo.style.opacity=hollow?.3f:.5f;
-        Add(halo);Add(new Core(hollow));
+        bool outline=hollow&&!filled;
+        halo.style.backgroundImage=PNSparkleArtwork.Texture(outline);halo.style.opacity=outline?.3f:.5f;
+        Add(halo);Add(new Core(hollow,filled,color));
     }
     internal void SetGlow(Color glow)=>halo.style.unityBackgroundImageTintColor=glow;
 }

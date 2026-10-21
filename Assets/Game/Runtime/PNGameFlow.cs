@@ -5,6 +5,7 @@ using System.Linq;
 using EveEngine;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.UIElements;
 
 public enum PNFlowPhase { Hall, Loading, Lobby, Run }
 public enum PNFlowMode { Offline, Host, Join }
@@ -39,7 +40,7 @@ public sealed class PNGameFlow : MonoBehaviour
     public static bool IsHost => EveRegistrySession.IsReady && EveRegistrySession.Context.Role == EveSessionRole.Host;
     public static bool InRoom => PNGameBootstrap.IsRoomOpen;
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-    private static void Reset() { instance = null; loading = expectSession = starting = false; message = null; Changed = null; CurrentMode = PNFlowMode.Offline; }
+    private static void Reset() { instance = null; loading = expectSession = starting = false; coverHost = null; coverSettings = null; coverUntil = 0; message = null; Changed = null; CurrentMode = PNFlowMode.Offline; }
     private static PNGameFlow Ensure()
     {
         if (instance != null) return instance;
@@ -51,12 +52,18 @@ public sealed class PNGameFlow : MonoBehaviour
     private static void Say(string value) { message = value; Raise(); }
 
     // Start the roguelite from the Hall (or from anywhere): Offline goes straight to the run scene, Host/Join to the lobby.
-    public static void StartRoguelite(PNFlowMode mode, string address = null)
+    public static void StartRoguelite(PNFlowMode mode, string address = null) => StartMode("roguelite", mode, address);
+    // Start any registered mode by its id (the menu passes the mode it listed). Scenes are still the roguelite ones: a mode with its own
+    // scenes needs a scene mapping first (Docs/ModeMenuPlan.md).
+    public static void StartMode(string modeId, PNFlowMode mode, string address = null)
     {
         if (Busy) return;
-        if (mode == PNFlowMode.Join && string.IsNullOrWhiteSpace(address)) { Say("Nhập địa chỉ phòng trước khi vào."); return; }
+        // Shipped modes keep their short selection name ("roguelite"), which rooms and the admission already compare; others use the full id.
+        if (modeId.StartsWith("project_n:", StringComparison.Ordinal)) modeId = modeId.Substring("project_n:".Length);
+        else if (modeId.StartsWith("base:", StringComparison.Ordinal)) modeId = modeId.Substring("base:".Length);
+        if (mode == PNFlowMode.Join && string.IsNullOrWhiteSpace(address)) { preCoverUntil = 0; Say("Nhập địa chỉ phòng trước khi vào."); return; }
         CurrentMode = mode;
-        var flow = Ensure(); flow.StartCoroutine(flow.Launch(mode, address));
+        var flow = Ensure(); flow.StartCoroutine(flow.Launch(modeId, mode, address));
     }
     // Leave the current room/run and go back to the offline Hall.
     public static void ReturnToHall(string notice = null)
@@ -103,9 +110,9 @@ public sealed class PNGameFlow : MonoBehaviour
         while (!operation.isDone) yield return null;
         yield return null; // let scene Awake/OnEnable settle before the play starts
     }
-    private IEnumerator Launch(PNFlowMode mode, string address)
+    private IEnumerator Launch(string modeId, PNFlowMode mode, string address)
     {
-        loading = true; message = null; Raise();
+        BeginLoading(); message = null; Raise();
         string failure = null;
         var network = PNGameBootstrap.Config.Network; var preparation = PNGameBootstrap.Config.Preparation;
         var end = EndCurrent();
@@ -120,7 +127,7 @@ public sealed class PNGameFlow : MonoBehaviour
             try
             {
                 var role = mode == PNFlowMode.Offline ? EveSessionRole.Offline : mode == PNFlowMode.Host ? EveSessionRole.Host : EveSessionRole.Client;
-                PNGameBootstrap.Begin(new PNPlayConfig(role, "roguelite", string.IsNullOrWhiteSpace(address) ? "localhost" : address.Trim(), network, preparation, true));
+                PNGameBootstrap.Begin(new PNPlayConfig(role, modeId, string.IsNullOrWhiteSpace(address) ? "localhost" : address.Trim(), network, preparation, true));
             }
             catch (Exception error) { failure = error.Message; }
         }
@@ -131,13 +138,13 @@ public sealed class PNGameFlow : MonoBehaviour
             else if (mode != PNFlowMode.Offline && !PNGameBootstrap.IsRoomOpen) failure = PNGameBootstrap.LobbyDriver?.LastFailure ?? "Phòng không khả dụng.";
             else yield return null;
         }
-        loading = false;
+        EndLoading();
         if (failure != null) { Debug.LogWarning("Roguelite start failed: " + failure); yield return Return("Không vào được: " + failure); yield break; }
         expectSession = true; Raise();
     }
     private IEnumerator Return(string notice)
     {
-        loading = true; Raise();
+        BeginLoading(); Raise();
         string failure = null;
         var network = PNGameBootstrap.Config.Network; var preparation = PNGameBootstrap.Config.Preparation;
         foreach (var step in new Func<IEnumerator>[] { EndCurrent, () => LoadScene(PNScenes.Hall) })
@@ -157,7 +164,7 @@ public sealed class PNGameFlow : MonoBehaviour
             if (Time.realtimeSinceStartupAsDouble > until) failure = "Hall did not start.";
             else yield return null;
         }
-        loading = false; CurrentMode = PNFlowMode.Offline;
+        EndLoading(); CurrentMode = PNFlowMode.Offline;
         if (failure != null) Debug.LogError("Return to Hall failed: " + failure);
         Say(failure != null ? "Không về được Hall: " + failure : notice);
     }
@@ -222,7 +229,64 @@ public sealed class PNGameFlow : MonoBehaviour
         if (!ended) return;
         expectSession = false;
         string reason = PNGameBootstrap.LobbyDriver?.LastFailure;
-        ReturnToHall(CurrentMode == PNFlowMode.Offline ? "Run đã kết thúc." : (string.IsNullOrEmpty(reason) ? "Phòng đã đóng." : "Phòng đã đóng: " + reason));
+        // Only a reason (a failure) is worth telling; "the run ended" or "the room closed" is already plain from the Hall appearing.
+        ReturnToHall(CurrentMode == PNFlowMode.Offline || string.IsNullOrEmpty(reason) ? null : "Phòng đã đóng: " + reason);
     }
+
+    // While one play is torn down and the next one starts there is no UI of ours, only the freshly loaded scene. This cover stays up from the
+    // first moment until the transition screen of the new play is showing (or a short deadline), so the new scene never shows before the
+    // loading screen. Same colour and text as the default transition screen, so the hand-over is not seen.
+    private static double coverUntil;
+    private static bool Covering
+    {
+        get
+        {
+            if (loading || Time.realtimeSinceStartupAsDouble < preCoverUntil) return true;
+            if (Time.realtimeSinceStartupAsDouble > coverUntil) return false;
+            // Handed over once the new play's transition screen is up, or has already come and gone since this load began.
+            var current = PNTransitionController.Current;
+            if (current == null) return true;
+            bool shown = ReferenceEquals(current, coverRef) ? current.ShowCount > coverBase : current.ShowCount > 0;
+            return !(current.IsShowing || shown);
+        }
+    }
+    private static PNTransitionController coverRef;
+    private static int coverBase;
+    // Called the moment the player commits to a start (the menu is still fading out): the cover goes up at once so the scene behind the fading menu is never seen.
+    private static double preCoverUntil;
+    public static void PrepareStart() { preCoverUntil = Time.realtimeSinceStartupAsDouble + 3; ShowCover(); }
+    private static void BeginLoading() { preCoverUntil = 0; loading = true; coverRef = PNTransitionController.Current; coverBase = coverRef != null ? coverRef.ShowCount : 0; ShowCover(); }
+    private static void EndLoading() { loading = false; coverUntil = Time.realtimeSinceStartupAsDouble + 3; }
+
+    // The cover is a UI Toolkit document of its own (like the transition screen it hands over to, sorted above it), kept outside any play so it
+    // survives the UI being torn down.
+    private const float CoverSortingOrder = 200f;
+    private static GameObject coverHost;
+    private static PanelSettings coverSettings;
+    private static void ShowCover()
+    {
+        if (coverHost != null) return;
+        var payload = PNTransitionPayload.Default;
+        coverHost = new GameObject("PN Loading Cover (UI Toolkit)");
+        if (Application.isPlaying) DontDestroyOnLoad(coverHost);
+        coverSettings = ScriptableObject.CreateInstance<PanelSettings>(); coverSettings.name = "Loading cover panel settings";
+        coverSettings.themeStyleSheet = Resources.Load<ThemeStyleSheet>("UI/Combat/RuntimeTheme");
+        coverSettings.scaleMode = PanelScaleMode.ScaleWithScreenSize; coverSettings.referenceResolution = new Vector2Int(1280, 720); coverSettings.match = .5f;
+        coverSettings.sortingOrder = CoverSortingOrder;
+        var document = coverHost.AddComponent<UIDocument>(); document.panelSettings = coverSettings;
+        var root = document.rootVisualElement;
+        root.style.position = Position.Absolute; root.style.left = 0; root.style.top = 0; root.style.right = 0; root.style.bottom = 0;
+        root.style.backgroundColor = new Color(payload.R, payload.G, payload.B, payload.A);
+        root.style.alignItems = Align.Center; root.style.justifyContent = Justify.Center; root.pickingMode = PickingMode.Ignore;
+        var label = new Label(payload.Text) { pickingMode = PickingMode.Ignore };
+        label.style.color = Color.white; label.style.fontSize = 36; label.style.unityTextAlign = TextAnchor.MiddleCenter; root.Add(label);
+    }
+    private static void HideCover()
+    {
+        if (coverHost != null) Destroy(coverHost);
+        if (coverSettings != null) Destroy(coverSettings);
+        coverHost = null; coverSettings = null;
+    }
+    private void LateUpdate() { if (Covering) ShowCover(); else HideCover(); }
 }
 #endif

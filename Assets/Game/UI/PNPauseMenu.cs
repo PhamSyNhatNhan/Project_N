@@ -28,6 +28,9 @@ internal sealed class PNPauseMenu : IDisposable
     internal const float EnterDuration=1f, ExitDuration=.58f;
     private Guid session;
     public bool IsOpen { get; private set; }
+    // The safe-area layer and the star's side, so a button can sit beside the star (the lobby character button).
+    internal VisualElement SafeArea => safe;
+    internal float ToggleSize { get { float w = toggle.resolvedStyle.width; return float.IsFinite(w) && w > 0 ? w : 56; } }
 
     public PNPauseMenu(PNUiRuntime owner, VisualElement root)
     {
@@ -79,12 +82,12 @@ internal sealed class PNPauseMenu : IDisposable
         menu.performed+=OnMenu; menu.Enable();
     }
     // Leaves the lobby/run for the Hall. Closing first keeps the menu animation and time scale consistent with a normal resume.
-    private void Leave(){ if(!IsOpen||PNGameFlow.Busy)return; Close(); PNGameFlow.ReturnToHall("Đã rời phòng."); }
+    private void Leave(){ if(!IsOpen||PNGameFlow.Busy)return; Close(); PNGameFlow.ReturnToHall(); }
     private void OnMenu(InputAction.CallbackContext _) => Toggle();
     private void Toggle() { if(IsOpen)Close();else Open(); }
     public void Open()
     {
-        if(disposed || IsOpen || !EveRegistrySession.IsReady)return;
+        if(disposed || IsOpen || owner.FlowOpen || !EveRegistrySession.IsReady)return;
         session=EveRegistrySession.Context.SessionId;
         IsOpen=true; closing=false; elapsed=0;surfaceAlpha=0;
         owner.ResetMobileInput(); AcquireLocalInput();
