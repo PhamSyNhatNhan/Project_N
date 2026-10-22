@@ -6,6 +6,9 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
+    path: Assets/Game/Scenes/Shared/PNTitle/PNTitle.unity
+    guid: 0f6ada1ce74af424bba5f7a01527a385
+  - enabled: 1
     path: Assets/Game/Scenes/Shared/PNHall/PNHall.unity
     guid: 9b26361d46d618546bdb3006f0411131
   - enabled: 1

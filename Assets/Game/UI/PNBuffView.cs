@@ -64,7 +64,8 @@ internal sealed class PNBuffView : IDisposable
         public readonly VisualElement Root=new VisualElement();
         public PNBuffPresentationSnapshot State {get;private set;}
         private readonly PNUiRuntime owner;
-        private readonly VisualElement image;
+        private const string FallbackIcon="PNBuffIcons/PNPlaceholder";   // a Buff without art of its own
+        private readonly VisualElement image,glow;
         private readonly PNHudGlow halo;
         private readonly Label[] labels=new Label[4];
         private PNBuffNumbers numbers;
@@ -75,6 +76,7 @@ internal sealed class PNBuffView : IDisposable
         public Card(PNUiRuntime owner,PNBuffPresentationSnapshot state,bool appear)
         {
             this.owner=owner;Root.AddToClassList("buff-card");Root.name="buff-"+state.InstanceId;Root.pickingMode=PickingMode.Ignore;
+            glow=new VisualElement();glow.AddToClassList("buff-glow");glow.pickingMode=PickingMode.Ignore;Root.Add(glow);
             halo=new PNHudGlow(true);halo.pickingMode=PickingMode.Ignore;Root.Add(halo);
             image=new VisualElement();image.AddToClassList("buff-image");image.pickingMode=PickingMode.Ignore;Root.Add(image);
             for(int i=0;i<4;i++){var badge=new PNHudNumberBadge();badge.AddToClassList("buff-corner-"+i);Root.Add(badge);labels[i]=new Label();labels[i].pickingMode=PickingMode.Ignore;badge.Add(labels[i]);}
@@ -82,8 +84,14 @@ internal sealed class PNBuffView : IDisposable
         }
         public void Refresh(PNBuffPresentationSnapshot state)
         {
-            if(State==null || State.IconPath!=state.IconPath){var sprite=owner.Image(state.IconPath)??owner.Image("Effects/Burn/Burn");image.style.backgroundImage=sprite==null?StyleKeyword.None:new StyleBackground(sprite);}
-            State=state;hideAt=-1;image.style.opacity=state.Suspended?.45f:1;
+            if(State==null || State.IconPath!=state.IconPath)
+            {
+                string path=owner.Image(state.IconPath)!=null?state.IconPath:FallbackIcon; var sprite=owner.Image(path);
+                image.style.backgroundImage=sprite==null?StyleKeyword.None:new StyleBackground(sprite);
+                var texture=owner.Glow(path);glow.style.backgroundImage=texture==null?StyleKeyword.None:new StyleBackground(Background.FromTexture2D(texture));
+            }
+            if(State==null || State.Glow!=state.Glow)glow.style.unityBackgroundImageTintColor=PNBuffGlowArt.Tint(state.Glow);
+            State=state;hideAt=-1;image.style.opacity=state.Suspended?.45f:1;glow.style.opacity=state.Suspended?.45f:1;
             if(!hasNumbers || !numbers.Equals(state.Numbers))
             {
                 numbers=state.Numbers;hasNumbers=true;

@@ -20,25 +20,29 @@ public static class PNBuffGameplayContent
                 validateReferences: (data, context) => PNBuffPayloadReferences.Template(name, data, context)).WithCountdown(PNBuffCountdown.BottomRight));
         }
         Add("buff_stat_template", data => new PNBuffStatBehavior(data), "{'duration':5,'clock':'Game','statId':'base:attack_power','value':10,'group':0,'maximumStacks':3}", new[] { "buff" });
-        void Dot(string name, string json, string[] tags)
+        void Dot(string name, string json, string[] tags, string iconPath = "", string glow = "")
         {
             registry.Register(new PNBuffDefinition(EveId.Parse("project_n:" + name), EveId.Parse("project_n:buff_dot"), data => new PNBuffDotBehavior(data), JObject.Parse(json),
-                tags.Select(x => EveId.Parse("project_n:" + x)), scope: PNBuffInstanceScope.Source,
+                tags.Select(x => EveId.Parse("project_n:" + x)), scope: PNBuffInstanceScope.Source, iconPath: iconPath, glow: glow,
                 validate: (data, content) => PNBuffBuiltinSettings.Validate("buff_dot_template", data, content), validateInput: PNBuffDotBehavior.ValidateInput,
                 validateReferences: (data, context) => PNBuffPayloadReferences.Template("buff_dot_template", data, context), presenterId: PNBuffElementPresenterContent.Id)
                 .WithCountdown(PNBuffCountdown.BottomRight));
         }
         Dot("buff_dot_template", "{'duration':5,'clock':'Game','amount':10,'attackRatio':0,'maximumStacks':1,'period':1,'damageTags':['base:physical'],'iframeDuration':0,'canCrit':false}", new[] { "debuff", "dot" });
-        Dot("burn", "{'duration':15,'clock':'Entity','amount':0,'attackRatio':0.05,'maximumStacks':35,'period':0.8,'damageTags':['base:magic','base:fire'],'iframeDuration':0,'canCrit':false,'visual':{'kind':'Fire','slot':0,'color':[1,0.18,0.04],'size':0.26}}", new[] { "debuff", "dot", "fire" });
-        Dot("electrocution", "{'duration':5,'clock':'Entity','amount':0,'attackRatio':0.10,'additionalStackAttackRatio':0.10,'additionalStackGrowth':0.03,'maximumStacks':10,'period':0.4,'damageTags':['base:magic','base:lightning'],'iframeDuration':0,'canCrit':false,'visual':{'kind':'Lightning','slot':0,'color':[1,0.85,0.08],'size':0.26}}", new[] { "debuff", "dot", "lightning" });
-        Dot("frostbite", "{'duration':12,'clock':'Entity','amount':0,'attackRatio':1.50,'additionalStackAttackRatio':0.50,'additionalStackGrowth':0,'maximumStacks':5,'period':1.5,'damageTags':['base:magic','base:ice'],'iframeDuration':0,'canCrit':false,'visual':{'kind':'Ice','slot':0,'color':[0.22,0.68,1],'size':0.117}}", new[] { "debuff", "dot", "ice" });
+        Dot("burn", "{'duration':15,'clock':'Entity','amount':0,'attackRatio':0.05,'maximumStacks':35,'period':0.8,'damageTags':['base:magic','base:fire'],'iframeDuration':0,'canCrit':false,'visual':{'kind':'Fire','slot':0,'color':[1,0.18,0.04],'size':0.26}}", new[] { "debuff", "dot", "fire" }, "PNBuffIcons/PNBurn", "red");
+        Dot("electrocution", "{'duration':5,'clock':'Entity','amount':0,'attackRatio':0.10,'additionalStackAttackRatio':0.10,'additionalStackGrowth':0.03,'maximumStacks':10,'period':0.4,'damageTags':['base:magic','base:lightning'],'iframeDuration':0,'canCrit':false,'visual':{'kind':'Lightning','slot':0,'color':[1,0.85,0.08],'size':0.26}}", new[] { "debuff", "dot", "lightning" }, "PNBuffIcons/PNElectrocution", "gold");
+        Dot("frostbite", "{'duration':12,'clock':'Entity','amount':0,'attackRatio':1.50,'additionalStackAttackRatio':0.50,'additionalStackGrowth':0,'maximumStacks':5,'period':1.5,'damageTags':['base:magic','base:ice'],'iframeDuration':0,'canCrit':false,'visual':{'kind':'Ice','slot':0,'color':[0.22,0.68,1],'size':0.117}}", new[] { "debuff", "dot", "ice" }, "PNBuffIcons/PNFrostbite", "blue");
         foreach (var element in new[] { "fire", "ice", "lightning" })
         {
             int slot = element == "fire" ? -1 : element == "ice" ? 0 : 1;
             string color = element == "fire" ? "[1,0.18,0.04]" : element == "ice" ? "[0.22,0.68,1]" : "[1,0.85,0.08]";
+            // The vulnerability shares its element's glow colour (fire red, ice blue, lightning gold).
+            string glow = element == "fire" ? "red" : element == "ice" ? "blue" : "gold";
+            string iconPath = "PNBuffIcons/PN" + (element == "fire" ? "Fire" : element == "ice" ? "Ice" : "Lightning") + "Vulnerability";
             registry.Register(new PNBuffDefinition(EveId.Parse("project_n:" + element + "_vulnerability"), EveId.Parse("project_n:buff_vulnerability"), data => new PNBuffVulnerabilityBehavior(data),
                 JObject.Parse("{'duration':15,'clock':'Entity','tagId':'base:" + element + "','value':0.75,'group':2,'calculationId':'base:mitigation','visual':{'kind':'Arrow','slot':" + slot + ",'color':" + color + ",'size':0.098}}"),
                 new[] { "debuff", "vulnerability", element }.Select(x => EveId.Parse("project_n:" + x)),
+                iconPath: iconPath, glow: glow,
                 validate: PNBuffVulnerabilityBehavior.Validate, validateReferences: (data, context) => PNBuffPayloadReferences.Modifier(data, context, "tagId"), presenterId: PNBuffElementPresenterContent.Id)
                 .WithCountdown(PNBuffCountdown.BottomRight));
         }

@@ -86,7 +86,7 @@ public sealed class PNBuffUIPlayReview : MonoBehaviour
         Check(h0.Query<Label>().ToList().Select(x=>x.text).SequenceEqual(new[]{"0","12","-2","33"}),"Four corner integer values reach native labels");
         Check(Mathf.Abs(h0.resolvedStyle.width-30)<1f && Mathf.Abs(h0.resolvedStyle.height-30)<1f,"Buff icon remains30 pixels within one layout pixel of panel snapping ("+h0.resolvedStyle.width+"x"+h0.resolvedStyle.height+")");
         Check(h0.pickingMode==PickingMode.Ignore && h0.Query<VisualElement>().ToList().All(x=>x.pickingMode==PickingMode.Ignore),"Icon and all four badges ignore pointer picking");
-        Check(h0.Q(className:"buff-image").resolvedStyle.backgroundImage.sprite==Resources.Load<Sprite>("Effects/Burn/Burn"),"Burn PNG fallback preserves original artwork");
+        Check(h0.Q(className:"buff-image").resolvedStyle.backgroundImage.sprite==Resources.Load<Sprite>("PNBuffIcons/PNPlaceholder"),"Placeholder PNG fallback shows for a Buff without art");
         yield return Capture("Eleven");
         var same=h0;Writer(p,ph[0]).Publish(new PNBuffNumbers(topRight:1));ui.RefreshUI();yield return null;
         Check(ReferenceEquals(same,hud.Q(same.name)) && same.Query<Label>().ToList()[1].text=="1","Number changes update retained card without re-creation");

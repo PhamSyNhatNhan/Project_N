@@ -37,7 +37,7 @@ public sealed class PNMenuPlayReview : MonoBehaviour
             for (int y = 0; y < tex.height; y += 40) for (int x = 0; x < tex.width; x += 40) { var c = px[y * tex.width + x]; n++; r += c.r; g += c.g; b += c.b; if (c.b > 150 && c.r < 80 && c.g < 120) blue++; }
             string cls = blue * 10 > n * 8 ? "BLUE" : "scene";
             bool ui = PNGameBootstrap.Runtime != null && PNGameBootstrap.Runtime.GetComponent<PNUiRuntime>() != null;
-            string key = cls + " phase=" + PNGameFlow.Phase + " busy=" + PNGameFlow.Busy + " ready=" + EveRegistrySession.IsReady + " ui=" + ui;
+            string key = cls + " phase=" + PNGameFlow.Phase + " busy=" + PNGameFlow.Busy + " ready=" + EveRegistrySession.IsReady + " ui=" + ui + " handoff=" + PNTransitionHandoffHost.State + "/" + PNTransitionHandoffHost.Raises + "r" + PNTransitionHandoffHost.Adoptions + "a" + " screens=" + FindObjectsByType<UnityEngine.UIElements.UIDocument>(FindObjectsInactive.Include).Count(d => d.name.Contains("Transition") || d.name.Contains("Loading Cover"));
             if (key != last)
             {
                 last = key; Log("frame " + frame + ": " + key + " avg=(" + (r / n) + "," + (g / n) + "," + (b / n) + ")");

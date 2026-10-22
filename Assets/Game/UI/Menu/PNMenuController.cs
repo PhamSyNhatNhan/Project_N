@@ -72,7 +72,7 @@ internal sealed class PNMenuController
     private void Launch(PNListedMode mode, PNModeStart start, string address, PNPlayableEntry entry)
     {
         PNPlayerProfileService.SetLastCharacter(entry.Id);
-        PNGameFlow.PrepareStart();
+        PNGameFlow.PrepareStart(mode.Id.ToString(), start == PNModeStart.Offline);
         var role = start == PNModeStart.Offline ? PNFlowMode.Offline : start == PNModeStart.Host ? PNFlowMode.Host : PNFlowMode.Join;
         var flow = Flow;
         Action begin = null;

@@ -25,5 +25,6 @@ public static class PNScenes
     public const string Hall = "Assets/Game/Scenes/Shared/PNHall/PNHall.unity";
     public const string Lobby = "Assets/Game/Scenes/Roguelite/PNLobby/PNLobby.unity";
     public const string Run = "Assets/Game/Scenes/Test/ErMode/ErMode.unity";
+    public const string Title = "Assets/Game/Scenes/Shared/PNTitle/PNTitle.unity";
 }
 #endif

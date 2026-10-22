@@ -53,6 +53,7 @@ public sealed class PNUiRuntime : MonoBehaviour
     private StyleSheet styles;
     private readonly Dictionary<EveEntityId,WorldView> worlds=new Dictionary<EveEntityId,WorldView>();
     private readonly Dictionary<string,Sprite> images=new Dictionary<string,Sprite>();
+    private readonly Dictionary<string,Texture2D> glows=new Dictionary<string,Texture2D>();
     private readonly Dictionary<Sprite,Sprite> portraits=new Dictionary<Sprite,Sprite>();
     private readonly List<PNStat> entities=new List<PNStat>();
     private readonly List<EveEntityId> selectionIds=new List<EveEntityId>();
@@ -201,7 +202,7 @@ public sealed class PNUiRuntime : MonoBehaviour
             ClearWorlds(); entities.Clear(); HudPlayer=null; mobile?.Refresh(null); UpdateHud(); UpdateSelection(); UpdateDetails(); return;
         }
         if(session!=EveRegistrySession.Context.SessionId)
-        { ClearWorlds(); ClearPortraits(); selected=default; session=EveRegistrySession.Context.SessionId; images.Clear(); }
+        { ClearWorlds(); ClearPortraits(); selected=default; session=EveRegistrySession.Context.SessionId; images.Clear(); ClearGlows(); }
         entities.Clear();
         foreach(var loader in EveRegistrySession.Context.Entities.Snapshot())
         {
@@ -319,6 +320,19 @@ public sealed class PNUiRuntime : MonoBehaviour
         if(result==null) Debug.LogWarning("Combat UI Sprite missing from Resources: "+path,this);
         return result;
     }
+    // The baked glow of a Buff icon, one texture per icon path (tinted per card); null when the icon is missing.
+    internal Texture2D Glow(string path)
+    {
+        if(string.IsNullOrEmpty(path)) return null;
+        if(glows.TryGetValue(path,out var result)) return result;
+        result=PNBuffGlowArt.Build(Image(path)); glows.Add(path,result);
+        return result;
+    }
+    private void ClearGlows()
+    {
+        foreach(var texture in glows.Values){ if(texture==null) continue; if(Application.isPlaying) Destroy(texture); else DestroyImmediate(texture); }
+        glows.Clear();
+    }
     private void ClearWorlds() { foreach(var view in worlds.Values) view.Dispose(); worlds.Clear(); }
     private void ClearPortraits()
     {
@@ -345,7 +359,7 @@ public sealed class PNUiRuntime : MonoBehaviour
         if(entitySelect!=null) entitySelect.UnregisterValueChangedCallback(SelectEntity);
         if(hud!=null) Retire(hud.gameObject); hud=null;
         if(overlaySettings!=null) Retire(overlaySettings); if(worldSettings!=null) Retire(worldSettings);
-        overlaySettings=null; worldSettings=null; entities.Clear(); images.Clear(); selectionIds.Clear();
+        overlaySettings=null; worldSettings=null; entities.Clear(); images.Clear(); ClearGlows(); selectionIds.Clear();
         selectionKey=""; session=Guid.Empty; HudPlayer=null;
     }
     internal static void Retire(UnityEngine.Object value)

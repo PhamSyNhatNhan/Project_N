@@ -96,6 +96,7 @@ public sealed class PNBuffDefinition : EveIIdentified
         if (maximumInstances < 1 || !multipleInstances && maximumInstances != 1) throw new ArgumentOutOfRangeException(nameof(maximumInstances));
         if (!Enum.IsDefined(typeof(PNBuffInstanceScope), scope)) throw new ArgumentException("Unknown instance scope.");
         if (!implementationId.IsValid) throw new ArgumentException("Explicit Buff implementation ID required.");
+        if (!PNBuffGlow.IsValid(glow)) throw new ArgumentException("Buff glow must be empty, a preset name or hex colour: " + glow, nameof(glow));
         Id = id; ImplementationId = implementationId; PresenterId = presenterId; this.validateReferences = validateReferences;
         this.factory = factory ?? throw new ArgumentNullException(nameof(factory));
         this.payload = payload?.DeepClone(); this.validate = validate; this.validateInput = validateInput;

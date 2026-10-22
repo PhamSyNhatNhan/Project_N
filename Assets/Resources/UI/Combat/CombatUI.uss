@@ -97,13 +97,14 @@
 .enemy-hp .unity-progress-bar__container { min-height: 0; height: 8px; }
 .buff-grid { position: relative; flex-shrink: 0; overflow: visible; }
 .buff-card { position: absolute; width: 30px; height: 30px; background-color: transparent; border-width: 0; overflow: visible; }
-.buff-image { position: absolute; left: 0; right: 0; top: 0; bottom: 0; -unity-background-scale-mode: scale-to-fit; }
+.buff-glow { position: absolute; left: -3px; right: -3px; top: -3px; bottom: -3px; -unity-background-scale-mode: scale-to-fit; }
+.buff-image { position: absolute; left: 3px; right: 3px; top: 3px; bottom: 3px; -unity-background-scale-mode: scale-to-fit; }
 .buff-card Label { margin: 0; padding: 0; height: 16px; font-size: 14px; color: white; -unity-font-style: bold; -unity-text-outline-width: 0; }
 .buff-card .ability-number-badge { padding: 0px 3px; }
-.buff-card .buff-corner-0 { right: 100%; margin-right: -10px; top: -2px; }
-.buff-card .buff-corner-1 { left: 100%; margin-left: -10px; top: -2px; }
-.buff-card .buff-corner-2 { right: 100%; margin-right: -10px; bottom: -2px; }
-.buff-card .buff-corner-3 { left: 100%; margin-left: -10px; bottom: -2px; }
+.buff-card .buff-corner-0 { right: 100%; margin-right: -8px; top: -2px; }
+.buff-card .buff-corner-1 { left: 100%; margin-left: -8px; top: -2px; }
+.buff-card .buff-corner-2 { right: 100%; margin-right: -8px; bottom: -2px; }
+.buff-card .buff-corner-3 { left: 100%; margin-left: -8px; bottom: -2px; }
 .buff-corner-0 Label, .buff-corner-2 Label { -unity-text-align: middle-right; }
 .buff-corner-1 Label, .buff-corner-3 Label { -unity-text-align: middle-left; }
 .mobile-controls, .mobile-safe-area { position: absolute; left: 0; right: 0; top: 0; bottom: 0; }

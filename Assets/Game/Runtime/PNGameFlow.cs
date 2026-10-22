@@ -40,12 +40,14 @@ public sealed class PNGameFlow : MonoBehaviour
     public static bool IsHost => EveRegistrySession.IsReady && EveRegistrySession.Context.Role == EveSessionRole.Host;
     public static bool InRoom => PNGameBootstrap.IsRoomOpen;
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-    private static void Reset() { instance = null; loading = expectSession = starting = false; coverHost = null; coverSettings = null; coverUntil = 0; message = null; Changed = null; CurrentMode = PNFlowMode.Offline; }
+    private static void Reset() { instance = null; loading = expectSession = starting = usingHandoff = false; coverHost = null; coverSettings = null; coverUntil = 0; message = null; Changed = null; CurrentMode = PNFlowMode.Offline; }
     private static PNGameFlow Ensure()
     {
         if (instance != null) return instance;
-        var runtime = PNGameBootstrap.EnsureContent();
-        instance = runtime.GetComponent<PNGameFlow>() ?? runtime.gameObject.AddComponent<PNGameFlow>();
+        // Its own persistent object: the flow must exist before the content (and so the runtime object) does, for the Title boot.
+        var host = new GameObject("Project N Flow");
+        if (Application.isPlaying) DontDestroyOnLoad(host);
+        instance = host.AddComponent<PNGameFlow>();
         return instance;
     }
     private static void Raise() { try { Changed?.Invoke(); } catch (Exception error) { Debug.LogException(error); } }
@@ -61,7 +63,7 @@ public sealed class PNGameFlow : MonoBehaviour
         // Shipped modes keep their short selection name ("roguelite"), which rooms and the admission already compare; others use the full id.
         if (modeId.StartsWith("project_n:", StringComparison.Ordinal)) modeId = modeId.Substring("project_n:".Length);
         else if (modeId.StartsWith("base:", StringComparison.Ordinal)) modeId = modeId.Substring("base:".Length);
-        if (mode == PNFlowMode.Join && string.IsNullOrWhiteSpace(address)) { preCoverUntil = 0; Say("Nhập địa chỉ phòng trước khi vào."); return; }
+        if (mode == PNFlowMode.Join && string.IsNullOrWhiteSpace(address)) { preCoverUntil = 0; if (usingHandoff) PNTransitionHandoffHost.Abandon(); Say("Nhập địa chỉ phòng trước khi vào."); return; }
         CurrentMode = mode;
         var flow = Ensure(); flow.StartCoroutine(flow.Launch(modeId, mode, address));
     }
@@ -71,6 +73,77 @@ public sealed class PNGameFlow : MonoBehaviour
         if (loading) return;
         var flow = Ensure(); flow.StartCoroutine(flow.Return(notice));
     }
+    // ---- boot: Title -> Loading #1 -> content -> target (Docs/LoadingHandoffPlan.md P6) ----
+    // The only way the game starts: the Title scene (or a scene sent through it) calls this. The loading screen is raised at once (there is no content
+    // yet, so it is the default screen built from its payload), the content loads step by step beneath it, then the target starts through the same
+    // paths as everything else: Hall = Return, mode = Launch, scene = that scene's own entry. A failure ends the loading and is left in BootFailure for
+    // the Title to show with a retry.
+    public const double BootBudgetMilliseconds = 8;
+    public static string BootFailure { get; private set; }
+    public static bool Booting { get; private set; }
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+    // Test hook: the next boot fails right after the loading screen is up, to check the Title's error line and retry.
+    public static bool DebugFailNextBoot;
+#endif
+    public static void StartBoot(PNBootTarget target)
+    {
+        if (Booting || Busy) return;
+        BootFailure = null; Booting = true;
+        var flow = Ensure(); flow.StartCoroutine(flow.Boot(target ?? PNBootTarget.Hall));
+    }
+    private IEnumerator Boot(PNBootTarget target)
+    {
+        BeginLoading(target.Kind == PNBootTargetKind.Mode ? target.Value : "hall", "project_n:hall_world"); Raise();
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        if (DebugFailNextBoot) { DebugFailNextBoot = false; BootFailed(new InvalidOperationException("Simulated boot failure (test hook).")); yield break; }
+#endif
+        PNBootRunner runner = null;
+        try { runner = PNGameBootstrap.BeginStagedContent(); }
+        catch (Exception error) { BootFailed(error); yield break; }
+        while (!runner.Pump(BootBudgetMilliseconds)) { PNTransitionHandoffHost.SetProgress(runner.Fraction); yield return null; }
+        if (runner.Failed) { BootFailed(runner.Failure); yield break; }
+        PNTransitionHandoffHost.SetProgress(1f);
+        Debug.Log("Boot: content loaded in " + runner.TotalMilliseconds.ToString("0") + " ms over " + runner.Timings.Count + " steps (" + string.Join(", ", System.Linq.Enumerable.Select(runner.Timings, t => t.Name + " " + t.Milliseconds.ToString("0") + " ms")) + "), longest step " + runner.LongestStepMilliseconds.ToString("0") + " ms; target " + target);
+        PNGameBootstrap.MarkBooted(target.Kind == PNBootTargetKind.Scene);
+        switch (target.Kind)
+        {
+            case PNBootTargetKind.Hall:
+                yield return Return(null); break;
+            case PNBootTargetKind.Mode:
+            {
+                var role = PNGameBootstrap.Config.Role;
+                var mode = role == EveSessionRole.Offline ? PNFlowMode.Offline : role == EveSessionRole.Host ? PNFlowMode.Host : PNFlowMode.Join;
+                CurrentMode = mode;
+                yield return Launch(StripPrefix(target.Value), mode, PNGameBootstrap.Config.Address); break;
+            }
+            default:
+                yield return BootScene(target.Value); break;
+        }
+        Booting = false;
+    }
+    // A scene that was opened directly comes back: its own entry starts its play (one allowed entry), and the loading ends when the play is ready.
+    private IEnumerator BootScene(string path)
+    {
+        string failure = null;
+        var load = LoadScene(path);
+        while (true) { bool more; try { more = load.MoveNext(); } catch (Exception error) { failure = error.Message; break; } if (!more) break; yield return load.Current; }
+        double until = Time.realtimeSinceStartupAsDouble + RunTimeout;
+        while (failure == null && !(EveRegistrySession.IsReady && PNLocalWorldContext.Current?.World != null))
+        {
+            if (Time.realtimeSinceStartupAsDouble > until) failure = "The scene's play did not become ready.";
+            else yield return null;
+        }
+        if (failure != null) { Debug.LogWarning("Boot scene failed: " + failure); yield return Return("Không nạp được scene: " + failure); yield break; }
+        EndLoading();
+    }
+    private void BootFailed(Exception error)
+    {
+        Debug.LogException(error);
+        BootFailure = error.Message; Booting = false; loading = false; coverUntil = 0;
+        if (usingHandoff) PNTransitionHandoffHost.Abandon();
+        Raise();
+    }
+
     public static bool CanStartRun(out string reason)
     {
         reason = null;
@@ -112,7 +185,7 @@ public sealed class PNGameFlow : MonoBehaviour
     }
     private IEnumerator Launch(string modeId, PNFlowMode mode, string address)
     {
-        BeginLoading(); message = null; Raise();
+        BeginLoading(modeId, mode == PNFlowMode.Offline ? "project_n:scene_world" : "project_n:roguelite_lobby"); message = null; Raise();
         string failure = null;
         var network = PNGameBootstrap.Config.Network; var preparation = PNGameBootstrap.Config.Preparation;
         var end = EndCurrent();
@@ -144,7 +217,7 @@ public sealed class PNGameFlow : MonoBehaviour
     }
     private IEnumerator Return(string notice)
     {
-        BeginLoading(); Raise();
+        BeginLoading("hall", "project_n:hall_world"); Raise();
         string failure = null;
         var network = PNGameBootstrap.Config.Network; var preparation = PNGameBootstrap.Config.Preparation;
         foreach (var step in new Func<IEnumerator>[] { EndCurrent, () => LoadScene(PNScenes.Hall) })
@@ -254,9 +327,32 @@ public sealed class PNGameFlow : MonoBehaviour
     private static int coverBase;
     // Called the moment the player commits to a start (the menu is still fading out): the cover goes up at once so the scene behind the fading menu is never seen.
     private static double preCoverUntil;
-    public static void PrepareStart() { preCoverUntil = Time.realtimeSinceStartupAsDouble + 3; ShowCover(); }
-    private static void BeginLoading() { preCoverUntil = 0; loading = true; coverRef = PNTransitionController.Current; coverBase = coverRef != null ? coverRef.ShowCount : 0; ShowCover(); }
-    private static void EndLoading() { loading = false; coverUntil = Time.realtimeSinceStartupAsDouble + 3; }
+    public static void PrepareStart(string modeId = "roguelite", bool offline = false)
+    {
+        preCoverUntil = Time.realtimeSinceStartupAsDouble + 3;
+        usingHandoff = PNTransitionHandoffHost.Raise(StripPrefix(modeId), offline ? "project_n:scene_world" : "project_n:roguelite_lobby");
+        if (!usingHandoff) ShowCover();
+    }
+    // Shipped modes keep their short selection name; others use the full id (the same rule StartMode applies).
+    private static string StripPrefix(string modeId)
+    {
+        if (string.IsNullOrEmpty(modeId)) return "roguelite";
+        if (modeId.StartsWith("project_n:", StringComparison.Ordinal)) return modeId.Substring("project_n:".Length);
+        return modeId.StartsWith("base:", StringComparison.Ordinal) ? modeId.Substring("base:".Length) : modeId;
+    }
+    // True while the loading screen of the current start belongs to the handoff host (so the plain fallback cover stays down).
+    private static bool usingHandoff;
+    private static void BeginLoading(string modeId, string worldDefinition)
+    {
+        preCoverUntil = 0; loading = true; coverRef = PNTransitionController.Current; coverBase = coverRef != null ? coverRef.ShowCount : 0; 
+        usingHandoff = PNTransitionHandoffHost.Raise(StripPrefix(modeId), worldDefinition);
+        if (!usingHandoff) ShowCover();
+    }
+    private static void EndLoading()
+    {
+        loading = false; coverUntil = Time.realtimeSinceStartupAsDouble + 3;
+        if (usingHandoff) PNTransitionHandoffHost.MarkLoadingEnded();
+    }
 
     // The cover is a UI Toolkit document of its own (like the transition screen it hands over to, sorted above it), kept outside any play so it
     // survives the UI being torn down.
@@ -287,6 +383,12 @@ public sealed class PNGameFlow : MonoBehaviour
         if (coverSettings != null) Destroy(coverSettings);
         coverHost = null; coverSettings = null;
     }
-    private void LateUpdate() { if (Covering) ShowCover(); else HideCover(); }
+    private void LateUpdate()
+    {
+        PNTransitionHandoffHost.Tick(Time.unscaledDeltaTime);
+        // The press committed but the start never began (refused, busy): the raised screen is let go instead of waiting for ever.
+        if (usingHandoff && !loading && preCoverUntil > 0 && Time.realtimeSinceStartupAsDouble > preCoverUntil) { preCoverUntil = 0; PNTransitionHandoffHost.Abandon(); }
+        if (usingHandoff) HideCover(); else if (Covering) ShowCover(); else HideCover();
+    }
 }
 #endif

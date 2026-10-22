@@ -64,6 +64,18 @@ namespace EveEngine
 
         public virtual void EnsureContentLoaded()
         {
+            // One load, whether it runs all at once (here) or step by step (ContentLoadSteps).
+            var steps = ContentLoadSteps();
+            while (steps.MoveNext()) { }
+        }
+
+        // EN: The same content load as EnsureContentLoaded, one named step at a time (documents, code mods, registry, compatibility, publish),
+        //     so a caller can run it across frames under a loading screen and report progress. Guards run at the first MoveNext; the load is
+        //     "already running" until the last step or until the enumerator is disposed. Failure rolls back exactly as the one-shot load does
+        //     and is thrown from the MoveNext that hit it.
+        // VI: Cùng việc nạp nội dung như EnsureContentLoaded nhưng từng bước có tên để chạy qua nhiều khung dưới màn Loading và báo tiến độ.
+        public IEnumerator<EveBootStep> ContentLoadSteps()
+        {
             if (loadingContent) throw new InvalidOperationException("Content initialization is already running.");
             if (EveRegistrySession.State == EveSessionState.Stopping)
                 throw new InvalidOperationException("Finish pending session cleanup before initializing a runtime.");
@@ -75,38 +87,57 @@ namespace EveEngine
                 // EN: A later scene may contain another bootstrap component; keep the existing session.
                 // VI: Scene sau có thể có component bootstrap khác; giữ lại phiên đang chạy.
                 Destroy(this);
-                return;
+                yield break;
             }
-            if (IsContentReady) { owner = this; return; }
+            if (IsContentReady) { owner = this; yield break; }
             if (transform.parent != null)
                 throw new InvalidOperationException("EveRuntime must be on a root GameObject to survive scene changes.");
 
             owner = this;
             loadingContent = true;
+            Exception failure = null;
             try
             {
-                Content?.Dispose();
-                var documents = ReadContentDocuments().ToArray();
-                var mods = LoadCodeMods();
-                Content = new EveContentContext(mods);
-                EveRegistryHub registry = new EveContentBootstrap().Build(CreateContentModules().Concat(mods.ContentModules), documents, ReadOverrideSelections());
-                var compatibility = EveContentCompatibility.Create(registry, documents, RulesVersion, mods.Fingerprints, ReadGameplayAssetHashes(registry));
-                Content.Publish(registry, compatibility);
-#if UNITY_5_3_OR_NEWER
-                if (Application.isPlaying) DontDestroyOnLoad(gameObject);
-#else
-                DontDestroyOnLoad(gameObject);
-#endif
-            }
-            catch (Exception ex)
-            {
-                owner = null;
-                EveRegistrySession.FailContent(Content, ex);
-                throw;
+                var inner = LoadContentInner();
+                while (true)
+                {
+                    bool more;
+                    try { more = inner.MoveNext(); }
+                    catch (Exception ex) { failure = ex; break; }
+                    if (!more) break;
+                    yield return inner.Current;
+                }
             }
             finally { loadingContent = false; }
+            if (failure != null)
+            {
+                owner = null;
+                EveRegistrySession.FailContent(Content, failure);
+                System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
+            }
             foreach (var error in EveEventManager.Global.PublishSafely(EveRuntimeEventIds.ContentReady, new EveContentReady(Content)))
                 Debug.LogException(error, this);
+        }
+
+        private IEnumerator<EveBootStep> LoadContentInner()
+        {
+            Content?.Dispose();
+            var documents = ReadContentDocuments().ToArray();
+            yield return new EveBootStep("content documents", .15f);
+            var mods = LoadCodeMods();
+            yield return new EveBootStep("code mods", .35f);
+            Content = new EveContentContext(mods);
+            EveRegistryHub registry = new EveContentBootstrap().Build(CreateContentModules().Concat(mods.ContentModules), documents, ReadOverrideSelections());
+            yield return new EveBootStep("content registry", .8f);
+            var compatibility = EveContentCompatibility.Create(registry, documents, RulesVersion, mods.Fingerprints, ReadGameplayAssetHashes(registry));
+            yield return new EveBootStep("compatibility", .95f);
+            Content.Publish(registry, compatibility);
+#if UNITY_5_3_OR_NEWER
+            if (Application.isPlaying) DontDestroyOnLoad(gameObject);
+#else
+            DontDestroyOnLoad(gameObject);
+#endif
+            yield return new EveBootStep("published", 1f);
         }
 
         public virtual void BeginSession(EveSessionRole role)

@@ -207,7 +207,7 @@ it never mutates the original. JSON never names a CLR type. Example schema:
         "tags": ["base:debuff", "addon:stagger"],
         "multipleInstances": false, "maximumInstances": 1,
         "scope": "Target", "canDispel": true, "showInUI": true,
-        "iconPath": "", "glow": ""
+        "iconPath": "", "glow": ""   // glow: "" (white), a preset (white red orange gold green aqua blue purple pink) or hex #rgb/#rrggbb/#rrggbbaa; anything else is refused
       }]
     }
   }

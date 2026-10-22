@@ -9,19 +9,20 @@ public static class PNGameBootstrap
     public static PNPlayConfig Config { get; private set; } = new PNPlayConfig();
     private static IPNNetworkSessionDriver driver;
     private static bool networkRequested;
-    private static bool sceneEntryConsumed;
+    private static bool sceneEntryConsumed, booted;
     private static string offlineModeId;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void Reset()
     {
-        Runtime = null; driver = null; networkRequested = false; sceneEntryConsumed=false; offlineModeId=null; Config = new PNPlayConfig();
+        Runtime = null; driver = null; networkRequested = false; sceneEntryConsumed=false; booted=false; offlineModeId=null; Config = new PNPlayConfig(); AutoStart = null; PendingTarget = null;
     }
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     private static void Startup()
     {
+        // The content is no longer loaded here: it loads once, behind the first loading screen, when the Title scene starts the boot (see PNGameFlow.StartBoot).
         Config = PNPlayConfig.FromArguments(Environment.GetCommandLineArgs());
-        EnsureContent();
+        AutoStart = PNBootTarget.FromArguments(Environment.GetCommandLineArgs());
     }
     public static void RegisterNetworkDriver(IPNNetworkSessionDriver value)
     {
@@ -33,7 +34,7 @@ public static class PNGameBootstrap
     {
         if (Runtime != null)
         {
-            Runtime.EnsureContentLoaded();
+            Runtime.EnsureContentLoaded(); booted = true;
             Runtime.gameObject.SetActive(true);
             return Runtime;
         }
@@ -42,9 +43,41 @@ public static class PNGameBootstrap
         Runtime = root.AddComponent<EveGameRuntime>();
         Runtime.IsBootstrapOwner = true;
         // Retain the runtime on failure, including any retryable cleanup it owns.
-        Runtime.EnsureContentLoaded();
+        Runtime.EnsureContentLoaded(); booted = true;
         root.SetActive(true);
         return Runtime;
+    }
+    // The staged form of EnsureContent: the runtime object is created inactive and the content loads step by step through the returned runner
+    // (see PNBootRunner); the runtime is activated when the last step is done. Retained on failure, so a retry builds a new runner on it.
+    public static PNBootRunner BeginStagedContent()
+    {
+        if (Runtime != null && Runtime.IsContentReady) { Runtime.gameObject.SetActive(true); return PNBootRunner.Finished(); }
+        if (Runtime == null)
+        {
+            var root = new GameObject("Project N Runtime");
+            root.SetActive(false);
+            Runtime = root.AddComponent<EveGameRuntime>();
+            Runtime.IsBootstrapOwner = true;
+        }
+        var runtime = Runtime;
+        return new PNBootRunner(runtime.ContentLoadSteps(), () => runtime.gameObject.SetActive(true));
+    }
+    internal static void ResetForTests() => Reset();
+
+    // ---- boot through the Title scene (Docs/LoadingHandoffPlan.md P6) ----
+    // From --pn-auto-start=<hall | mode | scene>; the Title acts on it without a click.
+    public static PNBootTarget AutoStart { get; private set; }
+    // A scene that was opened directly (Editor Play on a scene, a test Player whose first scene is not the Title) is sent through the Title and comes
+    // back to this target: one load path for everything.
+    public static PNBootTarget PendingTarget { get; private set; }
+    // True once the content is loaded (by the staged boot or, for older callers, by EnsureContent).
+    public static bool Booted => booted;
+    // The Title's boot finished loading content. A scene target lets that scene's own entry start its play once; every other target is started by PNGameFlow.
+    internal static void MarkBooted(bool sceneEntryMayStart) { booted = true; sceneEntryConsumed = !sceneEntryMayStart; PendingTarget = null; }
+    internal static void RedirectToTitle(string scenePath)
+    {
+        PendingTarget = PNBootTarget.Scene(scenePath); sceneEntryConsumed = true;
+        UnityEngine.SceneManagement.SceneManager.LoadScene(PNScenes.Title);
     }
     public static void Begin(PNPlayConfig config)
     {
@@ -80,6 +113,14 @@ public static class PNGameBootstrap
         // Only the first entry in the startup scene preserves legacy auto-Begin.
         // An additive scene is content, never another play command.
         if(sceneEntryConsumed || networkRequested || entry.gameObject.scene != UnityEngine.SceneManagement.SceneManager.GetActiveScene())return;
+        if(!booted)
+        {
+            // Not started through the Title yet: go there and come back to this scene (an unsaved scene has no path to come back to: the old direct start).
+            string path=entry.gameObject.scene.path;
+            if(path==PNScenes.Title)return;
+            // A build without the Title scene (a disposable test Player) keeps the old direct start.
+            if(!string.IsNullOrEmpty(path)&&Application.CanStreamedLevelBeLoaded(PNScenes.Title)){RedirectToTitle(path);return;}
+        }
         sceneEntryConsumed=true;
         if(Config.Role==EveSessionRole.Offline&&!Config.ModeExplicit)
         {

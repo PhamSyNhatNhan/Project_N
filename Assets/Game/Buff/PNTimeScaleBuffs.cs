@@ -5,6 +5,8 @@ using Newtonsoft.Json.Linq;
 // Independent Apply instances; input remains available across selected behavior overrides.
 public static class PNTimeScaleBuffContent
 {
+    public const string Glow = "#8040f0";   // deep purple, shared by both variants
+
     public static void Register(EveRegistryHub hub)
     {
         foreach (bool area in new[] { false, true })
@@ -15,7 +17,8 @@ public static class PNTimeScaleBuffContent
                 new[] { EveId.Parse("base:debuff"), EveId.Parse("base:timescale") },
                 multipleInstances: true, maximumInstances: int.MaxValue, canDispel: !area,
                 validate: (data, registry) => { var obj = PNBuffContentBatch.Object(data); PNBuffContentBatch.Fields(obj, "areaOwned"); PNBuffContentBatch.Bool(obj, "areaOwned"); },
-                validateInput: input => ValidateInput(input, isArea));
+                validateInput: input => ValidateInput(input, isArea),
+                iconPath: "PNBuffIcons/PNTimescaleReduction" + (area ? "Area" : ""), glow: Glow);
             // Only the duration-owned variant displays seconds; area-owned instances have no expiration and stay legacy.
             hub.Buffs().Register(area ? definition : definition.WithCountdown(PNBuffCountdown.BottomRight));
         }

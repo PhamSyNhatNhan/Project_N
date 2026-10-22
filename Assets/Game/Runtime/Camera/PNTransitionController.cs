@@ -22,7 +22,7 @@ public sealed class PNTransitionController : MonoBehaviour, IPNTransitionSignalS
     private bool released = true, covered, joinPending, hadWorld;
     private int framesSinceView;
     private double lostSince, now;
-    private float lastUnscaled;
+    private float lastUnscaled, elapsedOffset;
     private EveEventSubscription binding;
 
     public bool IsShowing => machine.Stage != PNTransitionStage.Idle;
@@ -71,7 +71,21 @@ public sealed class PNTransitionController : MonoBehaviour, IPNTransitionSignalS
         var screenDefinition = Resolve(request, destination);
         var payload = screenDefinition.payload;
         var context = new PNTransitionContext(reason, fromWorld, toWorld, group, payload.MinimumSeconds, payload.MaximumSeconds, payload.Coverage);
-        if (machine.Begin(context, Time.realtimeSinceStartupAsDouble)) OpenScreen(screenDefinition.definition, context);
+        // The loading screen raised when the player pressed (before this play existed) is taken over, not replaced: same object, no new Show.
+        if (reason == PNTransitionReason.Join && PNTransitionHandoffHost.TryAdopt(out var adopted, out var adoptedId, out var pressedAt))
+        {
+            double nowReal = Time.realtimeSinceStartupAsDouble, waited = Math.Max(0, nowReal - pressedAt);
+            // The minimum counts from the press, the maximum from now (a long load must not use up the display time); the screen keeps its own elapsed time.
+            context = new PNTransitionContext(reason, fromWorld, toWorld, group, (float)Math.Max(0, payload.MinimumSeconds - waited), payload.MaximumSeconds, payload.Coverage);
+            if (machine.Begin(context, nowReal))
+            {
+                screen = adopted; screenId = adoptedId; elapsedOffset = (float)waited; ShowCount++;
+                if (!ReferenceEquals(adoptedId, screenDefinition.definition.Id)) LastFailure = "Adopted screen " + adoptedId + " differs from the chosen " + screenDefinition.definition.Id;
+            }
+            else { try { adopted?.Dispose(); } catch (Exception error) { Debug.LogException(error); } }
+            return;
+        }
+        if (machine.Begin(context, Time.realtimeSinceStartupAsDouble)) { elapsedOffset = 0; OpenScreen(screenDefinition.definition, context); }
     }
 
     private static PNTransitionContext Placeholder(PNTransitionReason reason, string from, string to, bool group) => new PNTransitionContext(reason, from, to, group, 0, 1, PNTransitionCoverage.Opaque);
@@ -79,27 +93,14 @@ public sealed class PNTransitionController : MonoBehaviour, IPNTransitionSignalS
     // Chain: transfer request > world policy > mode > default. A candidate that is missing or fails to create falls to the next.
     private (PNTransitionScreenDefinition definition, PNTransitionPayload payload) Resolve(EveId request, EveId destination)
     {
-        var registry = session.Registry.Get<PNTransitionScreenDefinition>();
-        EveId worldScreen = default, modeScreen = default;
-        try
-        {
-            var target = destination.IsValid ? destination : (local?.World?.DefinitionId ?? default);
-            if (target.IsValid && session.Registry.Get<PNWorldDefinition>().TryGet(target, out var worldDefinition)) worldScreen = worldDefinition.Policy.TransitionScreen;
-        }
-        catch (Exception error) { Debug.LogException(error); }
-        try { modeScreen = PNModeDefinition.Select(session.Registry, PNGameBootstrap.ModeId, PNGameBootstrap.Config.Network).TransitionScreen; }
-        catch (Exception error) { LastFailure = error.Message; }
-        foreach (var id in PNTransitionSelector.Chain(request, worldScreen, modeScreen))
-        {
-            if (registry.TryGet(id, out var definition)) return (definition, definition.Payload);
-            LastFailure = "Transition screen is not registered: " + id; Debug.LogWarning(LastFailure);
-        }
-        throw new InvalidOperationException("Default transition screen is missing from the content registry.");
+        var choice = PNTransitionResolver.Resolve(session.Registry, request, destination.IsValid ? destination : (local?.World?.DefinitionId ?? default), PNGameBootstrap.ModeId, PNGameBootstrap.Config.Network, out var failure);
+        if (failure != null) LastFailure = failure;
+        return (choice.Definition, choice.Payload);
     }
 
     private void OpenScreen(PNTransitionScreenDefinition definition, PNTransitionContext context)
     {
-        screen = null; screenId = definition.Id;
+        screen = null; screenId = definition.Id; elapsedOffset = 0;
         try { screen = definition.Create(); screen?.Show(context); ShowCount++; }
         catch (Exception error)
         {
@@ -173,7 +174,7 @@ public sealed class PNTransitionController : MonoBehaviour, IPNTransitionSignalS
         if (machine.Stage == PNTransitionStage.Showing && screen != null && screen.ReadyToHide) SetCover(machine.Context.Coverage == PNTransitionCoverage.Opaque);
         if (machine.Stage != PNTransitionStage.Idle && screen != null)
         {
-            try { screen.Tick(new PNTransitionState(machine.Phase, machine.Fraction, machine.Elapsed(now)), delta); }
+            try { screen.Tick(new PNTransitionState(machine.Phase, machine.Fraction, machine.Elapsed(now) + elapsedOffset), delta); }
             catch (Exception error) { LastFailure = error.Message; Debug.LogException(error); }
         }
     }
