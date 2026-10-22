@@ -32,6 +32,7 @@ public partial class PNMove
     public bool CanWriteMotion => !MovementHeld && loadContext!=null && loadContext.CanUse && isActiveAndEnabled &&
         (NetworkRole==PNMoveNetworkRole.Local && loadContext.CanMutate || IsPredictedOwner && !networkKinematic && OwnerMovement!=null && OwnerMovement.CanWrite) && MovementTimeScale>0;
     private readonly List<PNMoveExecution> motionExecutions=new List<PNMoveExecution>();
+    public bool HasActiveMotion => motionExecutions.Count != 0;
     private ulong nextExecution;
     private bool motionTransition;
     private MoveIdentity observerHistoryIdentity;

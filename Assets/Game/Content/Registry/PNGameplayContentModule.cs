@@ -67,6 +67,10 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         PNBuffGameplayContent.Register(hub);
         PNAreaGameplayContent.Register(hub);
         PNProjectileGameplayContent.Register(hub);
+        PNEnemyGameplayContent.Register(hub);
+#if UNITY_5_3_OR_NEWER
+        PNAgentToolkitContent.Register(hub);
+#endif
         PNShaderWarmupContent.Register(hub);
         motionReferences.Clear();
         // Activation identities are not action profiles and do not duplicate their tuning.

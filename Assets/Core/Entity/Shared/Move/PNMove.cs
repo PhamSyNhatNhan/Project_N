@@ -128,9 +128,16 @@ public partial class PNMove : EveMove3D, EveIEntityLoadPreparation
         previousScale = 1f;
     }
 
-    protected override void OnDisable() { if(GetComponent<EveEntityIdentity>()?.IsChangingWorld==true)return;if(managedMovement){movementHeld=true;initialMovementApplied=false;EnsureMovementHold();}DetachNetwork(); RestorePhysics(); base.OnDisable(); }
+    protected override void OnDisable() { if(GetComponent<EveEntityIdentity>()?.IsChangingWorld==true)return;
+#if UNITY_5_3_OR_NEWER
+        motionPhysics?.Dispose();
+#endif
+        if(managedMovement){movementHeld=true;initialMovementApplied=false;EnsureMovementHold();}DetachNetwork(); RestorePhysics(); base.OnDisable(); }
     public override void Unload()
     {
+#if UNITY_5_3_OR_NEWER
+        motionPhysics?.Dispose();
+#endif
         ReleaseNetworkMovement();
         if (controls != null && controls.IsReady) controls.State.Changed -= ControlChanged;
         controls = null;

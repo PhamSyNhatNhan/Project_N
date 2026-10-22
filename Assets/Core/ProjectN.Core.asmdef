@@ -1,6 +1,6 @@
 {
   "name": "ProjectN.Core",
-  "references": ["EveEngine", "Unity.InputSystem", "ProjectN.Input", "Unity.TextMeshPro", "Unity.RenderPipelines.Core.Runtime", "Unity.RenderPipelines.Universal.Runtime"],
+  "references": ["EveEngine", "Unity.InputSystem", "ProjectN.Input", "Unity.TextMeshPro", "Unity.RenderPipelines.Core.Runtime", "Unity.RenderPipelines.Universal.Runtime", "AstarPathfindingProject", "PackageTools", "Drawing"],
   "overrideReferences": true,
   "precompiledReferences": ["Newtonsoft.Json.dll"],
   "autoReferenced": true

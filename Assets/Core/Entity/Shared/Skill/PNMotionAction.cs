@@ -8,6 +8,10 @@ using UnityEngine.SceneManagement;
 
 // EN: Motion parameters are registered action data; skills only evaluate a shorter distance.
 // VI: Tham số di chuyển nằm trong dữ liệu action đã đăng ký; skill chỉ giới hạn khoảng cách.
+public interface IPNSkillMotionAction { void BindMovementOwner(Action cancel); }
+public enum PNMotionOutcome { Running, Completed, Blocked, Cancelled, BudgetExceeded, InvalidLanding }
+public interface IPNSkillActionOutcome { PNMotionOutcome Outcome { get; } }
+public interface IPNSkillDeferredCleanup { bool CleanupPending { get; } }
 public sealed class PNMotionSettings
 {
     public float Distance { get; private set; }
@@ -39,7 +43,7 @@ public sealed class PNMotionActionContext : PNSkillActionContext
 }
 
 // One local motion invocation, with collision clipping and no damage/projectile behavior.
-public class PNMotionAction : PNSkillAction
+public class PNMotionAction : PNSkillAction, IPNSkillMotionAction
 {
     public override bool HasAuxiliaryTimeline => true;
     public override bool AdvanceAuxiliary(float delta) { Advance(delta); return IsComplete; }
@@ -136,6 +140,9 @@ public class PNMotionAction : PNSkillAction
                 var hit = sweepHits[i];
                 if (hit.collider == null || hit.collider.transform.IsChildOf(root.transform)) continue;
                 if (ignoreEntities && hit.collider.GetComponentInParent<PNStat>() != null) continue;
+                // Physical enemy bodies may overlap; this does not disable hurtbox queries.
+                if (root.GetComponent<PNEnemyStat>() != null && (hit.collider.GetComponentInParent<PNEnemyStat>() != null ||
+                    Physics.GetIgnoreLayerCollision(root.gameObject.layer, hit.collider.gameObject.layer))) continue;
                 if (Vector3.Dot(direction, hit.normal) >= -.001f) continue;
                 step = Math.Min(step, Math.Max(0, hit.distance - .03f));
             }

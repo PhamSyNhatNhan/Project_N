@@ -147,13 +147,16 @@ public partial class PNSkill : EveSkill, EveIEntityLoadPreparation, EveIEntityCo
 
     public virtual PNSkillAction CreateAction(EveId skillId, out PNSkillActionContext context,
         IEnumerable<PNStat> targets, Vector3? direction)
+        => CreateAction(skillId, out context, targets, direction, null);
+    public virtual PNSkillAction CreateAction(EveId skillId, out PNSkillActionContext context,
+        IEnumerable<PNStat> targets, Vector3? direction, Vector3? position)
     {
         var loader = GetComponent<EveEntityLoader>();
         if (!IsReady || registry == null || loader == null || !loader.IsReady)
             throw new InvalidOperationException("Action execution requires a Ready entity loaded through its registry.");
         PNSkillData data = GetData(skillId);
         if (data == null) throw new InvalidOperationException("This skill has no action data.");
-        context = new PNSkillActionContext(this, registry.Skills.ResolveIdentity(skillId), data, registry, targets, direction);
+        context = new PNSkillActionContext(this, registry.Skills.ResolveIdentity(skillId), data, registry, targets, direction, null, true, position);
         return registry.Actions().Get(data.Action.Id).Create();
     }
 

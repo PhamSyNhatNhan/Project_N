@@ -38,7 +38,7 @@ public static class PNBuffGlowEditorChecks
             Preview(sprite, glow, new[] { "red", "aqua", "", "#ffcc33" }, 6, Path.Combine(Folder, "zoom.png"));
             log.Add("preview written to " + Folder);
             // Every stock icon with the glow its registration gives it.
-            var stock = new[] { ("PNBurn", "red"), ("PNFrostbite", "blue"), ("PNElectrocution", "gold"), ("PNFireVulnerability", "red"), ("PNIceVulnerability", "blue"), ("PNLightningVulnerability", "gold"), ("PNTimescaleReduction", PNTimeScaleBuffContent.Glow), ("PNTimescaleReductionArea", PNTimeScaleBuffContent.Glow) };
+            var stock = new[] { ("PNBurn", "red"), ("PNFrostbite", "blue"), ("PNElectrocution", "gold"), ("PNFireVulnerability", "red"), ("PNIceVulnerability", "blue"), ("PNLightningVulnerability", "gold"), ("PNTimescaleReduction", PNTimeScaleBuffContent.Glow), ("PNTimescaleReductionArea", PNTimeScaleBuffContent.Glow), ("PNLoricaBreak", PNLoricaBuffContent.BreakGlow), ("PNLoricaRecovery", PNLoricaBuffContent.RecoveryGlow) };
             var sprites = new List<Sprite>(); var baked = new List<Texture2D>(); var tints = new List<string>();
             try
             {

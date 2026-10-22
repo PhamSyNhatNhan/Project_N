@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "characters": [{
+    "id": "project_n:sentinel",
+    "portraitPath": "",
+    "data": { "enemyTypeId": "base:normal" },
+    "stats": [
+      { "statId": "base:health", "base": 100000, "initialCurrent": 100000 },
+      { "statId": "base:attack_power", "base": 1000 },
+      { "statId": "base:attack_speed", "base": 100 },
+      { "statId": "base:cooldown_reduction", "base": 0 },
+      { "statId": "base:crit_rate", "base": 0 },
+      { "statId": "base:crit_damage", "base": 150 },
+      { "statId": "base:defense", "base": 0 },
+      { "statId": "base:move_speed", "base": 3 },
+      { "statId": "base:jump_speed", "base": 3 }
+    ],
+    "skill": []
+  }]
+}

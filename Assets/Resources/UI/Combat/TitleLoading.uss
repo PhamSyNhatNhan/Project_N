@@ -1,0 +1,9 @@
+.pn-title-choices { position: absolute; left: 50%; top: 65%; width: 300px; margin-left: -150px; }
+.pn-title-choice { width: 300px; height: 52px; min-height: 52px; margin: 0 0 12px 0; padding: 0; border-width: 0; border-radius: 0; background-color: rgba(0,0,0,0); color: rgb(250,255,255); font-size: 21px; -unity-font-style: normal; -unity-text-align: middle-center; letter-spacing: 0.7px; text-shadow: 0 1px 4px rgba(39,60,84,0.48); }
+.pn-title-choice:hover, .pn-title-choice:focus { background-color: rgba(0,0,0,0); color: white; text-shadow: 0 0 14px rgba(255,255,255,0.85); }
+.pn-title-choice:active { scale: 0.98 0.98; }
+.pn-title-primary { font-size: 29px; letter-spacing: 2px; margin-bottom: 16px; }
+.pn-title-choice:disabled { opacity: 0.4; }
+.pn-title-underline { position: absolute; width: 36px; height: 1px; bottom: 4px; left: 50%; margin-left: -18px; background-color: rgba(255,255,255,0); }
+.pn-title-choice:hover .pn-title-underline, .pn-title-choice:focus .pn-title-underline { background-color: rgba(255,255,255,0.8); }
+.pn-default-loading-caption { position: absolute; right: 7%; bottom: 10%; color: white; font-size: 21px; -unity-font-style: normal; letter-spacing: 0.9px; text-shadow: 0 1px 4px rgba(39,60,84,0.48); }

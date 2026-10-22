@@ -63,6 +63,7 @@ public sealed class PNWorldRuntime : IPNWorldRuntime,IPNWorldPopulation
         var roots=scene.GetRootGameObjects().Where(x=>x.GetComponent<EveRuntime>()==null&&x.GetComponent<PNRoomResource>()==null&&!x.GetComponentsInChildren<PNFactoryEntity>(true).Any()).ToArray();
         world.RegisterCleanup(()=>{foreach(var root in roots)if(root!=null&&root.scene==owner&&scene.IsValid()&&scene.isLoaded)SceneManager.MoveGameObjectToScene(root,scene);});
         build.AddSlot("main",scene,roots,false);
+        PNWorldNavigation.Prepare(build);
         world.CompleteLoading();DefaultWorld=world;PublishStaged(world);return world;
     }
     public EveWorldContext Create(EveId definition,Guid instance=default,ulong incarnation=1)=>Create(definition,instance,incarnation,0);
@@ -125,7 +126,7 @@ public sealed class PNWorldRuntime : IPNWorldRuntime,IPNWorldPopulation
             entry.Load=entry.Provider.Load(entry.Build)??throw new InvalidOperationException("World provider returned no load job.");activeLoads++;
         }
         if(entry.Load.MoveNext())return false;
-        DisposeLoad(entry);Validate(entry.Build);world.CompleteLoading();if(!entry.DeferReady)PublishStaged(world);return true;
+        DisposeLoad(entry);Validate(entry.Build);PNWorldNavigation.Prepare(entry.Build);world.CompleteLoading();if(!entry.DeferReady)PublishStaged(world);return true;
     }
     public void PublishStaged(EveWorldContext world)
     {

@@ -18,10 +18,21 @@ public sealed class PNGameSession : MonoBehaviour
     public PNWorldPresentation Presentation {get;private set;}
     public PNCameraDirector CameraDirector {get;private set;}
     public PNTransitionController Transitions {get;private set;}
+    private PNAgentGroupService agentGroups;
+    public PNAgentGroupService AgentGroups
+    {
+        get
+        {
+            if (Session?.IsActive != true || !Session.HasAuthority) throw new InvalidOperationException("Groups require an active authoritative play.");
+            return agentGroups ??= new PNAgentGroupService(Session);
+        }
+    }
+    private void LateUpdate() { agentGroups?.Tick(); }
     public static PNGameSession Attach(EveRuntime runtime,EveSessionContext session)
     {
         var service=runtime.GetComponent<PNGameSession>()??runtime.gameObject.AddComponent<PNGameSession>();
         if(ReferenceEquals(service.Session,session))return service;
+        service.agentGroups?.Dispose(); service.agentGroups = null;
         service.Session=session;
         service.WorldAssets=(runtime as EveGameRuntime)?.WorldAssets;service.WorldAssets?.BindSession(session);
         service.Scheduler=new EveEntityPreparationScheduler(session,PNGameBootstrap.Config.Preparation);

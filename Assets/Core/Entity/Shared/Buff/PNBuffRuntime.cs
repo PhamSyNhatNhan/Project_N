@@ -130,6 +130,7 @@ public sealed partial class PNBuffCollection : IDisposable, PNIBuffPresentationS
     private readonly List<PNBuffContributionLease> contributions = new List<PNBuffContributionLease>();
     private readonly List<PNBuffImmunityLease> immunities = new List<PNBuffImmunityLease>();
     private readonly Func<bool> canMutate;
+    private readonly EveEntityLoadContext resourceLifetime;
     private long nextId, nextLease;
     private bool advancing;
     internal double RemainingGameDelta { get; private set; }
@@ -196,6 +197,7 @@ public sealed partial class PNBuffCollection : IDisposable, PNIBuffPresentationS
         if (sessionId == Guid.Empty) throw new ArgumentException("Session ID required.");
         Registry = registry; SessionId = sessionId; Coordinator = coordinator ?? new PNBuffMutationCoordinator();
         Services = services ?? new PNBuffServices(); this.canMutate = canMutate ?? (() => true);
+        resourceLifetime = Services.Target != null ? Services.Target.GetComponent<EveEntityLoader>()?.LoadContext : null;
         Coordinator.Failed += CoordinatorFailed;
     }
     private void RequireMutation() { if (IsDisposed) throw new ObjectDisposedException(nameof(PNBuffCollection)); if (!canMutate()) throw new InvalidOperationException("Buff mutation requires active authority."); }
@@ -300,14 +302,20 @@ public sealed partial class PNBuffCollection : IDisposable, PNIBuffPresentationS
     }
     public void RemoveMatching(Func<PNBuffSnapshot, bool> predicate, PNBuffEndReason reason, bool bypass = false)
     { RequireMutation(); if (predicate == null) throw new ArgumentNullException(nameof(predicate)); foreach (var value in Snapshot().Where(predicate)) Remove(value.Handle, reason, bypass); }
-    // Exact resource-owner release is lifecycle work, even while gameplay is held.
+    // Exact resource-owner release is lifecycle work, even after gameplay invalidation.
     // It cannot apply/trigger a Buff or select instances by ID.
     public PNBuffReceipt ReleaseOwned(PNBuffHandle handle)
     {
         void RequireCleanup()
         {
-            var context=Services.Target?.GetComponent<EveEntityLoader>()?.LoadContext;
-            if(IsDisposed||!canMutate()&&(context==null||!context.IsValid||!context.Session.HasAuthority))throw new InvalidOperationException("Buff resource release requires its authoritative lifetime.");
+            if (IsDisposed) throw new InvalidOperationException("Buff resource release requires its authoritative lifetime.");
+            // Keep the original load identity: looking up a new context must never
+            // lend its authority to a collection retained from an earlier load.
+            bool allowed = resourceLifetime == null ? canMutate() :
+                resourceLifetime.Session.HasAuthority && resourceLifetime.Session.SessionId == SessionId &&
+                ReferenceEquals(resourceLifetime.Registry, Registry) && Services.Target != null &&
+                ReferenceEquals(Services.Target.GetComponent<EveEntityLoader>()?.LoadContext, resourceLifetime);
+            if (!allowed) throw new InvalidOperationException("Buff resource release requires its authoritative lifetime.");
         }
         RequireCleanup();var receipt=new PNBuffReceipt();
         Coordinator.Submit(()=>Execute(receipt,()=>

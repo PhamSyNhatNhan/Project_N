@@ -5,7 +5,12 @@ manager, losing contributions or ending publication. State capture/replication a
 cleanup remain available. Live application/trigger requires runnable authority.
 `PNBuffCollection.ReleaseOwned(handle)` ends that exact owned handle through normal
 cleanup while the world is paused or the actor held; it does not apply or trigger
-Buffs. Areas use it to revoke only their grants. A failed revocation remains owned
+Buffs. The collection captures its original entity load context. Exact release also
+works after gameplay invalidation while that same authoritative load still owns the
+collection, until disposal. It cannot borrow a later load's authority; clients,
+different sessions and disposed collections remain rejected. Ordinary mutations
+still require runnable authority. Detached collections retain their mutation guard.
+Areas use it to revoke only their grants. A failed revocation remains owned
 for retry. Historical source snapshots remain valid; live targets use world policy.
 Network Buff streams include world incarnation, membership and subscription scope;
 old subscription traffic cannot apply to a new observation of the same actor.

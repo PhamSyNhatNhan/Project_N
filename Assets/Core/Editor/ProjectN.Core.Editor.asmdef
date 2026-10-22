@@ -1,1 +1,1 @@
-{"name":"ProjectN.Core.Editor","references":["EveEngine","ProjectN.Core","Unity.TextMeshPro","Unity.RenderPipelines.Core.Runtime","Unity.RenderPipelines.Universal.Runtime"],"includePlatforms":["Editor"]}
+{"name":"ProjectN.Core.Editor","references":["EveEngine","ProjectN.Core","Unity.TextMeshPro","Unity.RenderPipelines.Core.Runtime","Unity.RenderPipelines.Universal.Runtime","AstarPathfindingProject","PackageTools","Drawing"],"includePlatforms":["Editor"]}

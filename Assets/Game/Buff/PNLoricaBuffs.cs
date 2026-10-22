@@ -11,17 +11,19 @@ using Newtonsoft.Json.Linq;
 // VI: Hai Buff của cơ chế lorica ở enemy. Không gỡ được bằng dispel thường; thời lượng lấy từ input khi áp (cấu hình của enemy).
 public static class PNLoricaBuffContent
 {
+    // Variants of the lorica rim on the enemy health bar (silver-blue, PNLoricaOverlay): break is a steel blue with silver in it (kept apart from the vivid ice blue), recovery a paler blue with a little green.
+    public const string BreakGlow = "#7096cc", RecoveryGlow = "#96dcd2";
     public static void Register(EveRegistryHub hub)
     {
         var registry = hub.Buffs();
         var neutral = new[] { EveId.Parse("project_n:neutral") };
         registry.Register(new PNBuffDefinition(PNContentIds.LoricaBreak, PNContentIds.LoricaBreak, data => new PNLoricaBreakBehavior(data),
             JObject.Parse("{'duration':7,'clock':'Entity','permissionIds':['base:move','base:jump','base:skill_all','base:motion_voluntary'],'interrupt':true}"),
-            neutral, canDispel: false,
+            neutral, canDispel: false, iconPath: "PNBuffIcons/PNLoricaBreak", glow: BreakGlow,
             validate: (data, content) => PNBuffBuiltinSettings.Validate("buff_control_template", data, content), validateInput: ValidateInput,
             validateReferences: (data, context) => PNBuffPayloadReferences.Template("buff_control_template", data, context)).WithCountdown(PNBuffCountdown.BottomRight));
         registry.Register(new PNBuffDefinition(PNContentIds.LoricaRecovery, PNContentIds.LoricaRecovery, data => new PNLoricaRecoveryBehavior(data),
-            JObject.Parse("{'duration':5,'clock':'Entity'}"), neutral, canDispel: false,
+            JObject.Parse("{'duration':5,'clock':'Entity'}"), neutral, canDispel: false, iconPath: "PNBuffIcons/PNLoricaRecovery", glow: RecoveryGlow,
             validate: (data, content) =>
             {
                 var obj = PNBuffContentBatch.Object(data); PNBuffContentBatch.Fields(obj, "duration", "clock");

@@ -1,3 +1,19 @@
+## Current: Title and default loading presentation (2026-10-22)
+
+The Title uses its own floating text buttons (Start / Settings / Quit) with
+Philosopher400/700 and the large stellar dial from the saved demo. Settings is
+intentionally a no-op. Existing Start/auto-start/retry/Quit callbacks are retained.
+Only this screen loads TitleLoading.uss and these fonts; shared pause/menu USS
+and theme are unchanged.
+
+The built-in default loading payload uses the shared grey backdrop, a tilted
+double ellipse with twelve star hour markers, a soft centre light and a small
+bottom-right hourglass with "Đang tải…" in Philosopher400. The screen still uses
+the original fade/ready/finished/disposal contract. Independently supplied custom
+payloads keep their colour/text/centred layout, even if value-equal to Default.
+Font sources and OFL license are in Assets/Game/PNFont. No boot, handoff,
+selection, world, session, scene or registry contract is changed by this UI work.
+
 ## Current: Skill binding visibility (RulesVersion75)
 
 Local HUD filters Ability IDs associated with cached binding profiles to the selected
