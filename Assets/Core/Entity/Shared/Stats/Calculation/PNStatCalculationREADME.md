@@ -272,3 +272,17 @@ different preparation. Stateless defense calculation is reused. Private source
 snapshot wrappers can reuse the same isolated stat copy, while capture overrides,
 authority and exact published-presence checks still execute. Unload releases retained
 wrapper references; delayed packets/captures preserve their original lifetime rules.
+
+## Penetration route (RulesVersion95)
+
+`project_n:penetration` (alias `base:penetration`) is a modifier route for the **sender**. It is never evaluated by the sender
+(`Calculate` of this route throws). `PNStatSet.PenetrationModifiers` captures every modifier on this route (no tag filter) into outgoing
+damage packets (`PNDamage.Penetration`, `PNPreparedDamage.Penetration`). The receiver treats them as its own for that hit only:
+`CalculateDamage(damage, penetration, tags)` adds modifiers with id `defense` to the DEF evaluation (signed, through the default route) and modifiers with
+a tag/element/damage-type id to the Mitigation selected by the hit's tags. Same group adds, different groups multiply, group 0 before/after as usual;
+`(defense, -0.2, group 1)` is "-20% DEF for this hit", `(fire, 0.2, group 1)` adds +0.2 to the receiver's fire Mitigation group. Nothing is stored on
+the receiver and the carried path bypasses the result caches. Validation (`PNPenetrationCalculation.ValidateModifier`): id must be `defense` or a
+non-stat selector; other stat IDs are rejected; group 0 follows the grouped-contribution rule. Packets built with the public `PNDamage` constructors
+carry none; `PNDamage.WithPenetration` returns a copy that carries given modifiers. `ReceiveDamage` always calls the three-argument
+`CalculateDamage(damage, penetration, tags)` virtual (empty list when nothing is carried); the two-argument overload is a non-virtual wrapper, so overrides belong on the three-argument one.
+A calculator mod replacing Scale/Mitigation may see penetration-route modifiers in its context. Heal does not carry penetration.

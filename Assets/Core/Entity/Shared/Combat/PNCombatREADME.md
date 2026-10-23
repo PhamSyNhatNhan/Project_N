@@ -192,3 +192,10 @@ signed/zero/missing duration, defaults, two sources, clock, rejection and lifecy
 `ReceiveDamage` calls two virtual hooks around the health commit: `AbsorbDamage(damage, damageType, calculated, out absorption)` (calculation only, returns the health
 loss, default = the whole final amount) and `CommitAbsorption(result, absorption)` (after health is written). `PNEnemyStat` uses them for lorica (`Docs/EnemyLoricaDesign.md`).
 `PNDamageResult` gained `LoricaBefore/LoricaAfter/LoricaAbsorbed/LoricaBroke` (zero for receivers without lorica); `AppliedDamage` is still the health lost, so popups show it.
+
+## Penetration in packets (RulesVersion95)
+
+Every packet created from a source (`PNStatCombat.CreateDamage`, `PNCombatSourceSnapshot.PrepareDamage`/`CreateDamage`, therefore projectiles and DOT) carries
+the source's penetration-route modifiers captured at creation (`PNDamage.Penetration`, immutable, shared array). `ReclassifyDamage` keeps the new packet's
+copy; `WithIFrameDuration` preserves it. The receiver applies them inside `CalculateDamage` (see PNStatCalculationREADME, "Penetration route").
+Public-constructor packets and `PNHeal` carry none. Design: `Docs/PenetrationDesign.md`.

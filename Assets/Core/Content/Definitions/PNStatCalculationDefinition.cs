@@ -8,7 +8,7 @@ public class PNStatCalculationDefinition : EveIIdentified
 {
     [JsonIgnore] private readonly Type implementationType;
     internal bool IsCurrentIndependentBuiltIn => GetType() == typeof(PNStatCalculationDefinition) &&
-        (implementationType == typeof(PNScaleCalculation) || implementationType == typeof(PNMitigationCalculation));
+        (implementationType == typeof(PNScaleCalculation) || implementationType == typeof(PNMitigationCalculation) || implementationType == typeof(PNPenetrationCalculation));
     public virtual EveId Id { get; }
     public virtual string Implementation => implementationType.FullName;
 
@@ -28,6 +28,7 @@ public class PNStatCalculationDefinition : EveIIdentified
         // Exact built-ins still produce fresh instances through the selected factory.
         if (implementationType == typeof(PNScaleCalculation)) return new PNScaleCalculation();
         if (implementationType == typeof(PNMitigationCalculation)) return new PNMitigationCalculation();
+        if (implementationType == typeof(PNPenetrationCalculation)) return new PNPenetrationCalculation();
         return (PNStatCalculation)Activator.CreateInstance(implementationType);
     }
 }

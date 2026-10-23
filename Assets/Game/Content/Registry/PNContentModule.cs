@@ -17,6 +17,7 @@ public class PNContentModule : EveIContentModule, EveIContentFinalizeModule, Eve
     public static readonly EveId Lightning = EveId.Parse("project_n:lightning");
     public static readonly EveId Scale = EveId.Parse("project_n:scale");
     public static readonly EveId Mitigation = EveId.Parse("project_n:mitigation");
+    public static readonly EveId Penetration = EveId.Parse("project_n:penetration");
 
     public virtual void Register(EveRegistryHub hub)
     {
@@ -91,6 +92,7 @@ public class PNContentModule : EveIContentModule, EveIContentFinalizeModule, Eve
         hub.NameRegistry<PNStatContributionDefinition>("contributions");
         calculations.Register(new PNStatCalculationDefinition(Scale, typeof(PNScaleCalculation)));
         calculations.Register(new PNStatCalculationDefinition(Mitigation, typeof(PNMitigationCalculation)));
+        calculations.Register(new PNStatCalculationDefinition(Penetration, typeof(PNPenetrationCalculation)));
 
         // EN: Project_N owns the public vocabulary; the engine remains namespace-independent.
         // VI: Project_N sở hữu bộ tên công khai; engine không phụ thuộc namespace game.

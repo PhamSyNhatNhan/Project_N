@@ -20,6 +20,7 @@ public static class PNGameBootstrap
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     private static void Startup()
     {
+        PNSettingsService.EnsureLoaded();
         // The content is no longer loaded here: it loads once, behind the first loading screen, when the Title scene starts the boot (see PNGameFlow.StartBoot).
         Config = PNPlayConfig.FromArguments(Environment.GetCommandLineArgs());
         AutoStart = PNBootTarget.FromArguments(Environment.GetCommandLineArgs());

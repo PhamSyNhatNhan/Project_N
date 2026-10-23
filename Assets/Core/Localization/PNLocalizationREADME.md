@@ -124,8 +124,10 @@ catalogue API để dò các bảng JSON; provider trả các table đã stage.
   main thread và refresh các view. Chưa có lazy loading theo table/locale.
 - JSON-only settings override public GetInitializationOperation vì default package luôn
   initialize Addressables kể cả NoPreloading. Không cần aa/settings.json/built catalogue.
-- Preference ở `persistentDataPath/Settings/localization.json`, mã locale, schema1;
-  temp+replace+backup; file hỏng thử backup. Ngôn ngữ không sync từ host/save run.
+- Preference chung ở `persistentDataPath/Settings/settings.json`, locale + targetFrameRate,
+  schema1, owner PNSettingsService; temp+replace+backup và bảo vệ schema mới hơn.
+  Migration đọc localization.json cũ khi chưa có settings mới, giữ file legacy nhưng
+  không ghi song song. Ngôn ngữ không sync từ host/save run. Xem ../Settings/PNSettingsREADME.md.
 - Saved locale từ mod có thể tạm dùng base default trên Title; sau khi pack sẵn thì thử
   lại mã đã lưu, không xóa preference chỉ vì base phase chưa thấy code đó.
 - EndPlay giữ text. Content unload tháo mod layer và trở lại base; app shutdown/reset

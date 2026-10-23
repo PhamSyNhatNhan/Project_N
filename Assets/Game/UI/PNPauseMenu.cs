@@ -84,12 +84,15 @@ internal sealed class PNPauseMenu : IDisposable
     }
     // Leaves the lobby/run for the Hall. Closing first keeps the menu animation and time scale consistent with a normal resume.
     private void Leave(){ if(!IsOpen||PNGameFlow.Busy)return; Close(); PNGameFlow.ReturnToHall(); }
-    private VisualElement languageView;
+    private PNSettingsView settingsView;
     private void OpenLanguages()
     {
+        if(settingsView!=null||closing||!IsOpen)return;
         card.style.display=DisplayStyle.None;
-        PNLocalizationUI.ShowLanguages(overlay,()=>{languageView=null;card.style.display=DisplayStyle.Flex;resume.Focus();});
-        languageView=overlay.Q("pn-language-view");
+        settingsView=new PNSettingsView(overlay,
+            ()=>{settingsView=null;card.style.display=DisplayStyle.Flex;resume.Focus();},
+            ()=>{settingsView=null;FinishClose();card.style.display=DisplayStyle.Flex;surface.style.visibility=Visibility.Visible;},
+            ()=>{surface.style.visibility=Visibility.Hidden;},owner.ShowMobileControls);
     }
     private void OnMenu(InputAction.CallbackContext _) => Toggle();
     private void Toggle() { if(IsOpen)Close();else Open(); }
@@ -107,7 +110,7 @@ internal sealed class PNPauseMenu : IDisposable
     public void Close()
     {
         if(!IsOpen || closing)return;
-        if(languageView!=null){languageView.RemoveFromHierarchy();languageView=null;card.style.display=DisplayStyle.Flex;return;}
+        if(settingsView!=null){settingsView.Cancel();return;}
         closing=true;elapsed=0;closeAlpha=surfaceAlpha;
         foreach(var part in parts)part.Capture();
     }
@@ -119,6 +122,7 @@ internal sealed class PNPauseMenu : IDisposable
         { Abort();return; }
         if(IsOpen)
         {
+            settingsView?.Tick(Time.unscaledDeltaTime);
             AcquireLocalInput();
             elapsed+=Time.unscaledDeltaTime;
             if(closing)
@@ -289,7 +293,7 @@ internal sealed class PNPauseMenu : IDisposable
     }
     private void Abort()
     {
-        languageView?.RemoveFromHierarchy();languageView=null;card.style.display=DisplayStyle.Flex;
+        settingsView?.Dispose();settingsView=null;card.style.display=DisplayStyle.Flex;surface.style.visibility=Visibility.Visible;
         IsOpen=false;closing=false;overlay.style.display=DisplayStyle.None;toggle.style.display=DisplayStyle.Flex;
         RestoreTime();owner.ResetMobileInput();
         foreach(var move in moves)if(move!=null)move.MenuInputBlocked=false;
@@ -298,7 +302,7 @@ internal sealed class PNPauseMenu : IDisposable
     }
     public void Dispose()
     {
-        languageView?.RemoveFromHierarchy();languageView=null;
+        settingsView?.Dispose();settingsView=null;
         if(disposed)return;disposed=true;Abort();menu.performed-=OnMenu;menu.Disable();menu.Dispose();
         overlay.RemoveFromHierarchy();safe.RemoveFromHierarchy();
         PNUiRuntime.Retire(lightTexture);PNUiRuntime.Retire(coreTexture);

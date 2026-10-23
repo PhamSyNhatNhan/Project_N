@@ -1,6 +1,11 @@
-## Current: JSON localization (2026-10-23, Rules94)
+## Current: Settings and JSON localization (2026-10-23)
 
-Title and pause Settings now open the shared language picker. Title/default loading,
+Title and pause Settings now open `PNSettingsView`: language/FPS dropdowns, shared
+menu surface, corner Back/Close and a ribbon constellation (center unfold in/out).
+Preferences are owned by PNSettingsService at Settings/settings.json, migrating
+the legacy localization.json. Back returns to the caller; Close resumes from pause
+or returns to Title when opened there. All motion uses unscaled time. See
+Docs/SettingsImplementationReport.md for evidence and limits. Title/default loading,
 pause, mode/setup/room controls, character metadata/stat labels, lobby statuses and
 known game errors use locale keys with attach/detach bindings. Vietnamese and English
 come from BaseContent/Localization JSON. Font/style scope remains as below.
@@ -11,8 +16,12 @@ Debug/test UI and arbitrary external error strings retain their original text.
 ## Current: Title and default loading presentation (2026-10-22)
 
 The Title uses its own floating text buttons (Start / Settings / Quit) with
-Philosopher400/700 and the large stellar dial from the saved demo. Settings is
-intentionally a no-op. Existing Start/auto-start/retry/Quit callbacks are retained.
+Philosopher400/700 and the large stellar dial from the saved demo. Settings opens
+the shared view described above. Existing Start/auto-start/retry/Quit callbacks are retained.
+Title hover/keyboard focus uses PNTitleButtonFeedback: a sliding warm glint,
+feathered underline grow/fade, text glow and1px lift from TitleStarsDemo; press
+shrinks to98%. Initial programmatic focus does not show hover decorations.
+See Docs/TitleHoverFix20261023.md for the scoped follow-up and actual checks.
 Only this screen loads TitleLoading.uss and these fonts; shared pause/menu USS
 and theme are unchanged.
 
@@ -447,6 +456,17 @@ a panel is open; the mode button ignores the mobile safe area; text is Vietnames
   the lorica ratio, an almost clear body with three nested blue-grey outlines deepening toward the rounded border, no streaks or veins; it fades out in 0.35 s on a break and is dimmer during `lorica_recovery`.
   The light-red ring keeps its colour and gets a soft halo like the player HUD (`PNHudGlow` with a tint, `RingGlowMargin` 6 px: the ring document is 26 px tall, the ring's world anchor is lowered 6 px).
   When lorica goes from above 0 to 0 a Voronoi glass-shard and glass-dust effect (`PNLoricaShatter`, default look Glass (Mirror selectable)) plays on the enemy; its shaders are compiled by `PNShaderWarmup` under the transition cover. See `Docs/EnemyLoricaDesign.md`.
+
+## Mobile controls style (2026-10-24)
+
+PNMobileControls replaces the placeholder with PNMobileIconView vector paths and an
+icon-only coloured halo. Shapes/letters and U/D/A/K come from registered immutable
+definitions; see Assets/Core/UI/PNMobileStyleREADME.md. Settings schema2 stores IDs,
+preserves missing mod selections and updates existing views without rebuilding input.
+Outer button glow/rings and virtual controls keep their ownership. Settings has two
+additional dropdowns on mobile/Simulator or pause with ShowMobileControls. Its rows
+scroll on short views; popup/cancel/animation work over a collection of two/four rows.
+PC/API evidence and mobile device limits: Docs/MobileControlsStyleImplementationReport.md.
 
 ## Menu flow (`PNMenuFlow` and screens, `Docs/ModeMenuPlan.md` M1-M7)
 

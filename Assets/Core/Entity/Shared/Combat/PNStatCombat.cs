@@ -71,7 +71,7 @@ public partial class PNStat
         if (critical) outgoing *= criticalDamage / 100d;
         if (double.IsNaN(outgoing) || double.IsInfinity(outgoing) || outgoing < 0d)
             throw new OverflowException("Critical damage must be finite and nonnegative.");
-        return new PNDamage(SessionId, EntityId, outgoing, preparedTags, null, canCrit, critical, rate, criticalDamage);
+        return new PNDamage(SessionId, EntityId, outgoing, preparedTags, null, canCrit, critical, rate, criticalDamage, stats.PenetrationModifiers);
     }
 
     public virtual PNDamage CreateDamage(double amount, bool canCrit, double? iframeDuration, params EveId[] tags)
@@ -104,7 +104,8 @@ public partial class PNStat
         if (double.IsNaN(iframeAfter) || double.IsInfinity(iframeAfter))
             throw new OverflowException("IFrame time must remain finite.");
         double multiplier = iframeBefore > 0d ? IFrameDamageMultiplier : 1d;
-        double calculated = CalculateDamage(damage.Amount, damage.Tags.ToArray());
+        var tagArray = damage.Tags.ToArray();
+        double calculated = CalculateDamage(damage.Amount, damage.Penetration, tagArray);
         calculated *= multiplier;
         if (double.IsNaN(calculated) || double.IsInfinity(calculated) || calculated < 0d)
             throw new InvalidOperationException("Incoming damage must be finite and nonnegative.");

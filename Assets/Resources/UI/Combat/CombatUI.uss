@@ -115,7 +115,7 @@
 .mobile-button { position: absolute; border-radius: 100px; border-width: 1px; border-color: rgba(255,255,255,0.75); background-color: rgba(255,255,255,0.20); overflow: visible; }
 .mobile-direction-ring { position: absolute; left: -31px; top: -31px; width: 200px; height: 200px; transform-origin: center; }
 .mobile-outer-ring { position: absolute; left: -5.5px; right: -5.5px; top: -5.5px; bottom: -5.5px; border-radius: 100px; border-width: 1.5px; border-color: rgba(255,255,255,0.45); background-color: transparent; }
-.mobile-button-icon { position: absolute; left: 22%; right: 22%; top: 22%; bottom: 22%; -unity-background-scale-mode: scale-to-fit; opacity: 0.8; }
+.mobile-button-icon { position: absolute; left: 16%; right: 16%; top: 16%; bottom: 16%; opacity: 1; }
 .mobile-button.mobile-pressed { background-color: rgba(255,255,255,0.35); border-color: white; }
 
 /* Roguelite flow UI: mode button, room browser, lobby, notices. Follows the pause-menu palette. */
@@ -158,3 +158,19 @@
 .pn-flow-toast .pn-flow-label { color: white; text-shadow: 0 1px 3px rgba(0,0,0,0.6); font-size: 18px; }
 .pn-room-text { flex-grow: 1; flex-shrink: 1; min-width: 0; margin: 0; padding: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: rgb(53,69,77); font-size: 20px; -unity-text-align: middle-left; }
 .pause-choice:disabled .pn-room-text { color: rgb(146,157,162); }
+.pn-settings-view { overflow: hidden; color: white; }
+.pn-settings-rows { position: absolute; }
+.pn-settings-row { flex-direction: row; align-items: center; height: 58px; flex-shrink: 0; margin-bottom: 26px; }
+.pn-settings-label { width: 180px; flex-shrink: 0; margin-right: 32px; font-size: 23px; color: white; -unity-text-align: middle-left; text-shadow: 0 1px 4px rgba(53,70,80,.45); }
+.pn-settings-row-narrow .pn-settings-label { width: 31%; margin-right: 18px; font-size: 21px; }
+.pn-settings-trigger { flex-grow: 1; flex-shrink: 1; height: 58px; min-width: 170px; flex-direction: row; align-items: center; justify-content: space-between; padding-left: 22px; padding-right: 22px; margin: 0; border-radius: 17px; border-width: 1px; border-color: white; background-color: rgba(243,246,247,.95); color: rgb(53,70,80); }
+.pn-settings-trigger:hover { background-color: white; }
+.pn-settings-trigger:focus { border-color: rgb(224,241,252); border-width: 2px; }
+.pn-settings-value { flex-grow: 1; flex-shrink: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 21px; -unity-text-align: middle-left; }
+.pn-settings-chevron { width: 18px; height: 18px; flex-shrink: 0; }
+.pn-settings-options { position: absolute; padding: 6px; border-radius: 17px; border-width: 1px; border-color: rgba(255,255,255,.5); background-color: rgba(137,151,159,.97); transform-origin: top center; }
+.pn-settings-scroll { flex-grow: 1; }
+.pn-settings-option { height: 46px; flex-shrink: 0; margin: 0 7px 0 0; padding-left: 15px; padding-right: 15px; border-width: 0; border-radius: 11px; background-color: transparent; color: white; font-size: 20px; -unity-text-align: middle-left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pn-settings-option:hover, .pn-settings-option:focus { background-color: rgba(255,255,255,.15); }
+.pn-settings-option-selected { background-color: rgba(255,255,255,.11); }
+.pn-settings-error { color: rgb(136,62,62); font-size: 17px; white-space: normal; }

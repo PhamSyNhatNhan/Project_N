@@ -67,7 +67,24 @@ public class PNStatSet : EveStatSet
         }
     }
     protected override bool CanCacheEvaluation => OrdinaryEntries && calculations.GetEffective(DefaultCalculationId).IsCurrentIndependentBuiltIn;
-    public override void InvalidateCache() { combatCopy = null; combatCopyIgnoresCurrent = false; immutableEntries = null; pureCalculations.Clear(); smallCalculations.Clear(); preparedModifiers.Clear(); smallPreparedModifiers.Clear(); base.InvalidateCache(); }
+    public override void InvalidateCache() { combatCopy = null; combatCopyIgnoresCurrent = false; immutableEntries = null; penetrationModifiers = null; pureCalculations.Clear(); smallCalculations.Clear(); preparedModifiers.Clear(); smallPreparedModifiers.Clear(); base.InvalidateCache(); }
+
+    // EN: Every modifier on the penetration route, captured into outgoing damage packets and applied by the receiver as its own for that hit.
+    // VI: Mọi modifier thuộc đường penetration, được chụp vào gói damage gây ra và bên nhận áp như modifier của mình trong đòn đó.
+    private IReadOnlyList<EveStatModifier> penetrationModifiers;
+    private static readonly IReadOnlyList<EveStatModifier> noModifiers = Array.AsReadOnly(new EveStatModifier[0]);
+    internal IReadOnlyList<EveStatModifier> PenetrationModifiers
+    {
+        get
+        {
+            if (penetrationModifiers != null) return penetrationModifiers;
+            var found = SourceSnapshot().OrderBy(pair => pair.Key).SelectMany(pair => pair.Value)
+                .Where(modifier => ResolveCalculationId(modifier) == PNContentIds.Penetration).Select(modifier => modifier.Clone()).ToArray();
+            var result = found.Length == 0 ? noModifiers : Array.AsReadOnly(found);
+            if (OrdinaryEntries) penetrationModifiers = result;
+            return result;
+        }
+    }
     public override void SetCurrent(EveId id, double value) { if (!combatCopyIgnoresCurrent) combatCopy = null; base.SetCurrent(id, value); }
     internal PNStatSet CaptureCopy()
     {
@@ -184,6 +201,13 @@ public class PNStatSet : EveStatSet
     // EN: Filter routing before merging IDs/groups; every invocation gets a new calculator instance.
     // VI: Lọc định tuyến trước khi gộp ID/nhóm; mỗi lời gọi có instance bộ tính mới.
     public virtual double Calculate(EveId calculationId, double baseValue, params EveId[] ids)
+        => CalculateCore(calculationId, baseValue, ids, null);
+
+    // EN: `carried` are extra modifiers (a hit's penetration) for this call only. When none selects one of `ids` the ordinary cached path runs unchanged;
+    //     otherwise result caches are bypassed, the prepared own-modifier cache is still used, and nothing is stored on this entity.
+    // VI: `carried` là modifier thêm (penetration của đòn) chỉ cho lần gọi này. Nếu không cái nào chọn `ids` thì chạy đường cache thường như cũ;
+    //     ngược lại bỏ qua cache kết quả, vẫn dùng cache modifier của chính entity, và không lưu gì lên entity này.
+    private double CalculateCore(EveId calculationId, double baseValue, EveId[] ids, IReadOnlyList<EveStatModifier> carried)
     {
         using (EveEngine.EveHotPathMetrics.Measure("stat.calculate"))
         {
@@ -194,6 +218,7 @@ public class PNStatSet : EveStatSet
         if (ids == null) throw new ArgumentNullException(nameof(ids));
         bool ordinary = OrdinaryEntries;
         bool pure = ordinary && definition.IsCurrentIndependentBuiltIn;
+        bool withCarried = false;
         bool small = ordinary && ids.Length > 0 && ids.Length <= 2;
         (EveId, double, EveId, EveId, bool, int) smallKey = default;
         (EveId, double, string, bool) cacheKey = default;
@@ -208,7 +233,8 @@ public class PNStatSet : EveStatSet
             if (count == 2 && first.CompareTo(second) > 0) { var swap = first; first = second; second = swap; }
             if (count == 1) second = default;
             ValidateEvaluationId(first); if (count == 2) ValidateEvaluationId(second);
-            smallKey = (calculationId, baseValue, first, second, evaluatingStat, count);
+            if (carried != null && HasCarriedMatch(carried, first, second, count, null)) { withCarried = true; pure = false; }
+            smallKey =(calculationId, baseValue, first, second, evaluatingStat, count);
             if (pure && smallCalculations.TryGetValue(smallKey, out var cached)) return cached;
             smallPreparationKey = (calculationId, first, second, evaluatingStat, count);
             if (!smallPreparedModifiers.TryGetValue(smallPreparationKey, out prepared))
@@ -219,7 +245,8 @@ public class PNStatSet : EveStatSet
             selected = new HashSet<EveId>(ids.Select(ResolveIdentity));
             if (selected.Count == 0) throw new ArgumentException("At least one ID is required.", nameof(ids));
             foreach (var id in selected) ValidateEvaluationId(id);
-            cacheKey = (calculationId, baseValue, pure ? string.Join("\u001d", selected.OrderBy(x => x).Select(x => x.ToString())) : "", evaluatingStat);
+            if (carried != null && HasCarriedMatch(carried, default, default, 0, selected)) { withCarried = true; pure = false; }
+            cacheKey =(calculationId, baseValue, pure ? string.Join("\u001d", selected.OrderBy(x => x).Select(x => x.ToString())) : "", evaluatingStat);
             if (pure && pureCalculations.TryGetValue(cacheKey, out var cached)) return cached;
             preparationKey = (calculationId, string.Join("\u001d", selected.OrderBy(id => id).Select(x => x.ToString())), evaluatingStat);
             if (ordinary) preparedModifiers.TryGetValue(preparationKey, out prepared);
@@ -242,8 +269,21 @@ public class PNStatSet : EveStatSet
         evaluatingStat = false;
         try
         {
+            IReadOnlyList<EveStatModifier> inputs = prepared.Modifiers;
+            if (withCarried)
+            {
+                // One exact-size array: own prepared modifiers first, then the carried ones this entity would select. Group sums do not depend on order.
+                bool statEvaluation = previousEvaluation;
+                int extra = 0;
+                for (int i = 0; i < carried.Count; i++) if (CarriedSelected(carried[i], prepared.Ids, statEvaluation)) extra++;
+                var merged = new EveStatModifier[prepared.Modifiers.Count + extra]; int used = 0;
+                for (int i = 0; i < prepared.Modifiers.Count; i++) merged[used++] = prepared.Modifiers[i];
+                for (int i = 0; i < carried.Count; i++)
+                    if (CarriedSelected(carried[i], prepared.Ids, statEvaluation)) merged[used++] = carried[i];
+                inputs = merged;
+            }
             result = calculation.Calculate(new PNStatCalculationContext(this, calculationId, baseValue,
-                prepared.Ids, prepared.Modifiers, true));
+                prepared.Ids, inputs, true));
         }
         finally { evaluatingStat = previousEvaluation; }
         if (double.IsNaN(result) || double.IsInfinity(result)) throw new OverflowException("Calculation returned a non-finite value.");
@@ -270,18 +310,60 @@ public class PNStatSet : EveStatSet
 
     // EN: Incoming damage already includes outgoing bonuses; apply defense, then tagged mitigation without changing HP.
     // VI: Damage đầu vào đã gồm bonus phía gây; áp DEF rồi kháng theo tag, không thay đổi HP.
-    public virtual double CalculateDamage(double damage, params EveId[] tags)
+    public double CalculateDamage(double damage, params EveId[] tags)
+        => CalculateDamage(damage, noModifiers, tags);
+
+    // EN: Same as above; `penetration` are the sender's penetration-route modifiers carried by the hit. They join this entity's own modifiers for this call only:
+    //     defense-targeted ones in the defense evaluation, tag-targeted ones in the Mitigation selected by the hit's tags. Nothing is stored on this entity.
+    // VI: Như trên; `penetration` là modifier đường penetration của bên gây đi kèm đòn. Chúng chỉ nhập vào modifier của entity này trong lần tính này:
+    //     loại nhắm DEF vào phép tính DEF, loại nhắm tag vào Mitigation chọn theo tag của đòn. Không lưu gì lên entity này.
+    public virtual double CalculateDamage(double damage, IReadOnlyList<EveStatModifier> penetration, params EveId[] tags)
     {
         using (EveHotPathMetrics.Measure("combat.calculate-incoming"))
         {
         if (double.IsNaN(damage) || double.IsInfinity(damage) || damage < 0d)
             throw new ArgumentOutOfRangeException(nameof(damage));
+        if (penetration == null) throw new ArgumentNullException(nameof(penetration));
         var type = ResolveDamageType(tags);
         var selected = PrepareDamageTags(tags);
-        double defense = type.DefenseFactor == 0d ? 0d : Evaluate(PNContentIds.Defense);
+        double defense = type.DefenseFactor == 0d ? 0d : penetration.Count == 0 ? Evaluate(PNContentIds.Defense) : EvaluateDefenseWith(penetration);
         double afterDefense = damageCalculation.Calculate(damage, defense, type);
-        return Calculate(PNContentIds.Mitigation, afterDefense, GetType() == typeof(PNStatSet) ? selected.Values : (EveId[])selected.Values.Clone());
+        var ids = GetType() == typeof(PNStatSet) ? selected.Values : (EveId[])selected.Values.Clone();
+        return penetration.Count == 0 ? Calculate(PNContentIds.Mitigation, afterDefense, ids) : CalculateCore(PNContentIds.Mitigation, afterDefense, ids, penetration);
         }
+    }
+
+    // Defense is signed and base-backed, so this mirrors EvaluateUncached for the single defense id; the cached Evaluate path is never touched.
+    private static readonly EveId[] defenseIds = { PNContentIds.Defense };
+    private double EvaluateDefenseWith(IReadOnlyList<EveStatModifier> carried)
+    {
+        bool any = false;
+        for (int i = 0; i < carried.Count && !any; i++) any = ResolveIdentity(carried[i].Id) == PNContentIds.Defense;
+        if (!any) return Evaluate(PNContentIds.Defense);
+        double baseValue = TryGetBase(PNContentIds.Defense, out var stat) ? stat.Value : 0d;
+        if (baseValue > double.MaxValue || baseValue < -double.MaxValue) throw new OverflowException("Stat base exceeded the double range.");
+        bool previousEvaluation = evaluatingStat;
+        evaluatingStat = true;
+        try { return CalculateCore(DefaultCalculationId, baseValue, defenseIds, carried); }
+        finally { evaluatingStat = previousEvaluation; }
+    }
+
+    // Allocation-free: does any carried modifier select one of the call's IDs (small: first/second, else the selected set)?
+    private bool HasCarriedMatch(IReadOnlyList<EveStatModifier> carried, EveId first, EveId second, int count, HashSet<EveId> selected)
+    {
+        for (int i = 0; i < carried.Count; i++)
+        {
+            var modifier = carried[i]; var id = ResolveIdentity(modifier.Id);
+            bool hit = selected != null ? selected.Contains(id) : id == first || (count == 2 && id == second);
+            if (hit && (!evaluatingStat || modifier.Group != 0 || IsBaseStatId(modifier.Id))) return true;
+        }
+        return false;
+    }
+    private bool CarriedSelected(EveStatModifier modifier, IReadOnlyList<EveId> ids, bool statEvaluation)
+    {
+        var id = ResolveIdentity(modifier.Id); bool hit = false;
+        for (int i = 0; i < ids.Count && !hit; i++) hit = ids[i] == id;
+        return hit && (!statEvaluation || modifier.Group != 0 || IsBaseStatId(modifier.Id));
     }
     private static readonly PNDamageCalculation damageCalculation = new PNDamageCalculation();
     private readonly Dictionary<string, PNCombatTags> combatTags = new Dictionary<string, PNCombatTags>();
@@ -431,8 +513,10 @@ public partial class PNStat : EveStat, EveIEntityLoadPreparation
     public virtual double Calculate(EveId calculationId, double baseValue, params EveId[] ids)
         => ((PNStatSet)Set).Calculate(calculationId, baseValue, ids);
 
-    public virtual double CalculateDamage(double damage, params EveId[] tags)
+    public double CalculateDamage(double damage, params EveId[] tags)
         => ((PNStatSet)Set).CalculateDamage(damage, tags);
+    public virtual double CalculateDamage(double damage, IReadOnlyList<EveStatModifier> penetration, params EveId[] tags)
+        => ((PNStatSet)Set).CalculateDamage(damage, penetration, tags);
 
     // EN: Ordinary SetSource calls are floor-local; mark equipment or lasting effects explicitly.
     // VI: SetSource thông thường chỉ có hiệu lực trong ải; đánh dấu trang bị hoặc hiệu ứng lâu dài riêng.

@@ -104,7 +104,7 @@ public static class PNLocalization
         InstallBase(PNLocalizationCatalog.Build(new[]{BasePack(f=>PNLocalizationCatalog.ReadFile(BaseDirectory,f,f=="languages.json",f=="languages.json"?PNLocalizationCatalog.MaxManifestBytes:PNLocalizationCatalog.MaxFileBytes))}));
     }
     private static void InstallBase(PNLocalizationCatalog catalog)
-    { requested=requested??PNLanguagePreferenceStore.Load(PreferenceFile);Publish(catalog);baseCatalog=catalog; }
+    { PNSettingsService.ResolveDefaultLocale(catalog.Default);requested=requested??PNSettingsService.Current.Locale;Publish(catalog);baseCatalog=catalog; }
     public static IEnumerator PrepareBase(Action<Exception> completed)
     {
         if(IsReady){completed(null);yield break;}
@@ -142,11 +142,11 @@ public static class PNLocalization
     }
     public static void Select(string code,bool persist=true)
     {
+        if(persist){PNSettingsService.SetLocale(code);return;}
         EnsureBase();code=PNLocalizationCatalog.Code(code);if(!current.Catalog.Languages.ContainsKey(code))throw new ArgumentException("Unavailable locale: "+code);
         // All text is staged on content load; selecting a language has no outstanding async I/O.
-        current.Settings.SetSelectedLocale(current.Locales.GetLocale(new LocaleIdentifier(code)));selected=requested=code;Notify();if(persist)PNLanguagePreferenceStore.Save(PreferenceFile,code);
+        current.Settings.SetSelectedLocale(current.Locales.GetLocale(new LocaleIdentifier(code)));selected=requested=code;Notify();
     }
-    private static string PreferenceFile=>Path.Combine(Application.persistentDataPath,"Settings","localization.json");
     private static void Notify(){Revision++;var handlers=Changed;if(handlers==null)return;foreach(Action handler in handlers.GetInvocationList())try{handler();}catch(Exception e){Debug.LogException(e);}}
     public static string Text(string key,IDictionary<string,object> args=null,string fallback=null)
     {

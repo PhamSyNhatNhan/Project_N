@@ -17,6 +17,7 @@ internal sealed class PNMobileControls : IDisposable
         public string Channel, DefaultPath;
         public PNHudSparkles Sparkles;
         public float NextShimmer;
+        public PNMobileIconView Icon;
     }
     private readonly PNUiRuntime owner;
     private readonly VisualElement root, safe, zone, stick, thumb, buttons;
@@ -52,6 +53,7 @@ internal sealed class PNMobileControls : IDisposable
         AddButton("Dash","buttonSouth",197,230,88);
         AddButton("Burst","dpad/up",118,60,100);
         root.style.display=DisplayStyle.None; stick.style.display=DisplayStyle.None;
+        PNSettingsService.Changed+=ApplyStyle;PNMobileStyleCatalog.Changed+=ApplyStyle;ApplyStyle();
     }
     private void AddButton(string name,string path,float x,float y,float size)
     {
@@ -61,11 +63,11 @@ internal sealed class PNMobileControls : IDisposable
         element.style.left=x-size/2; element.style.top=y-size/2;
         AddGlow(element);
         AddOuterRing(element);
-        var image=new VisualElement { pickingMode=PickingMode.Ignore };
+        var image=new PNMobileIconView();
         image.AddToClassList("mobile-button-icon");
-        image.style.backgroundImage=new StyleBackground(owner.Image("UI/Combat/AbilityPlaceholder"));
         element.Add(image); buttons.Add(element);
         var control=Bind(element,"<Gamepad>/"+path,false); control.Channel=name;
+        control.Icon=image;
         control.Sparkles=new PNHudSparkles(element,"mobile-"+name.ToLowerInvariant()+"-sparkles",16);
     }
     private static void AddOuterRing(VisualElement host)
@@ -195,7 +197,13 @@ internal sealed class PNMobileControls : IDisposable
     { foreach(var pair in legacy)if(pair.Key!=null)pair.Key.SetActive(pair.Value); legacy.Clear(); }
     public void Dispose()
     {
+        PNSettingsService.Changed-=ApplyStyle;PNMobileStyleCatalog.Changed-=ApplyStyle;
         Reset(); transport.SetActive(false); RestoreLegacy(); root.RemoveFromHierarchy(); PNUiRuntime.Retire(transport);
+    }
+    private void ApplyStyle()
+    {
+        var prefs=PNSettingsService.Current;var icons=PNMobileStyleCatalog.ResolveIconSet(prefs.MobileIconSet);var colors=PNMobileStyleCatalog.ResolvePalette(prefs.MobilePalette);
+        foreach(var control in controls)if(control.Icon!=null){int index=(int)Enum.Parse(typeof(PNMobileControlChannel),control.Channel);control.Icon.Set(icons.Icons[index],colors.Colors[index]);}
     }
 }
 

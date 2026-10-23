@@ -76,7 +76,7 @@ public class PNCombatSourceSnapshot
         double outgoing = stats.Calculate(PNContentIds.Scale, amount, stats.GetType() == typeof(PNStatSet) ? canonical.Values : (EveId[])canonical.Values.Clone());
         double rate = stats.TryGetBase(PNContentIds.CritRate, out _) ? stats.Evaluate(PNContentIds.CritRate) : 0;
         double critDamage = stats.TryGetBase(PNContentIds.CritDamage, out _) ? stats.Evaluate(PNContentIds.CritDamage) : 150;
-        return new PNPreparedDamage(SessionId, SourceId, outgoing, canonical, iframeDuration, canCrit, rate, critDamage);
+        return new PNPreparedDamage(SessionId, SourceId, outgoing, canonical, iframeDuration, canCrit, rate, critDamage, stats.PenetrationModifiers);
         }
     }
     // Rolls with the same rule as CreateDamage: never when CanCrit is false, always at 100%, otherwise random < chance.
@@ -100,7 +100,7 @@ public class PNCombatSourceSnapshot
         if (critical && !prepared.CanCrit) throw new ArgumentException("A prepared damage that cannot crit cannot be rolled critical.", nameof(critical));
         double outgoing = prepared.Amount;
         if (critical) outgoing *= prepared.CritDamage / 100; PNHeal.RequireAmount(outgoing);
-        return new PNDamage(SessionId, SourceId, outgoing, prepared.Canonical, prepared.IFrameDuration, prepared.CanCrit, critical, prepared.CritRate, prepared.CritDamage);
+        return new PNDamage(SessionId, SourceId, outgoing, prepared.Canonical, prepared.IFrameDuration, prepared.CanCrit, critical, prepared.CritRate, prepared.CritDamage, prepared.Penetration);
         }
     }
     private void RequireOwn(PNPreparedDamage prepared)

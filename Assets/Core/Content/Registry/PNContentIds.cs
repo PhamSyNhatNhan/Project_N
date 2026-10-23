@@ -39,4 +39,5 @@ public static class PNContentIds
     public static readonly EveId Lightning = EveId.Parse("project_n:lightning");
     public static readonly EveId Scale = EveId.Parse("project_n:scale");
     public static readonly EveId Mitigation = EveId.Parse("project_n:mitigation");
+    public static readonly EveId Penetration = EveId.Parse("project_n:penetration");
 }

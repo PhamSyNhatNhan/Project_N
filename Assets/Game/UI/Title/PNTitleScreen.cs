@@ -20,6 +20,8 @@ internal sealed class PNTitleScreen : MonoBehaviour
     private Label error;
     private bool started;
     private bool preparing;
+    private PNSettingsView settingsView;
+    private PNTitleButtonFeedback.Navigation navigation;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     private static void Register()
@@ -59,6 +61,7 @@ internal sealed class PNTitleScreen : MonoBehaviour
         start = Choice("pn-title-start", "Bắt đầu", Begin, true); column.Add(start);
         settingsButton = Choice("pn-title-settings", "Cài đặt", OpenLanguages); column.Add(settingsButton);
         quit = Choice("pn-title-quit", "Thoát", PNApplication.Quit); column.Add(quit);
+        navigation=new PNTitleButtonFeedback.Navigation(column,new[]{start,settingsButton,quit});
         error = new Label { name = "pn-title-error", pickingMode = PickingMode.Ignore };
         error.style.color = new Color(.55f, .27f, .27f); error.style.fontSize = 15; error.style.whiteSpace = WhiteSpace.Normal;
         error.style.unityTextAlign = TextAnchor.MiddleCenter; error.style.marginTop = 14; error.style.display = DisplayStyle.None;
@@ -85,8 +88,10 @@ internal sealed class PNTitleScreen : MonoBehaviour
     }
     private void OpenLanguages()
     {
+        if(settingsView!=null||started)return;
         column.style.display=DisplayStyle.None;
-        PNLocalizationUI.ShowLanguages(column.parent,()=>{column.style.display=DisplayStyle.Flex;settingsButton.Focus();});
+        void Restore(){settingsView=null;column.style.display=DisplayStyle.Flex;settingsButton.Focus();}
+        settingsView=new PNSettingsView(column.parent,Restore,Restore);
     }
 
     private static Button Choice(string name, string text, System.Action clicked, bool primary = false)
@@ -94,7 +99,7 @@ internal sealed class PNTitleScreen : MonoBehaviour
         var button = new Button(clicked) { name = name, text = text };
         button.AddToClassList("pn-title-choice"); if (primary) button.AddToClassList("pn-title-primary");
         PNTitleLoadingFonts.Apply(button, primary);
-        var underline = new VisualElement { pickingMode = PickingMode.Ignore }; underline.AddToClassList("pn-title-underline"); button.Add(underline);
+        PNTitleButtonFeedback.Attach(button);
         return button;
     }
 
@@ -110,10 +115,12 @@ internal sealed class PNTitleScreen : MonoBehaviour
 
     private void Update()
     {
+        if(settingsView==null&&!started)navigation?.Tick();
+        settingsView?.Tick(Time.unscaledDeltaTime);
         backdrop?.Tick(Time.unscaledDeltaTime);
         artwork?.Tick(Time.unscaledDeltaTime);
         // A target waiting from the command line or from a scene sent through here: no click needed.
-        if (PNLocalization.IsReady && !started && PNGameFlow.BootFailure == null && (PNGameBootstrap.PendingTarget != null || PNGameBootstrap.AutoStart != null)) { Begin(); return; }
+        if (settingsView==null && PNLocalization.IsReady && !started && PNGameFlow.BootFailure == null && (PNGameBootstrap.PendingTarget != null || PNGameBootstrap.AutoStart != null)) { Begin(); return; }
         if (started && !PNGameFlow.Booting && !PNGameFlow.Busy && PNGameFlow.BootFailure != null)
         {
             started = false; column.SetEnabled(true);
@@ -124,6 +131,7 @@ internal sealed class PNTitleScreen : MonoBehaviour
 
     private void OnDestroy()
     {
+        settingsView?.Dispose();settingsView=null;
         artwork?.Dispose(); artwork = null;
         backdrop?.Dispose(); backdrop = null; sparkles?.Dispose(); sparkles = null;
         if (settings != null) { if (Application.isPlaying) Destroy(settings); else DestroyImmediate(settings); settings = null; }

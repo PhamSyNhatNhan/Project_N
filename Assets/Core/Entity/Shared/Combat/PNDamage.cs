@@ -25,9 +25,11 @@ public sealed class PNPreparedDamage
     public double CritRate { get; }
     public double CritDamage { get; }
     public double? IFrameDuration { get; }
+    // The sender's penetration-route modifiers, applied by the receiver as its own for this hit (empty when none).
+    public IReadOnlyList<EveStatModifier> Penetration { get; }
     public IReadOnlyList<EveId> Tags => Canonical.ReadOnly;
     internal PNPreparedDamage(Guid sessionId, EveEntityId sourceId, double amount, PNCombatTags tags,
-        double? iframeDuration, bool canCrit, double critRate, double critDamage)
+        double? iframeDuration, bool canCrit, double critRate, double critDamage, IReadOnlyList<EveStatModifier> penetration = null)
     {
         if (tags == null) throw new ArgumentNullException(nameof(tags));
         if (iframeDuration.HasValue && (double.IsNaN(iframeDuration.Value) || double.IsInfinity(iframeDuration.Value)))
@@ -37,6 +39,7 @@ public sealed class PNPreparedDamage
             throw new ArgumentException("Invalid critical-hit snapshot.");
         SessionId = sessionId; SourceId = sourceId; Amount = amount; Canonical = tags;
         IFrameDuration = iframeDuration; CanCrit = canCrit; CritRate = critRate; CritDamage = critDamage;
+        Penetration = penetration ?? PNDamage.NoPenetration;
     }
 }
 public sealed class PNDamage
@@ -51,6 +54,7 @@ public sealed class PNDamage
     public double CritRate { get; }
     public double CritDamage { get; }
     public double? IFrameDuration { get; }
+    public IReadOnlyList<EveStatModifier> Penetration { get; }
 
     public PNDamage(Guid sessionId, EveEntityId sourceId, double amount, IEnumerable<EveId> tags,
         bool canCrit = false, bool isCritical = false, double critRate = 0d, double critDamage = 150d)
@@ -60,10 +64,11 @@ public sealed class PNDamage
         double? iframeDuration, bool canCrit = false, bool isCritical = false, double critRate = 0d, double critDamage = 150d)
         : this(sessionId, sourceId, amount, tags, iframeDuration, canCrit, isCritical, critRate, critDamage, null) { }
     internal PNDamage(Guid sessionId, EveEntityId sourceId, double amount, PNCombatTags tags,
-        double? iframeDuration, bool canCrit, bool isCritical, double critRate, double critDamage)
-        : this(sessionId, sourceId, amount, tags.ReadOnly, iframeDuration, canCrit, isCritical, critRate, critDamage, tags) { }
+        double? iframeDuration, bool canCrit, bool isCritical, double critRate, double critDamage, IReadOnlyList<EveStatModifier> penetration = null)
+        : this(sessionId, sourceId, amount, tags.ReadOnly, iframeDuration, canCrit, isCritical, critRate, critDamage, tags, penetration) { }
     private PNDamage(Guid sessionId, EveEntityId sourceId, double amount, IEnumerable<EveId> tags,
-        double? iframeDuration, bool canCrit, bool isCritical, double critRate, double critDamage, PNCombatTags prepared)
+        double? iframeDuration, bool canCrit, bool isCritical, double critRate, double critDamage, PNCombatTags prepared,
+        IReadOnlyList<EveStatModifier> penetration = null)
     {
         if (iframeDuration.HasValue && (double.IsNaN(iframeDuration.Value) || double.IsInfinity(iframeDuration.Value)))
             throw new ArgumentOutOfRangeException(nameof(iframeDuration));
@@ -87,10 +92,23 @@ public sealed class PNDamage
         IFrameDuration = iframeDuration;
         CanCrit = canCrit; IsCritical = isCritical; CritRate = critRate; CritDamage = critDamage;
         preparedTags = prepared; Tags = prepared.ReadOnly;
+        Penetration = penetration ?? NoPenetration;
     }
 
+    internal static readonly IReadOnlyList<EveStatModifier> NoPenetration = Array.AsReadOnly(new EveStatModifier[0]);
+
     public PNDamage WithIFrameDuration(double? duration)
-        => new PNDamage(SessionId, SourceId, Amount, preparedTags, duration, CanCrit, IsCritical, CritRate, CritDamage);
+        => new PNDamage(SessionId, SourceId, Amount, preparedTags, duration, CanCrit, IsCritical, CritRate, CritDamage, Penetration);
+
+    // EN: Copy carrying the given penetration-route modifiers (stored as an immutable copy). Packets from the public constructors carry none.
+    // VI: Bản sao mang các modifier đường penetration cho trước (lưu bản sao bất biến). Gói tạo từ constructor public không mang gì.
+    public PNDamage WithPenetration(IEnumerable<EveStatModifier> penetration)
+    {
+        if (penetration == null) throw new ArgumentNullException(nameof(penetration));
+        var copy = penetration.Select(modifier => modifier?.Clone() ?? throw new ArgumentException("Penetration modifiers cannot be null.", nameof(penetration))).ToArray();
+        return new PNDamage(SessionId, SourceId, Amount, preparedTags, IFrameDuration, CanCrit, IsCritical, CritRate, CritDamage,
+            copy.Length == 0 ? NoPenetration : Array.AsReadOnly(copy));
+    }
 
     // Omission uses receiver fallback; explicit zero and signed durations remain distinct.
     public static double? ParseIFrameDuration(JObject payload)

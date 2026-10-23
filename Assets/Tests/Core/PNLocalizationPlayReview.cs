@@ -46,9 +46,9 @@ public sealed class PNLocalizationPlayReview : MonoBehaviour
         yield return Until(()=>PNLocalization.IsReady&&Title()!=null,"Title base localization ready");
         PNLocalization.Select("vi",false);var root=Title().rootVisualElement;
         Check(root.Q<Button>("pn-title-start").text=="Bắt đầu","Title vi binding");yield return Shot("01_title_vi");
-        Press(root,"pn-title-settings");Press(root,"pn-language-en");
+        Press(root,"pn-title-settings");yield return new WaitForSecondsRealtime(1.4f);Press(root,"pn-settings-language-trigger");yield return new WaitForSecondsRealtime(.3f);Press(root,"pn-settings-language-option-en");
         Check(PNLocalization.Selected=="en"&&root.Q<Button>("pn-title-start").text=="Start","language button updates attached Title");yield return Shot("02_languages_en");
-        Press(root,"pn-language-back");yield return Shot("03_title_en");
+        Press(root,"pn-menu-back");yield return new WaitForSecondsRealtime(1.2f);yield return Shot("03_title_en");
         string mods=Path.Combine(Application.persistentDataPath,"Mods"),pack=Path.Combine(mods,"localization_review"),loc=Path.Combine(pack,"Localization");Directory.CreateDirectory(loc);
         File.WriteAllText(Path.Combine(pack,"manifest.json"),"{\"schemaVersion\":1,\"namespace\":\"loc_review\",\"version\":\"1.0.0\",\"dependencies\":{\"project_n\":\"1.0.0\"}}");
         File.WriteAllText(Path.Combine(mods,"enabled.json"),"{\"schemaVersion\":1,\"enabledMods\":[\"localization_review\"]}");
@@ -71,9 +71,9 @@ public sealed class PNLocalizationPlayReview : MonoBehaviour
         PNLocalization.Select("fr",false);Check(PNLocalization.Text("loc_review:plural",new Dictionary<string,object>{{"count",0}})=="0 items","fallback uses source-language plural grammar");PNLocalization.Select("en",false);
         var ui=PNGameBootstrap.Runtime.GetComponent<PNUiRuntime>();ui.OpenMenu();yield return Shot("05_pause_en");
         Check(ui.HudRoot.Q<Button>("pause-continue").text=="Resume","pause English binding");
-        Press(ui.HudRoot,"pause-settings");Press(ui.HudRoot,"pn-language-vi");
+        Press(ui.HudRoot,"pause-settings");yield return new WaitForSecondsRealtime(1.4f);Press(ui.HudRoot,"pn-settings-language-trigger");yield return new WaitForSecondsRealtime(.3f);Press(ui.HudRoot,"pn-settings-language-option-vi");
         Check(Time.timeScale==0&&PNLocalization.Selected=="vi","switch while game paused");yield return Shot("06_pause_language_vi");
-        Press(ui.HudRoot,"pn-language-back");Check(ui.HudRoot.Q<Button>("pause-continue").text=="Tiếp tục","pause Vietnamese binding");yield return Shot("07_pause_vi");
+        Press(ui.HudRoot,"pn-menu-back");yield return new WaitForSecondsRealtime(1.2f);Check(ui.HudRoot.Q<Button>("pause-continue").text=="Tiếp tục","pause Vietnamese binding");yield return Shot("07_pause_vi");
         ui.CloseMenu();yield return new WaitForSecondsRealtime(1.2f);
         Check(Time.timeScale>0,"pause restores time");
         var controller=new PNMenuController(ui);Check(controller.OpenHall(),"open mode ring");yield return new WaitForSecondsRealtime(1.2f);yield return Shot("08_modes_vi");

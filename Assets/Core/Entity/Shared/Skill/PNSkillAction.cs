@@ -109,7 +109,7 @@ public class PNSkillActionContext
         var tags = effective.Select(Registry.Tags().ResolveIdentity).Distinct().OrderBy(x => x).ToArray();
         if (tags.SequenceEqual(original.Tags)) return original;
         var packet = capture.CreateDamage(amount, false, original.IFrameDuration, tags.ToArray());
-        return new PNDamage(packet.SessionId, packet.SourceId, packet.Amount * (original.IsCritical ? original.CritDamage / 100 : 1), packet.Tags, packet.IFrameDuration, original.CanCrit, original.IsCritical, original.CritRate, original.CritDamage);
+        return new PNDamage(packet.SessionId, packet.SourceId, packet.Amount * (original.IsCritical ? original.CritDamage / 100 : 1), packet.Tags, packet.IFrameDuration, original.CanCrit, original.IsCritical, original.CritRate, original.CritDamage).WithPenetration(packet.Penetration);
     }
     public PNDamageResult ReceiveHit(PNStat target, Vector3? point, PNDamage original, double amount, PNCombatSourceSnapshot capture, int hitIndex = 0)
     {
