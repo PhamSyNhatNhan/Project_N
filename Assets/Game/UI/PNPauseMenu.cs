@@ -69,7 +69,8 @@ internal sealed class PNPauseMenu : IDisposable
         card=new VisualElement { name="pause-card", pickingMode=PickingMode.Ignore }; card.AddToClassList("pause-card"); overlay.Add(card);
         resume=new Button(Close) { name="pause-continue", text="Tiếp tục" }; resume.AddToClassList("pause-choice"); resume.AddToClassList("pause-primary"); card.Add(resume);
         foreach(var item in new[]{new[]{"pause-settings","Cài đặt"},new[]{"pause-leave","Rời phòng"}})
-        { var button=new Button { name=item[0], text=item[1] }; button.AddToClassList("pause-choice"); button.SetEnabled(false); card.Add(button); if(item[0]=="pause-leave"){leave=button;button.clicked+=Leave;} }
+        { var button=new Button { name=item[0], text=item[1] }; button.AddToClassList("pause-choice"); card.Add(button); PNLocalizationUI.Bind(button,item[0]=="pause-settings"?"project_n:ui.settings":"project_n:ui.leave");if(item[0]=="pause-settings")button.clicked+=OpenLanguages; if(item[0]=="pause-leave"){leave=button;button.clicked+=Leave;button.SetEnabled(false);} }
+        PNLocalizationUI.Bind(resume,"project_n:ui.resume");
         int choiceIndex=0;
         foreach(var button in card.Children())
         {
@@ -83,6 +84,13 @@ internal sealed class PNPauseMenu : IDisposable
     }
     // Leaves the lobby/run for the Hall. Closing first keeps the menu animation and time scale consistent with a normal resume.
     private void Leave(){ if(!IsOpen||PNGameFlow.Busy)return; Close(); PNGameFlow.ReturnToHall(); }
+    private VisualElement languageView;
+    private void OpenLanguages()
+    {
+        card.style.display=DisplayStyle.None;
+        PNLocalizationUI.ShowLanguages(overlay,()=>{languageView=null;card.style.display=DisplayStyle.Flex;resume.Focus();});
+        languageView=overlay.Q("pn-language-view");
+    }
     private void OnMenu(InputAction.CallbackContext _) => Toggle();
     private void Toggle() { if(IsOpen)Close();else Open(); }
     public void Open()
@@ -99,6 +107,7 @@ internal sealed class PNPauseMenu : IDisposable
     public void Close()
     {
         if(!IsOpen || closing)return;
+        if(languageView!=null){languageView.RemoveFromHierarchy();languageView=null;card.style.display=DisplayStyle.Flex;return;}
         closing=true;elapsed=0;closeAlpha=surfaceAlpha;
         foreach(var part in parts)part.Capture();
     }
@@ -280,6 +289,7 @@ internal sealed class PNPauseMenu : IDisposable
     }
     private void Abort()
     {
+        languageView?.RemoveFromHierarchy();languageView=null;card.style.display=DisplayStyle.Flex;
         IsOpen=false;closing=false;overlay.style.display=DisplayStyle.None;toggle.style.display=DisplayStyle.Flex;
         RestoreTime();owner.ResetMobileInput();
         foreach(var move in moves)if(move!=null)move.MenuInputBlocked=false;
@@ -288,6 +298,7 @@ internal sealed class PNPauseMenu : IDisposable
     }
     public void Dispose()
     {
+        languageView?.RemoveFromHierarchy();languageView=null;
         if(disposed)return;disposed=true;Abort();menu.performed-=OnMenu;menu.Disable();menu.Dispose();
         overlay.RemoveFromHierarchy();safe.RemoveFromHierarchy();
         PNUiRuntime.Retire(lightTexture);PNUiRuntime.Retire(coreTexture);

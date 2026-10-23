@@ -13,6 +13,7 @@ public class EveGameRuntime : EveRuntime
     [SerializeField] private string enabledModsFile = "enabled.json";
     private IReadOnlyList<EveContentPack> packs;
 #if UNITY_5_3_OR_NEWER
+    private PNLocalizationCatalog localizationCandidate;
     private PNWorldBundleService bundleService;
     private System.Guid bundleGeneration;
     public PNWorldBundleService WorldAssets
@@ -28,7 +29,7 @@ public class EveGameRuntime : EveRuntime
 #endif
     // EN: Bump when executable gameplay rules change, even if JSON stays the same.
     // VI: TÄƒng phiÃªn báº£n khi luáº­t gameplay trong code Ä‘á»•i dÃ¹ JSON váº«n giá»¯ nguyÃªn.
-    public const string CurrentRulesVersion = "project_n:93";
+    public const string CurrentRulesVersion = "project_n:94";
     public override string RulesVersion => CurrentRulesVersion;
 #if UNITY_5_3_OR_NEWER
     internal bool IsBootstrapOwner { get; set; }
@@ -72,11 +73,24 @@ public class EveGameRuntime : EveRuntime
     protected override IEnumerable<EveContentDocument> ReadContentDocuments()
     {
         string modsDirectory = ModsDirectory;
-        var source = new EveDirectoryContentSource(
+        var source = new PNGameContentSource(
             Path.Combine(Application.streamingAssetsPath, baseContentFolder),
             modsDirectory, ModsAllowed ? EveDirectoryContentSource.ReadEnabledMods(Path.Combine(modsDirectory, enabledModsFile)) : System.Array.Empty<string>());
         packs = source.ReadPacks();
+#if UNITY_5_3_OR_NEWER
+        localizationCandidate=PNLocalization.PreparePacks(packs);
+#endif
         return source.ReadDocuments(packs);
+    }
+
+    protected override void OnContentPublished(EveContentContext content)
+    {
+#if UNITY_5_3_OR_NEWER
+        // Existing memory-document runtimes override ReadContentDocuments without pack I/O.
+        // They retain base presentation; the normal pack path always supplies its staged catalogue.
+        if(localizationCandidate==null){PNLocalization.EnsureBase();return;}
+        PNLocalization.PublishContent(localizationCandidate,content);localizationCandidate=null;
+#endif
     }
 
     protected override EveCodeModSession LoadCodeMods() => ModsAllowed ? new EveCodeModLoader("project_n").Load(packs) : EveCodeModSession.Empty();

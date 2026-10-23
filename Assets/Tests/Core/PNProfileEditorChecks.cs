@@ -13,7 +13,7 @@ public static class PNProfileEditorChecks
         if (Application.isPlaying || EveRegistrySession.State != EveSessionState.Stopped) throw new InvalidOperationException("Idle Edit required.");
         int checks = 0;
         void Check(bool ok, string label) { if (!ok) throw new Exception(label); checks++; }
-        var docs = new EveDirectoryContentSource(Path.Combine(Application.streamingAssetsPath, "BaseContent"), Path.Combine(Application.persistentDataPath, "NoProfileProbeMods"), Array.Empty<string>()).ReadDocuments().ToArray();
+        var docs = new PNGameContentSource(Path.Combine(Application.streamingAssetsPath, "BaseContent"), Path.Combine(Application.persistentDataPath, "NoProfileProbeMods"), Array.Empty<string>()).ReadDocuments().ToArray();
         var hub = new EveContentBootstrap().Build(new EveIContentModule[] { new PNContentModule(), new PNGameplayContentModule() }, docs);
         var eve = PNPlayableSettings.Parse(hub.Characters.Get(EveId.Parse("project_n:eve")).Data);
         Check(eve != null && eve.Name == "Eve" && eve.Availability == PNPlayableAvailability.Default && eve.AccentRgb.SequenceEqual(new[] { 231, 185, 143 }), "Eve has a playable block in the base content");

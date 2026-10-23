@@ -62,7 +62,7 @@ public sealed class PNUiToolkitTransitionScreen : IPNTransitionScreen
             backdrop.Root.style.backgroundColor = new Color(184f/255,192f/255,196f/255,1);
             root.Add(backdrop.Root);
             artwork = new PNTitleLoadingVisual(false); backdrop.Root.Add(artwork);
-            label.RemoveFromHierarchy(); label.text = "Đang tải…";
+            label.RemoveFromHierarchy(); PNLocalizationUI.Bind(label,"project_n:ui.loading");
             label.style.fontSize = 21; label.AddToClassList("pn-default-loading-caption"); PNTitleLoadingFonts.Apply(label);
             backdrop.Root.Add(label);
         }

@@ -13,7 +13,7 @@ public static class PNMoveTypedEditorChecks
     {
         if(Application.isPlaying||EveRegistrySession.State!=EveSessionState.Stopped||SceneManager.GetActiveScene().rootCount!=0)throw new InvalidOperationException("Empty disposable stopped scene required.");
         int checks=0;void Check(bool ok,string label){if(!ok)throw new Exception(label);checks++;}
-        var docs=new EveDirectoryContentSource(Path.Combine(Application.streamingAssetsPath,"BaseContent"),Path.Combine(Application.persistentDataPath,"Mods"),Array.Empty<string>()).ReadDocuments().ToArray();
+        var docs=new PNGameContentSource(Path.Combine(Application.streamingAssetsPath,"BaseContent"),Path.Combine(Application.persistentDataPath,"Mods"),Array.Empty<string>()).ReadDocuments().ToArray();
         var hub=new EveContentBootstrap().Build(new EveIContentModule[]{new PNContentModule(),new PNGameplayContentModule()},docs);var content=EveContentCompatibility.Create(hub,docs,"test:p4_hold");
         var host=Guid.NewGuid();GameObject root=null;
         try

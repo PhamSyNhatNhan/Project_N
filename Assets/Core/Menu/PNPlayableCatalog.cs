@@ -12,7 +12,7 @@ public sealed class PNPlayableEntry
     internal PNPlayableEntry(string id, PNPlayableSettings settings, EveCharacterDefinition definition) { Id = id; Settings = settings; Definition = definition; }
 }
 
-public struct PNStatRow { public string Label, Value; }
+public struct PNStatRow { public string Label, Value, LocalizationKey; }
 
 // EN: The characters the character screen lists (Docs/ModeMenuPlan.md M7): those with a `data.playable` block whose effective state is Owned
 //     (NotOwned and Forbidden stay hidden; the allow switch turns Forbidden into Owned), shipped content first, then by name. Also the
@@ -62,7 +62,7 @@ public static class PNPlayableCatalog
         {
             double value = 0;
             foreach (var stat in definition.Stats) if (stat.Id.Path == row[0]) { value = stat.BaseValue; break; }
-            rows.Add(new PNStatRow { Label = row[1], Value = Number(value) + row[2] });
+            rows.Add(new PNStatRow { Label = row[1], Value = Number(value) + row[2], LocalizationKey="project_n:stat."+row[0]+".name" });
         }
         return rows.AsReadOnly();
     }

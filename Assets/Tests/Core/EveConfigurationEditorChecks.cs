@@ -17,7 +17,7 @@ public static class EveConfigurationEditorChecks
         var original = SceneManager.GetActiveScene(); bool dirty = original.isDirty; int checks = 0;
         var scene = EditorSceneManager.NewPreviewScene(); EveEntityLoader loader = null;
         void Check(bool ok, string message) { if (!ok) throw new Exception(message); checks++; }
-        var docs = new EveDirectoryContentSource(Path.Combine(Application.streamingAssetsPath, "BaseContent"),
+        var docs = new PNGameContentSource(Path.Combine(Application.streamingAssetsPath, "BaseContent"),
             Path.Combine(Application.persistentDataPath, "Mods"), Array.Empty<string>()).ReadDocuments().Select(document =>
         {
             var obj = JObject.Parse(document.Json);

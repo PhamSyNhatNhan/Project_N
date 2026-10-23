@@ -47,7 +47,7 @@ public static class PNWorldLifecycleChecks
         int count=0;var checks=new List<string>();
         void Check(bool ok,string label){if(!ok)throw new Exception(label);checks.Add("PASS "+label);Debug.Log("WorldS2 PASS "+label);count++;}
         void Reject(Action action,string label){try{action();}catch{Check(true,label);return;}throw new Exception(label);}
-        var docs=new EveDirectoryContentSource(Path.Combine(Application.streamingAssetsPath,"BaseContent"),".utmp/no-mods",Array.Empty<string>()).ReadDocuments().ToArray();
+        var docs=new PNGameContentSource(Path.Combine(Application.streamingAssetsPath,"BaseContent"),".utmp/no-mods",Array.Empty<string>()).ReadDocuments().ToArray();
         var hub=new EveContentBootstrap().Build(new EveIContentModule[]{new PNContentModule(),new PNGameplayContentModule(),new PNWorldFixtureModule()},docs);
         EveRegistrySession.Begin();EveRegistrySession.Start(hub,EveSessionRole.Host,EveContentCompatibility.Create(hub,docs,"fixture:world"));
         var session=EveRegistrySession.Context;

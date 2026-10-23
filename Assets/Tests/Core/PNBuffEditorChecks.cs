@@ -55,7 +55,7 @@ public static class PNBuffEditorChecks
         var evidence = new List<string>(); int checks = 0;
         PNControlMoveEditorProbe move = null;
         void Check(bool ok, string text) { if (!ok) throw new Exception(text); evidence.Add("PASS " + text); checks++; }
-        var docs = new EveDirectoryContentSource(Path.Combine(Application.streamingAssetsPath, "BaseContent"), Path.Combine(Application.persistentDataPath, "Mods"), Array.Empty<string>()).ReadDocuments().ToArray();
+        var docs = new PNGameContentSource(Path.Combine(Application.streamingAssetsPath, "BaseContent"), Path.Combine(Application.persistentDataPath, "Mods"), Array.Empty<string>()).ReadDocuments().ToArray();
         var module = new PNBuffNativeModule();
         var hub = new EveContentBootstrap().Build(new EveIContentModule[] { new PNContentModule(), new PNGameplayContentModule(), module }, docs);
         var preview = EditorSceneManager.NewPreviewScene();

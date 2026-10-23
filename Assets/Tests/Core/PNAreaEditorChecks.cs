@@ -38,7 +38,7 @@ public static class PNAreaEditorChecks
     {
         if (Application.isPlaying || EveRegistrySession.State != EveSessionState.Stopped) throw new InvalidOperationException("Idle Edit required.");
         var original = SceneManager.GetActiveScene(); bool dirty = original.isDirty;
-        var docs = new EveDirectoryContentSource(Path.Combine(Application.streamingAssetsPath, "BaseContent"), Path.Combine(Application.persistentDataPath, "Mods"), Array.Empty<string>()).ReadDocuments().ToArray();
+        var docs = new PNGameContentSource(Path.Combine(Application.streamingAssetsPath, "BaseContent"), Path.Combine(Application.persistentDataPath, "Mods"), Array.Empty<string>()).ReadDocuments().ToArray();
         var modules = new EveIContentModule[] { new PNContentModule(), new PNGameplayContentModule(), new PNAreaNativeModule() };
         string json = "{'schemaVersion':1,'extensions':{'project_n':{'areas':[{'id':'area_test:json','factoryId':'base:timescale_area','data':{'buffId':'area_test:grant','pollPeriod':0.05,'fadeIn':0.1,'fadeOut':0.3}}],'buffs':[{'id':'area_test:grant','factoryId':'base:timescale_reduction_area','data':{'areaOwned':true},'tags':['base:timescale'],'multipleInstances':true,'maximumInstances':2147483647,'scope':'Target','canDispel':false,'showInUI':false}]}}}";
         var jsonHub = new EveContentBootstrap().Build(modules, docs.Concat(new[] { new EveContentDocument("area same batch", json, "area_test", dependencies: new[] { "project_n" }) }));

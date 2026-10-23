@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "default": "vi",
+  "fallback": "en",
+  "languages": [
+    {
+      "code": "vi",
+      "nativeName": "Tiếng Việt",
+      "file": "vi.json",
+      "fontProfile": "default"
+    },
+    {
+      "code": "en",
+      "nativeName": "English",
+      "file": "en.json",
+      "fontProfile": "default"
+    }
+  ],
+  "overrides": []
+}

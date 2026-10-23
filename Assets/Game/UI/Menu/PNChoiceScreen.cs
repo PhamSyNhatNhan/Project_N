@@ -52,6 +52,7 @@ internal sealed class PNSetupScreen : IPNMenuScreen
         {
             var captured = start;
             var button = PNMenuButtons.Choice("pn-start-" + captured.Id, captured.Label, () => Choose(captured));
+            PNLocalizationUI.Content(button,mode.Id.ToString(),"mode","start."+captured.Id,captured.Label);
             column.Add(button); items.Add(button);
         }
     }
@@ -91,7 +92,7 @@ internal sealed class PNRoomScreen : IPNMenuScreen
         scroll.contentContainer.style.paddingLeft = scroll.contentContainer.style.paddingRight = scroll.contentContainer.style.paddingTop = scroll.contentContainer.style.paddingBottom = 10;
         scroll.style.marginLeft = scroll.style.marginRight = -10; column.Add(list);
         address = new TextField { name = "pn-address" }; address.AddToClassList("pn-address-field"); column.Add(address);
-        column.Add(PNMenuButtons.Choice("pn-join-address", "Vào bằng địa chỉ", JoinAddress));
+        var join=PNMenuButtons.Choice("pn-join-address", "", JoinAddress);PNLocalizationUI.Bind(join,"project_n:ui.join_address");column.Add(join);
         items.Add(column);
         try { driver?.StartDiscovery(); searching = driver != null; } catch (Exception error) { Debug.LogWarning("Room discovery failed: " + error.Message); }
     }
@@ -131,6 +132,7 @@ internal sealed class PNRoomScreen : IPNMenuScreen
             var button = PNMenuButtons.Choice("pn-room-" + info.Address, "", () => onJoin(info.Address)); button.SetEnabled(reason == null);
             // Long names end in an ellipsis instead of being cut off; the button keeps overflow visible for its halo, so the clipping is on the label.
             var label = new Label(text) { pickingMode = PickingMode.Ignore }; label.AddToClassList("pn-room-text"); button.Add(label); list.Add(button);
+            if(info.Unavailable==null&&localPort!=0&&info.Port!=localPort)PNLocalizationUI.Watch(label,()=>label.text=info.Name+"  "+info.Address+"  ("+info.Players+"/"+info.Capacity+")  — "+PNLocalization.Text("project_n:ui.port_mismatch"));
         }
     }
 

@@ -37,7 +37,7 @@ public sealed class PNSkillBindingPlayReview:MonoBehaviour
     private IEnumerator Run()
     {
         if(EveRegistrySession.State!=EveSessionState.Stopped)throw new InvalidOperationException("Clean session required.");
-        var docs=new EveDirectoryContentSource(Path.Combine(Application.streamingAssetsPath,"BaseContent"),Path.Combine(Application.persistentDataPath,"Mods"),Array.Empty<string>()).ReadDocuments().ToArray();
+        var docs=new PNGameContentSource(Path.Combine(Application.streamingAssetsPath,"BaseContent"),Path.Combine(Application.persistentDataPath,"Mods"),Array.Empty<string>()).ReadDocuments().ToArray();
         var hub=new EveContentBootstrap().Build(new EveIContentModule[]{new PNContentModule(),new PNGameplayContentModule(),new PNSkillBindingFixtureModule()},docs);
         EveRegistrySession.Begin();EveRegistrySession.Start(hub,EveSessionRole.Offline,EveContentCompatibility.Create(hub,docs,"test:binding"));
         GameObject Root(long id,string character)

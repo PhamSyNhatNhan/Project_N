@@ -65,7 +65,7 @@ public static class PNProjectileEditorChecks
         int count = 0; var evidence = new List<string>();
         void Check(bool condition, string message) { if (!condition) throw new Exception(message); evidence.Add("PASS " + message); count++; }
         bool Near(float a, float b, float tolerance = 1e-3f) => Mathf.Abs(a - b) <= tolerance;
-        var docs = new EveDirectoryContentSource(Path.Combine(Application.streamingAssetsPath, "BaseContent"), ".utmp/no-mods", Array.Empty<string>()).ReadDocuments().ToArray();
+        var docs = new PNGameContentSource(Path.Combine(Application.streamingAssetsPath, "BaseContent"), ".utmp/no-mods", Array.Empty<string>()).ReadDocuments().ToArray();
         var hub = new EveContentBootstrap().Build(new EveIContentModule[] { new PNContentModule(), new PNGameplayContentModule(), new PNWorldFixtureModule(), new PNProjectileNativeModule() }, docs);
         int enemyMask = 1 << 7, wall = LayerMask.NameToLayer("Wall"), boundary = LayerMask.NameToLayer("Boundary");
         Check(wall >= 0 && boundary >= 0 && LayerMask.NameToLayer("Enemy") == 7, "Wall, Boundary and Enemy layers exist");

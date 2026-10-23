@@ -16,7 +16,7 @@ public static class EveDashAreaEditorChecks
     {
         if (Application.isPlaying || EveRegistrySession.State != EveSessionState.Stopped) throw new InvalidOperationException("Idle Edit required.");
         var original = SceneManager.GetActiveScene(); bool dirty = original.isDirty;
-        var docs = new EveDirectoryContentSource(Path.Combine(Application.streamingAssetsPath, "BaseContent"), Path.Combine(Application.persistentDataPath, "Mods"), Array.Empty<string>()).ReadDocuments().ToArray();
+        var docs = new PNGameContentSource(Path.Combine(Application.streamingAssetsPath, "BaseContent"), Path.Combine(Application.persistentDataPath, "Mods"), Array.Empty<string>()).ReadDocuments().ToArray();
         var hub = new EveContentBootstrap().Build(new EveIContentModule[] { new PNContentModule(), new PNGameplayContentModule() }, docs);
         var scene = EditorSceneManager.NewPreviewScene(); var evidence = new List<string>(); PNAreaManager areas = null;
         RenderTexture rt = null; Texture2D image = null; Material backdropMaterial = null; var previous = RenderTexture.active;

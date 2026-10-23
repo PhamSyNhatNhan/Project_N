@@ -1,3 +1,13 @@
+## Current: JSON localization (2026-10-23, Rules94)
+
+Title and pause Settings now open the shared language picker. Title/default loading,
+pause, mode/setup/room controls, character metadata/stat labels, lobby statuses and
+known game errors use locale keys with attach/detach bindings. Vietnamese and English
+come from BaseContent/Localization JSON. Font/style scope remains as below.
+See [localization API](../../Core/Localization/PNLocalizationREADME.md) and
+[delivery report](../../../Docs/LocalizationImplementationReport.md).
+Debug/test UI and arbitrary external error strings retain their original text.
+
 ## Current: Title and default loading presentation (2026-10-22)
 
 The Title uses its own floating text buttons (Start / Settings / Quit) with

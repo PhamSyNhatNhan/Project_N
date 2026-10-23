@@ -20,6 +20,7 @@ internal sealed class PNModeMenu : IDisposable
     private string peerSignature = "", shownMessage;
     private double messageAt, lastCharacterSend;
     private bool disposed;
+    private long noticeSequence=-1;
     internal const double ToastSeconds = 6;
 
     // Character button beside the pause star, lobby only: the icon is baked on the first lobby frame and freed with the menu.
@@ -34,9 +35,11 @@ internal sealed class PNModeMenu : IDisposable
         this.owner = owner; this.pause = pause; controller = new PNMenuController(owner);
         characterToggle = new Button(() => controller.OpenCharacterChange()) { name = "toggle-character", tooltip = "Nhân vật" };
         characterToggle.AddToClassList("pn-character-toggle");
+        PNLocalizationUI.Watch(characterToggle,()=>characterToggle.tooltip=PNLocalization.Text("project_n:ui.character"));
         characterIcon = new VisualElement { name = "toggle-character-icon", pickingMode = PickingMode.Ignore }; characterIcon.AddToClassList("pn-character-icon");
         characterToggle.Add(characterIcon); pause.SafeArea.Add(characterToggle);
         toggle = Choice("pn-mode-toggle", "Chế độ", () => controller.OpenHall()); toggle.AddToClassList("pn-mode-toggle"); root.Add(toggle);
+        PNLocalizationUI.Bind(toggle,"project_n:ui.mode");
         AddHalo(toggle, 26);
         // Lobby: the party down the left side, one action at the bottom centre in the pause buttons' look (host: Bắt đầu, others: Sẵn sàng /
         // Huỷ sẵn sàng). Leaving the room is the pause menu's "Rời phòng".
@@ -105,7 +108,8 @@ internal sealed class PNModeMenu : IDisposable
             peerSignature = signature; team.Clear();
             int index = 0; foreach (var peer in info.Peers) team.Add(PeerRow(peer, index++));
         }
-        action.text = host ? "Bắt đầu" : info.LocalReady ? "Huỷ sẵn sàng" : "Sẵn sàng";
+        string nextAction=host?"project_n:ui.start":info.LocalReady?"project_n:ui.unready":"project_n:ui.ready";
+        if(actionKey!=nextAction){actionKey=nextAction;PNLocalizationUI.Bind(action,nextAction);}
         action.SetEnabled(!host || PNGameFlow.CanStartRun(out _));
     }
     // Each player's avatar rim (pastel): the host white, then pale blue, pink, green, so the same character twice is still told apart.
@@ -114,6 +118,7 @@ internal sealed class PNModeMenu : IDisposable
         Color.white, new Color(191 / 255f, 227 / 255f, 1f), new Color(1f, 201 / 255f, 220 / 255f), new Color(201 / 255f, 240 / 255f, 192 / 255f)
     };
     private static readonly Color ReadyGold = new Color(231 / 255f, 185 / 255f, 143 / 255f);
+    private string actionKey;
     // The ready mark beside a row: a dim hollow star while waiting, the same plump star filled warm gold with a soft glow when ready. The host is
     // always waiting (it starts the run, it does not ready).
     private static VisualElement ReadyMark(bool ready)
@@ -155,7 +160,9 @@ internal sealed class PNModeMenu : IDisposable
         else { var star = new PNPauseDrawing(PNPauseDrawing.Shape.Star); star.AddToClassList("pn-lobby-avatar-star"); avatar.Add(star); }
         var text = new VisualElement { pickingMode = PickingMode.Ignore }; text.AddToClassList("pn-lobby-text");
         var top = new Label(name) { pickingMode = PickingMode.Ignore }; top.AddToClassList("pn-lobby-name");
+        if(!string.IsNullOrEmpty(peer.Character))PNLocalizationUI.Content(top,peer.Character,"character","name",name);else PNLocalizationUI.Bind(top,"project_n:ui.no_character");
         var bottom = new Label(!peer.Host && peer.Ready ? "Sẵn sàng" : "Đang chờ") { pickingMode = PickingMode.Ignore }; bottom.AddToClassList("pn-lobby-status");
+        PNLocalizationUI.Bind(bottom,!peer.Host&&peer.Ready?"project_n:ui.ready":"project_n:ui.waiting");
         text.Add(top); text.Add(bottom); row.Add(host); row.Add(text);
         row.Add(ReadyMark(!peer.Host && peer.Ready));
         return row;
@@ -173,7 +180,7 @@ internal sealed class PNModeMenu : IDisposable
     private void TickToast()
     {
         string message = PNGameFlow.Message;
-        if (message != shownMessage) { shownMessage = message; messageAt = Time.realtimeSinceStartupAsDouble; toastLabel.text = message ?? ""; }
+        if (message != shownMessage) { shownMessage = message; if(noticeSequence!=PNGameFlow.NoticeSequence){messageAt = Time.realtimeSinceStartupAsDouble;noticeSequence=PNGameFlow.NoticeSequence;}toastLabel.text = message ?? ""; }
         bool visible = !string.IsNullOrEmpty(shownMessage) && !owner.PauseOpen && Time.realtimeSinceStartupAsDouble - messageAt < ToastSeconds;
         toast.style.display = visible ? DisplayStyle.Flex : DisplayStyle.None;
     }

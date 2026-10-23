@@ -26,7 +26,7 @@ public static class PNLoricaEditorChecks
         var original = SceneManager.GetActiveScene(); bool dirty = original.isDirty;
         var preview = EditorSceneManager.NewPreviewScene(); int checks = 0;
         void Check(bool ok, string message) { if (!ok) throw new Exception(message); checks++; }
-        var baseDocs = new EveDirectoryContentSource(Path.Combine(Application.streamingAssetsPath, "BaseContent"), ".utmp/no-mods", Array.Empty<string>()).ReadDocuments().ToArray();
+        var baseDocs = new PNGameContentSource(Path.Combine(Application.streamingAssetsPath, "BaseContent"), ".utmp/no-mods", Array.Empty<string>()).ReadDocuments().ToArray();
         var docs = baseDocs.Concat(new[] { new EveContentDocument("lorica native", Characters, "test", dependencies: new[] { "project_n" }) }).ToArray();
         var hub = new EveContentBootstrap().Build(new EveIContentModule[] { new PNContentModule(), new PNGameplayContentModule() }, docs);
         Check(hub.Characters.Get(EveId.Parse("project_n:eve")) != null && hub.Characters.Get(EveId.Parse("project_n:dummy")) != null, "the shipped content (Eve, Dummy) loads with the lorica stat registered");

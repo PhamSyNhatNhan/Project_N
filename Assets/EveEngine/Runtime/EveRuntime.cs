@@ -52,6 +52,7 @@ namespace EveEngine
         protected virtual IEnumerable<EveOverrideSelection> ReadOverrideSelections() => Array.Empty<EveOverrideSelection>();
         protected virtual EveCodeModSession LoadCodeMods() => EveCodeModSession.Empty();
         protected virtual void BindSession(EveSessionContext session) { }
+        protected virtual void OnContentPublished(EveContentContext content) { }
         protected virtual IReadOnlyDictionary<string, string> ReadGameplayAssetHashes(EveRegistryHub registry)
             => new Dictionary<string, string>();
 
@@ -132,6 +133,7 @@ namespace EveEngine
             var compatibility = EveContentCompatibility.Create(registry, documents, RulesVersion, mods.Fingerprints, ReadGameplayAssetHashes(registry));
             yield return new EveBootStep("compatibility", .95f);
             Content.Publish(registry, compatibility);
+            OnContentPublished(Content);
 #if UNITY_5_3_OR_NEWER
             if (Application.isPlaying) DontDestroyOnLoad(gameObject);
 #else

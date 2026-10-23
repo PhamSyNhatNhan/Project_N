@@ -19,6 +19,7 @@ internal sealed class PNGateView : VisualElement
     private float width = 100f, front = 1f, drawnFront = -1f;
     public float Width => width;
     public float Height => width * PNGateShape.Ratio;
+    internal void Localize(string id,string fallback)=>PNLocalizationUI.Content(nameLabel,id,"mode","name",fallback);
 
     public PNGateView(string name, int[] accentRgb, Texture2D art)
     {

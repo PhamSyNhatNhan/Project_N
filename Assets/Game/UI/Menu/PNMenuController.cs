@@ -66,7 +66,7 @@ internal sealed class PNMenuController
     {
         var lobby = Driver?.Lobby;
         if (lobby == null || lobby.Peers.Count == 0) return null;
-        return lobby.Peers.Select(p => new KeyValuePair<string, string>(p.Label + (p.Local ? " (bạn)" : ""), string.IsNullOrEmpty(p.Character) ? "đang chọn" : "đã chọn")).ToList();
+        return lobby.Peers.Select(p => new KeyValuePair<string, string>(p.Label + (p.Local ? PNLocalization.Text("project_n:ui.you") : ""), PNLocalization.Text(string.IsNullOrEmpty(p.Character)?"project_n:ui.choosing":"project_n:ui.chosen"))).ToList();
     }
 
     private void Launch(PNListedMode mode, PNModeStart start, string address, PNPlayableEntry entry)

@@ -12,7 +12,7 @@ public static class PNWorldPresentationChecks
     public static string Run()
     {
         var rows=new List<string>();void Check(bool value,string label){if(!value)throw new Exception(label);rows.Add("PASS "+label);}
-        var docs=new EveDirectoryContentSource(Path.Combine(Application.streamingAssetsPath,"BaseContent"),".utmp/no-mods",Array.Empty<string>()).ReadDocuments().ToArray();
+        var docs=new PNGameContentSource(Path.Combine(Application.streamingAssetsPath,"BaseContent"),".utmp/no-mods",Array.Empty<string>()).ReadDocuments().ToArray();
         var hub=new EveContentBootstrap().Build(new EveIContentModule[]{new PNContentModule(),new PNGameplayContentModule(),new PNWorldFixtureModule()},docs);
         EveRegistrySession.Begin();EveRegistrySession.Start(hub,EveSessionRole.Offline,EveContentCompatibility.Create(hub,docs,"fixture:presentation"));
         var session=EveRegistrySession.Context;var scheduler=new EveEntityPreparationScheduler(session,new EvePreparationProfile());var worlds=new PNWorldRuntime(session,scheduler);

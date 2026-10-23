@@ -19,6 +19,7 @@ internal sealed class PNTitleScreen : MonoBehaviour
     private Button start, settingsButton, quit;
     private Label error;
     private bool started;
+    private bool preparing;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     private static void Register()
@@ -56,7 +57,7 @@ internal sealed class PNTitleScreen : MonoBehaviour
         artwork = new PNTitleLoadingVisual(true); backdrop.Root.Add(artwork);
         column = new VisualElement { name = "pn-title-column", pickingMode = PickingMode.Ignore }; column.AddToClassList("pn-title-choices");
         start = Choice("pn-title-start", "Bắt đầu", Begin, true); column.Add(start);
-        settingsButton = Choice("pn-title-settings", "Cài đặt", () => { }); column.Add(settingsButton);
+        settingsButton = Choice("pn-title-settings", "Cài đặt", OpenLanguages); column.Add(settingsButton);
         quit = Choice("pn-title-quit", "Thoát", PNApplication.Quit); column.Add(quit);
         error = new Label { name = "pn-title-error", pickingMode = PickingMode.Ignore };
         error.style.color = new Color(.55f, .27f, .27f); error.style.fontSize = 15; error.style.whiteSpace = WhiteSpace.Normal;
@@ -65,6 +66,27 @@ internal sealed class PNTitleScreen : MonoBehaviour
         column.Add(error);
         backdrop.Root.Add(column);
         start.schedule.Execute(() => start.Focus());
+        PNLocalizationUI.Bind(start,"project_n:ui.start");
+        PNLocalizationUI.Bind(settingsButton,"project_n:ui.settings");
+        PNLocalizationUI.Bind(quit,"project_n:ui.quit");
+        column.SetEnabled(false);
+    }
+
+    private System.Collections.IEnumerator Start()
+    { yield return InitializeLanguage(); }
+    private System.Collections.IEnumerator InitializeLanguage()
+    {
+        if(preparing)yield break;preparing=true;column.SetEnabled(false);
+        System.Exception failure=null;
+        yield return PNLocalization.PrepareBase(e=>failure=e);
+        preparing=false;column.SetEnabled(true);
+        if(failure!=null){Debug.LogException(failure);error.text="Language data could not be loaded.";error.style.display=DisplayStyle.Flex;start.text="Retry";settingsButton.SetEnabled(false);}
+        else {error.style.display=DisplayStyle.None;settingsButton.SetEnabled(true);PNLocalizationUI.Bind(start,"project_n:ui.start");}
+    }
+    private void OpenLanguages()
+    {
+        column.style.display=DisplayStyle.None;
+        PNLocalizationUI.ShowLanguages(column.parent,()=>{column.style.display=DisplayStyle.Flex;settingsButton.Focus();});
     }
 
     private static Button Choice(string name, string text, System.Action clicked, bool primary = false)
@@ -78,6 +100,7 @@ internal sealed class PNTitleScreen : MonoBehaviour
 
     private void Begin()
     {
+        if(!PNLocalization.IsReady){if(!preparing)StartCoroutine(InitializeLanguage());return;}
         if (started) return;
         started = true; error.style.display = DisplayStyle.None;
         // The buttons stay out of reach while the loading screen is up: it only draws, it does not take input.
@@ -90,12 +113,12 @@ internal sealed class PNTitleScreen : MonoBehaviour
         backdrop?.Tick(Time.unscaledDeltaTime);
         artwork?.Tick(Time.unscaledDeltaTime);
         // A target waiting from the command line or from a scene sent through here: no click needed.
-        if (!started && PNGameFlow.BootFailure == null && (PNGameBootstrap.PendingTarget != null || PNGameBootstrap.AutoStart != null)) { Begin(); return; }
+        if (PNLocalization.IsReady && !started && PNGameFlow.BootFailure == null && (PNGameBootstrap.PendingTarget != null || PNGameBootstrap.AutoStart != null)) { Begin(); return; }
         if (started && !PNGameFlow.Booting && !PNGameFlow.Busy && PNGameFlow.BootFailure != null)
         {
             started = false; column.SetEnabled(true);
-            error.text = PNGameFlow.BootFailure; error.style.display = DisplayStyle.Flex;
-            start.text = "Thử lại"; start.Focus();
+            PNLocalizationUI.Bind(error,"project_n:error.boot_failed"); error.style.display = DisplayStyle.Flex;
+            PNLocalizationUI.Bind(start,"project_n:ui.retry"); start.Focus();
         }
     }
 

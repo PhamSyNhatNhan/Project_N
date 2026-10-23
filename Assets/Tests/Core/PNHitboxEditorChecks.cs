@@ -199,7 +199,7 @@ public static class PNHitboxEditorChecks
             Check(results.Contains(polygonBody) && !results.Contains(polygonNotch), "Polygon Inspector query filled notch.");
             authored.enabled = false;
 
-            var documents = new EveDirectoryContentSource(Path.Combine(Application.streamingAssetsPath, "BaseContent"),
+            var documents = new PNGameContentSource(Path.Combine(Application.streamingAssetsPath, "BaseContent"),
                 Path.Combine(Application.persistentDataPath, "Mods"), Array.Empty<string>()).ReadDocuments().ToArray();
             var hub = new EveContentBootstrap().Build(new EveIContentModule[] { new PNContentModule(), new PNGameplayContentModule() }, documents);
             EveRegistrySession.Begin(); started = true;

@@ -21,7 +21,7 @@ public static class EveSkillVolleyEditorChecks
         var preview = EditorSceneManager.NewPreviewScene(); int checks = 0; string note = "";
         void Check(bool ok, string message) { if (!ok) throw new Exception(message); checks++; }
         bool Near(Vector3 a, Vector3 b, float tolerance = .03f) => (a - b).magnitude <= tolerance;
-        var docs = new EveDirectoryContentSource(Path.Combine(Application.streamingAssetsPath, "BaseContent"), ".utmp/no-mods", Array.Empty<string>()).ReadDocuments().ToArray();
+        var docs = new PNGameContentSource(Path.Combine(Application.streamingAssetsPath, "BaseContent"), ".utmp/no-mods", Array.Empty<string>()).ReadDocuments().ToArray();
         var hub = new EveContentBootstrap().Build(new EveIContentModule[] { new PNContentModule(), new PNGameplayContentModule() }, docs);
         long id = 987000;
         T Entity<T>(string name, Vector3 position, string character, int layer = 0) where T : PNStat

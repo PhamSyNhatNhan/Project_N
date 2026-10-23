@@ -20,7 +20,10 @@ public sealed class PNGameFlow : MonoBehaviour
     private static string message;
     private static bool starting;
     public static event Action Changed;
-    public static string Message => message;
+    private static string messageKey,startErrorKey;
+    private static int messageLocaleRevision;
+    public static long NoticeSequence { get; private set; }
+    public static string Message { get { if(messageKey!=null&&messageLocaleRevision!=PNLocalization.Revision){message=PNLocalization.Text(messageKey);messageLocaleRevision=PNLocalization.Revision;}return message; } }
     public static bool Busy => loading || starting;
     public static PNFlowMode CurrentMode { get; private set; }
     public static PNFlowPhase Phase
@@ -40,7 +43,7 @@ public sealed class PNGameFlow : MonoBehaviour
     public static bool IsHost => EveRegistrySession.IsReady && EveRegistrySession.Context.Role == EveSessionRole.Host;
     public static bool InRoom => PNGameBootstrap.IsRoomOpen;
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-    private static void Reset() { instance = null; loading = expectSession = starting = usingHandoff = false; coverHost = null; coverSettings = null; coverUntil = 0; message = null; Changed = null; CurrentMode = PNFlowMode.Offline; }
+    private static void Reset() { instance = null; loading = expectSession = starting = usingHandoff = false; coverHost = null; coverSettings = null; coverUntil = 0; message = null; messageKey=null; startErrorKey=null; NoticeSequence=0; messageLocaleRevision=-1; Changed = null; CurrentMode = PNFlowMode.Offline; }
     private static PNGameFlow Ensure()
     {
         if (instance != null) return instance;
@@ -51,7 +54,9 @@ public sealed class PNGameFlow : MonoBehaviour
         return instance;
     }
     private static void Raise() { try { Changed?.Invoke(); } catch (Exception error) { Debug.LogException(error); } }
-    private static void Say(string value) { message = value; Raise(); }
+    private static void Say(string value) { messageKey=null;message=value;NoticeSequence++;Raise(); }
+    private static void SayKey(string key){messageKey=key;messageLocaleRevision=-1;NoticeSequence++;Raise();}
+    private static bool Refuse(string key,out string reason){startErrorKey=key;reason=PNLocalization.Text(key);return false;}
 
     // Start the roguelite from the Hall (or from anywhere): Offline goes straight to the run scene, Host/Join to the lobby.
     public static void StartRoguelite(PNFlowMode mode, string address = null) => StartMode("roguelite", mode, address);
@@ -63,7 +68,7 @@ public sealed class PNGameFlow : MonoBehaviour
         // Shipped modes keep their short selection name ("roguelite"), which rooms and the admission already compare; others use the full id.
         if (modeId.StartsWith("project_n:", StringComparison.Ordinal)) modeId = modeId.Substring("project_n:".Length);
         else if (modeId.StartsWith("base:", StringComparison.Ordinal)) modeId = modeId.Substring("base:".Length);
-        if (mode == PNFlowMode.Join && string.IsNullOrWhiteSpace(address)) { preCoverUntil = 0; if (usingHandoff) PNTransitionHandoffHost.Abandon(); Say("Nhập địa chỉ phòng trước khi vào."); return; }
+        if (mode == PNFlowMode.Join && string.IsNullOrWhiteSpace(address)) { preCoverUntil = 0; if (usingHandoff) PNTransitionHandoffHost.Abandon(); SayKey("project_n:error.address_required"); return; }
         CurrentMode = mode;
         var flow = Ensure(); flow.StartCoroutine(flow.Launch(modeId, mode, address));
     }
@@ -133,7 +138,7 @@ public sealed class PNGameFlow : MonoBehaviour
             if (Time.realtimeSinceStartupAsDouble > until) failure = "The scene's play did not become ready.";
             else yield return null;
         }
-        if (failure != null) { Debug.LogWarning("Boot scene failed: " + failure); yield return Return("Không nạp được scene: " + failure); yield break; }
+        if (failure != null) { Debug.LogWarning("Boot scene failed: " + failure); yield return Return(null,"project_n:error.boot_failed"); yield break; }
         EndLoading();
     }
     private void BootFailed(Exception error)
@@ -147,16 +152,16 @@ public sealed class PNGameFlow : MonoBehaviour
     public static bool CanStartRun(out string reason)
     {
         reason = null;
-        if (starting) { reason = "Đang bắt đầu."; return false; }
-        if (!IsHost || Phase != PNFlowPhase.Lobby) { reason = "Chỉ chủ phòng bắt đầu trong sảnh."; return false; }
+        if (starting) return Refuse("project_n:error.starting",out reason);
+        if (!IsHost || Phase != PNFlowPhase.Lobby) return Refuse("project_n:error.host_only",out reason);
         var lobby = PNGameBootstrap.LobbyDriver?.Lobby;
-        if (lobby == null) { reason = "Chưa có phòng."; return false; }
-        if (!lobby.AllReady) { reason = "Chưa đủ người sẵn sàng."; return false; }
+        if (lobby == null) return Refuse("project_n:error.no_room",out reason);
+        if (!lobby.AllReady) return Refuse("project_n:error.not_ready",out reason);
         return true;
     }
     public static void StartRun()
     {
-        if (!CanStartRun(out var reason)) { Say(reason); return; }
+        if (!CanStartRun(out _)) { SayKey(startErrorKey); return; }
         var flow = Ensure(); flow.StartCoroutine(flow.BeginRun());
     }
 
@@ -185,7 +190,7 @@ public sealed class PNGameFlow : MonoBehaviour
     }
     private IEnumerator Launch(string modeId, PNFlowMode mode, string address)
     {
-        BeginLoading(modeId, mode == PNFlowMode.Offline ? "project_n:scene_world" : "project_n:roguelite_lobby"); message = null; Raise();
+        BeginLoading(modeId, mode == PNFlowMode.Offline ? "project_n:scene_world" : "project_n:roguelite_lobby"); message = null; messageKey=null; Raise();
         string failure = null;
         var network = PNGameBootstrap.Config.Network; var preparation = PNGameBootstrap.Config.Preparation;
         var end = EndCurrent();
@@ -212,10 +217,10 @@ public sealed class PNGameFlow : MonoBehaviour
             else yield return null;
         }
         EndLoading();
-        if (failure != null) { Debug.LogWarning("Roguelite start failed: " + failure); yield return Return("Không vào được: " + failure); yield break; }
+        if (failure != null) { Debug.LogWarning("Roguelite start failed: " + failure); yield return Return(null,"project_n:error.join_failed"); yield break; }
         expectSession = true; Raise();
     }
-    private IEnumerator Return(string notice)
+    private IEnumerator Return(string notice,string noticeKey=null)
     {
         BeginLoading("hall", "project_n:hall_world"); Raise();
         string failure = null;
@@ -239,7 +244,7 @@ public sealed class PNGameFlow : MonoBehaviour
         }
         EndLoading(); CurrentMode = PNFlowMode.Offline;
         if (failure != null) Debug.LogError("Return to Hall failed: " + failure);
-        Say(failure != null ? "Không về được Hall: " + failure : notice);
+        if(failure!=null)SayKey("project_n:error.return_failed");else if(noticeKey!=null)SayKey(noticeKey);else Say(notice);
     }
     private IEnumerator BeginRun()
     {
@@ -288,7 +293,7 @@ public sealed class PNGameFlow : MonoBehaviour
             Debug.LogWarning("Run start failed: " + failure);
             try { driver.LockAdmissions(false); } catch (Exception error) { Debug.LogException(error); }
             try { if (run != null && game != null && run.State != EveWorldState.Disposed) game.Worlds.Unload(run); } catch (Exception error) { Debug.LogException(error); }
-            starting = false; Say("Không bắt đầu được: " + failure); yield break;
+            starting = false; SayKey("project_n:error.run_failed"); yield break;
         }
         starting = false; Raise();
     }

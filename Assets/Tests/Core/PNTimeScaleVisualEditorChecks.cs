@@ -20,7 +20,7 @@ public static class PNTimeScaleVisualEditorChecks
         var originalFloor = original.GetRootGameObjects().SelectMany(x => x.GetComponentsInChildren<ErModeGroundVisual>()).First();
         var originalMaterial = originalFloor.GetComponent<SpriteRenderer>().sharedMaterial;
         var mainCamera = original.GetRootGameObjects().SelectMany(x => x.GetComponentsInChildren<Camera>()).First(x => x.name == "Main Camera");
-        var docs = new EveDirectoryContentSource(Path.Combine(Application.streamingAssetsPath, "BaseContent"), Path.Combine(Application.persistentDataPath, "Mods"), Array.Empty<string>()).ReadDocuments().ToArray();
+        var docs = new PNGameContentSource(Path.Combine(Application.streamingAssetsPath, "BaseContent"), Path.Combine(Application.persistentDataPath, "Mods"), Array.Empty<string>()).ReadDocuments().ToArray();
         var hub = new EveContentBootstrap().Build(new EveIContentModule[] { new PNContentModule(), new PNGameplayContentModule() }, docs);
         int baselineDustMaterials = Resources.FindObjectsOfTypeAll<Material>().Count(x=>x.name=="Owned timescale dust material");
         int baselineFloorMeshes = Resources.FindObjectsOfTypeAll<UnityEngine.Mesh>().Count(x=>x.name=="Owned floor sprite depth mesh");

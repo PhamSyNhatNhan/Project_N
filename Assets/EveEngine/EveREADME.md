@@ -299,3 +299,19 @@ required cleanup. Content remains loaded between successful plays.
 `EveSceneEntityKey` stores stable scene/entity metadata in authored content; validation rejects missing/duplicate pairs. It does not allocate runtime entity IDs. `EveSessionContext.RegisterCleanup(Action)` retains its existing signature; the additional `(Action, bool afterEntities)` overload supports owners such as factories whose terminal disposal must follow entity return. Failed required cleanup remains retryable and blocks a new play; automatic pumping does not repeatedly rerun a failed service callback.
 
 Mirror lives in Coop/Composition. These engine contracts do not depend on Mirror, KCP or Project_N character IDs. Fresh integration evidence and limits are recorded in `Docs/MirrorP1S4S10Implementation.md` and the newest handoff.
+
+
+## Content resource policy and publication hook (2026-10-23)
+
+`EveDirectoryContentSource.IsContentDocument(pack, file)` is a protected virtual file
+predicate, default true. Applications can exclude presentation resources from gameplay
+documents before parsing/hashing. Project_N uses `PNGameContentSource` for Localization/;
+the reusable Engine does not depend on the localization schema or Unity package.
+
+`EveRuntime.OnContentPublished(content)` runs after the content context becomes Ready
+and before the final published step / ContentReady event. It is a synchronous completion
+gate for application-owned resources. A failure follows the normal FailContent rollback;
+register resources with the Ready context or retain a staging owner for partial failure.
+Do not use a ContentReady listener as a mandatory load gate: listener failures are logged
+and do not prevent other listeners or publication. Do not start unobserved async work
+inside this hook and treat it as completed readiness.

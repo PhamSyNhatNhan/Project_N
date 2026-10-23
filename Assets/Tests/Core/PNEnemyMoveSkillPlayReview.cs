@@ -229,7 +229,7 @@ public sealed partial class PNEnemyMoveSkillPlayReview : MonoBehaviour
         cacheA.SetBakedData(File.ReadAllBytes(Path.Combine(input, "worldA.bytes")), GeometryHash("worldA"), "ground-small", .25f, 1.5f);
         cacheB.SetBakedData(File.ReadAllBytes(Path.Combine(input, "worldB.bytes")), GeometryHash("worldB"), "ground-small", .25f, 1.5f);
         Reject(() => new PNNavigationSettings { RepathInterval = float.NaN }.Validate(), "E0 invalid navigation tuning rejected");
-        var documents = new EveDirectoryContentSource(Path.Combine(Application.streamingAssetsPath, "BaseContent"), Path.Combine(Application.persistentDataPath, "Mods"), Array.Empty<string>()).ReadDocuments().ToArray();
+        var documents = new PNGameContentSource(Path.Combine(Application.streamingAssetsPath, "BaseContent"), Path.Combine(Application.persistentDataPath, "Mods"), Array.Empty<string>()).ReadDocuments().ToArray();
         if (stage.StartsWith("crowd-", StringComparison.Ordinal)) documents = CrowdDocuments(documents);
         reviewRuntime = gameObject.AddComponent<PNEnemyReviewRuntime>(); reviewRuntime.ExtraModule = new ReviewContent(cacheA, cacheB); reviewRuntime.Documents = documents;
         reviewRuntime.BeginSession(EveSessionRole.Offline); session = EveRegistrySession.Context;

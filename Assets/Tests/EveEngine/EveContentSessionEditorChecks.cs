@@ -15,7 +15,7 @@ public sealed class EveNativeContentProbeRuntime : EveGameRuntime
     protected override IEnumerable<EveContentDocument> ReadContentDocuments()
     {
         Reads++;
-        return new EveDirectoryContentSource(Path.Combine(Application.streamingAssetsPath, "BaseContent"),
+        return new PNGameContentSource(Path.Combine(Application.streamingAssetsPath, "BaseContent"),
             Path.Combine(Application.persistentDataPath, "NoNativeProbeMods"), Array.Empty<string>()).ReadDocuments();
     }
     protected override EveCodeModSession LoadCodeMods() => EveCodeModSession.Empty();

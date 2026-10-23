@@ -83,6 +83,7 @@ internal sealed class PNCharacterScreen : IPNMenuScreen
         {
             int captured = i; var entry = entries[i];
             var button = new Button(() => { if (stripMoved <= 6f) Select(captured, true); }) { name = "pn-char-" + entry.Settings.Name, text = entry.Settings.Name, focusable = false };
+            PNLocalizationUI.Content(button,entry.Id,"character","name",entry.Settings.Name);
             button.style.width = 64; button.style.height = 64; button.style.marginRight = 18; button.style.fontSize = 13; button.style.paddingLeft = button.style.paddingRight = 2;
             button.style.borderTopLeftRadius = button.style.borderTopRightRadius = button.style.borderBottomLeftRadius = button.style.borderBottomRightRadius = 32;
             button.style.borderTopWidth = button.style.borderBottomWidth = button.style.borderLeftWidth = button.style.borderRightWidth = 1.5f;
@@ -120,9 +121,11 @@ internal sealed class PNCharacterScreen : IPNMenuScreen
         divider.style.backgroundImage = feather; divider.style.unityBackgroundScaleMode = ScaleMode.StretchToFill; body.Add(divider);
         statsBox = new VisualElement { name = "pn-char-stats", pickingMode = PickingMode.Ignore }; body.Add(statsBox);
         emptyLabel = new Label("Chưa có nhân vật nào dùng được.") { name = "pn-char-empty" }; emptyLabel.style.color = new Color(.26f, .33f, .37f); emptyLabel.style.display = entries.Count == 0 ? DisplayStyle.Flex : DisplayStyle.None; body.Add(emptyLabel);
+        PNLocalizationUI.Bind(emptyLabel,"project_n:ui.empty_characters");
         info.Add(scroll); root.Add(info); items.Add(info);
 
         continueButton = PNMenuButtons.Choice("pn-char-continue", "Tiếp tục", Continue, true);
+        PNLocalizationUI.Bind(continueButton,"project_n:ui.continue");
         continueButton.style.position = Position.Absolute; continueButton.style.right = Length.Percent(5); continueButton.style.bottom = Length.Percent(7); continueButton.style.width = 220;
         continueButton.SetEnabled(entries.Count > 0); root.Add(continueButton); items.Add(continueButton);
 
@@ -152,12 +155,14 @@ internal sealed class PNCharacterScreen : IPNMenuScreen
         index = i; var entry = entries[i]; var a = entry.Settings.AccentRgb;
         tint = new Color(a[0] / 255f, a[1] / 255f, a[2] / 255f, 1f);
         aura.style.unityBackgroundImageTintColor = new Color(tint.r, tint.g, tint.b, .5f);
-        nameLabel.text = entry.Settings.Name; descriptionLabel.text = entry.Settings.Description;
+        PNLocalizationUI.Content(nameLabel,entry.Id,"character","name",entry.Settings.Name);
+        PNLocalizationUI.Content(descriptionLabel,entry.Id,"character","description",entry.Settings.Description);
         statsBox.Clear();
         foreach (var row in PNPlayableCatalog.StatRows(entry.Definition))
         {
             var line = new VisualElement { pickingMode = PickingMode.Ignore }; line.style.flexDirection = FlexDirection.Row; line.style.justifyContent = Justify.SpaceBetween; line.style.paddingTop = 3; line.style.paddingBottom = 3;
             var k = new Label(row.Label); k.style.fontSize = 13; k.style.color = new Color(.26f, .33f, .37f);
+            PNLocalizationUI.Bind(k,row.LocalizationKey,row.Label);
             var v = new Label(row.Value); v.style.fontSize = 13; v.style.color = new Color(.16f, .22f, .26f);
             line.Add(k); line.Add(v); statsBox.Add(line);
         }

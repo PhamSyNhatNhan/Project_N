@@ -114,6 +114,9 @@ namespace EveEngine
 
         public virtual IEnumerable<EveContentDocument> ReadDocuments() => ReadDocuments(ReadPacks());
 
+        // Presentation resources may live beside gameplay documents. The game owns their schema.
+        protected virtual bool IsContentDocument(EveContentPack pack, string file) => true;
+
         public IEnumerable<EveContentDocument> ReadDocuments(IEnumerable<EveContentPack> packs)
         {
             // EN: Stable ordering produces the same registration order from the same files.
@@ -125,6 +128,7 @@ namespace EveEngine
                 foreach (string file in Directory.EnumerateFiles(pack.Directory, "*.json", SearchOption.AllDirectories)
                     .OrderBy(value => value, StringComparer.Ordinal))
                 {
+                    if (!IsContentDocument(pack, file)) continue;
                     if (string.Equals(file, Path.Combine(pack.Directory, "manifest.json"), StringComparison.Ordinal)) continue;
                     if(pack.Assets!=null&&string.Equals(Path.GetFullPath(file),pack.Assets.FilePath,StringComparison.OrdinalIgnoreCase))continue;
                     yield return new EveContentDocument(file, File.ReadAllText(file), pack.Namespace,

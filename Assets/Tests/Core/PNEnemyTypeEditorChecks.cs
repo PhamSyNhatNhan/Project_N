@@ -21,7 +21,7 @@ public static class PNEnemyTypeEditorChecks
         Action<bool, string> check = (valid, message) => { if (!valid) throw new Exception(message); checks++; };
         try
         {
-            var documents = new EveDirectoryContentSource(Path.Combine(Application.streamingAssetsPath, "BaseContent"),
+            var documents = new PNGameContentSource(Path.Combine(Application.streamingAssetsPath, "BaseContent"),
                 Path.Combine(Application.persistentDataPath, "Mods"), Array.Empty<string>()).ReadDocuments().ToArray();
             var fixtures = new EveContentDocument("native_enemy_types.json", @"{schemaVersion:1,characters:[
                 {id:'test:elite',data:{enemyTypeId:'base:elite'},stats:[{statId:'base:health',base:100,initialCurrent:100}]},

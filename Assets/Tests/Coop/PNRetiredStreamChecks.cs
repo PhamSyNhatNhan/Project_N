@@ -13,7 +13,7 @@ namespace ProjectN.Coop.Tests
         public static string Run()
         {
             int count=0;void Check(bool value,string label){if(!value)throw new Exception(label);count++;}
-            var docs=new EveDirectoryContentSource(Path.Combine(Application.streamingAssetsPath,"BaseContent"),".utmp/no-mods",Array.Empty<string>()).ReadDocuments().ToArray();
+            var docs=new PNGameContentSource(Path.Combine(Application.streamingAssetsPath,"BaseContent"),".utmp/no-mods",Array.Empty<string>()).ReadDocuments().ToArray();
             var hub=new EveContentBootstrap().Build(new EveIContentModule[]{new PNContentModule(),new PNGameplayContentModule()},docs);
             typeof(EveRegistrySession).GetMethod("Begin",BindingFlags.Static|BindingFlags.NonPublic,null,Type.EmptyTypes,null).Invoke(null,null);typeof(EveRegistrySession).GetMethod("Start",BindingFlags.Static|BindingFlags.NonPublic).Invoke(null,new object[]{hub,EveSessionRole.Offline,EveContentCompatibility.Create(hub,docs,"fixture:retired")});
             var root=new GameObject("Disposable retired adapter scope check");root.SetActive(false);var manager=root.AddComponent<PNNetworkManager>();

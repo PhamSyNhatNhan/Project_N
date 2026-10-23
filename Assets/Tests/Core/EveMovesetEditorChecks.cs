@@ -22,7 +22,7 @@ public static class EveMovesetEditorChecks
         var original = SceneManager.GetActiveScene(); bool dirty = original.isDirty;
         var preview = EditorSceneManager.NewPreviewScene(); int checks = 0;
         void Check(bool ok, string message) { if (!ok) throw new Exception(message); checks++; }
-        var docs = new EveDirectoryContentSource(Path.Combine(Application.streamingAssetsPath, "BaseContent"),
+        var docs = new PNGameContentSource(Path.Combine(Application.streamingAssetsPath, "BaseContent"),
             Path.Combine(Application.persistentDataPath, "Mods"), Array.Empty<string>()).ReadDocuments().ToArray();
         var hub = new EveContentBootstrap().Build(new EveIContentModule[] { new PNContentModule(), new PNGameplayContentModule() }, docs);
         long id = 986000;

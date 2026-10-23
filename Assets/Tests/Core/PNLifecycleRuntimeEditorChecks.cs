@@ -30,7 +30,7 @@ public static class PNLifecycleRuntimeEditorChecks
         const string folder = ".utmp/LifecycleRuntimeReview"; Directory.CreateDirectory(folder);
         var original = SceneManager.GetActiveScene(); bool dirty = original.isDirty;
         var preview = EditorSceneManager.NewPreviewScene(); var roots = new List<GameObject>(); var evidence = new List<string>(); int checks = 0; double time = 0;
-        var docs = new EveDirectoryContentSource(Path.Combine(Application.streamingAssetsPath, "BaseContent"), Path.Combine(Application.persistentDataPath, "Mods"), Array.Empty<string>()).ReadDocuments().ToArray();
+        var docs = new PNGameContentSource(Path.Combine(Application.streamingAssetsPath, "BaseContent"), Path.Combine(Application.persistentDataPath, "Mods"), Array.Empty<string>()).ReadDocuments().ToArray();
         var hub = new EveContentBootstrap().Build(new EveIContentModule[] { new PNContentModule(), new PNGameplayContentModule() }, docs);
         var compatibility = EveContentCompatibility.Create(hub, docs, "test:lifecycle_runtime");
         void Check(bool ok, string label) { if (!ok) throw new Exception(label); checks++; evidence.Add("PASS " + label); }

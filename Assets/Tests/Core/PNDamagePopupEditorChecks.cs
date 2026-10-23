@@ -22,7 +22,7 @@ public static class PNDamagePopupEditorChecks
         // Popup checks isolate calculated damage from the separate iframe contract.
         PNDamageResult Hit(PNStat source, PNStat target, double amount, params EveId[] tags)
             => target.ReceiveDamage(source.CreateDamage(amount, true, 0d, tags));
-        var docs = new EveDirectoryContentSource(Path.Combine(Application.streamingAssetsPath, "BaseContent"),
+        var docs = new PNGameContentSource(Path.Combine(Application.streamingAssetsPath, "BaseContent"),
             Path.Combine(Application.persistentDataPath, "Mods"), Array.Empty<string>()).ReadDocuments().ToArray();
         var hub = new EveContentBootstrap().Build(new EveIContentModule[] { new PNContentModule(), new PNGameplayContentModule() }, docs);
         T Entity<T>(long id, string character) where T : PNStat

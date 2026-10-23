@@ -20,7 +20,7 @@ public static class PNElementalBuffEditorChecks
     {
         if (Application.isPlaying || EveRegistrySession.State != EveSessionState.Stopped) throw new InvalidOperationException("Idle Edit Mode required.");
         var original=SceneManager.GetActiveScene();bool dirty=original.isDirty;
-        var docs=new EveDirectoryContentSource(Path.Combine(Application.streamingAssetsPath,"BaseContent"),Path.Combine(Application.persistentDataPath,"Mods"),Array.Empty<string>()).ReadDocuments().ToArray();
+        var docs=new PNGameContentSource(Path.Combine(Application.streamingAssetsPath,"BaseContent"),Path.Combine(Application.persistentDataPath,"Mods"),Array.Empty<string>()).ReadDocuments().ToArray();
         var hub=new EveContentBootstrap().Build(new EveIContentModule[]{new PNContentModule(),new PNGameplayContentModule()},docs);
         var preview=EditorSceneManager.NewPreviewScene();var evidence=new List<string>();int checks=0;
         RenderTexture texture=null;Texture2D output=null;Material bodyMaterial=null;VolumeProfile profile=null;var previous=RenderTexture.active;

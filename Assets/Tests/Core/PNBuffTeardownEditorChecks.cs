@@ -17,7 +17,7 @@ public static class PNBuffTeardownEditorChecks
         if (Application.isPlaying || EveRegistrySession.State != EveSessionState.Stopped)
             throw new InvalidOperationException("Idle Edit required.");
         var original = SceneManager.GetActiveScene(); bool dirty = original.isDirty;
-        var docs = new EveDirectoryContentSource(Path.Combine(Application.streamingAssetsPath, "BaseContent"),
+        var docs = new PNGameContentSource(Path.Combine(Application.streamingAssetsPath, "BaseContent"),
             Path.Combine(Application.persistentDataPath, "Mods"), Array.Empty<string>()).ReadDocuments().ToArray();
         var hub = new EveContentBootstrap().Build(new EveIContentModule[] { new PNContentModule(), new PNGameplayContentModule() }, docs);
         var evidence = new List<string>(); int checks = 0;

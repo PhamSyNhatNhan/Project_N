@@ -18,7 +18,7 @@ public static class EveDllModEditorChecks
             throw new InvalidOperationException("DLL checks require idle Edit Mode without a live/pending session.");
         var scene = SceneManager.GetActiveScene();
         bool dirty = scene.isDirty;
-        var source = new EveDirectoryContentSource(Path.Combine(Application.streamingAssetsPath, "BaseContent"),
+        var source = new PNGameContentSource(Path.Combine(Application.streamingAssetsPath, "BaseContent"),
             modsDirectory ?? Path.Combine(Directory.GetParent(Application.dataPath).FullName, ".utmp", "NativeModChecks", "Mods"), new[] { "native_probe" });
         if (loader == null) loader = new EveCodeModLoader("project_n", new EveMonoAssemblyLoader(), true);
         var mods = loader.Load(source.ReadPacks());

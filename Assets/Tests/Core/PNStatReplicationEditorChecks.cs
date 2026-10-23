@@ -18,7 +18,7 @@ public static class PNStatReplicationEditorChecks
         var original = SceneManager.GetActiveScene(); bool dirty = original.isDirty;
         var preview = EditorSceneManager.NewPreviewScene(); var roots = new List<GameObject>(); int checks = 0;
         var lines = new List<string>(); double time = 0;
-        var docs = new EveDirectoryContentSource(Path.Combine(Application.streamingAssetsPath,"BaseContent"),
+        var docs = new PNGameContentSource(Path.Combine(Application.streamingAssetsPath,"BaseContent"),
             Path.Combine(Application.persistentDataPath,"Mods"),Array.Empty<string>()).ReadDocuments().ToArray();
         var hub = new EveContentBootstrap().Build(new EveIContentModule[]{new PNContentModule(),new PNGameplayContentModule()},docs);
         var compatibility = EveContentCompatibility.Create(hub,docs,"test:stat1_native");

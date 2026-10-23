@@ -33,7 +33,7 @@ public static class PNProjectileGroundEditorChecks
         int mask = new SerializedObject(eve.GetComponent<PNPlayerMove>()).FindProperty("groundLayers").intValue;
         Check((mask & 1) != 0 && (mask & (1 << ground)) != 0, "Eve's ground probe mask contains Default and Ground");
 
-        var docs = new EveDirectoryContentSource(Path.Combine(Application.streamingAssetsPath, "BaseContent"), ".utmp/no-mods", Array.Empty<string>()).ReadDocuments().ToArray();
+        var docs = new PNGameContentSource(Path.Combine(Application.streamingAssetsPath, "BaseContent"), ".utmp/no-mods", Array.Empty<string>()).ReadDocuments().ToArray();
         var hub = new EveContentBootstrap().Build(new EveIContentModule[] { new PNContentModule(), new PNGameplayContentModule(), new PNProjectileHitNativeModule() }, docs);
         var preview = EditorSceneManager.NewPreviewScene(); var fixtures = new List<GameObject>(); PNProjectileManager manager = null;
         try

@@ -26,7 +26,7 @@ public static class PNModeCatalogEditorChecks
         Check(PNModeCatalog.Listed(hub, false).Select(x => x.Id.ToString()).SequenceEqual(new[] { "fixture:early", "fixture:late", "project_n:shipped" }), "the catalog lists listed modes by order, then id; unlisted ones are left out");
         Check(PNModeCatalog.Listed(hub, true).Select(x => x.Id.ToString()).SequenceEqual(new[] { "project_n:shipped" }), "the mobile catalog keeps only shipped content");
 
-        var docs = new EveDirectoryContentSource(Path.Combine(Application.streamingAssetsPath, "BaseContent"), Path.Combine(Application.persistentDataPath, "NoCatalogProbeMods"), Array.Empty<string>()).ReadDocuments().ToArray();
+        var docs = new PNGameContentSource(Path.Combine(Application.streamingAssetsPath, "BaseContent"), Path.Combine(Application.persistentDataPath, "NoCatalogProbeMods"), Array.Empty<string>()).ReadDocuments().ToArray();
         var real = new EveContentBootstrap().Build(new EveIContentModule[] { new PNContentModule(), new PNGameplayContentModule() }, docs);
         var listed = PNModeCatalog.Listed(real, false);
         Check(listed.Count == 1 && listed[0].Id.ToString() == "project_n:roguelite" && listed[0].Listing.Name == "Roguelite", "the Hall is not listed; the roguelite is");

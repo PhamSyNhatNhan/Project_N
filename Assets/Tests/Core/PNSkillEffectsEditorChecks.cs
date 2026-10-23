@@ -50,7 +50,7 @@ public static class PNSkillEffectsEditorChecks
     {
         if (EditorApplication.isPlaying || EveRegistrySession.State != EveSessionState.Stopped) throw new InvalidOperationException("Idle stopped Edit Mode required.");
         var original = SceneManager.GetActiveScene(); bool dirty = original.isDirty;
-        var docs = new EveDirectoryContentSource(Path.Combine(Application.streamingAssetsPath, "BaseContent"), Path.Combine(Application.persistentDataPath, "Mods"), Array.Empty<string>()).ReadDocuments().ToArray();
+        var docs = new PNGameContentSource(Path.Combine(Application.streamingAssetsPath, "BaseContent"), Path.Combine(Application.persistentDataPath, "Mods"), Array.Empty<string>()).ReadDocuments().ToArray();
         var hub = new EveContentBootstrap().Build(new EveIContentModule[] { new PNContentModule(), new PNGameplayContentModule(), new PNSkillEffectsNativeModule() }, docs);
         var preview = EditorSceneManager.NewPreviewScene(); var evidence = new List<string>(); int checks = 0;
         void Check(bool condition, string text) { if (!condition) throw new Exception(text); evidence.Add("PASS " + text); checks++; }

@@ -103,7 +103,7 @@ public static class PNMoveReplicationEditorChecks
         var original=SceneManager.GetActiveScene();var roots=new List<GameObject>();int checks=0;var lines=new List<string>();
         var previousSimulation=Physics.simulationMode;
         void Check(bool ok,string label) { if(!ok)throw new Exception(label);checks++;lines.Add("PASS "+label); }
-        var docs=new EveDirectoryContentSource(Path.Combine(Application.streamingAssetsPath,"BaseContent"),Path.Combine(Application.persistentDataPath,"Mods"),Array.Empty<string>()).ReadDocuments().ToArray();
+        var docs=new PNGameContentSource(Path.Combine(Application.streamingAssetsPath,"BaseContent"),Path.Combine(Application.persistentDataPath,"Mods"),Array.Empty<string>()).ReadDocuments().ToArray();
         var hub=new EveContentBootstrap().Build(new EveIContentModule[]{new PNContentModule(),new PNGameplayContentModule(),new PNSkillEffectsNativeModule(),new PNMoveFaultModule()},docs);
         var compatibility=EveContentCompatibility.Create(hub,docs,"test:move_native");
         var projectileManagers=new List<PNProjectileManager>();

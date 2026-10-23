@@ -40,7 +40,7 @@ internal sealed class PNModeScreen : IPNMenuScreen
         {
             var listing = modes[i].Listing; Texture2D art = null;
             if (!string.IsNullOrEmpty(listing.Art)) { art = Resources.Load<Texture2D>(listing.Art); if (art != null) loaded.Add(art); }
-            var gate = new PNGateView(listing.Name, listing.AccentRgb, art); gate.name = "pn-gate-" + modes[i].Id.Path; gates.Add(gate); ringHost.Add(gate);
+            var gate = new PNGateView(listing.Name, listing.AccentRgb, art); gate.Localize(modes[i].Id.ToString(),listing.Name); gate.name = "pn-gate-" + modes[i].Id.Path; gates.Add(gate); ringHost.Add(gate);
             order[i] = i; accents[i] = listing.AccentRgb;
         }
         target = PNMenuMath.Mod(startIndex, modes.Count); pos = target;
