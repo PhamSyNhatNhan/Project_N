@@ -15,6 +15,9 @@ public sealed class PNProjectileLaunch
     public EveId ProjectileId { get; }
     public JToken Input => input?.DeepClone();
     public PNBuffSource Source { get; }
+    // Team of the shooter captured with the source (Neutral for system sources) and its entity ID; both survive the shooter.
+    public PNCombatTeam Team => Source.Team;
+    public EveEntityId SourceId => Source.EntityId;
     // Damage computed once for the volley (null when the projectile deals none). The crit roll happens per hit.
     public PNPreparedDamage Damage { get; }
     // Frozen OnHit effects (null when it carries none).

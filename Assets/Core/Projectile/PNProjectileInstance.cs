@@ -38,6 +38,8 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable
     internal bool CleanupFailed { get; set; }
     protected PNProjectileManager Manager { get; private set; }
     protected PNProjectileDefinition Definition { get; private set; }
+    // The definition's destroyable flag (true while no definition is bound).
+    public bool Destroyable => Definition == null || Definition.Destroyable;
     protected Vector3 Heading { get => heading; set { if (value.sqrMagnitude > 1e-12f) heading = value.normalized; } }
 
     // ---- hooks ----------------------------------------------------------------------------------------------------------
@@ -174,6 +176,9 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable
         if (target == null || !IsRunning || ending || Manager == null) return null;
         if (!target.IsReady || !target.gameObject.activeInHierarchy || PNProjectileTargets.IsDead(target) || !PNWorldGameplay.CanExecute(target) ||
             !ReferenceEquals(target.GetComponent<EveEntityIdentity>()?.World, World)) return null;
+        // EN: A Player/Enemy projectile passes through targets that are not hostile to its captured team (not counted as a hit); Neutral keeps the layer-mask rule.
+        // VI: Đạn phe Player/Enemy xuyên qua mục tiêu không thù địch với phe đã chụp (không tính là một lần trúng); Neutral giữ luật theo layer mask.
+        if (Launch.Team != PNCombatTeam.Neutral && !target.IsHostileToTeam(Launch.Team)) return null;
         var result = new PNProjectileHitResult { Target = target, HitIndex = HitCount };
         HitCount++;
         if (Launch.Damage != null)

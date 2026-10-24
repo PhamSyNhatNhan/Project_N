@@ -39,11 +39,11 @@ public sealed partial class PNBuffContentBatch : EveIContentExtensionBatch
             }
             foreach (var value in Array(data["projectiles"]))
             {
-                var obj = Object(value); Fields(obj, "id", "factoryId", "data"); var id = Owned(String(obj, "id"), document);
+                var obj = Object(value); Fields(obj, "id", "factoryId", "data", "destroyable"); var id = Owned(String(obj, "id"), document);
                 var registry = hub.Get<PNProjectileDefinition>();
                 if (projectiles.ContainsKey(id) || registry.TryGet(id, out _)) throw new FormatException("Duplicate projectile " + id);
                 var factoryId = EveId.Parse(String(obj, "factoryId")); Reference(factoryId, document, registry);
-                var definition = registry.Get(factoryId).Derive(id, obj["data"]); projectiles.Add(id, definition);
+                bool? destroyable = obj["destroyable"] == null ? (bool?)null : Bool(obj, "destroyable"); var definition = registry.Get(factoryId).Derive(id, obj["data"], destroyable); projectiles.Add(id, definition);
                 checks.Add(() => { definition.ValidatePayload(hub); definition.ValidateReferences(References(document, pendingDefinitions)); });
             }
             foreach (var value in Array(data["buffTags"]))

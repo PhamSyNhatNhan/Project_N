@@ -11,6 +11,9 @@ public sealed class PNBuffSource
     public Guid SessionId { get; }
     public EveEntityId EntityId { get; }
     public PNCombatSourceSnapshot Snapshot { get; }
+    // EN: Team of the shooting entity, captured once with the source; Neutral for system sources built with the public constructor.
+    // VI: Phe của entity bắn, chụp một lần cùng nguồn; Neutral cho nguồn hệ thống dựng bằng constructor public.
+    public PNCombatTeam Team { get; }
     public PNStat Live
         => GetLive(false);
     // DOT may keep reading a loaded dead source, without relaxing ordinary combat APIs.
@@ -23,9 +26,9 @@ public sealed class PNBuffSource
         try { return loader.SessionId == SessionId && loader.LoadContext.Identity.Id == EntityId && (allowDead || !target.IsDead) ? target : null; }
         catch (InvalidOperationException) { return null; }
     }
-    public PNBuffSource(Guid sessionId, EveEntityId entityId)
-    { if (sessionId == Guid.Empty || !entityId.IsValid) throw new ArgumentException("Source requires session and stable entity/system attribution."); SessionId = sessionId; EntityId = entityId; }
-    private PNBuffSource(PNStat source) : this(source.SessionId, source.EntityId)
+    public PNBuffSource(Guid sessionId, EveEntityId entityId, PNCombatTeam team = PNCombatTeam.Neutral)
+    { if (sessionId == Guid.Empty || !entityId.IsValid) throw new ArgumentException("Source requires session and stable entity/system attribution."); if (!Enum.IsDefined(typeof(PNCombatTeam), team)) throw new ArgumentOutOfRangeException(nameof(team)); SessionId = sessionId; EntityId = entityId; Team = team; }
+    private PNBuffSource(PNStat source) : this(source.SessionId, source.EntityId, source.CombatTeam)
     { Snapshot = source.CaptureCombatSource(); live = new WeakReference<PNStat>(source); var loader = source.GetComponent<EveEntityLoader>(); if (loader != null && loader.LoadContext != null) { owner = new WeakReference<EveEntityLoader>(loader); generation = loader.Generation; loadId = loader.LoadContext.LoadId; } }
     public static PNBuffSource Capture(PNStat source)
     { if (source == null) throw new ArgumentNullException(nameof(source)); return new PNBuffSource(source); }
