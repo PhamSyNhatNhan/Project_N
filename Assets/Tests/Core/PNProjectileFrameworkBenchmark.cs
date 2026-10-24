@@ -90,7 +90,7 @@ public sealed class PNProjectileFrameworkBenchmark : MonoBehaviour
                     {
                         var position = new Vector3((float)(random.NextDouble() * 30 - 15), 0, (float)(random.NextDouble() * 30 - 15));
                         double angle = random.NextDouble() * Math.PI * 2; var direction = new Vector3((float)Math.Cos(angle), 0, (float)Math.Sin(angle));
-                        var receipt = manager.Create(new PNProjectileLaunch(EveId.Parse(scenario.Id), null, source, 1 << enemy), new PNProjectileSpawn(scene, position, direction));
+                        var receipt = manager.Create(new PNProjectileLaunch(EveId.Parse(scenario.Id), null, source, PNTargetLayers.Of(PNLayers.Enemy)), new PNProjectileSpawn(scene, position, direction));
                         if (receipt.Status == PNProjectileStatus.Created) created++; else rejected++;
                     }
                     double createMs = (Stopwatch.GetTimestamp() - start) * TickMs;

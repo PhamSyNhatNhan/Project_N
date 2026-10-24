@@ -43,8 +43,8 @@ public sealed class PNProjectileHitNativeModule : EveIContentModule
             var root = JObject.Parse("{'categoryIds':['base:skill'],'affectedByAttackSpeed':false,'action':{'id':'project_n:projectile_action','perform':{'operationId':'project_n:create_projectile','data':" + payload + "}}}");
             hub.Skills.Register(new EveSkillDefinition(id, root));
         }
-        Skill(PNProjectileSkillProbe.Volley, "{'projectileId':'test:hit_once','input':{},'count':3,'spread':20,'layerMask':128,'damage':{'value':{'amount':100},'canCrit':false,'tags':['base:true']}}", null);
-        Skill(PNProjectileSkillProbe.Silent, "{'projectileId':'test:hit_once','input':{},'count':1,'spread':0,'layerMask':128}", null);
+        Skill(PNProjectileSkillProbe.Volley, "{'projectileId':'test:hit_once','input':{},'count':3,'spread':20,'targetLayers':['Enemy'],'damage':{'value':{'amount':100},'canCrit':false,'tags':['base:true']}}", null);
+        Skill(PNProjectileSkillProbe.Silent, "{'projectileId':'test:hit_once','input':{},'count':1,'spread':0,'targetLayers':['Enemy']}", null);
     }
 }
 public static class PNProjectileHitEditorChecks
@@ -63,7 +63,7 @@ public static class PNProjectileHitEditorChecks
         try
         {
             EveRegistrySession.Begin(); EveRegistrySession.Start(hub, EveSessionRole.Offline, EveContentCompatibility.Create(hub, docs, "test:projectile_hit"));
-            var session = EveRegistrySession.Context; int enemy = 1 << 7; long nextId = 991000;
+            var session = EveRegistrySession.Context; var enemy = PNTargetLayers.Of(PNLayers.Enemy); long nextId = 991000;
             GameObject Fixture(string name) { var obj = new GameObject(name); SceneManager.MoveGameObjectToScene(obj, preview); fixtures.Add(obj); return obj; }
             manager = Fixture("Projectile manager").AddComponent<PNProjectileManager>(); manager.Initialize(session, new PNProjectileProfile { MaxActive = 20 });
             PNStat Dummy(Vector3 position)

@@ -67,7 +67,7 @@ public static class PNProjectileEditorChecks
         bool Near(float a, float b, float tolerance = 1e-3f) => Mathf.Abs(a - b) <= tolerance;
         var docs = new PNGameContentSource(Path.Combine(Application.streamingAssetsPath, "BaseContent"), ".utmp/no-mods", Array.Empty<string>()).ReadDocuments().ToArray();
         var hub = new EveContentBootstrap().Build(new EveIContentModule[] { new PNContentModule(), new PNGameplayContentModule(), new PNWorldFixtureModule(), new PNProjectileNativeModule() }, docs);
-        int enemyMask = 1 << 7, wall = LayerMask.NameToLayer("Wall"), boundary = LayerMask.NameToLayer("Boundary");
+        var enemyMask = PNTargetLayers.Of(PNLayers.Enemy); int wall = LayerMask.NameToLayer("Wall"), boundary = LayerMask.NameToLayer("Boundary");
         Check(wall >= 0 && boundary >= 0 && LayerMask.NameToLayer("Enemy") == 7, "Wall, Boundary and Enemy layers exist");
         PNProbeProjectile.Reset();
         Geometry(Check);
@@ -81,8 +81,8 @@ public static class PNProjectileEditorChecks
             {
                 var m = Fixture("Projectile manager").AddComponent<PNProjectileManager>(); m.Initialize(session, new PNProjectileProfile { MaxActive = cap, MaxSubSteps = steps }); return m;
             }
-            PNProjectileReceipt Fire(PNProjectileManager m, string id, Vector3 position, Vector3 direction, double speed = 1, double scale = 1, double life = 1, PNStat target = null, int mask = 0)
-                => m.Create(new PNProjectileLaunch(EveId.Parse(id), null, source, mask == 0 ? enemyMask : mask, null, null, speed, scale, life), new PNProjectileSpawn(preview, position, direction, target));
+            PNProjectileReceipt Fire(PNProjectileManager m, string id, Vector3 position, Vector3 direction, double speed = 1, double scale = 1, double life = 1, PNStat target = null, PNTargetLayers mask = null)
+                => m.Create(new PNProjectileLaunch(EveId.Parse(id), null, source, mask ?? enemyMask, null, null, speed, scale, life), new PNProjectileSpawn(preview, position, direction, target));
             PNProbeProjectile Probe(PNProjectileReceipt receipt) => PNProbeProjectile.ByHandle[receipt.Handle.InstanceId];
             PNStat Dummy(string name, long id, Vector3 position, int layer)
             {
@@ -271,7 +271,7 @@ public static class PNProjectileEditorChecks
             worlds.BeforeUnload = world => manager.ReleaseWorld(world);
             var sceneA = worlds.Get(a).PhysicsScene; var sceneB = worlds.Get(b).PhysicsScene;
             var source = PNCombatSource.System(session.SessionId, new EveEntityId(990201));
-            PNProjectileReceipt Fire(Scene scene) => manager.Create(new PNProjectileLaunch(EveId.Parse("test:probe_fast"), null, source, 1 << 7), new PNProjectileSpawn(scene, new Vector3(0, 1, 0), Vector3.right));
+            PNProjectileReceipt Fire(Scene scene) => manager.Create(new PNProjectileLaunch(EveId.Parse("test:probe_fast"), null, source, PNTargetLayers.Of(PNLayers.Enemy)), new PNProjectileSpawn(scene, new Vector3(0, 1, 0), Vector3.right));
             var inA = Fire(sceneA); var inB = Fire(sceneB);
             check(inA.Status == PNProjectileStatus.Created && inB.Status == PNProjectileStatus.Created && PNProbeProjectile.ByHandle[inA.Handle.InstanceId].World == a && PNProbeProjectile.ByHandle[inB.Handle.InstanceId].World == b,
                 "projectiles fired in two scenes are bound to their own worlds");

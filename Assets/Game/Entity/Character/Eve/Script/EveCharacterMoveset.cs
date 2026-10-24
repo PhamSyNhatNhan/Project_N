@@ -135,7 +135,7 @@ public partial class EveCharacterSkill
         {
             var candidate = entry.GetComponent<PNStat>();
             if (candidate == null || candidate == Stats || !candidate.gameObject.activeInHierarchy || !candidate.isActiveAndEnabled || !candidate.IsReady || candidate.IsDead ||
-                candidate.gameObject.scene != gameObject.scene || candidate.SessionId != Stats.SessionId || !Stats.IsHostileTo(candidate)) continue;
+                candidate.gameObject.scene != gameObject.scene || candidate.SessionId != Stats.SessionId || !Stats.Targets(candidate)) continue;
             var loader = candidate.GetComponent<EveEntityLoader>();
             if (loader == null || !loader.IsReady) continue;
             var offset = candidate.transform.position - transform.position; offset.y = 0;

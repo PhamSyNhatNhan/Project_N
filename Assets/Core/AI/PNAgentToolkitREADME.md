@@ -45,7 +45,7 @@ public sealed class ExampleKeepRange : PNEnemyBehavior
     PNActorHandle selected;
     public override void Enter()
     {
-        agent = new PNEnemyAgentContext(Context, actor => actor.CombatTeam != Context.Stat.CombatTeam);
+        agent = new PNEnemyAgentContext(Context, actor => Context.Stat.Targets(actor));   // layers in my TargetLayers
         sensor = Context.Own(new PNAgentPerception(agent, new PNPerceptionSettings()));
         slot = Context.Own(new PNAgentOwnedSlot<PNMovementTask>());
     }
@@ -113,7 +113,7 @@ NoCandidate không tự nới tolerance, band hoặc đi thẳng xuyên tường
 ## Nhóm, tín hiệu và ví dụ hỗ trợ
 
 Game cấp kind + encounter key + eligibility; cùng CharacterId không tự join mọi actor
-trong map. Membership scoped world/incarnation và load/selection; không đổi CombatTeam,
+trong map. Membership scoped world/incarnation và load/selection; không đổi TargetLayers/layer,
 OwnerId hay quyền player. Nếu policy quan hệ thay đổi, Game retire/rejoin membership.
 Slots không đánh số lại khi member rời; leader dựa priority rồi stable actor ID.
 Group record không giữ world activity lease để sống mãi khi không còn member.
@@ -128,7 +128,7 @@ members,32 groups/world; mỗi group được tick tối đa một lần/frame. 
 hiệu năng/capacity bởi các con số giới hạn này. Không có mạng hoặc persistence cho nhóm.
 
 Support example nhận ally handle qua Configure trước selection. Pack example nhận
-service/kind/encounter trước selection và chỉ group cùng team/CharacterId theo Game policy.
+service/kind/encounter trước selection và chỉ group cùng layer/CharacterId theo Game policy.
 Các ví dụ là actor thường; chưa có summon spawn/despawn/lệnh người chơi/lifetime.
 
 ## Actions và kết quả

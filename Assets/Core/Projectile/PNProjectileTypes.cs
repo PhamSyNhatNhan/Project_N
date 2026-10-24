@@ -52,14 +52,15 @@ public sealed class PNProjectileSnapshot
     public Vector3 Forward { get; }
     public Vector3 HalfExtents { get; }
     public EveWorldContext World { get; }
-    // EN: Shooter team and entity captured at launch, and whether gameplay clearing (Destroy) may end it without bypass. Neutral / default when the launch is gone.
-    // VI: Phe và entity người bắn chụp lúc bắn, và việc xoá do gameplay (Destroy) có kết thúc được nó khi không bypass hay không.
-    public PNCombatTeam Team { get; }
+    // EN: Layers the projectile targets and the shooter entity captured at launch, and whether gameplay clearing (Destroy) may end it without bypass.
+    //     None / default when the launch is gone. An enemy projectile is one that targets the Player layer.
+    // VI: Các layer đạn nhắm tới và entity người bắn chụp lúc bắn, và việc xoá do gameplay (Destroy) có kết thúc được nó khi không bypass hay không.
+    public PNTargetLayers TargetLayers { get; }
     public EveEntityId SourceId { get; }
     public bool Destroyable { get; }
     internal PNProjectileSnapshot(PNProjectileHandle handle, EveId id, EveId definitionId, PNProjectileInstance instance)
     { Handle = handle; Id = id; DefinitionId = definitionId; IsRunning = instance.IsRunning; Position = instance.Position; Forward = instance.Forward; HalfExtents = instance.HalfExtents; World = instance.World;
-      Team = instance.Launch?.Team ?? PNCombatTeam.Neutral; SourceId = instance.Launch?.SourceId ?? default; Destroyable = instance.Destroyable; }
+      TargetLayers = instance.Launch?.TargetLayers ?? PNTargetLayers.None; SourceId = instance.Launch?.SourceId ?? default; Destroyable = instance.Destroyable; }
 }
 
 // A contact found while a projectile moved along one step. Target == null means an environment hit (wall/ground).

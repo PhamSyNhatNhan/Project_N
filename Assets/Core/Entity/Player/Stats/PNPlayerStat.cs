@@ -3,7 +3,7 @@
 public class PNPlayerStat : PNStat
 {
     public override double DefaultIFrameDuration => 1d;
-    public override PNCombatTeam CombatTeam => PNCombatTeam.Player;
+    protected override PNTargetLayers DefaultTargetLayers => PNTargetLayers.Of(PNLayers.Enemy);
 #if UNITY_5_3_OR_NEWER
     public override bool CanShowDamagePopup => false;
 #endif

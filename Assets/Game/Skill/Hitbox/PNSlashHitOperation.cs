@@ -79,7 +79,9 @@ public class PNSlashHitOperation : PNSkillOperation
         try { Scan(previous, elapsed); }
         catch { Dispose(); throw; }
     }
-    protected virtual bool CanHit(PNStat target) => caster.IsHostileTo(target);
+    // A target is hit when its layer is in the caster's TargetLayers or in the slash's own targetLayers (never the caster itself).
+    protected virtual bool CanHit(PNStat target) => target != null && !ReferenceEquals(target, caster) &&
+        PNLayers.Contains(caster.TargetLayers.Mask | settings.TargetLayers.Mask, target.Layer);
     private void Scan(double previous, double current)
     {
         if (disposed) return;
@@ -115,7 +117,7 @@ public class PNSlashHitOperation : PNSkillOperation
                     ? Vector3.Lerp(previousPosition, currentPosition, current > previous ? (float)((time - previous) / (current - previous)) : 1f) : origin;
                 var root = EveHitboxPose.Planar(position, direction);
                 if (tracks == null)
-                    Deliver(cast, new EveHitboxPose(position + direction * settings.ForwardOffset + Vector3.up * settings.VerticalOffset, root.Rotation), time, settings.LayerMask);
+                    Deliver(cast, new EveHitboxPose(position + direction * settings.ForwardOffset + Vector3.up * settings.VerticalOffset, root.Rotation), time, ~0);
                 else
                     for (int i = 0; i < tracks.Length && !disposed; i++)
                     {

@@ -451,6 +451,7 @@ public partial class PNStat : EveStat, EveIEntityLoadPreparation
         combatLoader = null;
         persistentSourceIds.Clear();
         buffSourceIds.Clear();
+        ResetTargetLayers();
         CharacterId = default;
         base.Unload();
     }
@@ -491,15 +492,18 @@ public partial class PNStat : EveStat, EveIEntityLoadPreparation
     {
         if (character == null) throw new ArgumentNullException(nameof(character));
         if (IsInitialized) throw new InvalidOperationException("EveStat is already initialized.");
+        var combat = PNCombatSettings.Parse(character.Data);
         var gameSet = new PNStatSet(registry);
         gameSet.LoadCharacter(character);
         Initialize(gameSet);
+        if (combat != null) SetBaseTargetLayers(combat.TargetLayers);
         CharacterId = character.Id;
     }
 
     public override void Initialize(EveStatSet statSet)
     {
         base.Initialize(statSet);
+        SetBaseTargetLayers(DefaultTargetLayers);
         InitializeCombatAbilities();
     }
 

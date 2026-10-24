@@ -45,7 +45,7 @@ public static class PNProjectileHomingEditorChecks
             var source = PNCombatSource.Capture(shooterObject.GetComponent<PNStat>());
             var prepared = source.Snapshot.PrepareDamage(100, false, 0d, PNContentIds.True);
             PNProjectileReceipt Fire(PNProjectileManager m, string id, Vector3 position, Vector3 direction, PNStat target = null)
-                => m.Create(new PNProjectileLaunch(EveId.Parse(id), null, source, enemy, prepared), new PNProjectileSpawn(preview, position, direction, target));
+                => m.Create(new PNProjectileLaunch(EveId.Parse(id), null, source, PNTargetLayers.Of(PNLayers.Enemy), prepared), new PNProjectileSpawn(preview, position, direction, target));
             double Hp(PNStat stat) => stat.GetCurrent(PNContentIds.Health);
             void Advance(PNProjectileManager m, int ticks, float step = .05f) { for (int i = 0; i < ticks; i++) m.Advance(step); }
             manager = NewManager();

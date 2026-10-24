@@ -15,11 +15,14 @@ public sealed class EveSweepSettings
     // Keep the public legacy field authoritative for single-value code mods.
     public PNSkillValues Values => Value != null ? new PNSkillValues(new[] { Value }) : compositeValue;
     public double? IFrameDuration { get; private set; }
+    // Layers the sweep hits in addition to the caster's TargetLayers (optional "targetLayers": ordered layer names).
+    public PNTargetLayers TargetLayers { get; private set; } = PNTargetLayers.None;
     public static EveSweepSettings Parse(JToken token)
     {
         if (!(token is JObject obj)) throw new FormatException("Eve sweep payload is required.");
         var result = new EveSweepSettings();
         result.IFrameDuration = PNDamage.ParseIFrameDuration(obj);
+        result.TargetLayers = PNTargetLayers.Parse(obj["targetLayers"], "sweep.targetLayers");
         foreach (var field in typeof(EveSweepSettings).GetFields())
         {
             if (field.Name == nameof(Value))
@@ -37,7 +40,7 @@ public sealed class EveSweepSettings
             field.SetValue(result, value);
         }
         foreach (var p in obj.Properties())
-            if (p.Name != "tags" && p.Name != "iframeDuration" && (p.Name.Length == 0 || typeof(EveSweepSettings).GetField(char.ToUpperInvariant(p.Name[0]) + p.Name.Substring(1)) == null))
+            if (p.Name != "tags" && p.Name != "iframeDuration" && p.Name != "targetLayers" && (p.Name.Length == 0 || typeof(EveSweepSettings).GetField(char.ToUpperInvariant(p.Name[0]) + p.Name.Substring(1)) == null))
                 throw new FormatException("Unknown Eve sweep field: " + p.Name);
         result.Values.ValidateNonnegativeAmounts();
         if (result.Duration <= 0 || result.Radius <= 0 || result.InnerRadius < 0 || result.InnerRadius >= result.Radius ||

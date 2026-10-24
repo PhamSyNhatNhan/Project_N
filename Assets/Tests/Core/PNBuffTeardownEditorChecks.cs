@@ -35,7 +35,7 @@ public static class PNBuffTeardownEditorChecks
                 var session = EveRegistrySession.Context;
                 var root = new GameObject("Buff teardown manager"); SceneManager.MoveGameObjectToScene(root, scene);
                 areas = root.AddComponent<PNAreaManager>(); areas.Initialize(session);
-                var go = new GameObject("Buff teardown target"); go.SetActive(false); SceneManager.MoveGameObjectToScene(go, scene); go.layer = 31;
+                var go = new GameObject("Buff teardown target"); go.SetActive(false); SceneManager.MoveGameObjectToScene(go, scene); go.layer = PNLayers.Void;
                 go.AddComponent<EveEntityIdentity>().Assign(new EveEntityId(990030 + variant), EveId.Parse("project_n:dummy"), 0);
                 go.AddComponent<CapsuleCollider>().height = 1; var clock = go.AddComponent<EveTimeScale>();
                 var stat = go.AddComponent<PNEnemyStat>(); loader = go.AddComponent<EveEntityLoader>(); loader.Load(hub); go.SetActive(true);
@@ -81,7 +81,7 @@ public static class PNBuffTeardownEditorChecks
                     buffs.ReleaseOwned(current);
                 }
                 Physics.SyncTransforms();
-                var input = JObject.Parse("{'radius':2,'reduction':0.5,'minimumReduction':0.2,'duration':20,'dependent':false,'layerMask':-2147483648,'layerMode':'Include'}");
+                var input = JObject.Parse("{'radius':2,'reduction':0.5,'minimumReduction':0.2,'duration':20,'dependent':false,'targetLayers':['Void'],'layerMode':'Include'}");
                 var area = areas.Create(new PNAreaCreateRequest(EveId.Parse("base:timescale_area"), input, source, scene, Vector3.zero));
                 Check(area.Status == PNAreaStatus.Created && buffs.Snapshot().Count == 1 && clock.Scale == .5f, "Case " + variant + " admits real Area Buff");
                 session.RegisterCleanup(areas.Shutdown);

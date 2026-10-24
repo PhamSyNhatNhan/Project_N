@@ -76,7 +76,7 @@ public sealed partial class PNEnemyMoveSkillPlayReview
     private IEnumerator ToolkitBehaviors()
     {
         var context = enemy.GetComponent<PNEnemyReviewProbeBehavior>().Context;
-        var agent = new PNEnemyAgentContext(context, actor => actor.CombatTeam != context.Stat.CombatTeam);
+        var agent = new PNEnemyAgentContext(context, actor => context.Stat.Targets(actor));
         var slot = context.Own(new PNAgentOwnedSlot<PNMovementTask>());
         target.transform.position = new Vector3(-2, 0, -4); Physics.SyncTransforms();
         var sensor = context.Own(new PNAgentPerception(agent, new PNPerceptionSettings(interval: .05f, reactionDelay: 0)));
@@ -136,11 +136,11 @@ public sealed partial class PNEnemyMoveSkillPlayReview
         var other = Enemy(a, new Vector3(-3.5f, .02f, -3));
         yield return Until(() => other.ActiveBehaviorId == "probe", 3, "EB5 peer enters authoritative behavior");
         var otherContext = other.GetComponent<PNEnemyReviewProbeBehavior>().Context;
-        var peer = new PNEnemyAgentContext(otherContext, actor => actor.CombatTeam != otherContext.Stat.CombatTeam);
+        var peer = new PNEnemyAgentContext(otherContext, actor => otherContext.Stat.Targets(actor));
         var groups = new PNAgentGroupService(session); var kindId = EveId.Parse("project_n:review_pack");
-        var member = context.Own(groups.Join(agent, kindId, "encounter-a", (x, y) => x.CombatTeam == y.CombatTeam, priority: 1));
-        var peerMember = otherContext.Own(groups.Join(peer, kindId, "encounter-a", (x, y) => x.CombatTeam == y.CombatTeam));
-        var separate = otherContext.Own(groups.Join(peer, kindId, "encounter-b", (x, y) => x.CombatTeam == y.CombatTeam));
+        var member = context.Own(groups.Join(agent, kindId, "encounter-a", (x, y) => x.Layer == y.Layer, priority: 1));
+        var peerMember = otherContext.Own(groups.Join(peer, kindId, "encounter-a", (x, y) => x.Layer == y.Layer));
+        var separate = otherContext.Own(groups.Join(peer, kindId, "encounter-b", (x, y) => x.Layer == y.Layer));
         int slotId = peerMember.Slot; Check(groups.GroupCount == 2 && member.Leader.Id == agent.Self.Id, "EB5 same-kind encounter groups remain separate with stable leader");
         member.Send(PNAgentSignalKind.Alert, agent.Self.Position);
         int received = 0; peerMember.Drain(_ => received++); int leaked = separate.Drain(_ => { });
@@ -184,7 +184,7 @@ public sealed partial class PNEnemyMoveSkillPlayReview
     {
         var context = enemy.GetComponent<PNEnemyReviewProbeBehavior>().Context;
         Reposition(move, new Vector3(-4, .02f, -4)); target.transform.position = new Vector3(-2, 0, -4); Physics.SyncTransforms();
-        var agent = new PNEnemyAgentContext(context, value => value.CombatTeam != context.Stat.CombatTeam);
+        var agent = new PNEnemyAgentContext(context, value => context.Stat.Targets(value));
         Check(agent.IsCurrent && agent.CanTarget(target), "EB2 agent adapter resolves live self and policy target");
         var otherWorld = Target(b, new Vector3(-2, 0, -4));
         Check(!agent.CanTarget(otherWorld), "EB2 actor at same coordinates in another world is not a target");

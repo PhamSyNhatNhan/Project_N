@@ -46,7 +46,7 @@ public static class PNEnemyTypeEditorChecks
                 var stat = root.AddComponent<PNEnemyStat>(); var loader = root.AddComponent<EveEntityLoader>();
                 loader.Load(hub);
                 check(loader.IsReady && stat.EnemyTypeId == expected[i], "Native Loader classification " + characters[i]);
-                check(stat.EnemyType.Id == expected[i] && stat.CombatTeam == PNCombatTeam.Enemy, "Registry definition and Enemy team");
+                check(stat.EnemyType.Id == expected[i] && stat.TargetLayers.Mask == PNLayers.Bit(PNLayers.Player), "Registry definition and Enemy targets the Player layer");
                 check(stat.GetCurrent(PNContentIds.Health) == (i == 0 ? 200000000d : 100d), "Classification leaves authored HP unchanged");
                 if (i == 0) first = stat;
                 else check(first.EnemyTypeId == PNContentIds.NormalEnemy, "Classification isolated between entities");
@@ -69,7 +69,7 @@ public static class PNEnemyTypeEditorChecks
             var playerRoot = new GameObject("Player parity probe"); playerRoot.SetActive(false); SceneManager.MoveGameObjectToScene(playerRoot, preview);
             playerRoot.AddComponent<EveEntityIdentity>().Assign(new EveEntityId(97210), EveId.Parse("test:old"), 0);
             var player = playerRoot.AddComponent<PNPlayerStat>(); playerRoot.AddComponent<EveEntityLoader>().Load(hub);
-            check(player.CombatTeam == PNCombatTeam.Player && player.GetCurrent(PNContentIds.Health) == 100d, "Player stat loading unchanged");
+            check(player.TargetLayers.Mask == PNLayers.Bit(PNLayers.Enemy) && player.GetCurrent(PNContentIds.Health) == 100d, "Player stat loading unchanged");
             bad.Initialize(new PNStatSet(hub));
             check(bad.EnemyTypeId == PNContentIds.NormalEnemy, "Direct stat-set initialization defaults to registered Normal");
             bad.Unload();

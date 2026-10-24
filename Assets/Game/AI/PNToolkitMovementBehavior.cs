@@ -22,7 +22,7 @@ public sealed class PNToolkitMovementBehavior : PNEnemyBehavior
     public override void ValidateConfiguration() { base.ValidateConfiguration(); _ = Settings(); }
     public override void Enter()
     {
-        agent = new PNEnemyAgentContext(Context, actor => actor.CombatTeam != Context.Stat.CombatTeam);
+        agent = new PNEnemyAgentContext(Context, actor => Context.Stat.Targets(actor));
         taskSlot = Context.Own(new PNAgentOwnedSlot<PNMovementTask>());
         if (configuredTarget == null && kind != PNMovementTaskKind.Patrol && kind != PNMovementTaskKind.Guard && kind != PNMovementTaskKind.Search)
             sensor = Context.Own(new PNAgentPerception(agent, new PNPerceptionSettings()));

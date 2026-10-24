@@ -164,6 +164,8 @@ public sealed class PNProjectileManager : MonoBehaviour
     private PoolEntry AddPool(PNProjectileDefinition definition, Scene scene)
     {
         var template = definition.CreatePoolTemplate();
+        // Clones inherit the layer. Children an implementation adds at run time set their own layer (see the projectile README).
+        foreach (var child in template.GetComponentsInChildren<Transform>(true)) child.gameObject.layer = PNLayers.Projectile;
         var pool = new PoolEntry { Template = template, Pool = new PNProjectilePool(template), Scene = scene }; pools.Add((definition, scene), pool);
         SceneManager.MoveGameObjectToScene(template, scene);
         var local = pool;

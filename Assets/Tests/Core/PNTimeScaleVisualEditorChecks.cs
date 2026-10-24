@@ -32,14 +32,14 @@ public static class PNTimeScaleVisualEditorChecks
         {
             EveRegistrySession.Begin(); EveRegistrySession.Start(hub, EveSessionRole.Offline, EveContentCompatibility.Create(hub, docs, "test:time_vfx"));
             var managerRoot = new GameObject("Time visual fixture manager"); SceneManager.MoveGameObjectToScene(managerRoot, scene); manager = managerRoot.AddComponent<PNAreaManager>(); manager.Initialize(EveRegistrySession.Context);
-            var floor = new GameObject("Owned floor sprite preview"); SceneManager.MoveGameObjectToScene(floor, scene); floor.layer = 31; floor.transform.SetPositionAndRotation(originalFloor.transform.position, originalFloor.transform.rotation); floor.transform.localScale = originalFloor.transform.lossyScale; floor.AddComponent<SpriteRenderer>().sharedMaterial = originalMaterial; floor.AddComponent<ErModeGroundVisual>();
+            var floor = new GameObject("Owned floor sprite preview"); SceneManager.MoveGameObjectToScene(floor, scene); floor.layer = PNLayers.Void; floor.transform.SetPositionAndRotation(originalFloor.transform.position, originalFloor.transform.rotation); floor.transform.localScale = originalFloor.transform.lossyScale; floor.AddComponent<SpriteRenderer>().sharedMaterial = originalMaterial; floor.AddComponent<ErModeGroundVisual>();
             var renderer = floor.GetComponent<SpriteRenderer>();
             var proxy = floor.GetComponentsInChildren<MeshRenderer>().First(x => x.name == "Owned floor depth geometry");
-            proxy.gameObject.layer = 31; var depthMaterial = proxy.sharedMaterial; var depthMesh = proxy.GetComponent<MeshFilter>().sharedMesh;
+            proxy.gameObject.layer = PNLayers.Void; var depthMaterial = proxy.sharedMaterial; var depthMesh = proxy.GetComponent<MeshFilter>().sharedMesh;
             Check(renderer.sharedMaterial == originalMaterial && depthMaterial.renderQueue == 2000 && depthMaterial.FindPass("VFXFloorDepth") >= 0 && depthMaterial.FindPass("DepthOnly") < 0, "Floor has VFX-only pass and cannot write main scene depth");
             var sourceRoot = new GameObject("Visual fixture source"); sourceRoot.SetActive(false); SceneManager.MoveGameObjectToScene(sourceRoot, scene); sourceRoot.transform.position = Vector3.one * 30;
             sourceRoot.AddComponent<EveEntityIdentity>().Assign(new EveEntityId(992001), EveId.Parse("project_n:dummy"), 0); var source = sourceRoot.AddComponent<PNEnemyStat>(); sourceRoot.AddComponent<EveEntityLoader>().Load(hub); sourceRoot.SetActive(true);
-            var cameraRoot = new GameObject("Actual camera pose visual preview"); SceneManager.MoveGameObjectToScene(cameraRoot, scene); var camera = cameraRoot.AddComponent<Camera>(); camera.fieldOfView = mainCamera.fieldOfView; camera.nearClipPlane = mainCamera.nearClipPlane; camera.farClipPlane = mainCamera.farClipPlane; camera.enabled = false; camera.scene = scene; camera.cullingMask = 1 << 31;
+            var cameraRoot = new GameObject("Actual camera pose visual preview"); SceneManager.MoveGameObjectToScene(cameraRoot, scene); var camera = cameraRoot.AddComponent<Camera>(); camera.fieldOfView = mainCamera.fieldOfView; camera.nearClipPlane = mainCamera.nearClipPlane; camera.farClipPlane = mainCamera.farClipPlane; camera.enabled = false; camera.scene = scene; camera.cullingMask = 1 << PNLayers.Void;
             camera.transform.SetPositionAndRotation(mainCamera.transform.position, mainCamera.transform.rotation); camera.clearFlags = CameraClearFlags.SolidColor; camera.backgroundColor = new Color(.04f,.05f,.06f);
             cameraRoot.AddComponent<UniversalAdditionalCameraData>(); rt = new RenderTexture(1280, 720, 24, RenderTextureFormat.ARGBHalf); rt.Create(); camera.targetTexture = rt; image = new Texture2D(1280, 720, TextureFormat.RGB24, false);
             Color32[] Capture(string name)
@@ -50,7 +50,7 @@ public static class PNTimeScaleVisualEditorChecks
             var dummyVisual = dummy.transform.Find("Visual").GetComponent<SpriteRenderer>(); var capsule=dummy.GetComponent<CapsuleCollider>();
             var portraitRoot=new GameObject("Dummy physical-rest portrait fixture"); SceneManager.MoveGameObjectToScene(portraitRoot,scene);
             portraitRoot.transform.position=new Vector3(dummy.transform.position.x, floor.transform.position.y+capsule.height*.5f-capsule.center.y, dummy.transform.position.z);
-            var portrait=new GameObject("Visual at unchanged billboard offset"); portrait.transform.SetParent(portraitRoot.transform,false); portrait.layer=31;
+            var portrait=new GameObject("Visual at unchanged billboard offset"); portrait.transform.SetParent(portraitRoot.transform,false); portrait.layer=PNLayers.Void;
             portrait.transform.localPosition=dummyVisual.transform.localPosition; portrait.transform.localRotation=dummyVisual.transform.localRotation; portrait.transform.localScale=dummyVisual.transform.localScale;
             var portraitRenderer=portrait.AddComponent<SpriteRenderer>(); portraitRenderer.sprite=dummyVisual.sprite; portraitRenderer.sharedMaterial=dummyVisual.sharedMaterial; portraitRenderer.color=dummyVisual.color;
             var bottom=dummyVisual.sprite.vertices.Select(v=>portrait.transform.TransformPoint(new Vector3(v.x,v.y,0))).Min(v=>v.y);
@@ -65,7 +65,7 @@ public static class PNTimeScaleVisualEditorChecks
             var shadowCopy = UnityEngine.Object.Instantiate(original.GetRootGameObjects().SelectMany(x=>x.GetComponentsInChildren<SpriteRenderer>(true)).First(x=>x.name=="Dummy Ground Shadow").gameObject);
             shadowCopy.transform.SetParent(null); SceneManager.MoveGameObjectToScene(shadowCopy, scene); shadowCopy.SetActive(true);
             var originalShadow = shadowCopy.GetComponent<SpriteRenderer>(); Check(originalShadow.sprite != null, "Shadow fixture builds its own sprite when enabled");
-            var shadowRoot = new GameObject("Owned shadow above depth floor"); SceneManager.MoveGameObjectToScene(shadowRoot,scene); shadowRoot.layer=31;
+            var shadowRoot = new GameObject("Owned shadow above depth floor"); SceneManager.MoveGameObjectToScene(shadowRoot,scene); shadowRoot.layer=PNLayers.Void;
             shadowRoot.transform.SetPositionAndRotation(floor.transform.position+Vector3.up*.02f, originalShadow.transform.rotation); shadowRoot.transform.localScale=originalShadow.transform.lossyScale;
             var shadow=shadowRoot.AddComponent<SpriteRenderer>(); shadow.sprite=originalShadow.sprite; shadow.sharedMaterial=originalShadow.sharedMaterial; shadow.color=originalShadow.color; shadow.sortingOrder=originalShadow.sortingOrder;
             var shadowFrame=Capture("ShadowAboveFloor");
@@ -74,11 +74,11 @@ public static class PNTimeScaleVisualEditorChecks
             UnityEngine.Object.DestroyImmediate(shadowRoot);
             PNTimeScaleArea Spawn(Vector3 point, float radius = 2.5f)
             {
-                var input = new JObject { ["radius"] = radius, ["reduction"] = .9, ["minimumReduction"] = .9, ["duration"] = 15, ["dependent"] = false, ["layerMask"] = 0, ["layerMode"] = "Include" };
+                var input = new JObject { ["radius"] = radius, ["reduction"] = .9, ["minimumReduction"] = .9, ["duration"] = 15, ["dependent"] = false, ["targetLayers"] = new JArray(), ["layerMode"] = "Include" };
                 var receipt = manager.Create(new PNAreaCreateRequest(EveId.Parse("base:timescale_area"), input, PNCombatSource.Capture(source), scene, point));
                 Check(receipt.Status == PNAreaStatus.Created, "Pooled visual region created");
                 var region = scene.GetRootGameObjects().SelectMany(x => x.GetComponentsInChildren<PNTimeScaleArea>(true)).First(x => x.Handle.InstanceId == receipt.Handle.InstanceId && x.IsRunning);
-                region.gameObject.layer = 31; return region;
+                region.gameObject.layer = PNLayers.Void; return region;
             }
             var below = Spawn(new Vector3(0, -5, 0)); manager.Advance(1); var hidden = Capture("BelowFloor");
             Check(hidden.Zip(baseline, (a,b) => Math.Abs(a.r-b.r)+Math.Abs(a.g-b.g)+Math.Abs(a.b-b.b)).Max() <= 3, "Fully buried sphere and dust are occluded by actual floor depth");

@@ -32,13 +32,13 @@ public static class PNPenetrationEditorChecks
         try
         {
             EveRegistrySession.Begin(); EveRegistrySession.Start(hub, EveSessionRole.Offline, EveContentCompatibility.Create(hub, docs, "test:penetration_native"));
-            var session = EveRegistrySession.Context; long nextId = 996000; int enemyMask = 1 << 7;
+            var session = EveRegistrySession.Context; long nextId = 996000; var enemyMask = PNTargetLayers.Of(PNLayers.Enemy);
             GameObject Fixture(string name) { var obj = new GameObject(name); SceneManager.MoveGameObjectToScene(obj, preview); fixtures.Add(obj); return obj; }
             T Entity<T>(string name, Vector3 position, string character, bool skill = false, int layer = 0) where T : PNStat
             {
                 var go = Fixture(name); go.SetActive(false); go.transform.position = position; go.layer = layer;
                 go.AddComponent<EveEntityIdentity>().Assign(new EveEntityId(nextId++), EveId.Parse(character), 1);
-                var stat = go.AddComponent<T>();
+                var stat = go.AddComponent<T>(); stat.gameObject.layer = stat is PNEnemyStat ? PNLayers.Enemy : stat is PNPlayerStat ? PNLayers.Player : stat.gameObject.layer;
                 if (skill) { go.AddComponent<Rigidbody>().useGravity = false; go.AddComponent<CapsuleCollider>(); go.AddComponent<PNPlayerMove>(); go.AddComponent<PNEveAttackSpeedProbe>(); }
                 else go.AddComponent<BoxCollider>().size = Vector3.one;
                 go.AddComponent<EveEntityLoader>().Load(hub); go.SetActive(true); go.GetComponent<PNBuffManager>().Advance(0); return stat;

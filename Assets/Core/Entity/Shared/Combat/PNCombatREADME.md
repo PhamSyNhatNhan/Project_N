@@ -204,8 +204,23 @@ Public-constructor packets and `PNHeal` carry none. Design: `Docs/PenetrationDes
 
 `PNSource` (`Assets/Core/Entity/Shared/PNSource.cs`) is the simple base: `SessionId` + `EntityId`, nothing else. Use it directly for things that need no combat (items, plain
 identity records such as the owner/follow identity of `PNTimeScaleArea`). `PNCombatSource` (this folder) is its combat branch and is what Buff, DOT, areas, projectiles and
-skill effects carry: it adds `Team`, `Snapshot` (`PNCombatSourceSnapshot`), `Live` and `LoadedSource`. It has no public constructor:
-- `PNCombatSource.Capture(stat)` for an entity: team, snapshot and weak live access are captured once.
-- `PNCombatSource.System(session, entityId, team = Neutral)` for world/system effects with no stats: `Snapshot`/`Live`/`LoadedSource` are `null`, so paths that need stats
+skill effects carry: it adds `TargetLayers`, `Snapshot` (`PNCombatSourceSnapshot`), `Live` and `LoadedSource`. It has no public constructor:
+- `PNCombatSource.Capture(stat)` for an entity: target layers, snapshot and weak live access are captured once.
+- `PNCombatSource.System(session, entityId, targetLayers = null)` for world/system effects with no stats: `Snapshot`/`Live`/`LoadedSource` are `null`, so paths that need stats
   reject it (`PNProjectileLaunch.FromSource`, DOT, snapshot-mode Damage Buff).
-A `PNCombatSource` is a `PNSource`, so it can be passed where only identity is needed. `Team` is combat-only and is not on `PNSource`. Plan: `Docs/CombatSourceSplitPlan.md`.
+A `PNCombatSource` is a `PNSource`, so it can be passed where only identity is needed. `TargetLayers` is combat-only and is not on `PNSource`. Plan: `Docs/CombatSourceSplitPlan.md`.
+
+## Targeting by layer (RulesVersion98; replaces teams)
+
+There is no team and no "hostile" relation. **`PNStat.TargetLayers`** (`PNTargetLayers`, `PNStatTargeting.cs`) is the ordered set of layers an entity attacks and targets:
+- Base: the character's `data.combat.targetLayers` (`PNCombatSettings`, an ordered array of layer names, `[]` = nothing) when present, otherwise the class default
+  (`PNPlayerStat` → `Enemy`, `PNEnemyStat` → `Player`, `PNStat` → none). Layer names are the table in `PNLayers` (`Player`, `Enemy`, `Projectile`, `Wall`, `Boundary`, `Void`, `Ground`;
+  `Npc` joins with the first NPC) and must match ProjectSettings/TagManager.
+- Buffs add layers with `stat.GrantTargetLayers(layers)`: a lease with counts per layer (two grants of one layer keep it until both end; disposing twice does nothing), layers not already
+  in the base go after it in first-grant order, and the Buff releases only what it added. Nothing is stored in the stat to "restore" later; a charm will set and revert its own changes.
+- `PNTargetLayers` keeps `Mask` (an `int` for hot loops) and `Order` (first = highest priority, reserved for autotarget; nothing reads it yet). `Union` returns an operand when the result equals it.
+- Tests: `stat.Targets(other)` (other's layer is in my `TargetLayers`; not myself, not null) and `stat.SharesLayer(other)` (same layer, the ally test). Both are asymmetric / non-virtual wrappers over
+  `PNLayers.Contains(mask, layer)`.
+- An attack hits `caster.TargetLayers` united with the attack's own `targetLayers` (`create_projectile`, Slash `hitbox.targetLayers`, Sweep `targetLayers`); a set that contains the attacker's own layer
+  hits allies but never the attacker. Projectiles capture the set at launch; Slash and Sweep read it when they hit. Areas use their own `targetLayers` as an absolute list.
+- Not replicated: the host resolves hits and damage. A stat changing layer at run time (charm) is seen by projectile candidate lists after their next refresh (`TargetRefreshSeconds`).

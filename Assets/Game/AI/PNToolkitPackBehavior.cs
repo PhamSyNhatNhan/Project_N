@@ -28,10 +28,10 @@ public sealed class PNToolkitPackBehavior : PNEnemyBehavior
     public override void Enter()
     {
         if (groups == null) throw new InvalidOperationException("Pack requires explicit group service and encounter identity.");
-        agent = new PNEnemyAgentContext(Context, actor => actor.CombatTeam != Context.Stat.CombatTeam);
+        agent = new PNEnemyAgentContext(Context, actor => Context.Stat.Targets(actor));
         sensor = Context.Own(new PNAgentPerception(agent, new PNPerceptionSettings()));
         movement = Context.Own(new PNAgentOwnedSlot<PNMovementTask>()); reservation = Context.Own(new PNAgentOwnedSlot<PNGroupReservation>());
-        member = Context.Own(groups.Join(agent, kind, instance, (a, b) => a.CombatTeam == b.CombatTeam &&
+        member = Context.Own(groups.Join(agent, kind, instance, (a, b) => a.Layer == b.Layer &&
             a.GetComponent<EveEntityIdentity>().CharacterId == b.GetComponent<EveEntityIdentity>().CharacterId));
         currentTarget = null; messageAge = 100; sendAt = 0;
     }

@@ -52,7 +52,7 @@ public class PNEnemyMeleeBehavior : PNEnemyStateMachineBehavior
         if (target != null) ChangeState("Chase");
     }
     private bool CanTarget(PNStat value) => value != null && value != Context.Stat && value.IsReady && !value.IsDead &&
-        value.CombatTeam != Context.Stat.CombatTeam && PNWorldGameplay.CanTarget(Context.Owner, value);
+        Context.Stat.Targets(value) && PNWorldGameplay.CanTarget(Context.Owner, value);
     private bool ValidTarget() => CanTarget(target) && (target.transform.position - Context.Owner.transform.position).sqrMagnitude <= aggroRange * aggroRange;
     private float Distance() => new Vector2(target.transform.position.x - Context.Owner.transform.position.x, target.transform.position.z - Context.Owner.transform.position.z).magnitude;
     private bool HasSight()

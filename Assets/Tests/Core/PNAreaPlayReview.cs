@@ -28,7 +28,7 @@ public sealed class PNAreaPlayReview : MonoBehaviour
     private void Check(bool condition, string message) { if (!condition) throw new Exception(message); evidence.Add("PASS " + message); }
     private PNStat Entity(long id, Vector3 position)
     {
-        var root = new GameObject("Area Play fixture " + id); fixtures.Add(root); root.SetActive(false); root.transform.position = position; root.layer = 31;
+        var root = new GameObject("Area Play fixture " + id); fixtures.Add(root); root.SetActive(false); root.transform.position = position; root.layer = PNLayers.Void;
         root.AddComponent<EveEntityIdentity>().Assign(new EveEntityId(id), EveId.Parse("project_n:dummy"), 0); root.AddComponent<EveTimeScale>(); root.AddComponent<CapsuleCollider>().height = 1;
         var stat = root.AddComponent<PNEnemyStat>(); root.AddComponent<PNSkill>(); root.AddComponent<EveEntityLoader>().Load(EveRegistrySession.Current); root.SetActive(true); return stat;
     }
@@ -53,7 +53,7 @@ public sealed class PNAreaPlayReview : MonoBehaviour
         var managerRoot = new GameObject("Area Play isolated manager"); fixtures.Add(managerRoot); areas = managerRoot.AddComponent<PNAreaManager>(); areas.Initialize(EveRegistrySession.Context);
         var position = new Vector3(70, 0, 70); var source = Entity(990101, position + Vector3.right * 10); var target = Entity(990102, position);
         var captured = PNCombatSource.Capture(source); var buffs = target.GetComponent<PNBuffManager>().Buffs; var clock = target.GetComponent<EveTimeScale>();
-        JObject Input(double duration, bool dependent = false) => new JObject { ["radius"] = 2, ["reduction"] = 1, ["minimumReduction"] = .2, ["duration"] = duration, ["dependent"] = dependent, ["layerMask"] = 1 << 31, ["layerMode"] = "Include" };
+        JObject Input(double duration, bool dependent = false) => new JObject { ["radius"] = 2, ["reduction"] = 1, ["minimumReduction"] = .2, ["duration"] = duration, ["dependent"] = dependent, ["targetLayers"] = new JArray("Void"), ["layerMode"] = "Include" };
         PNAreaReceipt Spawn(double duration = 2, bool dependent = false)
         {
             var receipt = areas.Create(new PNAreaCreateRequest(EveId.Parse("base:timescale_area"), Input(duration, dependent), captured, gameObject.scene, position, source));

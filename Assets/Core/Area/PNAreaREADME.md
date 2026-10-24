@@ -60,7 +60,7 @@ In an authoritative Ready session, use the runtime's `PNAreaManager`:
 var manager = PNAreaManager.Attach(runtime);
 var input = JObject.Parse(@"{
   'radius':3,'reduction':0.5,'minimumReduction':0.2,
-  'duration':15,'dependent':false,'layerMask':-1,'layerMode':'Include'
+  'duration':15,'dependent':false,'targetLayers':[],'layerMode':'Exclude'
 }");
 var receipt = manager.Create(new PNAreaCreateRequest(
     EveId.Parse("base:timescale_area"), input, PNCombatSource.Capture(caster),
@@ -85,7 +85,7 @@ Skill Action `base:area_action` executes registered Operation `base:create_area`
 {"operationId":"base:create_area","data":{
   "areaId":"base:timescale_area","followCaster":false,
   "input":{"radius":3,"reduction":0.5,"minimumReduction":0.2,
-           "duration":15,"dependent":true,"layerMask":-1,"layerMode":"Include"}
+           "duration":15,"dependent":true,"targetLayers":[],"layerMode":"Exclude"}
 }}
 ```
 
@@ -97,8 +97,9 @@ Skill context. Client gameplay creation is rejected; area replication is not imp
 ## Timescale area
 
 `base:timescale_area` uses root non-trigger body collider intersection with a 3D
-sphere, deduplicated by entity identity in the instance's physics scene. LayerMask
-uses root entity layer, with explicit Include or Exclude. All listed input fields
+sphere, deduplicated by entity identity in the instance's physics scene. `targetLayers`
+(ordered layer names; absolute, an area reads no caster list) tests the root entity layer, with
+explicit Include or Exclude. All listed input fields
 are required; `duration:null` means permanent and requires `dependent:true` with a
 live owner. Radius is positive; reduction/minimumReduction are nonnegative finite
 floats, may exceed 1. Duration is positive finite Game seconds.

@@ -10,8 +10,8 @@ using UnityEngine;
 // Payload of create_projectile (every field required unless noted):
 //   projectileId: a registered projectile, input: that projectile's launch input (object),
 //   count: 1..3 projectiles per volley, spread: degrees between neighbours of a volley (0..90, around the world up axis),
-//   layerMask: layers the projectiles can hit (integer bit mask, not 0),
-//   aimRadius (optional, > 0): when present the volley aims at the nearest live target on layerMask within that radius (planar) and gives
+//   targetLayers (optional): ordered layer names the volley can hit IN ADDITION to the caster's own TargetLayers (for example ["Projectile"]); the union must not be empty,
+//   aimRadius (optional, > 0): when present the volley aims at the nearest live target on those layers within that radius (planar) and gives
 //     it to every projectile as its initial target; with no target, or when absent, the context direction is used,
 //   pitches (optional): one angle in degrees (-80..80) per projectile, in volley order, tilting its direction upward (positive) or downward,
 //   damage (optional): {value: PNSkillValues, canCrit (bool), tags: tag IDs including exactly one damage type, iframeDuration (optional)};
@@ -20,7 +20,8 @@ public sealed class PNCreateProjectileSettings
 {
     public EveId ProjectileId;
     public JToken Input;
-    public int Count, LayerMask;
+    public int Count;
+    public PNTargetLayers TargetLayers = PNTargetLayers.None;
     public double Spread;
     public double? AimRadius;
     public double[] Pitches;
@@ -30,12 +31,12 @@ public sealed class PNCreateProjectileSettings
     public EveId[] Tags = Array.Empty<EveId>();
     public static PNCreateProjectileSettings Parse(JToken token)
     {
-        var obj = PNBuffContentBatch.Object(token); PNBuffContentBatch.Fields(obj, "projectileId", "input", "count", "spread", "layerMask", "damage", "aimRadius", "pitches");
+        var obj = PNBuffContentBatch.Object(token); PNBuffContentBatch.Fields(obj, "projectileId", "input", "count", "spread", "targetLayers", "damage", "aimRadius", "pitches");
         var result = new PNCreateProjectileSettings { ProjectileId = EveId.Parse(PNBuffContentBatch.String(obj, "projectileId")), Input = obj["input"] };
         if (!(obj["input"] is JObject)) throw new FormatException("create_projectile input must be an object.");
         result.Count = PNBuffContentBatch.Integer(obj, "count"); if (result.Count < 1 || result.Count > 3) throw new FormatException("create_projectile count must be 1..3.");
         result.Spread = PNBuffContentBatch.Number(obj, "spread"); if (result.Spread < 0 || result.Spread > 90) throw new FormatException("create_projectile spread must be 0..90 degrees.");
-        result.LayerMask = PNBuffContentBatch.Integer(obj, "layerMask"); if (result.LayerMask == 0) throw new FormatException("create_projectile needs a target layer mask.");
+        result.TargetLayers = PNTargetLayers.Parse(obj["targetLayers"], "create_projectile.targetLayers");
         if (obj["aimRadius"] != null)
         {
             result.AimRadius = PNBuffContentBatch.Number(obj, "aimRadius");
@@ -98,7 +99,9 @@ public class PNCreateProjectileOperation : PNSkillOperation
             prepared = source.Snapshot.PrepareDamage(amount, settings.CanCrit, settings.IFrameDuration, tags);
         }
         var plan = context.CanFreezeOnHit ? context.Skill.Effects.FreezeOnHit(context) : null;
-        var launch = PNProjectileLaunch.FromSource(settings.ProjectileId, settings.Input, source, settings.LayerMask, prepared, plan);
+        var launchLayers = source.TargetLayers.Union(settings.TargetLayers);
+        if (launchLayers.IsEmpty) throw new InvalidOperationException("create_projectile: the caster targets no layer and the payload adds none.");
+        var launch = PNProjectileLaunch.FromSource(settings.ProjectileId, settings.Input, source, launchLayers, prepared, plan);
         var scene = caster.gameObject.scene;
         var manager = PNProjectileManager.Resolve(EveRegistrySession.Context, scene);
         if (!ReferenceEquals(manager.Session.Registry, context.Registry)) throw new InvalidOperationException("Projectile operation session mismatch.");
@@ -106,7 +109,7 @@ public class PNCreateProjectileOperation : PNSkillOperation
         var aim = context.Direction.Value; PNStat aimTarget = null;
         if (settings.AimRadius.HasValue)
         {
-            aimTarget = manager.ResolveNearest(context.World, position, (float)settings.AimRadius.Value, settings.LayerMask);
+            aimTarget = manager.ResolveNearest(context.World, position, (float)settings.AimRadius.Value, launchLayers.Mask);
             if (aimTarget != null)
             {
                 var toTarget = aimTarget.transform.position - position; toTarget.y = 0;

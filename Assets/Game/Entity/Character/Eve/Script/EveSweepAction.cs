@@ -85,7 +85,7 @@ public class EveSweepAction : PNSkillAction
                 float angle = Mathf.Lerp(settings.StartAngle, settings.EndAngle, progress);
                 var rotation = root.Rotation * Quaternion.AngleAxis(settings.Tilt, Vector3.right) * Quaternion.Euler(0, -angle, 0);
                 hitbox.Query(new EveHitboxPose(root.Position + Vector3.up * settings.Height, rotation), time, targets, caster, ~0,
-                    QueryTriggerInteraction.Ignore, target => caster.IsHostileTo(target));
+                    QueryTriggerInteraction.Ignore, target => !ReferenceEquals(target, caster) && PNLayers.Contains(caster.TargetLayers.Mask | settings.TargetLayers.Mask, target.Layer));
                 foreach (var target in targets)
                 {
                     if (disposed) break;

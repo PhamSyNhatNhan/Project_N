@@ -211,7 +211,7 @@ public class PNAgentTrajectoryAction : PNSkillAction, IPNSkillMotionAction, IPNS
     private void Deliver(Vector3 position, double time)
     {
         cast.Query(EveHitboxPose.Planar(position, direction), time, targets, caster, ~0, QueryTriggerInteraction.Ignore,
-            target => target.CombatTeam != caster.CombatTeam && !target.IsDead);
+            target => caster.Targets(target) && !target.IsDead);
         foreach (var target in targets)
         {
             if (disposed) break;

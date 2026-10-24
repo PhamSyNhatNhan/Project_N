@@ -93,7 +93,7 @@ public static class EveSkillVolleyEditorChecks
         }
         // Dash's TimeScale area includes the Projectile layer next to Enemy (layers 8 and 7), so it slows or stops running projectiles too.
         var dash = Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(Path.Combine(Application.streamingAssetsPath, "BaseContent/characters/EveCharacter.json")))["characters"][0]["skill"].First(x => (string)x["id"] == "project_n:eve_dash");
-        int areaMask = (int)dash["data"]["effects"][0]["data"]["input"]["layerMask"];
+        var areaLayers = PNTargetLayers.Parse(dash["data"]["effects"][0]["data"]["input"]["targetLayers"], "dash area"); int areaMask = areaLayers.Mask;
         Check(areaMask == ((1 << LayerMask.NameToLayer("Enemy")) | (1 << LayerMask.NameToLayer("Projectile"))) && (string)dash["data"]["effects"][0]["data"]["input"]["layerMode"] == "Include", "Eve's Dash TimeScale area includes the Enemy and Projectile layers: " + areaMask);
         Check(original.isDirty == dirty, "the test left the active scene dirty state alone");
         return "PASS " + checks + " native Eve Skill volley checks; real Eve JSON, " + note;

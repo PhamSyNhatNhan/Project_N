@@ -17,7 +17,8 @@ public sealed class PNSlashHitSettings
     public float VerticalOffset { get; }
     public float WindowStart { get; }
     public float WindowEnd { get; }
-    public int LayerMask { get; }
+    // Layers the slash hits in addition to the caster's TargetLayers (optional hitbox.targetLayers: ordered layer names).
+    public PNTargetLayers TargetLayers { get; }
     public bool FollowCaster { get; }
     public bool HitTriggers { get; }
     public float SampleInterval { get; }
@@ -28,14 +29,14 @@ public sealed class PNSlashHitSettings
         foreach (var field in hitbox.Properties())
             if (field.Name != "radius" && field.Name != "innerRadius" && field.Name != "angle" && field.Name != "thickness" &&
                 field.Name != "forwardOffset" && field.Name != "verticalOffset" && field.Name != "windowStart" && field.Name != "windowEnd" &&
-                field.Name != "layerMask" && field.Name != "followCaster" && field.Name != "hitTriggers" && field.Name != "sampleInterval")
+                field.Name != "targetLayers" && field.Name != "followCaster" && field.Name != "hitTriggers" && field.Name != "sampleInterval")
                 throw new FormatException($"Unknown slash hitbox field: {field.Name}.");
         Values = PNSkillValues.Parse(perform["value"]);
         CanCrit = Boolean(perform, "canCrit", true);
         IFrameDuration = PNDamage.ParseIFrameDuration(perform);
         Duration = visual.Duration; PrefabDriven = perform["prefab"] != null;
         if (PrefabDriven)
-            foreach (var field in new[] { "radius", "innerRadius", "angle", "thickness", "forwardOffset", "verticalOffset", "layerMask" })
+            foreach (var field in new[] { "radius", "innerRadius", "angle", "thickness", "forwardOffset", "verticalOffset" })
                 if (hitbox[field] != null) throw new FormatException("Prefab-driven hitbox field belongs on the hitbox component: " + field);
         Values.ValidateNonnegativeAmounts();
         Radius = Number(hitbox, "radius", visual.Radius); InnerRadius = Number(hitbox, "innerRadius", 0f);
@@ -46,10 +47,7 @@ public sealed class PNSlashHitSettings
         if (Radius <= 0f || float.IsInfinity(Radius * 2f) || InnerRadius < 0f || InnerRadius >= Radius ||
             Angle <= 0f || Angle > 360f || Thickness <= 0f || WindowStart < 0f || WindowEnd <= WindowStart || WindowEnd > visual.Duration)
             throw new FormatException("Invalid slash hitbox dimensions or window; window must lie within VFX duration.");
-        var mask = hitbox["layerMask"];
-        if (mask != null && mask.Type != JTokenType.Integer) throw new FormatException("Slash layerMask must be an integer.");
-        try { LayerMask = mask == null ? ~0 : mask.Value<int>(); }
-        catch (Exception error) { throw new FormatException("Slash layerMask must fit Int32.", error); }
+        TargetLayers = PNTargetLayers.Parse(hitbox["targetLayers"], "slash hitbox.targetLayers");
         FollowCaster = Boolean(hitbox, "followCaster", false); HitTriggers = Boolean(hitbox, "hitTriggers", false);
         SampleInterval = Number(hitbox, "sampleInterval", .004f);
         if (SampleInterval <= 0f || (WindowEnd - WindowStart) / SampleInterval > 4096f)

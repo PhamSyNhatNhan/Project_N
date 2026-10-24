@@ -29,7 +29,7 @@ public sealed class PNToolkitSupportBehavior : PNEnemyBehavior
     }
     public override void Enter()
     {
-        agent = new PNEnemyAgentContext(Context, actor => actor.CombatTeam != Context.Stat.CombatTeam);
+        agent = new PNEnemyAgentContext(Context, actor => Context.Stat.Targets(actor));
         movementSlot = Context.Own(new PNAgentOwnedSlot<PNMovementTask>());
         sensor = Context.Own(new PNAgentPerception(agent, new PNPerceptionSettings()));
         utility = new PNUtilitySelector(new[] {
@@ -39,9 +39,9 @@ public sealed class PNToolkitSupportBehavior : PNEnemyBehavior
         });
         if (groups != null)
             member = Context.Own(groups.Join(agent, EveId.Parse("project_n:support_example"), groupInstance,
-                (a, b) => a.CombatTeam == b.CombatTeam));
+                (a, b) => a.Layer == b.Layer));
     }
-    private bool CanSupport() => ally != null && ally.TryResolve(out var actor) && actor.CombatTeam == Context.Stat.CombatTeam &&
+    private bool CanSupport() => ally != null && ally.TryResolve(out var actor) && actor.Layer == Context.Stat.Layer &&
         actor.GetCurrent(PNContentIds.Health) < actor.Evaluate(PNContentIds.Health) * .8 && Context.Abilities.GetCooldown(PNAgentToolkitContent.SupportReady).CanConsume();
     public override void Tick(float delta)
     {

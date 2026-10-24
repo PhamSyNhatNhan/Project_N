@@ -67,7 +67,7 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable
     }
     public bool TryGetTarget(out PNStat result) => target.TryGet(World, out result);
     // Nearest live target of this projectile's world within the radius on the launch target layers (from the manager candidate list).
-    protected PNStat FindNearestTarget(float radius) => Manager == null ? null : Manager.FindNearest(World, position, radius, Launch.TargetMask);
+    protected PNStat FindNearestTarget(float radius) => Manager == null ? null : Manager.FindNearest(World, position, radius, Launch.TargetLayers.Mask);
     public void SetTarget(PNStat value) => target = new PNProjectileTarget(value);
 
     internal void Bind(PNProjectileManager manager, PNProjectileHandle handle, PNProjectileDefinition definition, PNProjectileLaunch launch, PNProjectileSpawn spawn, EveWorldContext world)
@@ -131,7 +131,7 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable
         if (candidates == null || candidates.Count == 0) return;
         using (EveHotPathMetrics.Measure("projectile.targets"))
         {
-            int mask = Launch.TargetMask; float radius = HalfExtents.magnitude; var items = candidates.RawItems;
+            int mask = Launch.TargetLayers.Mask; float radius = HalfExtents.magnitude; var items = candidates.RawItems;
             float sx = segment.x, sy = segment.y, sz = segment.z;
             // Only candidates near the step (spatial hash on XZ), then a scalar coarse test: the segment must pass within the two bounding radii.
             int n = candidates.Query(Mathf.Min(from.x, to.x), Mathf.Min(from.z, to.z), Mathf.Max(from.x, to.x), Mathf.Max(from.z, to.z), radius, out var indices);
@@ -176,9 +176,9 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable
         if (target == null || !IsRunning || ending || Manager == null) return null;
         if (!target.IsReady || !target.gameObject.activeInHierarchy || PNProjectileTargets.IsDead(target) || !PNWorldGameplay.CanExecute(target) ||
             !ReferenceEquals(target.GetComponent<EveEntityIdentity>()?.World, World)) return null;
-        // EN: A Player/Enemy projectile passes through targets that are not hostile to its captured team (not counted as a hit); Neutral keeps the layer-mask rule.
-        // VI: Đạn phe Player/Enemy xuyên qua mục tiêu không thù địch với phe đã chụp (không tính là một lần trúng); Neutral giữ luật theo layer mask.
-        if (Launch.Team != PNCombatTeam.Neutral && !target.IsHostileToTeam(Launch.Team)) return null;
+        // EN: A projectile never hits its own shooter, even when the shooter's layer is among the targeted ones (friendly fire covers the others).
+        // VI: Đạn không bao giờ trúng chính người bắn, kể cả khi layer của người bắn nằm trong các layer nhắm tới (bắn nhầm đồng minh chỉ áp cho người khác).
+        if (target.EntityId == Launch.SourceId) return null;
         var result = new PNProjectileHitResult { Target = target, HitIndex = HitCount };
         HitCount++;
         if (Launch.Damage != null)

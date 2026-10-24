@@ -9,9 +9,9 @@ public sealed class PNCombatSource : PNSource
     private readonly WeakReference<EveEntityLoader> owner;
     private readonly long generation, loadId;
     public PNCombatSourceSnapshot Snapshot { get; }
-    // EN: Team of the shooting entity, captured once with the source; Neutral for system sources built with System.
-    // VI: Phe của entity bắn, chụp một lần cùng nguồn; Neutral cho nguồn hệ thống dựng bằng System.
-    public PNCombatTeam Team { get; }
+    // EN: Layers the source entity targets, captured once with the source (immutable, shared); None for system sources built without them.
+    // VI: Các layer entity nguồn nhắm tới, chụp một lần cùng nguồn (bất biến, chia sẻ); None cho nguồn hệ thống dựng không kèm.
+    public PNTargetLayers TargetLayers { get; }
     public PNStat Live
         => GetLive(false);
     // DOT may keep reading a loaded dead source, without relaxing ordinary combat APIs.
@@ -24,13 +24,13 @@ public sealed class PNCombatSource : PNSource
         try { return loader.SessionId == SessionId && loader.LoadContext.Identity.Id == EntityId && (allowDead || !target.IsDead) ? target : null; }
         catch (InvalidOperationException) { return null; }
     }
-    private PNCombatSource(Guid sessionId, EveEntityId entityId, PNCombatTeam team) : base(sessionId, entityId)
-    { if (!Enum.IsDefined(typeof(PNCombatTeam), team)) throw new ArgumentOutOfRangeException(nameof(team)); Team = team; }
+    private PNCombatSource(Guid sessionId, EveEntityId entityId, PNTargetLayers targetLayers) : base(sessionId, entityId)
+    { TargetLayers = targetLayers ?? PNTargetLayers.None; }
     // EN: Combat source without stats (world/system effects): no Snapshot, no Live. Paths that need stats reject it.
     // VI: Nguồn chiến đấu không có stat (hiệu ứng thế giới/hệ thống): không Snapshot, không Live. Đường cần stat sẽ từ chối.
-    public static PNCombatSource System(Guid sessionId, EveEntityId entityId, PNCombatTeam team = PNCombatTeam.Neutral)
-        => new PNCombatSource(sessionId, entityId, team);
-    private PNCombatSource(PNStat source) : this(source.SessionId, source.EntityId, source.CombatTeam)
+    public static PNCombatSource System(Guid sessionId, EveEntityId entityId, PNTargetLayers targetLayers = null)
+        => new PNCombatSource(sessionId, entityId, targetLayers);
+    private PNCombatSource(PNStat source) : this(source.SessionId, source.EntityId, source.TargetLayers)
     { Snapshot = source.CaptureCombatSource(); live = new WeakReference<PNStat>(source); var loader = source.GetComponent<EveEntityLoader>(); if (loader != null && loader.LoadContext != null) { owner = new WeakReference<EveEntityLoader>(loader); generation = loader.Generation; loadId = loader.LoadContext.LoadId; } }
     public static PNCombatSource Capture(PNStat source)
     { if (source == null) throw new ArgumentNullException(nameof(source)); return new PNCombatSource(source); }

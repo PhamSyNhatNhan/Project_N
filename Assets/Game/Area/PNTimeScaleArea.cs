@@ -14,7 +14,7 @@ public sealed class PNTimeScaleAreaSettings
     public PNTimeScaleAreaSettings(JToken token)
     {
         var obj = PNBuffContentBatch.Object(token);
-        PNBuffContentBatch.Fields(obj, "radius", "reduction", "minimumReduction", "duration", "dependent", "layerMask", "layerMode");
+        PNBuffContentBatch.Fields(obj, "radius", "reduction", "minimumReduction", "duration", "dependent", "targetLayers", "layerMode");
         float Read(string name, bool positive = false)
         {
             double value = PNBuffContentBatch.Number(obj, name);
@@ -29,7 +29,7 @@ public sealed class PNTimeScaleAreaSettings
         if (Duration.HasValue) PNBuffCollection.Seconds(Duration.Value, false);
         Dependent = PNBuffContentBatch.Bool(obj, "dependent");
         if (!Duration.HasValue && !Dependent) throw new FormatException("Permanent area requires dependency.");
-        Layers = PNBuffContentBatch.Integer(obj, "layerMask");
+        if (obj["targetLayers"] == null) throw new FormatException("Area targetLayers is required."); Layers = PNTargetLayers.Parse(obj["targetLayers"], "area.targetLayers").Mask;
         string mode = PNBuffContentBatch.String(obj, "layerMode");
         if (mode != "Include" && mode != "Exclude") throw new FormatException("Area layerMode must be Include or Exclude.");
         Exclude = mode == "Exclude";
@@ -166,7 +166,7 @@ public class PNTimeScaleArea : PNAreaInstance
             // Only root body colliders participate, not children/hitboxes.
             var target = collider != null ? collider.GetComponent<PNStat>() : null;
             if (!ValidEntity(target) || !ReferenceEquals(target.GetComponent<EveEntityIdentity>()?.World,World)) continue;
-            bool selected = (settings.Layers & (1 << target.gameObject.layer)) != 0;
+            bool selected = PNLayers.Contains(settings.Layers, target.gameObject.layer);
             if (selected == settings.Exclude) continue;
             var clock = target.GetComponent<EveTimeScale>(); var buffs = target.GetComponent<PNBuffManager>();
             if (clock == null || !clock.isActiveAndEnabled || buffs == null || !buffs.IsReady) continue;
@@ -191,8 +191,7 @@ public class PNTimeScaleArea : PNAreaInstance
     private void PollProjectiles()
     {
         projectileInside.Clear();
-        int layer = LayerMask.NameToLayer("Projectile");
-        bool selected = layer >= 0 && (settings.Layers & (1 << layer)) != 0;
+        bool selected = PNLayers.Contains(settings.Layers, PNLayers.Projectile);
         if (projectiles != null && selected != settings.Exclude)
         {
             projectileHits.Clear(); projectiles.QueryRunning(World, transform.position, settings.Radius, projectileHits);

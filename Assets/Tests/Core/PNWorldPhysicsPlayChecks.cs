@@ -104,7 +104,7 @@ public sealed class PNWorldPhysicsPlayChecks : MonoBehaviour
         var buffs=player.GetComponent<PNBuffManager>();var buff=buffs.Buffs.Apply(new PNBuffApplyRequest(EveId.Parse("base:buff_stat_template"),PNCombatSource.Capture(player.GetComponent<PNStat>())));
         Check(buff.Handle.IsAlive,"registered Buff applied before pause");
         var areas=runtime.GetComponent<PNAreaManager>();
-        var area=areas.Create(new PNAreaCreateRequest(EveId.Parse("base:timescale_area"),JObject.Parse("{'radius':2,'reduction':0.2,'minimumReduction':0.1,'duration':10,'dependent':true,'layerMask':-1,'layerMode':'Include'}"),PNCombatSource.Capture(player.GetComponent<PNStat>()),b.PhysicsOwner,player.Body.position,player.GetComponent<PNStat>()));
+        var area=areas.Create(new PNAreaCreateRequest(EveId.Parse("base:timescale_area"),JObject.Parse("{'radius':2,'reduction':0.2,'minimumReduction':0.1,'duration':10,'dependent':true,'targetLayers':[],'layerMode':'Exclude'}"),PNCombatSource.Capture(player.GetComponent<PNStat>()),b.PhysicsOwner,player.Body.position,player.GetComponent<PNStat>()));
         Check(area.Status==PNAreaStatus.Created,"world-owned Area created");
         double cooldown=skill.DashRecovery.CooldownRemaining;double time=b.GameplayTime;var position=player.Body.position;ulong steps=b.PhysicsSteps;int modifiers=clock.Modifiers.Count;
         b.SetPaused(true);yield return new WaitForSecondsRealtime(.35f);

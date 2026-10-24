@@ -31,7 +31,7 @@ public static class EveMovesetEditorChecks
             var root = new GameObject(name); root.SetActive(false); SceneManager.MoveGameObjectToScene(root, preview);
             root.transform.position = position;
             root.AddComponent<EveEntityIdentity>().Assign(new EveEntityId(++id), EveId.Parse(character), 1);
-            var stat = root.AddComponent<T>();
+            var stat = root.AddComponent<T>(); stat.gameObject.layer = stat is PNEnemyStat ? PNLayers.Enemy : stat is PNPlayerStat ? PNLayers.Player : stat.gameObject.layer;
             if (character == "project_n:eve")
             {
                 root.AddComponent<Rigidbody>().useGravity = false;

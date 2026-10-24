@@ -46,7 +46,7 @@ public static class PNProjectileGroundEditorChecks
             var plain = Fixture("default floor"); plain.layer = 0; plain.transform.position = new Vector3(0, -.5f, 100); plain.AddComponent<BoxCollider>().size = new Vector3(40, 1, 40);
             Physics.SyncTransforms();
             PNProbeProjectile.Reset();
-            PNProjectileReceipt Fire(string id, Vector3 position) => manager.Create(new PNProjectileLaunch(EveId.Parse(id), null, source, 1 << 7), new PNProjectileSpawn(preview, position, Vector3.right));
+            PNProjectileReceipt Fire(string id, Vector3 position) => manager.Create(new PNProjectileLaunch(EveId.Parse(id), null, source, PNTargetLayers.Of(PNLayers.Enemy)), new PNProjectileSpawn(preview, position, Vector3.right));
             var falling = Fire("test:ground_fall", new Vector3(0, 2, 0)); var passing = Fire("test:ground_pass", new Vector3(0, 2, 0));
             var overDefault = Fire("test:ground_fall", new Vector3(0, 2, 100));
             for (int i = 0; i < 25; i++) manager.Advance(.05f);

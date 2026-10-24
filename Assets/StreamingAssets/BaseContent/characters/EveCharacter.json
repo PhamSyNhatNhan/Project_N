@@ -947,7 +947,6 @@
                   "spread": 30,
                   "pitches": [0, 30, 0],
                   "aimRadius": 8,
-                  "layerMask": 128,
                   "damage": {
                     "value": { "amount": 150, "statId": "base:attack_power" },
                     "canCrit": true,
@@ -1084,7 +1083,7 @@
                     "minimumReduction": 0.9,
                     "duration": 15,
                     "dependent": false,
-                    "layerMask": 384,
+                    "targetLayers": ["Enemy", "Projectile"],
                     "layerMode": "Include"
                   }
                 }

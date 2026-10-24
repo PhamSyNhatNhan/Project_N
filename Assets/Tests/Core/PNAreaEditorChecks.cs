@@ -51,13 +51,13 @@ public static class PNAreaEditorChecks
         void Check(bool ok, string name) { if (!ok) throw new Exception(name); checks++; evidence.Add("PASS " + name); }
         PNStat Entity(long id, Vector3 position)
         {
-            var go = new GameObject("Area fixture " + id); go.SetActive(false); SceneManager.MoveGameObjectToScene(go, scene); go.layer = 31; go.transform.position = position;
+            var go = new GameObject("Area fixture " + id); go.SetActive(false); SceneManager.MoveGameObjectToScene(go, scene); go.layer = PNLayers.Void; go.transform.position = position;
             go.AddComponent<EveEntityIdentity>().Assign(new EveEntityId(id), EveId.Parse("project_n:dummy"), 0);
             go.AddComponent<CapsuleCollider>().height = 1; go.AddComponent<EveTimeScale>();
             var stat = go.AddComponent<PNEnemyStat>(); go.AddComponent<EveEntityLoader>().Load(hub); go.SetActive(true); go.GetComponent<PNBuffManager>().Advance(0); return stat;
         }
         JObject Input(double? duration = 2, bool dependent = false, double reduction = .5, double minimum = .2)
-            => new JObject { ["radius"] = 2, ["reduction"] = reduction, ["minimumReduction"] = minimum, ["duration"] = duration.HasValue ? new JValue(duration.Value) : JValue.CreateNull(), ["dependent"] = dependent, ["layerMask"] = 1 << 31, ["layerMode"] = "Include" };
+            => new JObject { ["radius"] = 2, ["reduction"] = reduction, ["minimumReduction"] = minimum, ["duration"] = duration.HasValue ? new JValue(duration.Value) : JValue.CreateNull(), ["dependent"] = dependent, ["targetLayers"] = new JArray("Void"), ["layerMode"] = "Include" };
         try
         {
             Check(jsonHub.Instances().Get(EveId.Parse("area_test:json")) != null, "Area JSON derivation with same-batch Buff reference");
@@ -98,12 +98,12 @@ public static class PNAreaEditorChecks
             using (buffs.Immune(tags: new[] { EveId.Parse("base:timescale") }, purge: true))
             { areas.Advance(.051f); Check(buffs.Snapshot().Count == 0 && clock.Scale == 1, "Immunity leaves area membership waiting"); }
             areas.Advance(.051f); Check(buffs.Snapshot().Count == 1, "Immunity revoked then area regrants");
-            target.gameObject.layer = 30; areas.Advance(.051f); Check(buffs.Snapshot().Count == 0, "Dynamic root layer removes Buff"); target.gameObject.layer = 31;
+            target.gameObject.layer = PNLayers.Boundary; areas.Advance(.051f); Check(buffs.Snapshot().Count == 0, "Dynamic root layer removes Buff"); target.gameObject.layer = PNLayers.Void;
             target.transform.position = new Vector3(2.4f, 0, 0); Physics.SyncTransforms(); areas.Advance(.051f); Check(buffs.Snapshot().Count == 1, "Collider intersection admits center outside sphere");
             target.transform.position = new Vector3(4, 0, 0); Physics.SyncTransforms(); areas.Advance(.051f); Check(buffs.Snapshot().Count == 0, "Exit removes Buff");
             target.transform.position = Vector3.zero; Physics.SyncTransforms();
             reused.Handle.End(); areas.Advance(.31f);
-            var excluded = Input(); excluded["layerMode"] = "Exclude"; excluded["layerMask"] = 1 << 30;
+            var excluded = Input(); excluded["layerMode"] = "Exclude"; excluded["targetLayers"] = new JArray("Boundary");
             var exclusion = Spawn(excluded); Check(clock.Scale == .5f, "Exclude mask admits all other root layers"); exclusion.Handle.End(); areas.Advance(.31f);
             var failed = areas.Create(new PNAreaCreateRequest(EveId.Parse("area_test:fail"), new JObject(), capture, scene, Vector3.zero));
             Check(failed.Status == PNAreaStatus.Failed && areas.BorrowedCount == 0 && PNAreaFailureProbe.Cleanups > 0, "Generic implementation initialization failure cleaned and returned");
@@ -131,12 +131,12 @@ public static class PNAreaEditorChecks
             var child = new GameObject("Trigger child"); child.transform.SetParent(target.transform, false); child.AddComponent<SphereCollider>().isTrigger = true;
             var own = Spawn(); Check(buffs.Snapshot().Count == 1, "Trigger child does not duplicate entity");
             areas.Advance(.2f);
-            foreach (var region in scene.GetRootGameObjects().SelectMany(x => x.GetComponentsInChildren<PNTimeScaleArea>(true))) region.gameObject.layer = 31;
+            foreach (var region in scene.GetRootGameObjects().SelectMany(x => x.GetComponentsInChildren<PNTimeScaleArea>(true))) region.gameObject.layer = PNLayers.Void;
             // High contrast opaque backdrop verifies world/depth mask in actual URP frames.
             material = new Material(Shader.Find("Universal Render Pipeline/Unlit")); material.SetColor("_BaseColor", new Color(.6f, .75f, .65f));
-            var backdrop = GameObject.CreatePrimitive(PrimitiveType.Cube); SceneManager.MoveGameObjectToScene(backdrop, scene); backdrop.layer = 31; backdrop.transform.position = new Vector3(0, 0, 3); backdrop.transform.localScale = new Vector3(12, 8, .2f); backdrop.GetComponent<Renderer>().sharedMaterial = material;
+            var backdrop = GameObject.CreatePrimitive(PrimitiveType.Cube); SceneManager.MoveGameObjectToScene(backdrop, scene); backdrop.layer = PNLayers.Void; backdrop.transform.position = new Vector3(0, 0, 3); backdrop.transform.localScale = new Vector3(12, 8, .2f); backdrop.GetComponent<Renderer>().sharedMaterial = material;
             UnityEngine.Object.DestroyImmediate(backdrop.GetComponent<Collider>());
-            var cameraRoot = new GameObject("Area capture camera"); SceneManager.MoveGameObjectToScene(cameraRoot, scene); var camera = cameraRoot.AddComponent<Camera>(); camera.enabled = false; camera.scene = scene; camera.cullingMask = 1 << 31; camera.orthographic = true; camera.orthographicSize = 3.2f; camera.transform.position = new Vector3(0, 0, -8); camera.clearFlags = CameraClearFlags.SolidColor;
+            var cameraRoot = new GameObject("Area capture camera"); SceneManager.MoveGameObjectToScene(cameraRoot, scene); var camera = cameraRoot.AddComponent<Camera>(); camera.enabled = false; camera.scene = scene; camera.cullingMask = 1 << PNLayers.Void; camera.orthographic = true; camera.orthographicSize = 3.2f; camera.transform.position = new Vector3(0, 0, -8); camera.clearFlags = CameraClearFlags.SolidColor;
             cameraRoot.AddComponent<UniversalAdditionalCameraData>(); rt = new RenderTexture(960, 640, 24); rt.Create(); camera.targetTexture = rt; image = new Texture2D(960, 640, TextureFormat.RGB24, false);
             Directory.CreateDirectory(".utmp/AreaReview");
             void Capture(string name)
@@ -144,7 +144,7 @@ public static class PNAreaEditorChecks
             Check(!ShaderUtil.ShaderHasError(Resources.Load<Shader>("PNVfx/TimeScaleArea")), "Area shader compiled");
             Capture("Sphere"); var center = image.GetPixel(480, 320); var outside = image.GetPixel(40, 320);
             Check(center.g < outside.g * .9f && center.b > center.g, "Actual sphere localized purple mask");
-            var overlap = Spawn(); areas.Advance(.15f); foreach (var region in scene.GetRootGameObjects().SelectMany(x => x.GetComponentsInChildren<PNTimeScaleArea>(true))) region.gameObject.layer = 31;
+            var overlap = Spawn(); areas.Advance(.15f); foreach (var region in scene.GetRootGameObjects().SelectMany(x => x.GetComponentsInChildren<PNTimeScaleArea>(true))) region.gameObject.layer = PNLayers.Void;
             Capture("Overlap"); var doubled = image.GetPixel(480, 320); Check(Math.Abs(doubled.g - center.g) < .03f, "Identical sphere overlap does not accumulate color");
             var secondRegion = scene.GetRootGameObjects().SelectMany(x => x.GetComponentsInChildren<PNTimeScaleArea>(true)).First(x => x.Handle.InstanceId == overlap.Handle.InstanceId);
             secondRegion.transform.position = Vector3.right * 2; Capture("Intersecting");
@@ -152,7 +152,7 @@ public static class PNAreaEditorChecks
             secondRegion.transform.position = Vector3.zero; camera.orthographic = false; camera.transform.position = Vector3.zero; Capture("CameraInside");
             Check(image.GetPixel(480, 320).b > image.GetPixel(480, 320).g, "Camera inside sphere receives volume effect");
             camera.orthographic = true; camera.transform.position = new Vector3(0, 0, -8);
-            var foreground = GameObject.CreatePrimitive(PrimitiveType.Cube); SceneManager.MoveGameObjectToScene(foreground, scene); foreground.layer = 31; foreground.transform.position = new Vector3(0, 0, -4); foreground.transform.localScale = Vector3.one; foreground.GetComponent<Renderer>().sharedMaterial = material;
+            var foreground = GameObject.CreatePrimitive(PrimitiveType.Cube); SceneManager.MoveGameObjectToScene(foreground, scene); foreground.layer = PNLayers.Void; foreground.transform.position = new Vector3(0, 0, -4); foreground.transform.localScale = Vector3.one; foreground.GetComponent<Renderer>().sharedMaterial = material;
             Capture("ForegroundOcclusion"); Check(image.GetPixel(480, 320).g > center.g * 1.1f, "Opaque foreground in front of sphere remains unaffected"); UnityEngine.Object.DestroyImmediate(foreground);
             own.Handle.End(); overlap.Handle.End(); areas.Advance(.15f); Capture("Fade"); areas.Advance(.2f);
             Capture("Cleared"); Check(PNTimeScaleAreaRendering.RegisteredCount == 0 && clock.Scale == 1, "All pooled visual registrations retired");

@@ -28,7 +28,7 @@ Cấu hình hiện tại nằm trong
     "radius": 0.6, "innerRadius": 0, "angle": 100, "thickness": 0.4,
     "forwardOffset": 0.15, "verticalOffset": 0.18,
     "windowStart": 0.06, "windowEnd": 0.20,
-    "layerMask": -1, "followCaster": false, "hitTriggers": false
+    "targetLayers": ["Projectile"], "followCaster": false, "hitTriggers": false
   }
 }
 ```
@@ -41,7 +41,7 @@ Cấu hình hiện tại nằm trong
 | hitbox.radius/innerRadius/angle/thickness | Sector XZ, độ dày Y; giữa góc theo hướng skill |
 | hitbox.forwardOffset/verticalOffset | Offset theo hướng chém và world Y |
 | hitbox.windowStart/windowEnd | Giây kể từ Perform, trong duration; Start < End |
-| hitbox.layerMask | Mask collider; -1 dò tất cả layer, sau đó lọc entity/phe |
+| hitbox.targetLayers | Tùy chọn: mảng tên layer có thứ tự, được **thêm** vào `TargetLayers` của người chém (ví dụ `["Projectile"]`); vắng = chỉ `TargetLayers` của người chém. Truy vấn collider luôn dò mọi layer rồi lọc theo layer của entity (`layerMask` cũ bị từ chối) |
 | hitbox.hitTriggers | false bỏ trigger, true gồm trigger |
 | hitbox.followCaster | false giữ vị trí lúc Perform; true theo vị trí caster nhưng giữ aim lúc Perform |
 
@@ -55,10 +55,11 @@ Damage và outgoing bonus chụp một lần lúc Perform; buff sau đó không 
 của cast đang chạy. DEF/mitigation của receiver áp tại thời điểm nhận. Results và
 Damage có thể đọc từ PNSlashAction sau Dispose để kiểm tra kết quả.
 
-Phe ban đầu ở Core: PNPlayerStat=Player, PNEnemyStat=Enemy, PNStat=Neutral.
-`PNStat.IsHostileTo` mặc định chỉ coi hai phe khác nhau và khác Neutral là đối địch.
-Mod/nhân vật có thể override CombatTeam/IsHostileTo; operation có CanHit virtual.
-Self, chết, inactive, chưa Ready, khác session và collider không thuộc entity đều bị lọc.
+Không còn phe: một entity bị trúng khi layer của nó nằm trong `TargetLayers` của người chém
+(mặc định PNPlayerStat → Enemy, PNEnemyStat → Player, PNStat → không layer nào; có thể ghi đè bằng
+`combat.targetLayers` trong dữ liệu character và Buff chồng thêm layer bằng lease) hoặc trong
+`hitbox.targetLayers`; layer của người chém nằm trong tập thì trúng đồng minh nhưng không trúng chính nó.
+Operation có CanHit virtual. Self, chết, inactive, chưa Ready, khác session và collider không thuộc entity đều bị lọc.
 
 Host/offline mới tạo/query cast và áp damage. Client chạy VFX/lock nhưng không tự
 gây damage; hệ transport/replication damage chưa được thêm trong thay đổi này.
@@ -82,5 +83,5 @@ PhysX bằng stub không gây damage; combat không được chứng minh bằng
 Chưa kiểm chứng build player/Play Mode performance hoặc network replication.
 
 EN: Slash now has a data-defined sector hit window and once-per-entity damage.
-Skill supplies captured aim, Perform snapshots damage, Core resolves entity/team
+Skill supplies captured aim, Perform snapshots damage, Core resolves entity/target-layer
 eligibility, and host/offline applies HP changes. Visuals remain independent.

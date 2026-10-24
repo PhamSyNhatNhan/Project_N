@@ -46,7 +46,7 @@ public sealed class PNTimeScaleVisualPlayReview : MonoBehaviour
         sourceRoot = new GameObject("Visual Play fixture source"); sourceRoot.SetActive(false); sourceRoot.transform.position = new Vector3(500,5,500);
         sourceRoot.AddComponent<EveEntityIdentity>().Assign(new EveEntityId(992101), EveId.Parse("project_n:dummy"), 0);
         var sourceClock = sourceRoot.AddComponent<EveTimeScale>(); var source = sourceRoot.AddComponent<PNEnemyStat>(); sourceRoot.AddComponent<EveEntityLoader>().Load(EveRegistrySession.Current); sourceRoot.SetActive(true);
-        var input = JObject.Parse("{'radius':2.5,'reduction':0.9,'minimumReduction':0.9,'duration':15,'dependent':false,'layerMask':0,'layerMode':'Include'}");
+        var input = JObject.Parse("{'radius':2.5,'reduction':0.9,'minimumReduction':0.9,'duration':15,'dependent':false,'targetLayers':[],'layerMode':'Include'}");
         var capture = PNCombatSource.Capture(source);
         var first = manager.Create(new PNAreaCreateRequest(EveId.Parse("base:timescale_area"), input, capture, gameObject.scene, sourceRoot.transform.position));
         Check(first.Status == PNAreaStatus.Created, "Actual Play pooled particle region created");

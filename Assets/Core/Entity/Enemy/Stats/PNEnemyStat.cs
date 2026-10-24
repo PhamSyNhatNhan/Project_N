@@ -11,7 +11,7 @@ public class PNEnemyStat : PNStat
     public PNEnemyTypeDefinition EnemyType => IsReady && enemyType != null ? enemyType
         : throw new InvalidOperationException("Enemy classification requires initialized character content.");
     public EveId EnemyTypeId => EnemyType.Id;
-    public override PNCombatTeam CombatTeam => PNCombatTeam.Enemy;
+    protected override PNTargetLayers DefaultTargetLayers => PNTargetLayers.Of(PNLayers.Player);
 
     public override void Initialize(EveCharacterDefinition character, EveRegistryHub registry)
     {

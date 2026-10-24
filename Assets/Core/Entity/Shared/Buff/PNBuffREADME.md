@@ -542,7 +542,7 @@ PNStat protects these sources from floor-local cleanup and excludes them from
 persistent transfer snapshots. Game modes decide Buff retention/removal; restoring
 Buffs on a new entity is a separate game-mode task, not automatically serialized.
 
-PNCombatSource (a PNSource: session + entity ID) captures team and optional weak live access plus immutable
+PNCombatSource (a PNSource: session + entity ID) captures target layers and optional weak live access plus immutable
 PNCombatSourceSnapshot. Snapshot clones base values, modifiers and resource currents,
 uses selected registered calculation logic, and never reads a destroyed component.
 It can create packets after source death/unload while the original session remains

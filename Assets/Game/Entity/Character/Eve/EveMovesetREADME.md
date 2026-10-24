@@ -336,7 +336,7 @@ recovery progress, and rejects an evaluated distance above its registered maximu
 Eve's registered `base:eve_dash` motion distance is2 units (duration .16 unchanged).
 Its registered OnComplete Operation effect uses Position=Self and base:create_area:
 radius2.5, Game duration15, reduction.9, minimumReduction.9, fixed center,
-independent lifetime, Include layerMask128 (Enemy layer7). Each completed Dash
+independent lifetime, Include targetLayers ["Enemy","Projectile"] (layers 7 and 8). Each completed Dash
 creates one instance at actual physics endpoint, including wall clipping. Cancelled
 or rejected Dash does not create a field. Regions survive source unload/death and
 expire by Game time; Eve/Player layers are excluded. Two overlapping fields can

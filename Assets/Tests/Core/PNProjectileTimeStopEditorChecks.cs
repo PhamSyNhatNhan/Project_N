@@ -26,16 +26,16 @@ public static class PNProjectileTimeStopEditorChecks
         try
         {
             EveRegistrySession.Begin(); EveRegistrySession.Start(hub, EveSessionRole.Offline, EveContentCompatibility.Create(hub, docs, "test:projectile_timestop"));
-            var session = EveRegistrySession.Context; var source = PNCombatSource.System(session.SessionId, new EveEntityId(993001)); int enemy = 1 << 7;
+            var session = EveRegistrySession.Context; var source = PNCombatSource.System(session.SessionId, new EveEntityId(993001));
             GameObject Fixture(string name) { var obj = new GameObject(name); SceneManager.MoveGameObjectToScene(obj, preview); fixtures.Add(obj); return obj; }
             projectiles = Fixture("Projectile manager").AddComponent<PNProjectileManager>(); projectiles.Initialize(session, new PNProjectileProfile { MaxActive = 20 });
             areas = Fixture("Area manager").AddComponent<PNAreaManager>(); areas.Initialize(session);
             int projectileLayer = LayerMask.NameToLayer("Projectile");
             Check(projectileLayer == 8, "the Projectile layer exists");
-            PNProjectileReceipt Fire(Vector3 position, string id = "test:hit_once") => projectiles.Create(new PNProjectileLaunch(EveId.Parse(id), null, source, enemy), new PNProjectileSpawn(preview, position, Vector3.right));
-            PNAreaReceipt Area(Vector3 position, double reduction, int layerMask = 0, string mode = "Exclude", double radius = 3)
+            PNProjectileReceipt Fire(Vector3 position, string id = "test:hit_once") => projectiles.Create(new PNProjectileLaunch(EveId.Parse(id), null, source, PNTargetLayers.Of(PNLayers.Enemy)), new PNProjectileSpawn(preview, position, Vector3.right));
+            PNAreaReceipt Area(Vector3 position, double reduction, string layers = "", string mode = "Exclude", double radius = 3)
                 => areas.Create(new PNAreaCreateRequest(EveId.Parse("base:timescale_area"),
-                    JObject.Parse("{'radius':" + radius + ",'reduction':" + reduction + ",'minimumReduction':0,'duration':20,'dependent':false,'layerMask':" + layerMask + ",'layerMode':'" + mode + "'}"), source, preview, position));
+                    JObject.Parse("{'radius':" + radius + ",'reduction':" + reduction + ",'minimumReduction':0,'duration':20,'dependent':false,'targetLayers':[" + layers + "],'layerMode':'" + mode + "'}"), source, preview, position));
             PNProjectileClock Clock(PNProjectileReceipt receipt) { Check(projectiles.TryGetClock(receipt.Handle, out var clock), "a running projectile exposes its clock"); return clock; }
             Vector3 Where(PNProjectileReceipt receipt) => projectiles.Get(receipt.Handle).Position;
             void Tick(int n, float step = .05f) { for (int i = 0; i < n; i++) { areas.Advance(step); projectiles.Advance(step); } }
@@ -67,11 +67,11 @@ public static class PNProjectileTimeStopEditorChecks
             half2.Handle.End(); stacked.Handle.End(); Tick(1);
 
             // The area's layer rule treats projectiles as the Projectile layer.
-            var guarded = Fire(new Vector3(0, 0, 50)); var excluded = Area(new Vector3(0, 0, 50), 1, 1 << projectileLayer, "Exclude"); Tick(1);
+            var guarded = Fire(new Vector3(0, 0, 50)); var excluded = Area(new Vector3(0, 0, 50), 1, "'Projectile'", "Exclude"); Tick(1);
             Check(Clock(guarded).Scale == 1f, "an area that excludes the Projectile layer leaves projectiles alone");
-            excluded.Handle.End(); var included = Area(new Vector3(0, 0, 50), 1, 1 << projectileLayer, "Include"); Tick(1);
+            excluded.Handle.End(); var included = Area(new Vector3(0, 0, 50), 1, "'Projectile'", "Include"); Tick(1);
             Check(Clock(guarded).Scale == 0f, "an area that includes the Projectile layer stops projectiles");
-            var onlyEnemies = Area(new Vector3(0, 0, 70), 1, 1 << 7, "Include"); var elsewhere = Fire(new Vector3(0, 0, 70)); Tick(1);
+            var onlyEnemies = Area(new Vector3(0, 0, 70), 1, "'Enemy'", "Include"); var elsewhere = Fire(new Vector3(0, 0, 70)); Tick(1);
             Check(Clock(elsewhere).Scale == 1f, "an area limited to other layers does not touch projectiles");
             onlyEnemies.Handle.End(); included.Handle.End(); guarded.Handle.End(); elsewhere.Handle.End(); Tick(1);
 
