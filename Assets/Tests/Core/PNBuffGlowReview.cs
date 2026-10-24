@@ -42,7 +42,7 @@ public sealed class PNBuffGlowReview : MonoBehaviour
         Log("hall ready=" + ready); if (!ready) { Finish("NOT-ready"); yield break; }
         yield return new WaitForSeconds(2f);
         var ui = FindObjectsByType<PNUiRuntime>(FindObjectsSortMode.None).First(); var player = ui.HudPlayer;
-        var buffs = player.GetComponent<PNBuffManager>().Buffs; var source = PNBuffSource.Capture(player);
+        var buffs = player.GetComponent<PNBuffManager>().Buffs; var source = PNCombatSource.Capture(player);
         var ids = new[] { "burn", "frostbite", "electrocution", "fire_vulnerability", "ice_vulnerability", "lightning_vulnerability" };
         foreach (var id in ids) { try { buffs.Apply(new PNBuffApplyRequest(EveId.Parse("project_n:" + id), source, null)); } catch (Exception e) { Log("apply " + id + " failed: " + e.Message); fails++; } }
         try { buffs.Apply(new PNBuffApplyRequest(EveId.Parse("project_n:timescale_reduction_area"), source, new JObject { { "reduction", 0 }, { "minimumReduction", 0 } })); } catch (Exception e) { Log("apply fallback failed: " + e.Message); fails++; }

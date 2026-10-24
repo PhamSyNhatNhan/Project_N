@@ -42,7 +42,7 @@ public static class PNProjectileHomingEditorChecks
             shooterObject.AddComponent<EveEntityIdentity>().Assign(new EveEntityId(nextId++), EveId.Parse("project_n:eve"), 0);
             shooterObject.AddComponent<EveCharacterStat>(); shooterObject.AddComponent<PNAbilityManager>(); shooterObject.AddComponent<PNProjectileSkillProbe>();
             shooterObject.AddComponent<EveEntityLoader>().Load(hub); shooterObject.SetActive(true);
-            var source = PNBuffSource.Capture(shooterObject.GetComponent<PNStat>());
+            var source = PNCombatSource.Capture(shooterObject.GetComponent<PNStat>());
             var prepared = source.Snapshot.PrepareDamage(100, false, 0d, PNContentIds.True);
             PNProjectileReceipt Fire(PNProjectileManager m, string id, Vector3 position, Vector3 direction, PNStat target = null)
                 => m.Create(new PNProjectileLaunch(EveId.Parse(id), null, source, enemy, prepared), new PNProjectileSpawn(preview, position, direction, target));

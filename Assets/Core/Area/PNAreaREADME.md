@@ -63,7 +63,7 @@ var input = JObject.Parse(@"{
   'duration':15,'dependent':false,'layerMask':-1,'layerMode':'Include'
 }");
 var receipt = manager.Create(new PNAreaCreateRequest(
-    EveId.Parse("base:timescale_area"), input, PNBuffSource.Capture(caster),
+    EveId.Parse("base:timescale_area"), input, PNCombatSource.Capture(caster),
     caster.gameObject.scene, position, owner: caster));
 if (receipt.Status == PNAreaStatus.Created) {
     var handle = receipt.Handle;
@@ -91,7 +91,7 @@ Skill Action `base:area_action` executes registered Operation `base:create_area`
 
 The invocation must supply Position. `PNCreateAreaOperation.Result` is the receipt.
 Disposing/canceling the granting Operation does not cancel a manager-owned area.
-System callers may provide stable `PNBuffSource` attribution without fabricating a
+System callers may provide stable `PNCombatSource` attribution without fabricating a
 Skill context. Client gameplay creation is rejected; area replication is not implemented.
 
 ## Timescale area

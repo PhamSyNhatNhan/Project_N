@@ -50,7 +50,7 @@ public static class PNBuffTeardownEditorChecks
                     Reject(() => buffs.ReleaseOwned(default), "Client cannot gain cleanup authority through invalidation");
                     continue;
                 }
-                var source = new PNBuffSource(session.SessionId, stat.EntityId);
+                var source = PNCombatSource.System(session.SessionId, stat.EntityId);
                 var request = new PNBuffApplyRequest(EveId.Parse("base:timescale_reduction"), source,
                     JObject.Parse("{'reduction':0.5,'minimumReduction':0.2,'duration':20}"));
                 if (variant == 0)

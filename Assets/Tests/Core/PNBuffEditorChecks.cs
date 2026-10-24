@@ -81,7 +81,7 @@ public static class PNBuffEditorChecks
             var enemyBuffs = enemyRoot.GetComponent<PNBuffManager>().Buffs;
             var burnRoot = Entity("Burn isolated native source", 988004, "project_n:eve");
             var burnStat = burnRoot.AddComponent<EveCharacterStat>(); var burnLoader = burnRoot.AddComponent<EveEntityLoader>(); burnLoader.Load(hub);
-            var burnSource = PNBuffSource.Capture(burnStat); var burnId = EveId.Parse("base:burn");
+            var burnSource = PNCombatSource.Capture(burnStat); var burnId = EveId.Parse("base:burn");
             double sourceAttack = burnStat.Evaluate(PNContentIds.AttackPower);
             PNDamageResult lastBurn = null; int burnTicks = 0;
             Action<PNDamageResult> watchBurn = result => { lastBurn = result; burnTicks++; }; enemy.DamageReceived += watchBurn;
@@ -118,7 +118,7 @@ public static class PNBuffEditorChecks
                 foreach (var item in enemyBuffs.Snapshot()) enemyBuffs.Remove(item.Handle, PNBuffEndReason.Bypass, true);
                 if (burnRoot != null) UnityEngine.Object.DestroyImmediate(burnRoot);
             }
-            var source = PNBuffSource.Capture(stat); double attack = stat.Evaluate(PNContentIds.AttackPower);
+            var source = PNCombatSource.Capture(stat); double attack = stat.Evaluate(PNContentIds.AttackPower);
             var value = buffs.Apply(new PNBuffApplyRequest(EveId.Parse("base:buff_stat_template"), source));
             Check(value.Status == PNBuffStatus.Applied && stat.Evaluate(PNContentIds.AttackPower) == attack + 10, "Native Buff stat modifier.");
             buffs.Apply(new PNBuffApplyRequest(EveId.Parse("base:buff_stat_template"), source)); Check(buffs.Get(value.Handle).Stacks == 2 && stat.Evaluate(PNContentIds.AttackPower) == attack + 20, "Native stat reapply/stack.");
@@ -177,7 +177,7 @@ public static class PNBuffEditorChecks
             Check(live.Handle.IsAlive, "DOT keeps a loaded dead source and continues ticking.");
             loader.Unload(); hp = enemy.GetCurrent(PNContentIds.Health); enemyBuffs.Advance(1);
             Check(enemy.GetCurrent(PNContentIds.Health) < hp && source.LoadedSource == null, "DOT fallback remains valid after native source unload.");
-            loader.Load(hub); source = PNBuffSource.Capture(stat);
+            loader.Load(hub); source = PNCombatSource.Capture(stat);
             foreach (var item in enemyBuffs.Snapshot()) enemyBuffs.Remove(item.Handle, PNBuffEndReason.Bypass, true);
             var bomb = enemyBuffs.Apply(new PNBuffApplyRequest(EveId.Parse("base:buff_bomb_template"), source)); hp = enemy.GetCurrent(PNContentIds.Health); enemyBuffs.Remove(bomb.Handle);
             Check(enemy.GetCurrent(PNContentIds.Health) == hp, "Native bomb dispel skips expiration effect.");
@@ -185,7 +185,7 @@ public static class PNBuffEditorChecks
             Check(!bomb.Handle.IsAlive && enemy.GetCurrent(PNContentIds.Health) < hp, "Native bomb expires once through receive pipeline.");
             var packet = source.Snapshot.CreateHeal(5); hp = enemy.GetCurrent(PNContentIds.Health); loader.Unload(); enemy.ReceiveHeal(packet);
             Check(enemy.GetCurrent(PNContentIds.Health) > hp && packet.SourceId == new EveEntityId(988001), "Snapshot Heal uses original source attribution and actual receive calculation.");
-            loader.Load(hub); source = PNBuffSource.Capture(stat);
+            loader.Load(hub); source = PNCombatSource.Capture(stat);
             var enemyControl = enemyBuffs.Apply(new PNBuffApplyRequest(EveId.Parse("base:buff_control_template"), source));
             enemy.ReceiveDamage(source.Snapshot.CreateDamage(1e12, false, 0, PNContentIds.True));
             Check(!enemyControl.Handle.IsAlive && enemyBuffs.Snapshot().Count == 0, "Target death cleans default Buff behavior.");

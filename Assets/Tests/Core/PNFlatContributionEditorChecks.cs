@@ -78,7 +78,7 @@ public static class PNFlatContributionEditorChecks
             var modifier=PNStatModifierData.Parse((JObject)definition.Payload);Check(modifier.ContributionId==EveId.Parse("base:before"),"Registered Buff payload parses routing IDs");
             target.SetSource(key,new[]{new EveStatModifier(PNContentIds.Heal,-.5,1,PNContentIds.Mitigation)});
             var buffs=target.GetComponent<PNBuffManager>().Buffs;
-            var receipt=buffs.Apply(new PNBuffApplyRequest(definition.Id,PNBuffSource.Capture(source)));
+            var receipt=buffs.Apply(new PNBuffApplyRequest(definition.Id,PNCombatSource.Capture(source)));
             var buffResult=target.ReceiveHeal(source.CreateHeal(100));
             Check(Near(buffResult.CalculatedHeal,55),"Registered Buff applies before Mitigation to Heal: status="+receipt.Status+";reason="+receipt.Message+";actual="+buffResult.CalculatedHeal);
             buffs.Remove(receipt.Handle);Check(Near(target.Calculate(PNContentIds.Mitigation,100,PNContentIds.Heal),50),"Buff removal cleans routed flat source");

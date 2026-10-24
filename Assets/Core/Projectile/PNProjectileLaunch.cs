@@ -14,7 +14,7 @@ public sealed class PNProjectileLaunch
     private readonly JToken input;
     public EveId ProjectileId { get; }
     public JToken Input => input?.DeepClone();
-    public PNBuffSource Source { get; }
+    public PNCombatSource Source { get; }
     // Team of the shooter captured with the source (Neutral for system sources) and its entity ID; both survive the shooter.
     public PNCombatTeam Team => Source.Team;
     public EveEntityId SourceId => Source.EntityId;
@@ -28,7 +28,7 @@ public sealed class PNProjectileLaunch
     public double SpeedFactor { get; }
     public double ScaleFactor { get; }
     public double LifetimeFactor { get; }
-    public PNProjectileLaunch(EveId projectileId, JToken input, PNBuffSource source, int targetMask, PNPreparedDamage damage = null, PNSkillHitSnapshot hitPlan = null,
+    public PNProjectileLaunch(EveId projectileId, JToken input, PNCombatSource source, int targetMask, PNPreparedDamage damage = null, PNSkillHitSnapshot hitPlan = null,
         double speedFactor = 1d, double scaleFactor = 1d, double lifetimeFactor = 1d)
     {
         if (!projectileId.IsValid) throw new ArgumentException("Projectile ID required.", nameof(projectileId));
@@ -41,7 +41,7 @@ public sealed class PNProjectileLaunch
         SpeedFactor = speedFactor; ScaleFactor = scaleFactor; LifetimeFactor = lifetimeFactor;
     }
     // Reads the four projectile_* modifiers from the source snapshot (Scale route over a base of 1: +20% = 1.2).
-    public static PNProjectileLaunch FromSource(EveId projectileId, JToken input, PNBuffSource source, int targetMask, PNPreparedDamage damage = null, PNSkillHitSnapshot hitPlan = null)
+    public static PNProjectileLaunch FromSource(EveId projectileId, JToken input, PNCombatSource source, int targetMask, PNPreparedDamage damage = null, PNSkillHitSnapshot hitPlan = null)
     {
         if (source == null) throw new ArgumentNullException(nameof(source));
         var snapshot = source.Snapshot ?? throw new ArgumentException("Source has no combat snapshot.", nameof(source));

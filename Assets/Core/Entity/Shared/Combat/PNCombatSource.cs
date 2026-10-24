@@ -3,16 +3,14 @@ using System.Linq;
 using EveEngine;
 
 // Attribution survives Unity component destruction; live access is always explicitly optional.
-public sealed class PNBuffSource
+public sealed class PNCombatSource : PNSource
 {
     private readonly WeakReference<PNStat> live;
     private readonly WeakReference<EveEntityLoader> owner;
     private readonly long generation, loadId;
-    public Guid SessionId { get; }
-    public EveEntityId EntityId { get; }
     public PNCombatSourceSnapshot Snapshot { get; }
-    // EN: Team of the shooting entity, captured once with the source; Neutral for system sources built with the public constructor.
-    // VI: Phe của entity bắn, chụp một lần cùng nguồn; Neutral cho nguồn hệ thống dựng bằng constructor public.
+    // EN: Team of the shooting entity, captured once with the source; Neutral for system sources built with System.
+    // VI: Phe của entity bắn, chụp một lần cùng nguồn; Neutral cho nguồn hệ thống dựng bằng System.
     public PNCombatTeam Team { get; }
     public PNStat Live
         => GetLive(false);
@@ -26,12 +24,16 @@ public sealed class PNBuffSource
         try { return loader.SessionId == SessionId && loader.LoadContext.Identity.Id == EntityId && (allowDead || !target.IsDead) ? target : null; }
         catch (InvalidOperationException) { return null; }
     }
-    public PNBuffSource(Guid sessionId, EveEntityId entityId, PNCombatTeam team = PNCombatTeam.Neutral)
-    { if (sessionId == Guid.Empty || !entityId.IsValid) throw new ArgumentException("Source requires session and stable entity/system attribution."); if (!Enum.IsDefined(typeof(PNCombatTeam), team)) throw new ArgumentOutOfRangeException(nameof(team)); SessionId = sessionId; EntityId = entityId; Team = team; }
-    private PNBuffSource(PNStat source) : this(source.SessionId, source.EntityId, source.CombatTeam)
+    private PNCombatSource(Guid sessionId, EveEntityId entityId, PNCombatTeam team) : base(sessionId, entityId)
+    { if (!Enum.IsDefined(typeof(PNCombatTeam), team)) throw new ArgumentOutOfRangeException(nameof(team)); Team = team; }
+    // EN: Combat source without stats (world/system effects): no Snapshot, no Live. Paths that need stats reject it.
+    // VI: Nguồn chiến đấu không có stat (hiệu ứng thế giới/hệ thống): không Snapshot, không Live. Đường cần stat sẽ từ chối.
+    public static PNCombatSource System(Guid sessionId, EveEntityId entityId, PNCombatTeam team = PNCombatTeam.Neutral)
+        => new PNCombatSource(sessionId, entityId, team);
+    private PNCombatSource(PNStat source) : this(source.SessionId, source.EntityId, source.CombatTeam)
     { Snapshot = source.CaptureCombatSource(); live = new WeakReference<PNStat>(source); var loader = source.GetComponent<EveEntityLoader>(); if (loader != null && loader.LoadContext != null) { owner = new WeakReference<EveEntityLoader>(loader); generation = loader.Generation; loadId = loader.LoadContext.LoadId; } }
-    public static PNBuffSource Capture(PNStat source)
-    { if (source == null) throw new ArgumentNullException(nameof(source)); return new PNBuffSource(source); }
+    public static PNCombatSource Capture(PNStat source)
+    { if (source == null) throw new ArgumentNullException(nameof(source)); return new PNCombatSource(source); }
 }
 
 public class PNCombatSourceSnapshot

@@ -68,7 +68,7 @@ public static class PNLifecycleRuntimeEditorChecks
             using (EveEventManager.Global.Subscribe<EveEntityReady>(EveRuntimeEventIds.EntityReady, (c, n) => { notices++; Check(a.IsReady && b.IsReady && a.GetComponent<PNBuffManager>().Presentation != null && b.GetComponent<PNBuffManager>().Presentation != null, "Ready observer sees whole batch"); })) EveEntityLoader.CommitBatch(new[] { a, b });
             Check(notices == 2 && session.Entities.Snapshot().Count == 2, "atomic batch publishes both exactly once");
             a.gameObject.SetActive(true); b.gameObject.SetActive(true); var manager = a.GetComponent<PNBuffManager>(); manager.Advance(0); b.GetComponent<PNBuffManager>().Advance(0);
-            var source = PNBuffSource.Capture(b.GetComponent<PNStat>());
+            var source = PNCombatSource.Capture(b.GetComponent<PNStat>());
             manager.Buffs.Apply(new PNBuffApplyRequest(EveId.Parse("base:burn"), source));
             Check(manager.Publisher.Epoch == a.Generation && manager.Replica.Epoch == a.Generation, "Buff epoch comes from actor generation");
             var replacement = Factory(); replacement.GetComponent<EveEntityIdentity>().Assign(new EveEntityId(771001), EveId.Parse("project_n:dummy"), 0, 2); replacement.Prepare(hub);

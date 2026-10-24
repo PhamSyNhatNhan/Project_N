@@ -20,7 +20,7 @@ public sealed class PNProbeProjectile : PNDirectionalProjectile
     public static Action<PNProbeProjectile, IReadOnlyList<PNProjectileContact>> OnTargetsHook;
     public int Serial;
     public PNProjectileEndReason? Ended;
-    public PNBuffSource EndedBy;
+    public PNCombatSource EndedBy;
     public readonly List<PNProjectileContact> Targets = new List<PNProjectileContact>();
     public PNProjectileContact? EnvironmentHit;
     public static void Reset() { Created = 0; NextSerial = 0; Disposed.Clear(); ByHandle.Clear(); OnTargetsHook = null; }
@@ -75,7 +75,7 @@ public static class PNProjectileEditorChecks
         try
         {
             EveRegistrySession.Begin(); EveRegistrySession.Start(hub, EveSessionRole.Offline, EveContentCompatibility.Create(hub, docs, "test:projectile"));
-            var session = EveRegistrySession.Context; var source = new PNBuffSource(session.SessionId, new EveEntityId(990001));
+            var session = EveRegistrySession.Context; var source = PNCombatSource.System(session.SessionId, new EveEntityId(990001));
             GameObject Fixture(string name) { var obj = new GameObject(name); SceneManager.MoveGameObjectToScene(obj, preview); fixtures.Add(obj); return obj; }
             PNProjectileManager NewManager(int cap, int steps = 4)
             {
@@ -187,7 +187,7 @@ public static class PNProjectileEditorChecks
             int borrowed = manager.BorrowedCount;
             var unknown = Fire(manager, "test:no_such_projectile", Vector3.zero, Vector3.right);
             var badInput = manager.Create(new PNProjectileLaunch(EveId.Parse("test:probe"), JObject.Parse("{'x':1}"), source, enemyMask), new PNProjectileSpawn(preview, Vector3.zero, Vector3.right));
-            var foreign = manager.Create(new PNProjectileLaunch(EveId.Parse("test:probe"), null, new PNBuffSource(Guid.NewGuid(), new EveEntityId(1)), enemyMask), new PNProjectileSpawn(preview, Vector3.zero, Vector3.right));
+            var foreign = manager.Create(new PNProjectileLaunch(EveId.Parse("test:probe"), null, PNCombatSource.System(Guid.NewGuid(), new EveEntityId(1)), enemyMask), new PNProjectileSpawn(preview, Vector3.zero, Vector3.right));
             var noScene = manager.Create(new PNProjectileLaunch(EveId.Parse("test:probe"), null, source, enemyMask), new PNProjectileSpawn(default(Scene), Vector3.zero, Vector3.right));
             Check(unknown.Status == PNProjectileStatus.Failed && unknown.Error != null && badInput.Status == PNProjectileStatus.Failed && foreign.Status == PNProjectileStatus.Failed && noScene.Status == PNProjectileStatus.Failed && manager.BorrowedCount == borrowed,
                 "unknown ids, bad input, another session's source and an invalid scene fail without borrowing");
@@ -270,7 +270,7 @@ public static class PNProjectileEditorChecks
             manager = managerObject.AddComponent<PNProjectileManager>(); manager.Initialize(session, new PNProjectileProfile());
             worlds.BeforeUnload = world => manager.ReleaseWorld(world);
             var sceneA = worlds.Get(a).PhysicsScene; var sceneB = worlds.Get(b).PhysicsScene;
-            var source = new PNBuffSource(session.SessionId, new EveEntityId(990201));
+            var source = PNCombatSource.System(session.SessionId, new EveEntityId(990201));
             PNProjectileReceipt Fire(Scene scene) => manager.Create(new PNProjectileLaunch(EveId.Parse("test:probe_fast"), null, source, 1 << 7), new PNProjectileSpawn(scene, new Vector3(0, 1, 0), Vector3.right));
             var inA = Fire(sceneA); var inB = Fire(sceneB);
             check(inA.Status == PNProjectileStatus.Created && inB.Status == PNProjectileStatus.Created && PNProbeProjectile.ByHandle[inA.Handle.InstanceId].World == a && PNProbeProjectile.ByHandle[inB.Handle.InstanceId].World == b,

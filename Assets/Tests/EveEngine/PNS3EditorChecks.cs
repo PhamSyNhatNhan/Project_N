@@ -51,7 +51,7 @@ public static class PNS3EditorChecks
                 ui.OpenMenu(); Check(ui.MenuOpen && Time.timeScale==0,"pause owns time");
                 if(i==0)
                 {
-                    var receipt=areas.Create(new PNAreaCreateRequest(EveId.Parse("s3:area"),new JObject(),new PNBuffSource(session.SessionId,new EveEntityId(-99)),scene,Vector3.zero));
+                    var receipt=areas.Create(new PNAreaCreateRequest(EveId.Parse("s3:area"),new JObject(),PNCombatSource.System(session.SessionId,new EveEntityId(-99)),scene,Vector3.zero));
                     Check(receipt.Status==PNAreaStatus.Created,"area fixture creation");
                     PNS3AreaProbe.Fail=true;
                     bool rejected=false; try {runtime.EndSession();}catch(AggregateException){rejected=true;}

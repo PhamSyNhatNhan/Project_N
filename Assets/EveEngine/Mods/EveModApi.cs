@@ -7,7 +7,7 @@ namespace EveEngine
     {void ValidateRegistrationReferences(string owner,System.Collections.Generic.IReadOnlyCollection<string> dependencies);}
     public static class EveModApi
     {
-        public const string Version = "7";
+        public const string Version = "8";
     }
 
     // EN: Constructors must be resource-free; registration/session cleanup must tolerate partial failure.

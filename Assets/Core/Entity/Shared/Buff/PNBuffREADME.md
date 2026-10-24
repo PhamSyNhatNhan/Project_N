@@ -303,7 +303,7 @@ amount still multiplies n. attackRatio contributions modify first-stack ratio in
 incremental mode, per-stack ratio in linear mode; additional fields are registered
 tuning, not contribution contracts. Formula uses double closed-form arithmetic.
 
-DOT reads loaded source stats live, including a dead source. PNBuffSource.LoadedSource
+DOT reads loaded source stats live, including a dead source. PNCombatSource.LoadedSource
 allows that access without changing Live or ordinary dead-source CreateDamage rules.
 PNStat.CaptureBuffCombatSource captures current calculation values at each effect;
 custom captured calculation implementations may override this dedicated hook.
@@ -405,7 +405,7 @@ never advances Buff clocks. Replication remains unimplemented.
 ## Apply and instance groups
 
 ```csharp
-var source = PNBuffSource.Capture(casterStat);
+var source = PNCombatSource.Capture(casterStat);
 var buffs = target.GetComponent<PNBuffManager>().Buffs;
 var receipt = buffs.Apply(new PNBuffApplyRequest(buffId, source));
 if (receipt.Status == PNBuffStatus.Applied) {
@@ -542,7 +542,7 @@ PNStat protects these sources from floor-local cleanup and excludes them from
 persistent transfer snapshots. Game modes decide Buff retention/removal; restoring
 Buffs on a new entity is a separate game-mode task, not automatically serialized.
 
-PNBuffSource captures source ID/session and optional weak live access plus immutable
+PNCombatSource (a PNSource: session + entity ID) captures team and optional weak live access plus immutable
 PNCombatSourceSnapshot. Snapshot clones base values, modifiers and resource currents,
 uses selected registered calculation logic, and never reads a destroyed component.
 It can create packets after source death/unload while the original session remains

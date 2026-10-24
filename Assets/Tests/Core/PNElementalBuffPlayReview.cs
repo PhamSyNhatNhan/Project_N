@@ -46,7 +46,7 @@ public sealed class PNElementalBuffPlayReview : MonoBehaviour
         var lightning=Entity(989102);var buffs=lightning.GetComponent<PNBuffManager>().Buffs;
         lightning.GetComponent<EveTimeScale>().AddOwnedModifier(EveId.Parse("test:play_slow"),EveTimeModifierKind.Scale,-.5f,lightning);
         int ticks=0;PNDamageResult last=null;lightning.DamageReceived+=r=>{ticks++;last=r;};
-        var grant=buffs.Apply(new PNBuffApplyRequest(EveId.Parse("base:electrocution"),PNBuffSource.Capture(source),JObject.Parse("{'stacks':10}")));
+        var grant=buffs.Apply(new PNBuffApplyRequest(EveId.Parse("base:electrocution"),PNCombatSource.Capture(source),JObject.Parse("{'stacks':10}")));
         float start=Time.realtimeSinceStartup;yield return new WaitForSecondsRealtime(.6f);
         double consumed=5-buffs.Get(grant.Handle).Remaining.Value;
         Check(Math.Abs(lightning.GetComponent<EveTimeScale>().Scale-.5)<1e-8 && ticks==(int)Math.Floor((consumed+1e-6)/.4),"Actual Update Lightning cadence matches target half-scale clock");
@@ -66,7 +66,7 @@ public sealed class PNElementalBuffPlayReview : MonoBehaviour
         lightning.gameObject.SetActive(true);yield return null;
         Check(!buffs.Get(grant.Handle).Suspended && lightning.GetComponentsInChildren<PNBuffElementVisual>().Length==1 && buffs.Get(grant.Handle).Stacks==10,"Actual OnEnable resumes stack and visual");
         buffs.Remove(grant.Handle);yield return null;Check(lightning.GetComponentsInChildren<PNBuffElementVisual>(true).Length==0,"Play dispel destroys last DOT renderer");
-        var target=Entity(989103);var targetBuffs=target.GetComponent<PNBuffManager>().Buffs;var captured=PNBuffSource.Capture(source);
+        var target=Entity(989103);var targetBuffs=target.GetComponent<PNBuffManager>().Buffs;var captured=PNCombatSource.Capture(source);
         var vulnerability=targetBuffs.Apply(new PNBuffApplyRequest(EveId.Parse("base:ice_vulnerability"),captured));
         Check(Math.Abs(target.CalculateDamage(100,PNContentIds.Magic,PNContentIds.Ice)-175)<1e-8,"Play vulnerability applies group2 mitigation");
         var frost=targetBuffs.Apply(new PNBuffApplyRequest(EveId.Parse("base:frostbite"),captured,JObject.Parse("{'stacks':5}")));

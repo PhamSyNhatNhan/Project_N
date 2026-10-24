@@ -88,7 +88,7 @@ public class PNCreateProjectileOperation : PNSkillOperation
         if (!EveRegistrySession.Context.HasAuthority) return;
         var settings = PNCreateProjectileSettings.Parse(token); var caster = context.Skill.GetComponent<PNStat>();
         if (caster == null || !caster.IsReady) throw new InvalidOperationException("Projectiles need the caster's Ready stats.");
-        var source = PNBuffSource.Capture(caster);
+        var source = PNCombatSource.Capture(caster);
         PNPreparedDamage prepared = null;
         if (settings.Values != null)
         {

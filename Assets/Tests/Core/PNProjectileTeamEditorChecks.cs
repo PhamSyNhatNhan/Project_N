@@ -64,13 +64,13 @@ public static class PNProjectileTeamEditorChecks
             }
             double Hp(PNStat stat) => stat.GetCurrent(PNContentIds.Health);
             void Advance(int ticks, float step = .1f) { for (int i = 0; i < ticks; i++) manager.Advance(step); }
-            PNProjectileReceipt Fire(string id, Vector3 position, PNBuffSource source, int mask, PNPreparedDamage damage = null)
+            PNProjectileReceipt Fire(string id, Vector3 position, PNCombatSource source, int mask, PNPreparedDamage damage = null)
                 => manager.Create(new PNProjectileLaunch(EveId.Parse(id), null, source, mask, damage), new PNProjectileSpawn(preview, position, Vector3.right));
-            PNPreparedDamage Damage(PNBuffSource source, double amount = 100) => source.Snapshot.PrepareDamage(amount, false, 0d, PNContentIds.True);
+            PNPreparedDamage Damage(PNCombatSource source, double amount = 100) => source.Snapshot.PrepareDamage(amount, false, 0d, PNContentIds.True);
 
             // 1. A Player projectile with a mask covering both teams passes through a Player ally and hits the enemy behind it.
             var shooterA = Player(new Vector3(0, 0, 600), out _); var allyA = Player(new Vector3(2, 0, 600), out _); var enemyA = Enemy(new Vector3(3.2f, 0, 600)); Physics.SyncTransforms();
-            var sourceA = PNBuffSource.Capture(shooterA); double allyHp = Hp(allyA), enemyHp = Hp(enemyA);
+            var sourceA = PNCombatSource.Capture(shooterA); double allyHp = Hp(allyA), enemyHp = Hp(enemyA);
             Check(sourceA.Team == PNCombatTeam.Player, "a captured Player shooter gives a Player source");
             var shotA = Fire("test:hit_once", new Vector3(0, 0, 600), sourceA, both, Damage(sourceA));
             Advance(2); Check(shotA.Handle.IsAlive && Near(Hp(allyA), allyHp), "a Player projectile passes through a Player ally without a hit");
@@ -79,14 +79,14 @@ public static class PNProjectileTeamEditorChecks
 
             // 2. An Enemy projectile with the same wide mask passes through another enemy and hits the player.
             var shooterB = Enemy(new Vector3(0, 0, 620)); var enemyB = Enemy(new Vector3(2, 0, 620)); var playerB = Player(new Vector3(3.2f, 0, 620), out _); Physics.SyncTransforms();
-            var sourceB = PNBuffSource.Capture(shooterB); double enemyBHp = Hp(enemyB), playerBHp = Hp(playerB);
+            var sourceB = PNCombatSource.Capture(shooterB); double enemyBHp = Hp(enemyB), playerBHp = Hp(playerB);
             Check(sourceB.Team == PNCombatTeam.Enemy, "a captured Enemy shooter gives an Enemy source");
             var shotB = Fire("test:hit_once", new Vector3(0, 0, 620), sourceB, both, Damage(sourceB, 10)); // Eve starts with 40 HP, so use a small hit
             Advance(9);
             Check(Near(Hp(enemyB), enemyBHp) && Near(playerBHp - Hp(playerB), 10d) && !shotB.Handle.IsAlive, "an Enemy projectile passes through another enemy and hits the player");
 
             // 3. A Neutral source keeps the plain layer-mask rule: the first target in range is hit.
-            var neutral = new PNBuffSource(session.SessionId, new EveEntityId(nextId++));
+            var neutral = PNCombatSource.System(session.SessionId, new EveEntityId(nextId++));
             var allyC = Player(new Vector3(2, 0, 640), out _); var enemyC = Enemy(new Vector3(3.2f, 0, 640)); Physics.SyncTransforms();
             var shotC = Fire("test:hit_once", new Vector3(0, 0, 640), neutral, both);
             Advance(5);
@@ -94,7 +94,7 @@ public static class PNProjectileTeamEditorChecks
 
             // 4. The shooter dies and unloads before the hit: the captured team still decides.
             var shooterD = Player(new Vector3(0, 0, 660), out var shooterDObject); var allyD = Player(new Vector3(2, 0, 660), out _); var enemyD = Enemy(new Vector3(3.2f, 0, 660)); Physics.SyncTransforms();
-            var sourceD = PNBuffSource.Capture(shooterD); double allyDHp = Hp(allyD), enemyDHp = Hp(enemyD);
+            var sourceD = PNCombatSource.Capture(shooterD); double allyDHp = Hp(allyD), enemyDHp = Hp(enemyD);
             var shotD = Fire("test:hit_once", new Vector3(0, 0, 660), sourceD, both, Damage(sourceD));
             shooterD.SetCurrent(PNContentIds.Health, 0); shooterDObject.GetComponent<EveEntityLoader>().Unload();
             Advance(9);
@@ -102,7 +102,7 @@ public static class PNProjectileTeamEditorChecks
 
             // 5. Snapshots expose team, source and destroyable; a clearing skill filters by team.
             var shooterE = Player(new Vector3(0, 0, 680), out _); var hostile = Enemy(new Vector3(0, 0, 700)); Physics.SyncTransforms();
-            var playerSourceE = PNBuffSource.Capture(shooterE); var enemySourceE = PNBuffSource.Capture(hostile);
+            var playerSourceE = PNCombatSource.Capture(shooterE); var enemySourceE = PNCombatSource.Capture(hostile);
             var mineOpen = Fire("test:open_still", new Vector3(0, 0, 690), playerSourceE, 1 << 7);
             var mineLocked = Fire("test:locked_still", new Vector3(1, 0, 690), playerSourceE, 1 << 7);
             var theirs = Fire("test:open_still", new Vector3(2, 0, 690), enemySourceE, 1 << 6);

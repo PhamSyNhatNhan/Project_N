@@ -39,7 +39,7 @@ public static class PNProjectileGroundEditorChecks
         try
         {
             EveRegistrySession.Begin(); EveRegistrySession.Start(hub, EveSessionRole.Offline, EveContentCompatibility.Create(hub, docs, "test:projectile_ground"));
-            var session = EveRegistrySession.Context; var source = new PNBuffSource(session.SessionId, new EveEntityId(994001));
+            var session = EveRegistrySession.Context; var source = PNCombatSource.System(session.SessionId, new EveEntityId(994001));
             GameObject Fixture(string name) { var obj = new GameObject(name); SceneManager.MoveGameObjectToScene(obj, preview); fixtures.Add(obj); return obj; }
             manager = Fixture("Projectile manager").AddComponent<PNProjectileManager>(); manager.Initialize(session, new PNProjectileProfile { MaxActive = 10 });
             var floor = Fixture("ground floor"); floor.layer = ground; floor.transform.position = new Vector3(0, -.5f, 0); floor.AddComponent<BoxCollider>().size = new Vector3(40, 1, 40);

@@ -81,7 +81,7 @@ public class PNEnemyStat : PNStat
     {
         var buffs = GetComponent<PNBuffManager>();
         if (buffs == null || !buffs.IsReady) { SetCurrent(PNContentIds.Lorica, GetMax(PNContentIds.Lorica)); return; }
-        buffs.Buffs.Apply(new PNBuffApplyRequest(PNContentIds.LoricaBreak, PNBuffSource.Capture(this), new JObject { ["duration"] = Lorica.BreakSeconds }));
+        buffs.Buffs.Apply(new PNBuffApplyRequest(PNContentIds.LoricaBreak, PNCombatSource.Capture(this), new JObject { ["duration"] = Lorica.BreakSeconds }));
     }
     // Called by the break Buff when it ends (it ran out or was removed with bypass): lorica refills and, if configured, stays locked for a while.
     public void FinishLoricaBreak()
@@ -90,6 +90,6 @@ public class PNEnemyStat : PNStat
         SetCurrent(PNContentIds.Lorica, GetMax(PNContentIds.Lorica));
         var buffs = GetComponent<PNBuffManager>();
         if (buffs != null && buffs.IsReady && Lorica.RecoverySeconds > 0d)
-            buffs.Buffs.Apply(new PNBuffApplyRequest(PNContentIds.LoricaRecovery, PNBuffSource.Capture(this), new JObject { ["duration"] = Lorica.RecoverySeconds }));
+            buffs.Buffs.Apply(new PNBuffApplyRequest(PNContentIds.LoricaRecovery, PNCombatSource.Capture(this), new JObject { ["duration"] = Lorica.RecoverySeconds }));
     }
 }

@@ -47,7 +47,7 @@ public static class PNLoricaEditorChecks
             Hit(100);
             if (!(stat.LoricaCurrent == 0 && buffs.Snapshot().Any(x => x.Id == PNContentIds.LoricaBreak)))
             {
-                var probe = buffs.Apply(new PNBuffApplyRequest(PNContentIds.LoricaBreak, PNBuffSource.Capture(stat), Newtonsoft.Json.Linq.JObject.Parse("{\"duration\":7}")));
+                var probe = buffs.Apply(new PNBuffApplyRequest(PNContentIds.LoricaBreak, PNCombatSource.Capture(stat), Newtonsoft.Json.Linq.JObject.Parse("{\"duration\":7}")));
                 throw new Exception("breaking did not apply the Buff: lorica=" + stat.LoricaCurrent + " buffs=" + string.Join(",", buffs.Snapshot().Select(x => x.Id.ToString())) + " manual apply=" + probe.Status + " " + probe.Message + " " + probe.Error);
             }
             checks++;

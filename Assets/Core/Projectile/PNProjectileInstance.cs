@@ -23,7 +23,7 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable
     public PNProjectileLaunch Launch { get; private set; }
     public PNProjectileClock Clock { get; private set; }
     // Set when another system destroyed the projectile with a known attribution (for example a skill that clears projectiles).
-    public PNBuffSource DestroyedBy { get; internal set; }
+    public PNCombatSource DestroyedBy { get; internal set; }
     public Vector3 Position => position;
     public Vector3 Forward => heading;
     // Motion velocity set by Move, plus an external velocity (gravity) added by the base; position += (Velocity + External) * dt.

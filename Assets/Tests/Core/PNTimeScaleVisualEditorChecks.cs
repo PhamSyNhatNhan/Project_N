@@ -75,7 +75,7 @@ public static class PNTimeScaleVisualEditorChecks
             PNTimeScaleArea Spawn(Vector3 point, float radius = 2.5f)
             {
                 var input = new JObject { ["radius"] = radius, ["reduction"] = .9, ["minimumReduction"] = .9, ["duration"] = 15, ["dependent"] = false, ["layerMask"] = 0, ["layerMode"] = "Include" };
-                var receipt = manager.Create(new PNAreaCreateRequest(EveId.Parse("base:timescale_area"), input, PNBuffSource.Capture(source), scene, point));
+                var receipt = manager.Create(new PNAreaCreateRequest(EveId.Parse("base:timescale_area"), input, PNCombatSource.Capture(source), scene, point));
                 Check(receipt.Status == PNAreaStatus.Created, "Pooled visual region created");
                 var region = scene.GetRootGameObjects().SelectMany(x => x.GetComponentsInChildren<PNTimeScaleArea>(true)).First(x => x.Handle.InstanceId == receipt.Handle.InstanceId && x.IsRunning);
                 region.gameObject.layer = 31; return region;

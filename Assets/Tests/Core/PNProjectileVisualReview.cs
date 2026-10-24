@@ -51,7 +51,7 @@ public sealed class PNProjectileVisualReview : MonoBehaviour
             var camera = new GameObject("review camera").AddComponent<Camera>(); SceneManager.MoveGameObjectToScene(camera.gameObject, scene); objects.Add(camera.gameObject);
             camera.tag = "MainCamera"; camera.transform.position = new Vector3(0, 7, -5); camera.transform.LookAt(new Vector3(1, 0, 3.5f)); camera.fieldOfView = 45; camera.clearFlags = CameraClearFlags.SolidColor; camera.allowHDR = true;
             // The same volley the Skill fires: toward the target, +-30 degrees, the middle one tilted 30 degrees up.
-            var source = new PNBuffSource(session.SessionId, new EveEntityId(996001));
+            var source = PNCombatSource.System(session.SessionId, new EveEntityId(996001));
             var launch = new PNProjectileLaunch(PNProjectileGameplayContent.EveSkillHoming, null, source, 1 << enemy);
             var origin = Vector3.zero; var aim = (target.transform.position - origin); aim.y = 0; aim.Normalize();
             var directions = new[] { Quaternion.AngleAxis(-30, Vector3.up) * aim, Tilt(aim), Quaternion.AngleAxis(30, Vector3.up) * aim };

@@ -39,14 +39,14 @@ public static class PNElementalBuffEditorChecks
             source.SetSource(EveId.Parse("test:native_attack"),new[]{new EveStatModifier(PNContentIds.AttackPower,100,0)});
             second.SetSource(EveId.Parse("test:native_attack"),new[]{new EveStatModifier(PNContentIds.AttackPower,200,0)});
             var targets=new[]{Entity(989003,new Vector3(-1.8f,0,0)),Entity(989004,new Vector3(-.6f,0,0)),Entity(989005,new Vector3(.6f,0,0)),Entity(989006,new Vector3(1.8f,0,0))};
-            var capture=PNBuffSource.Capture(source);var arrows=targets[0].GetComponent<PNBuffManager>().Buffs;
+            var capture=PNCombatSource.Capture(source);var arrows=targets[0].GetComponent<PNBuffManager>().Buffs;
             foreach(var element in new[]{"fire","ice","lightning"})
             {
                 var id=EveId.Parse("base:"+element+"_vulnerability");var tag=EveId.Parse("base:"+element);
                 double baseline=targets[0].CalculateDamage(100,PNContentIds.Magic,tag);
                 var receipt=arrows.Apply(new PNBuffApplyRequest(id,capture));
                 Check(receipt.Status==PNBuffStatus.Applied && Math.Abs(targets[0].CalculateDamage(100,PNContentIds.Magic,tag)-baseline*1.75)<1e-8,"Native "+element+" receiver mitigation");
-                Check(arrows.Apply(new PNBuffApplyRequest(id,PNBuffSource.Capture(second))).Handle.Equals(receipt.Handle),"Native target grouping "+element);
+                Check(arrows.Apply(new PNBuffApplyRequest(id,PNCombatSource.Capture(second))).Handle.Equals(receipt.Handle),"Native target grouping "+element);
             }
             Check(targets[0].GetComponentsInChildren<PNBuffElementVisual>().Length==3,"One distinct arrow per vulnerability");
             var names=new[]{"burn","electrocution","frostbite"};var caps=new[]{35,10,5};var ratios=new[]{1.75,2.62,3.5};
@@ -57,7 +57,7 @@ public static class PNElementalBuffEditorChecks
                 PNDamageResult hit=null;Action<PNDamageResult> watch=r=>hit=r;target.DamageReceived+=watch;
                 try{buffs.Trigger(grant.Handle);}finally{target.DamageReceived-=watch;}
                 Check(hit!=null && Math.Abs(hit.Damage.Amount-source.Evaluate(PNContentIds.AttackPower)*ratios[i])<1e-8 && !hit.Damage.CanCrit,"Native cap damage "+names[i]);
-                var other=buffs.Apply(new PNBuffApplyRequest(id,PNBuffSource.Capture(second)));
+                var other=buffs.Apply(new PNBuffApplyRequest(id,PNCombatSource.Capture(second)));
                 Check(target.GetComponentsInChildren<PNBuffElementVisual>().Length==1 && target.GetComponentInChildren<PNBuffElementVisual>().GrantCount==2,"Multiple sources share DOT visual "+names[i]);
                 buffs.Remove(other.Handle);Check(target.GetComponentInChildren<PNBuffElementVisual>().GrantCount==1,"Removing one source keeps DOT visual "+names[i]);
                 var clock=target.GetComponent<EveTimeScale>();clock.AddOwnedModifier(EveId.Parse("test:slow"),EveTimeModifierKind.Scale,-.5f,target);

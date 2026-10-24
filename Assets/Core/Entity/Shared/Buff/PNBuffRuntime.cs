@@ -15,7 +15,7 @@ public sealed class PNBuffInstance
 {
     public PNBuffHandle Handle { get; internal set; }
     public EveId Id { get; internal set; }
-    public PNBuffSource Source { get; internal set; }
+    public PNCombatSource Source { get; internal set; }
     internal PNBuffDefinition Original, Profile;
     internal PNBuffBehavior Behavior;
     internal PNBuffResourceScope Resources;
@@ -40,7 +40,7 @@ public sealed class PNBuffContext
     private readonly PNBuffInstance instance;
     public PNBuffCollection Collection { get; }
     public PNBuffHandle Handle => instance.Handle;
-    public PNBuffSource Source => instance.Source;
+    public PNCombatSource Source => instance.Source;
     public JToken InitialInput => instance.InitialInput?.DeepClone();
     public PNBuffServices Services => Collection.Services;
     public PNBuffResourceScope Resources => instance.Resources;

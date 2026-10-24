@@ -71,7 +71,7 @@ public sealed class PNBuffCountdownPlayReview : MonoBehaviour
         camera.transform.position = new Vector3(100, 6, -6); camera.transform.LookAt(new Vector3(100, 0, 0)); camera.orthographic = true; camera.orthographicSize = 4; cameraRoot.SetActive(true);
         var player = Entity(998201, true, new Vector3(100, 0, 0)); var enemy = Entity(998202, false, new Vector3(99, 0, 2));
         ui.ViewCamera = camera; ui.LocalOwnerId = 998201; ui.LocalPlayerId = player.EntityId; ui.SetTestExpanded(false);
-        var source = PNBuffSource.Capture(player);
+        var source = PNCombatSource.Capture(player);
         var playerManager = player.GetComponent<PNBuffManager>(); var p = playerManager.Buffs; var e = enemy.GetComponent<PNBuffManager>().Buffs;
         var profile = EveRegistrySession.Current.Buffs().Get(EveId.Parse("project_n:timescale_reduction"));
         Check(profile.Countdown != null && profile.Countdown.Slot == PNBuffCountdownSlot.BottomRight, "Stock timescale reduction opts in to the BottomRight countdown");

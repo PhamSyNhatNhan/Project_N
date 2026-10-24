@@ -50,14 +50,14 @@ public static class PNBuffCoopEditorChecks
             EveRegistrySession.Begin(); EveRegistrySession.Start(hub, EveSessionRole.Offline, EveContentCompatibility.Create(hub, docs, "test:buff_coop"));
             var source = Entity(987001); var target = Entity(987002, true); var other = Entity(987003);
             var manager = target.GetComponent<PNBuffManager>(); var buffs = manager.Buffs;
-            var receipt = buffs.Apply(new PNBuffApplyRequest(EveId.Parse("test:lease_probe"), PNBuffSource.Capture(source)));
+            var receipt = buffs.Apply(new PNBuffApplyRequest(EveId.Parse("test:lease_probe"), PNCombatSource.Capture(source)));
             var keys = target.Set.SourceSnapshot().Keys.Where(x => x.Path.StartsWith("buff_source_")).OrderBy(x => x).ToArray();
             Check(keys.Length == 2 && keys[0].Path.EndsWith("00000000000000000001") && keys[1].Path.EndsWith("00000000000000000002"), "Native deterministic separate lease keys: " + receipt.Status + " " + receipt.Error + " keys=" + string.Join(",", keys.Select(x => x.ToString())));
             buffs.Suspend(true); Check(target.Set.SourceSnapshot().Keys.All(x => !x.Path.StartsWith("buff_source_")), "Suspend releases Buff modifier sources");
             buffs.Suspend(false); var resumed = target.Set.SourceSnapshot().Keys.Where(x => x.Path.StartsWith("buff_source_")).ToArray();
             Check(resumed.Length == 2 && resumed.All(x => !keys.Contains(x)), "Resume preserves instance source counter");
             buffs.Remove(receipt.Handle); Check(target.Set.SourceSnapshot().Keys.All(x => !x.Path.StartsWith("buff_source_")), "Removal releases resumed leases");
-            var burn = other.GetComponent<PNBuffManager>().Buffs.Apply(new PNBuffApplyRequest(EveId.Parse("base:burn"), PNBuffSource.Capture(source)));
+            var burn = other.GetComponent<PNBuffManager>().Buffs.Apply(new PNBuffApplyRequest(EveId.Parse("base:burn"), PNCombatSource.Capture(source)));
             var otherManager = other.GetComponent<PNBuffManager>();
             Check(other.GetComponentsInChildren<PNBuffElementVisual>().Length == 1, "Host creates elemental presenter through common replica");
             var visual = other.GetComponentInChildren<PNBuffElementVisual>(); var remote = new PNBuffReplica(hub, source.SessionId, other.EntityId, other);
@@ -72,7 +72,7 @@ public static class PNBuffCoopEditorChecks
             }
             finally { remote.Dispose(); }
             // Expected exception is recorded once by the production manager boundary.
-            buffs.Apply(new PNBuffApplyRequest(EveId.Parse("test:lease_probe"), PNBuffSource.Capture(source)));
+            buffs.Apply(new PNBuffApplyRequest(EveId.Parse("test:lease_probe"), PNCombatSource.Capture(source)));
             ((PNBuffFaultStat)target).FailHealthRead = true; manager.AdvanceAutomatically(0);
             Check(manager.RuntimeFailure is OverflowException && !manager.IsReady, "Automatic runtime fault retires only target collection");
             manager.AdvanceAutomatically(0);

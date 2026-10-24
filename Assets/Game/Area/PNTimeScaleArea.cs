@@ -70,7 +70,7 @@ public class PNTimeScaleArea : PNAreaInstance
     private Collider[] buffer = new Collider[32];
     private PNTimeScaleAreaSettings settings;
     private PNAreaCreateRequest request;
-    private PNBuffSource ownerIdentity, followIdentity;
+    private PNSource ownerIdentity, followIdentity;
     private EveId buffId;
     private float pollPeriod, fadeIn, fadeOut, pollElapsed, visualAge, endingStrength, endingRadius;
     private double elapsed;
@@ -106,8 +106,8 @@ public class PNTimeScaleArea : PNAreaInstance
         fadeIn = (float)PNBuffContentBatch.Number(data, "fadeIn"); fadeOut = (float)PNBuffContentBatch.Number(data, "fadeOut");
         if (settings.Dependent && !ValidEntity(context.Owner)) throw new ArgumentException("Dependent area requires a live same-session owner.");
         if (context.Follow != null && !ValidEntity(context.Follow)) throw new ArgumentException("Follow target must be live in same session.");
-        ownerIdentity = settings.Dependent ? new PNBuffSource(context.Owner.SessionId, context.Owner.EntityId) : null;
-        followIdentity = context.Follow != null ? new PNBuffSource(context.Follow.SessionId, context.Follow.EntityId) : null;
+        ownerIdentity = settings.Dependent ? new PNSource(context.Owner.SessionId, context.Owner.EntityId) : null;
+        followIdentity = context.Follow != null ? new PNSource(context.Follow.SessionId, context.Follow.EntityId) : null;
         ownerCollection = settings.Dependent ? CurrentCollection(context.Owner) : null;
         followCollection = CurrentCollection(context.Follow);
         followLost = false;
@@ -132,7 +132,7 @@ public class PNTimeScaleArea : PNAreaInstance
     private bool ValidEntity(PNStat entity) => entity != null && entity.IsReady && entity.isActiveAndEnabled && !entity.IsDead && entity.SessionId == Manager.Session.SessionId && ReferenceEquals(entity.GetComponent<EveEntityIdentity>()?.World,World);
     private static PNBuffCollection CurrentCollection(PNStat entity)
     { var manager = entity != null ? entity.GetComponent<PNBuffManager>() : null; return manager != null && manager.IsReady ? manager.Buffs : null; }
-    private bool SameEntity(PNStat entity, PNBuffSource identity) => ValidEntity(entity) && identity != null && entity.EntityId == identity.EntityId && entity.SessionId == identity.SessionId;
+    private bool SameEntity(PNStat entity, PNSource identity) => ValidEntity(entity) && identity != null && entity.EntityId == identity.EntityId && entity.SessionId == identity.SessionId;
     public override void Advance(float gameDelta)
     {
         if (!IsRunning) return;

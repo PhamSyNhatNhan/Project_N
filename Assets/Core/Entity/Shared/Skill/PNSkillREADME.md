@@ -322,7 +322,7 @@ owner/source/follow contracts. Generic Buff Action intentionally remains Buff-on
 
 ## Context without a live skill, source-independent Operations (projectile P0-C)
 
-`PNSkillActionContext` has two virtual accessors: `Source` (a `PNBuffSource`) and `World` (`EveWorldContext`). A
+`PNSkillActionContext` has two virtual accessors: `Source` (a `PNCombatSource`) and `World` (`EveWorldContext`). A
 context built with a live `PNSkill` behaves exactly as before: `Source` captures the skill entity's stat on each read
 (it throws when that stat is not ready or is dead, like the former direct capture) and `World` is that entity's world.
 A subclass may use the new `protected` constructor (no `PNSkill`; `Skill == null`, no invocation, no contributions) and

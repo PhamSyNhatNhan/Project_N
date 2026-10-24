@@ -139,7 +139,7 @@ namespace ProjectN.Coop.Tests
             try
             {
                 Check(target.InstanceId!=extra.InstanceId&&target.DefinitionId==extra.DefinitionId,"external generated provider creates two independent instances");
-                one=Player(1);id=one.LoadContext.Identity.Id;generation=one.Generation;var managerBuff=one.GetComponent<PNBuffManager>();var applied=managerBuff.Buffs.Apply(new PNBuffApplyRequest(EveId.Parse("world_sandbox:odd_buff"),PNBuffSource.Capture(one.GetComponent<PNStat>())));buff=applied.Handle;managerBuff.Buffs.ChangeStacks(buff,5);
+                one=Player(1);id=one.LoadContext.Identity.Id;generation=one.Generation;var managerBuff=one.GetComponent<PNBuffManager>();var applied=managerBuff.Buffs.Apply(new PNBuffApplyRequest(EveId.Parse("world_sandbox:odd_buff"),PNCombatSource.Capture(one.GetComponent<PNStat>())));buff=applied.Handle;managerBuff.Buffs.ChangeStacks(buff,5);
                 cooldown=one.GetComponent<PNAbilityManager>().Abilities.Instances.OfType<PNAbilityCooldown>().First();cooldown.SetCooldown(600);cooldown.ResetToFull();cooldown.TryConsume();charges=cooldown.Current;
                 var request=new PNWorldTransferRequest(Guid.NewGuid(),new[]{one},target,"main","player");transfer=game.Transfers.Request(request);Check(ReferenceEquals(transfer,game.Transfers.Request(request)),"duplicate transfer returns the same in-flight operation");
                 bool overlap=false;try{game.Transfers.Request(new PNWorldTransferRequest(Guid.NewGuid(),new[]{one},extra,"main","player"));}catch(InvalidOperationException){overlap=true;}Check(overlap,"overlapping participant request rejected");

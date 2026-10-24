@@ -97,7 +97,7 @@ public sealed class PNLoricaVisualReview : MonoBehaviour
                     trace.Add("seq " + number + " " + label + " buffs=" + string.Join(",", buffs.Buffs.Snapshot().Select(x => x.Id.Path)));
                 }
                 for (int i = 0; i < 30; i++) yield return Frame("none");
-                var applied = buffs.Buffs.Apply(new PNBuffApplyRequest(EveId.Parse("base:burn"), PNBuffSource.Capture(stat)));
+                var applied = buffs.Buffs.Apply(new PNBuffApplyRequest(EveId.Parse("base:burn"), PNCombatSource.Capture(stat)));
                 for (int i = 0; i < 60; i++) yield return Frame("burn");
                 buffs.Buffs.Remove(applied.Handle, PNBuffEndReason.Dispelled, true);
                 for (int i = 0; i < 60; i++) yield return Frame("removed");

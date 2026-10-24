@@ -46,7 +46,7 @@ public sealed class PNSkillBindingPlayReview:MonoBehaviour
         yield return null;move.PC.devices=Array.Empty<InputDevice>();
         foreach(var action in new[]{skill.PC.Controller.Attack,skill.PC.Controller.Skill,skill.PC.Controller.Ulti,skill.PC.Controller.Dash,skill.PC.Controller.Burst}){action.Disable();action.bindingMask=new InputBinding{groups="BindingReview"};}
         skill.PC.Controller.Attack.AddBinding("<Keyboard>/f12",groups:"BindingReview");skill.RefreshInput();keyboard=InputSystem.AddDevice<Keyboard>();
-        var source=PNBuffSource.Capture(stat);var buff=buffs.Buffs.Apply(new PNBuffApplyRequest(PNSkillBindingFixtureModule.Buff,source));
+        var source=PNCombatSource.Capture(stat);var buff=buffs.Buffs.Apply(new PNBuffApplyRequest(PNSkillBindingFixtureModule.Buff,source));
         yield return null;
         skill.enabled=false;Check(PNSkillChargeFixture.SelectionLeases==0,"Native disable returns selection resources");skill.enabled=true;yield return null;Check(PNSkillChargeFixture.SelectionLeases==1&&!skill.ExecutingProfile.IsValid,"Native enable restores selection without replaying cast");
         var starts=PNSkillChargeFixture.Starts;var origin=root.transform.position;

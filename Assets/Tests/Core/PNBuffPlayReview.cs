@@ -60,7 +60,7 @@ public sealed class PNBuffPlayReview : MonoBehaviour
         var move = fixture.AddComponent<PNPlayerMove>(); var skill = fixture.AddComponent<EveCharacterSkill>();
         var loader = fixture.AddComponent<EveEntityLoader>(); loader.Load(EveRegistrySession.Current); fixture.SetActive(true); yield return null;
         move.PC.devices = new InputDevice[] { keyboard };
-        var manager = fixture.GetComponent<PNBuffManager>(); var buffs = manager.Buffs; var source = PNBuffSource.Capture(stat); var controls = skill.Controls;
+        var manager = fixture.GetComponent<PNBuffManager>(); var buffs = manager.Buffs; var source = PNCombatSource.Capture(stat); var controls = skill.Controls;
         InputSystem.QueueStateEvent(keyboard, new KeyboardState(Key.D)); var start = body.position; yield return new WaitForSecondsRealtime(.15f);
         Check(body.position.x > start.x + .1f, "Actual held input walks before Buff.");
         var control = buffs.Apply(new PNBuffApplyRequest(EveId.Parse("base:buff_control_template"), source));
@@ -95,12 +95,12 @@ public sealed class PNBuffPlayReview : MonoBehaviour
         Check(enemy.GetCurrent(PNContentIds.Health) < hp && dot.Handle.IsAlive, "Normal Update ticks DOT damage after source death.");
         enemyBuffs.Remove(dot.Handle); stat.SetCurrent(PNContentIds.Health, stat.GetMax(PNContentIds.Health));
         var burnId = EveId.Parse("base:burn");
-        var burn = enemyBuffs.Apply(new PNBuffApplyRequest(burnId, PNBuffSource.Capture(stat), Newtonsoft.Json.Linq.JObject.Parse("{'stacks':35}")));
+        var burn = enemyBuffs.Apply(new PNBuffApplyRequest(burnId, PNCombatSource.Capture(stat), Newtonsoft.Json.Linq.JObject.Parse("{'stacks':35}")));
         int burnTicks = 0; PNDamageResult lastBurn = null;
         Action<PNDamageResult> watchBurn = result => { burnTicks++; lastBurn = result; }; enemy.DamageReceived += watchBurn;
         restores.Add(() => { if (enemy != null) enemy.DamageReceived -= watchBurn; });
         yield return new WaitForSecondsRealtime(.3f);
-        enemyBuffs.Apply(new PNBuffApplyRequest(burnId, PNBuffSource.Capture(stat)));
+        enemyBuffs.Apply(new PNBuffApplyRequest(burnId, PNCombatSource.Capture(stat)));
         Check(enemyBuffs.Get(burn.Handle).Stacks == 35 && enemyBuffs.Get(burn.Handle).Remaining > 14.9, "Burn full-stack reapply refreshes lifetime in Play.");
         yield return new WaitForSecondsRealtime(.55f);
         Check(burnTicks == 1 && Math.Abs(lastBurn.Damage.Amount - stat.Evaluate(PNContentIds.AttackPower) * 1.75) < 1e-8 && !lastBurn.IsCritical, "Burn Update ticks at original cadence with live coefficient/noncrit.");
@@ -116,7 +116,7 @@ public sealed class PNBuffPlayReview : MonoBehaviour
         Check(burnTicks == ticksBefore && enemyBuffs.Get(burn.Handle).Remaining == burnTime, "Burn manager disable pauses ticks and remaining duration.");
         enemyManager.enabled = true; yield return null;
         enemyBuffs.Remove(burn.Handle); Check(!burn.Handle.IsAlive, "Burn ordinary dispel cleans instance in Play.");
-        loader.Load(EveRegistrySession.Current); source = PNBuffSource.Capture(stat); buffs = manager.Buffs; controls = skill.Controls;
+        loader.Load(EveRegistrySession.Current); source = PNCombatSource.Capture(stat); buffs = manager.Buffs; controls = skill.Controls;
         control = buffs.Apply(new PNBuffApplyRequest(EveId.Parse("base:buff_control_template"), source)); double time = buffs.Get(control.Handle).Remaining.Value;
         fixture.SetActive(false); yield return new WaitForSecondsRealtime(.2f);
         Check(control.Handle.IsAlive && controls.Snapshot().Count == 0 && buffs.Get(control.Handle).Remaining == time, "Whole entity disable preserves Buff state and returns effects.");
@@ -127,7 +127,7 @@ public sealed class PNBuffPlayReview : MonoBehaviour
         buffs = manager.Buffs;
         var sphere = enemyFixture.AddComponent<SphereCollider>(); sphere.radius = .5f; sphere.center = Vector3.up * .5f;
         enemyFixture.transform.position = fixture.transform.position + Vector3.right * 1.2f; Physics.SyncTransforms();
-        var attackGrant = buffs.Apply(new PNBuffApplyRequest(EveId.Parse("base:buff_skill_effect_template"), PNBuffSource.Capture(stat)));
+        var attackGrant = buffs.Apply(new PNBuffApplyRequest(EveId.Parse("base:buff_skill_effect_template"), PNCombatSource.Capture(stat)));
         Check(attackGrant.Handle.IsAlive && skill.TryAttack(Vector3.right), "Actual Eve Attack begins with registered OnHit Buff.");
         buffs.Remove(attackGrant.Handle); yield return new WaitForSecondsRealtime(.7f);
         Check(enemyBuffs.Snapshot().Any(x => x.Id == EveRegistrySession.Current.Buffs().ResolveIdentity(burnId)), "Actual PhysX Eve hit applies Burn from Action Snapshot after owner removal.");

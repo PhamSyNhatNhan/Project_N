@@ -162,9 +162,9 @@ public sealed class PNBuffApplyRequest
 {
     private readonly JToken input;
     public EveId BuffId { get; }
-    public PNBuffSource Source { get; }
+    public PNCombatSource Source { get; }
     public JToken Input => input?.DeepClone();
-    public PNBuffApplyRequest(EveId id, PNBuffSource source, JToken input = null)
+    public PNBuffApplyRequest(EveId id, PNCombatSource source, JToken input = null)
     { if (!id.IsValid) throw new ArgumentException("Buff ID required."); BuffId = id; Source = source ?? throw new ArgumentNullException(nameof(source)); this.input = input?.DeepClone(); }
 }
 

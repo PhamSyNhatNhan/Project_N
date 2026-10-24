@@ -193,13 +193,13 @@ public sealed class PNProjectileManager : MonoBehaviour
     //     is blocked. Lifecycle ends (expiry, hit, owner/scene/world/session) go through End and are never blocked.
     // VI: Xoá do gameplay (khiên, skill xoá đạn): tôn trọng cờ destroyable của định nghĩa trừ khi `bypass`, trả false (không kết thúc gì) khi bị chặn.
     //     Kết thúc vòng đời (hết hạn, trúng, owner/scene/world/session) đi qua End và không bao giờ bị chặn.
-    public bool Destroy(PNProjectileHandle handle, PNProjectileEndReason reason = PNProjectileEndReason.Destroyed, PNBuffSource source = null, bool bypass = false)
+    public bool Destroy(PNProjectileHandle handle, PNProjectileEndReason reason = PNProjectileEndReason.Destroyed, PNCombatSource source = null, bool bypass = false)
     {
         if (!Contains(handle)) return false;
         if (!bypass && entries.TryGetValue(handle.InstanceId, out var entry) && !entry.Instance.Destroyable) return false;
         return End(handle, reason, source);
     }
-    public bool End(PNProjectileHandle handle, PNProjectileEndReason reason = PNProjectileEndReason.Requested, PNBuffSource source = null)
+    public bool End(PNProjectileHandle handle, PNProjectileEndReason reason = PNProjectileEndReason.Requested, PNCombatSource source = null)
     {
         if (!Enum.IsDefined(typeof(PNProjectileEndReason), reason)) throw new ArgumentException("Unknown projectile end reason.");
         if (!Contains(handle)) return false;

@@ -199,3 +199,13 @@ Every packet created from a source (`PNStatCombat.CreateDamage`, `PNCombatSource
 the source's penetration-route modifiers captured at creation (`PNDamage.Penetration`, immutable, shared array). `ReclassifyDamage` keeps the new packet's
 copy; `WithIFrameDuration` preserves it. The receiver applies them inside `CalculateDamage` (see PNStatCalculationREADME, "Penetration route").
 Public-constructor packets and `PNHeal` carry none. Design: `Docs/PenetrationDesign.md`.
+
+## Sources: PNSource and PNCombatSource
+
+`PNSource` (`Assets/Core/Entity/Shared/PNSource.cs`) is the simple base: `SessionId` + `EntityId`, nothing else. Use it directly for things that need no combat (items, plain
+identity records such as the owner/follow identity of `PNTimeScaleArea`). `PNCombatSource` (this folder) is its combat branch and is what Buff, DOT, areas, projectiles and
+skill effects carry: it adds `Team`, `Snapshot` (`PNCombatSourceSnapshot`), `Live` and `LoadedSource`. It has no public constructor:
+- `PNCombatSource.Capture(stat)` for an entity: team, snapshot and weak live access are captured once.
+- `PNCombatSource.System(session, entityId, team = Neutral)` for world/system effects with no stats: `Snapshot`/`Live`/`LoadedSource` are `null`, so paths that need stats
+  reject it (`PNProjectileLaunch.FromSource`, DOT, snapshot-mode Damage Buff).
+A `PNCombatSource` is a `PNSource`, so it can be passed where only identity is needed. `Team` is combat-only and is not on `PNSource`. Plan: `Docs/CombatSourceSplitPlan.md`.

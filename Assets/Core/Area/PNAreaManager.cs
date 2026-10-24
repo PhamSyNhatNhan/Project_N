@@ -39,12 +39,12 @@ public sealed class PNAreaCreateRequest
     private readonly JToken input;
     public EveId AreaId { get; }
     public JToken Input => input?.DeepClone();
-    public PNBuffSource Source { get; }
+    public PNCombatSource Source { get; }
     public PNStat Owner { get; }
     public PNStat Follow { get; }
     public Vector3 Position { get; }
     public Scene Scene { get; }
-    public PNAreaCreateRequest(EveId id, JToken input, PNBuffSource source, Scene scene, Vector3 position, PNStat owner = null, PNStat follow = null)
+    public PNAreaCreateRequest(EveId id, JToken input, PNCombatSource source, Scene scene, Vector3 position, PNStat owner = null, PNStat follow = null)
     { AreaId = id; this.input = input?.DeepClone(); Source = source; Scene = scene; Position = position; Owner = owner; Follow = follow; }
 }
 

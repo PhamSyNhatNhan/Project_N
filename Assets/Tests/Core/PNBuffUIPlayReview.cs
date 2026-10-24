@@ -69,7 +69,7 @@ public sealed class PNBuffUIPlayReview : MonoBehaviour
         camera.transform.position=new Vector3(100,6,-6);camera.transform.LookAt(new Vector3(100,0,0));camera.orthographic=true;camera.orthographicSize=4;cameraRoot.SetActive(true);
         var player=Entity(998101,true,new Vector3(100,0,0));var enemy=Entity(998102,false,new Vector3(99,0,2));
         ui.ViewCamera=camera;ui.LocalOwnerId=998101;ui.LocalPlayerId=player.EntityId;ui.SetTestExpanded(false);
-        var source=PNBuffSource.Capture(player);var p=player.GetComponent<PNBuffManager>().Buffs;var e=enemy.GetComponent<PNBuffManager>().Buffs;
+        var source=PNCombatSource.Capture(player);var p=player.GetComponent<PNBuffManager>().Buffs;var e=enemy.GetComponent<PNBuffManager>().Buffs;
         PNBuffHandle Area(PNBuffCollection buffs)=>buffs.Apply(new PNBuffApplyRequest(EveId.Parse("base:timescale_reduction_area"),source,new JObject{{"reduction",0},{"minimumReduction",0}})).Handle;
         var ph=new List<PNBuffHandle>();var eh=new List<PNBuffHandle>();
         for(int i=0;i<11;i++){ph.Add(Area(p));eh.Add(Area(e));}

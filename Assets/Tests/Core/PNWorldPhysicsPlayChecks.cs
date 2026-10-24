@@ -78,7 +78,7 @@ public sealed class PNWorldPhysicsPlayChecks : MonoBehaviour
             Check(!PNWorldGameplay.CanTarget(player,other)&&PNWorldGameplay.CanTarget(player,target),"direct live targeting defaults to same world");
             var id=player.GetComponent<EveEntityIdentity>();
             var beforeClock=player.GetComponent<EveTimeScale>();beforeClock.AddTimedModifier(EveId.Parse("fixture:relocate"),EveTimeModifierKind.Scale,.1f,10);
-            var retained=player.GetComponent<PNBuffManager>().Buffs.Apply(new PNBuffApplyRequest(EveId.Parse("base:buff_stat_template"),PNBuffSource.Capture(player.GetComponent<PNStat>())));
+            var retained=player.GetComponent<PNBuffManager>().Buffs.Apply(new PNBuffApplyRequest(EveId.Parse("base:buff_stat_template"),PNCombatSource.Capture(player.GetComponent<PNStat>())));
             using(id.HoldGameplay())
             {
                 Check(player.GetComponent<EveEntityLoader>().IsReady&&!PNLocalPlayerInput.Allows(player.GetComponent<EveEntityLoader>()),"actor hold retains publication and blocks local input");
@@ -101,10 +101,10 @@ public sealed class PNWorldPhysicsPlayChecks : MonoBehaviour
         Check(player.Body.position.x>x+.1f,"actual keyboard input moves the body in the relocated world before="+x+" after="+player.Body.position.x+" input="+player.CanInput+" move="+player.CanMove+" direction="+player.MoveDirection+" ready="+player.IsReady);
         var skill=player.GetComponent<PNSharedDashEditorProbe>();Check(skill.TryDash(),"registered shared Dash starts in relocated world");
         var clock=player.GetComponent<EveTimeScale>();clock.AddTimedModifier(EveId.Parse("fixture:timer"),EveTimeModifierKind.Scale,.1f,2);
-        var buffs=player.GetComponent<PNBuffManager>();var buff=buffs.Buffs.Apply(new PNBuffApplyRequest(EveId.Parse("base:buff_stat_template"),PNBuffSource.Capture(player.GetComponent<PNStat>())));
+        var buffs=player.GetComponent<PNBuffManager>();var buff=buffs.Buffs.Apply(new PNBuffApplyRequest(EveId.Parse("base:buff_stat_template"),PNCombatSource.Capture(player.GetComponent<PNStat>())));
         Check(buff.Handle.IsAlive,"registered Buff applied before pause");
         var areas=runtime.GetComponent<PNAreaManager>();
-        var area=areas.Create(new PNAreaCreateRequest(EveId.Parse("base:timescale_area"),JObject.Parse("{'radius':2,'reduction':0.2,'minimumReduction':0.1,'duration':10,'dependent':true,'layerMask':-1,'layerMode':'Include'}"),PNBuffSource.Capture(player.GetComponent<PNStat>()),b.PhysicsOwner,player.Body.position,player.GetComponent<PNStat>()));
+        var area=areas.Create(new PNAreaCreateRequest(EveId.Parse("base:timescale_area"),JObject.Parse("{'radius':2,'reduction':0.2,'minimumReduction':0.1,'duration':10,'dependent':true,'layerMask':-1,'layerMode':'Include'}"),PNCombatSource.Capture(player.GetComponent<PNStat>()),b.PhysicsOwner,player.Body.position,player.GetComponent<PNStat>()));
         Check(area.Status==PNAreaStatus.Created,"world-owned Area created");
         double cooldown=skill.DashRecovery.CooldownRemaining;double time=b.GameplayTime;var position=player.Body.position;ulong steps=b.PhysicsSteps;int modifiers=clock.Modifiers.Count;
         b.SetPaused(true);yield return new WaitForSecondsRealtime(.35f);

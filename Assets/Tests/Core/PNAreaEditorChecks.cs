@@ -68,7 +68,7 @@ public static class PNAreaEditorChecks
             EveRegistrySession.Begin(); EveRegistrySession.Start(hub, EveSessionRole.Offline, EveContentCompatibility.Create(hub, docs, "test:area"));
             var root = new GameObject("Area manager fixture"); SceneManager.MoveGameObjectToScene(root, scene); areas = root.AddComponent<PNAreaManager>(); areas.Initialize(EveRegistrySession.Context);
             var source = Entity(990001, new Vector3(20, 0, 0)); var target = Entity(990002, Vector3.zero);
-            var buffs = target.GetComponent<PNBuffManager>().Buffs; var clock = target.GetComponent<EveTimeScale>(); var capture = PNBuffSource.Capture(source);
+            var buffs = target.GetComponent<PNBuffManager>().Buffs; var clock = target.GetComponent<EveTimeScale>(); var capture = PNCombatSource.Capture(source);
             Check(hub.Get<PNAreaDefinition>().ResolveIdentity(EveId.Parse("base:timescale_area")) == EveId.Parse("project_n:timescale_area"), "Area base alias");
             var bad = Input(); bad["radius"] = -1;
             Check(areas.Create(new PNAreaCreateRequest(EveId.Parse("base:timescale_area"), bad, capture, scene, Vector3.zero)).Status == PNAreaStatus.Failed && areas.PooledObjectCount == 0, "Bad input rejected before borrowing");

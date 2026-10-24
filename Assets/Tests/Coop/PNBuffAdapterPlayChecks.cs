@@ -54,7 +54,7 @@ namespace ProjectN.Coop.Tests
                 try
                 {
                     buffs=FindObjectsByType<PNPlayerStat>().Single(x=>x.GetComponent<EveEntityIdentity>().OwnerId==0).GetComponent<PNBuffManager>();
-                    for(int i=0;i<12;i++)buffs.Buffs.Apply(new PNBuffApplyRequest(id,new PNBuffSource(EveRegistrySession.Context.SessionId,buffs.GetComponent<PNStat>().EntityId)));
+                    for(int i=0;i<12;i++)buffs.Buffs.Apply(new PNBuffApplyRequest(id,PNCombatSource.System(EveRegistrySession.Context.SessionId,buffs.GetComponent<PNStat>().EntityId)));
                     Check(buffs.Buffs.Snapshot().Count==12&&buffs.Replica.PresenterCount==12,"real DLL custom Buff and presenter on host");
                     File.WriteAllText(Path.Combine(folder,"host-ready"),"ready");
                 }catch(Exception error){Fail(error);yield break;}
@@ -99,8 +99,8 @@ namespace ProjectN.Coop.Tests
                         if(phase==1)buffs.enabled=false;
                         if(phase==2)buffs.enabled=true;
                         if(phase==3)foreach(var item in buffs.Buffs.Snapshot())buffs.Buffs.Remove(item.Handle);
-                        if(phase==4)buffs.Buffs.Apply(new PNBuffApplyRequest(id,new PNBuffSource(EveRegistrySession.Context.SessionId,buffs.GetComponent<PNStat>().EntityId)));
-                        if(phase==5)buffs.Buffs.Apply(new PNBuffApplyRequest(burn,PNBuffSource.Capture(buffs.GetComponent<PNStat>())));
+                        if(phase==4)buffs.Buffs.Apply(new PNBuffApplyRequest(id,PNCombatSource.System(EveRegistrySession.Context.SessionId,buffs.GetComponent<PNStat>().EntityId)));
+                        if(phase==5)buffs.Buffs.Apply(new PNBuffApplyRequest(burn,PNCombatSource.Capture(buffs.GetComponent<PNStat>())));
                         if(phase==6)buffs.Buffs.RemoveMatching(x=>x.Id==burn,PNBuffEndReason.Dispelled);
                         File.WriteAllText(key,"ready");
                     }catch(Exception error){Fail(error);yield break;}

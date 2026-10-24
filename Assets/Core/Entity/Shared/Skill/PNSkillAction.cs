@@ -21,7 +21,7 @@ public class PNSkillActionContext
     //     returns null unless a subclass supplies a frozen source.
     // VI: Nguồn gán cho Operation không phụ thuộc skill sống. Ngữ cảnh có skill chụp stat của Skill mỗi lần đọc; không có skill thì null
     //     trừ khi lớp con cấp nguồn đã đóng băng.
-    public virtual PNBuffSource Source => Skill != null ? PNBuffSource.Capture(Skill.GetComponent<PNStat>()) : null;
+    public virtual PNCombatSource Source => Skill != null ? PNCombatSource.Capture(Skill.GetComponent<PNStat>()) : null;
     // EN: World used to validate live targets; the skill entity's world by default (null for an entity outside any world).
     // VI: World dùng để kiểm mục tiêu sống; mặc định là world của entity skill.
     public virtual EveWorldContext World => Skill != null ? Skill.GetComponent<EveEntityIdentity>()?.World : null;

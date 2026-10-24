@@ -81,13 +81,13 @@ public static class PNProjectileHitEditorChecks
                 obj.AddComponent<EveEntityLoader>().Load(hub); obj.SetActive(true); obj.GetComponent<PNBuffManager>().Advance(0); return obj;
             }
             double Hp(PNStat stat) => stat.GetCurrent(PNContentIds.Health);
-            PNProjectileReceipt Fire(string id, Vector3 position, Vector3 direction, PNBuffSource source, PNPreparedDamage damage = null, PNSkillHitSnapshot plan = null)
+            PNProjectileReceipt Fire(string id, Vector3 position, Vector3 direction, PNCombatSource source, PNPreparedDamage damage = null, PNSkillHitSnapshot plan = null)
                 => manager.Create(new PNProjectileLaunch(EveId.Parse(id), null, source, enemy, damage, plan), new PNProjectileSpawn(preview, position, direction));
             void Advance(int ticks, float step = .1f) { for (int i = 0; i < ticks; i++) manager.Advance(step); }
 
             // Damage from the prepared template: one hit, then the projectile ends.
             var shooterObject = Shooter(new Vector3(0, 0, 50), out var skill); var shooter = shooterObject.GetComponent<PNStat>();
-            var source = PNBuffSource.Capture(shooter);
+            var source = PNCombatSource.Capture(shooter);
             var target = Dummy(new Vector3(2, 0, 0)); Physics.SyncTransforms();
             var prepared = source.Snapshot.PrepareDamage(100, false, 0d, PNContentIds.True);
             double before = Hp(target);
@@ -121,7 +121,7 @@ public static class PNProjectileHitEditorChecks
 
             // The prepared amount already includes the source modifiers at launch; later changes do not reach a flying projectile.
             shooter.SetSource(EveId.Parse("test:pd_source"), new[] { new EveStatModifier(PNContentIds.ProjectileDamage, .5d, 1, PNContentIds.Scale), new EveStatModifier(PNContentIds.CritRate, 100d, 0) });
-            var boosted = PNBuffSource.Capture(shooter);
+            var boosted = PNCombatSource.Capture(shooter);
             var tags = new[] { PNContentIds.True, PNContentIds.ProjectileDamage };
             var plain = boosted.Snapshot.PrepareDamage(100, false, 0d, tags); var crit = boosted.Snapshot.PrepareDamage(100, true, 0d, tags);
             Check(Near(plain.Amount, 150d) && crit.CanCrit && crit.CritRate >= 100d, "projectile_damage on the source raises the prepared amount (+50%): amount=" + plain.Amount + " rate=" + crit.CritRate);

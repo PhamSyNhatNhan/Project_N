@@ -69,7 +69,7 @@ public sealed class PNProjectileFrameworkBenchmark : MonoBehaviour
                 var obj = new GameObject("wall"); SceneManager.MoveGameObjectToScene(obj, scene); obj.layer = wall; obj.transform.position = spec.Item1; obj.AddComponent<BoxCollider>().size = spec.Item2; objects.Add(obj);
             }
             Physics.SyncTransforms();
-            var source = new PNBuffSource(session.SessionId, new EveEntityId(990001));
+            var source = PNCombatSource.System(session.SessionId, new EveEntityId(990001));
             var scenarios = new[]
             {
                 new Scenario { Name = "directional_1000", Id = "project_n:directional", Count = 1000, Cap = 1000 },

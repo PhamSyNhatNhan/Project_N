@@ -65,7 +65,7 @@ namespace ProjectN.Coop.Tests
                     if(host)
                     {
                         var actor=Players().Single(x=>x.GetComponent<EveEntityIdentity>().OwnerId==0);var stat=actor.GetComponent<PNStat>();
-                        actor.GetComponent<PNBuffManager>().Buffs.Apply(new PNBuffApplyRequest(EveId.Parse("native_probe:buff_probe"),new PNBuffSource(EveRegistrySession.Context.SessionId,stat.EntityId)));
+                        actor.GetComponent<PNBuffManager>().Buffs.Apply(new PNBuffApplyRequest(EveId.Parse("native_probe:buff_probe"),PNCombatSource.System(EveRegistrySession.Context.SessionId,stat.EntityId)));
                         Check(true,"previous API6 DLL buff executes in new play "+round);
                     }
                     if(NetworkClient.localPlayer!=null){if(shell!=0)Check(shell==NetworkClient.localPlayer.netId,"room control shell retained");shell=NetworkClient.localPlayer.netId;}

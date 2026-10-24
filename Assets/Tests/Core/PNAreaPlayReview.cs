@@ -52,7 +52,7 @@ public sealed class PNAreaPlayReview : MonoBehaviour
     {
         var managerRoot = new GameObject("Area Play isolated manager"); fixtures.Add(managerRoot); areas = managerRoot.AddComponent<PNAreaManager>(); areas.Initialize(EveRegistrySession.Context);
         var position = new Vector3(70, 0, 70); var source = Entity(990101, position + Vector3.right * 10); var target = Entity(990102, position);
-        var captured = PNBuffSource.Capture(source); var buffs = target.GetComponent<PNBuffManager>().Buffs; var clock = target.GetComponent<EveTimeScale>();
+        var captured = PNCombatSource.Capture(source); var buffs = target.GetComponent<PNBuffManager>().Buffs; var clock = target.GetComponent<EveTimeScale>();
         JObject Input(double duration, bool dependent = false) => new JObject { ["radius"] = 2, ["reduction"] = 1, ["minimumReduction"] = .2, ["duration"] = duration, ["dependent"] = dependent, ["layerMask"] = 1 << 31, ["layerMode"] = "Include" };
         PNAreaReceipt Spawn(double duration = 2, bool dependent = false)
         {

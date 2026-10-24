@@ -461,6 +461,6 @@ internal sealed class PNHitExecutionContext : PNSkillActionContext
     private readonly PNSkillActionContext parent;
     internal PNHitExecutionContext(PNSkillActionContext parent, EveId skillId, IEnumerable<EveId> categories, IEnumerable<PNStat> targets, Vector3? direction, Vector3? position)
         : base(skillId, parent.Data, parent.Registry, targets, direction, position, categories) { this.parent = parent; }
-    public override PNBuffSource Source => parent.Source;
+    public override PNCombatSource Source => parent.Source;
     public override EveWorldContext World => parent.World;
 }

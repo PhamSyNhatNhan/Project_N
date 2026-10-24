@@ -26,7 +26,7 @@ public static class PNProjectileTimeStopEditorChecks
         try
         {
             EveRegistrySession.Begin(); EveRegistrySession.Start(hub, EveSessionRole.Offline, EveContentCompatibility.Create(hub, docs, "test:projectile_timestop"));
-            var session = EveRegistrySession.Context; var source = new PNBuffSource(session.SessionId, new EveEntityId(993001)); int enemy = 1 << 7;
+            var session = EveRegistrySession.Context; var source = PNCombatSource.System(session.SessionId, new EveEntityId(993001)); int enemy = 1 << 7;
             GameObject Fixture(string name) { var obj = new GameObject(name); SceneManager.MoveGameObjectToScene(obj, preview); fixtures.Add(obj); return obj; }
             projectiles = Fixture("Projectile manager").AddComponent<PNProjectileManager>(); projectiles.Initialize(session, new PNProjectileProfile { MaxActive = 20 });
             areas = Fixture("Area manager").AddComponent<PNAreaManager>(); areas.Initialize(session);

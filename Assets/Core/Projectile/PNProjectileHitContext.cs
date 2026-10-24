@@ -5,10 +5,10 @@ using EveEngine;
 // VI: Ngữ cảnh skill tách rời của một viên đạn: không có skill sống, nguồn là nguồn đã đóng băng lúc bắn.
 public sealed class PNProjectileHitContext : PNSkillActionContext
 {
-    private readonly PNBuffSource source;
+    private readonly PNCombatSource source;
     private readonly EveWorldContext world;
-    public PNProjectileHitContext(EveId entrySkillId, PNBuffSource source, EveWorldContext world, EveRegistryHub registry)
+    public PNProjectileHitContext(EveId entrySkillId, PNCombatSource source, EveWorldContext world, EveRegistryHub registry)
         : base(entrySkillId, null, registry, null, null, null, null) { this.source = source; this.world = world; }
-    public override PNBuffSource Source => source;
+    public override PNCombatSource Source => source;
     public override EveWorldContext World => world;
 }

@@ -83,20 +83,20 @@ public static class PNPenetrationEditorChecks
                 obj.AddComponent<EveEntityLoader>().Load(hub); obj.SetActive(true); obj.GetComponent<PNBuffManager>().Advance(0); return obj;
             }
             void Advance(int ticks, float step = .1f) { for (int i = 0; i < ticks; i++) manager.Advance(step); }
-            PNProjectileReceipt Fire(Vector3 position, PNBuffSource source, PNPreparedDamage prepared)
+            PNProjectileReceipt Fire(Vector3 position, PNCombatSource source, PNPreparedDamage prepared)
                 => manager.Create(new PNProjectileLaunch(EveId.Parse("test:hit_still"), null, source, enemyMask, prepared, null), new PNProjectileSpawn(preview, position, Vector3.right));
             var shooter = Shooter(new Vector3(0, 0, 450)).GetComponent<PNStat>();
-            double Shoot(PNStat target, Vector3 at, PNPreparedDamage prepared, PNBuffSource source)
+            double Shoot(PNStat target, Vector3 at, PNPreparedDamage prepared, PNCombatSource source)
             {
                 Physics.SyncTransforms(); double before = Hp(target); var shot = Fire(at, source, prepared); Advance(3); shot.Handle.End(); return before - Hp(target);
             }
             var projectileTarget = Entity<PNEnemyStat>("Penetration projectile target", new Vector3(0, 0, 460), "project_n:dummy", false, 7);
             projectileTarget.SetSource(resist, new[] { fireResist });
-            var plainSource = PNBuffSource.Capture(shooter);
+            var plainSource = PNCombatSource.Capture(shooter);
             var plainPrepared = plainSource.Snapshot.PrepareDamage(100, false, 0d, PNContentIds.True, PNContentModule.Fire);
             Check(Near(Shoot(projectileTarget, new Vector3(0, 0, 460), plainPrepared, plainSource), 50d, 1e-3), "projectile without penetration: true fire 100 x 0.5");
             shooter.SetSource(penetration, new[] { firePenetration });
-            var penSource = PNBuffSource.Capture(shooter);
+            var penSource = PNCombatSource.Capture(shooter);
             var penPrepared = penSource.Snapshot.PrepareDamage(100, false, 0d, PNContentIds.True, PNContentModule.Fire);
             shooter.RemoveSource(penetration);
             Check(penPrepared.Penetration.Count == 1 && Near(Shoot(projectileTarget, new Vector3(0, 0, 460), penPrepared, penSource), 70d, 1e-3),
@@ -106,7 +106,7 @@ public static class PNPenetrationEditorChecks
             var plainDefense = plainSource.Snapshot.PrepareDamage(100, false, 0d, PNContentIds.Physical);
             Check(Near(Shoot(projectileTarget, new Vector3(0, 0, 460), plainDefense, plainSource), 50d, 1e-3), "projectile against DEF 500: plain physical hit is halved");
             shooter.SetSource(penetration, new[] { new EveStatModifier(PNContentIds.Defense, -.2d, 1, PNContentIds.Penetration) });
-            var defenseSourceCapture = PNBuffSource.Capture(shooter);
+            var defenseSourceCapture = PNCombatSource.Capture(shooter);
             var defensePrepared = defenseSourceCapture.Snapshot.PrepareDamage(100, false, 0d, PNContentIds.Physical);
             shooter.RemoveSource(penetration);
             double expectedDefense = 100d * (1d - 2d / Math.PI * Math.Atan(400d / 500d));
@@ -119,20 +119,20 @@ public static class PNPenetrationEditorChecks
             var dotSource = Entity<PNEnemyStat>("Penetration DOT source", new Vector3(0, 0, 520), "project_n:dummy");
             dotSource.SetSource(EveId.Parse("test:pen_attack"), new[] { new EveStatModifier(PNContentIds.AttackPower, 100, 0) });
             var buffs = dotTarget.GetComponent<PNBuffManager>().Buffs; var burn = EveId.Parse("base:burn");
-            PNDamageResult Tick(PNBuffSource from)
+            PNDamageResult Tick(PNCombatSource from)
             {
                 var grant = buffs.Apply(new PNBuffApplyRequest(burn, from, JObject.Parse("{'stacks':35}")));
                 PNDamageResult hit = null; Action<PNDamageResult> watch = r => hit = r; dotTarget.DamageReceived += watch;
                 try { buffs.Trigger(grant.Handle); } finally { dotTarget.DamageReceived -= watch; }
                 buffs.Remove(grant.Handle); return hit;
             }
-            var plainTick = Tick(PNBuffSource.Capture(dotSource));
+            var plainTick = Tick(PNCombatSource.Capture(dotSource));
             dotSource.SetSource(penetration, new[] { firePenetration });
-            var penTick = Tick(PNBuffSource.Capture(dotSource));
+            var penTick = Tick(PNCombatSource.Capture(dotSource));
             Check(plainTick != null && penTick != null && plainTick.Damage.Penetration.Count == 0 && penTick.Damage.Penetration.Count == 1, "Burn ticks carry penetration only when the applying source had it");
             Check(Near(penTick.CalculatedDamage / plainTick.CalculatedDamage, 1.4d, 1e-6), "Burn with fire penetration +0.2 deals x1.4 of the plain tick (0.7 / 0.5)");
             dotSource.RemoveSource(penetration);
-            var afterTick = Tick(PNBuffSource.Capture(dotSource));
+            var afterTick = Tick(PNCombatSource.Capture(dotSource));
             Check(Near(afterTick.CalculatedDamage, plainTick.CalculatedDamage, 1e-6), "a later Burn from the same source without the modifier is plain again");
         }
         finally

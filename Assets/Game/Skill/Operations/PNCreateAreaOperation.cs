@@ -24,7 +24,7 @@ public class PNCreateAreaOperation : PNSkillOperation
         var manager = PNAreaManager.Resolve(EveRegistrySession.Context, caster.gameObject.scene);
         if (!ReferenceEquals(manager.Session.Registry, context.Registry)) throw new InvalidOperationException("Area operation session mismatch.");
         Result = manager.Create(new PNAreaCreateRequest(EveId.Parse(PNBuffContentBatch.String(data, "areaId")), data["input"],
-            PNBuffSource.Capture(caster), caster.gameObject.scene, context.Position.Value, caster,
+            PNCombatSource.Capture(caster), caster.gameObject.scene, context.Position.Value, caster,
             PNBuffContentBatch.Bool(data, "followCaster") ? caster : null));
         if (Result.Status == PNAreaStatus.Failed) throw new InvalidOperationException("Area creation failed.", Result.Error);
 #else
