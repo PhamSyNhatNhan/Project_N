@@ -23,8 +23,8 @@ public sealed class PNAreaNativeModule : EveIContentModule
 {
     public void Register(EveRegistryHub hub)
     {
-        var original = hub.Get<PNAreaDefinition>().Get(EveId.Parse("project_n:timescale_area"));
-        var registry = hub.Get<PNAreaDefinition>();
+        var original = hub.Instances().GetKind<PNAreaDefinition>(EveId.Parse("project_n:timescale_area"));
+        var registry = hub.Instances();
         registry.Register(new PNAreaDefinition(EveId.Parse("area_test:selected"), typeof(PNAreaSelectedProbe), original.Payload, PNTimeScaleArea.ValidateDefinition, input => { new PNTimeScaleAreaSettings(input); }));
         registry.RequestOverride(EveId.Parse("base:timescale_area"), EveId.Parse("area_test:selected"), "area_test", "1.0.0", new[] { "project_n" });
         registry.Register(new PNAreaDefinition(EveId.Parse("area_test:fail"), typeof(PNAreaFailureProbe), new JObject(), (data, content) => { }, input => { }));
@@ -40,10 +40,10 @@ public static class PNAreaEditorChecks
         var original = SceneManager.GetActiveScene(); bool dirty = original.isDirty;
         var docs = new PNGameContentSource(Path.Combine(Application.streamingAssetsPath, "BaseContent"), Path.Combine(Application.persistentDataPath, "Mods"), Array.Empty<string>()).ReadDocuments().ToArray();
         var modules = new EveIContentModule[] { new PNContentModule(), new PNGameplayContentModule(), new PNAreaNativeModule() };
-        string json = "{'schemaVersion':1,'extensions':{'project_n':{'areas':[{'id':'area_test:json','factoryId':'base:timescale_area','data':{'buffId':'area_test:grant','pollPeriod':0.05,'fadeIn':0.1,'fadeOut':0.3}}],'buffs':[{'id':'area_test:grant','factoryId':'base:timescale_reduction_area','data':{'areaOwned':true},'tags':['base:timescale'],'multipleInstances':true,'maximumInstances':2147483647,'scope':'Target','canDispel':false,'showInUI':false}]}}}";
+        string json = "{'schemaVersion':1,'extensions':{'project_n':{'instances':[{'id':'area_test:json','factoryId':'base:timescale_area','data':{'buffId':'area_test:grant','pollPeriod':0.05,'fadeIn':0.1,'fadeOut':0.3}}],'buffs':[{'id':'area_test:grant','factoryId':'base:timescale_reduction_area','data':{'areaOwned':true},'tags':['base:timescale'],'multipleInstances':true,'maximumInstances':2147483647,'scope':'Target','canDispel':false,'showInUI':false}]}}}";
         var jsonHub = new EveContentBootstrap().Build(modules, docs.Concat(new[] { new EveContentDocument("area same batch", json, "area_test", dependencies: new[] { "project_n" }) }));
         var hub = new EveContentBootstrap().Build(modules, docs,
-            new[] { new EveOverrideSelection("areas", EveId.Parse("base:timescale_area"), "area_test") });
+            new[] { new EveOverrideSelection("instances", EveId.Parse("base:timescale_area"), "area_test") });
         var scene = EditorSceneManager.NewPreviewScene();
         Directory.CreateDirectory(".utmp/AreaReview");
         var evidence = new List<string>(); int checks = 0;
@@ -60,7 +60,7 @@ public static class PNAreaEditorChecks
             => new JObject { ["radius"] = 2, ["reduction"] = reduction, ["minimumReduction"] = minimum, ["duration"] = duration.HasValue ? new JValue(duration.Value) : JValue.CreateNull(), ["dependent"] = dependent, ["layerMask"] = 1 << 31, ["layerMode"] = "Include" };
         try
         {
-            Check(jsonHub.Get<PNAreaDefinition>().Get(EveId.Parse("area_test:json")) != null, "Area JSON derivation with same-batch Buff reference");
+            Check(jsonHub.Instances().Get(EveId.Parse("area_test:json")) != null, "Area JSON derivation with same-batch Buff reference");
             bool dependencyRejected = false;
             try { new EveContentBootstrap().Build(modules, docs.Concat(new[] { new EveContentDocument("area no dependency", json, "area_test", dependencies: Array.Empty<string>()) })); }
             catch (FormatException) { dependencyRejected = true; }
@@ -69,7 +69,7 @@ public static class PNAreaEditorChecks
             var root = new GameObject("Area manager fixture"); SceneManager.MoveGameObjectToScene(root, scene); areas = root.AddComponent<PNAreaManager>(); areas.Initialize(EveRegistrySession.Context);
             var source = Entity(990001, new Vector3(20, 0, 0)); var target = Entity(990002, Vector3.zero);
             var buffs = target.GetComponent<PNBuffManager>().Buffs; var clock = target.GetComponent<EveTimeScale>(); var capture = PNCombatSource.Capture(source);
-            Check(hub.Get<PNAreaDefinition>().ResolveIdentity(EveId.Parse("base:timescale_area")) == EveId.Parse("project_n:timescale_area"), "Area base alias");
+            Check(hub.Instances().ResolveIdentity(EveId.Parse("base:timescale_area")) == EveId.Parse("project_n:timescale_area"), "Area base alias");
             var bad = Input(); bad["radius"] = -1;
             Check(areas.Create(new PNAreaCreateRequest(EveId.Parse("base:timescale_area"), bad, capture, scene, Vector3.zero)).Status == PNAreaStatus.Failed && areas.PooledObjectCount == 0, "Bad input rejected before borrowing");
             Check(areas.Create(new PNAreaCreateRequest(EveId.Parse("base:timescale_area"), Input(null, false), capture, scene, Vector3.zero)).Status == PNAreaStatus.Failed, "Untimed independent rejected");

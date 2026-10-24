@@ -76,7 +76,7 @@ public class PNCreateProjectileOperation : PNSkillOperation
     public static void Validate(JToken token, EveRegistryHub hub)
     {
         var settings = PNCreateProjectileSettings.Parse(token);
-        hub.Get<PNProjectileDefinition>().GetEffective(settings.ProjectileId).ValidateInput(settings.Input);
+        hub.Instances().GetEffectiveKind<PNProjectileDefinition>(settings.ProjectileId).ValidateInput(settings.Input);
         if (settings.Values != null) { settings.Values.ValidateStats(hub); new PNStatSet(hub).ResolveDamageType(settings.Tags); }
     }
     public override void Execute(PNSkillActionContext context, JToken token)

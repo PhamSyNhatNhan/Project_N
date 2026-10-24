@@ -49,11 +49,13 @@ namespace EveEngine
             if (definition == null || definition.Id.Namespace != Namespace)
                 throw new ArgumentException($"Mod definitions must belong to {Namespace}.");
             (definition as EveIRegistrationReferences)?.ValidateRegistrationReferences(Namespace,new System.Collections.Generic.List<string>(Dependencies.Keys));
-            Registry.GetOrCreate<T>().Register(definition);
+            // A definition of a family (its static type may be a subclass) goes to the family registry; any other type gets its own registry.
+            if (Registry.FamilyOf(definition.GetType()) is EveIUntypedRegistry family) family.RegisterUntyped(definition);
+            else Registry.GetOrCreate<T>().Register(definition);
         }
 
         public void Override<T>(EveId concept, EveId implementation) where T : class, EveIIdentified
-            => Registry.Get<T>().RequestOverride(concept, implementation, Namespace, Version, Dependencies.Keys);
+            => (Registry.FamilyOf(typeof(T)) as EveIBindingRegistry ?? Registry.Get<T>()).RequestOverride(concept, implementation, Namespace, Version, Dependencies.Keys);
     }
 }
 

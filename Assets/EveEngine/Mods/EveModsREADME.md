@@ -108,6 +108,19 @@ public sealed class CombatMod : EveCodeMod
 Override vẫn chịu hợp đồng `base:` và lựa chọn provider; xem
 `Assets/Core/Content/Registry/PNBaseRegistryREADME.md`.
 
+## Registry families / Họ registry (Rules97, Mod API 8)
+
+EN: Spawnable definitions (area, projectile, and kinds a mod adds) are subclasses of `PNInstanceDefinition` and live in one registry named `instances`.
+`context.Register(definition)` sends a definition of a family to its family registry even when its static type is the subclass; any other type still gets
+its own registry. A mod can make a family of its own with `context.Registry.GetOrCreateFamily<MyBase>()` during `Register`, and a later mod can register
+`MyBase` subclasses into it. A family never nests inside another and a subclass has no registry of its own (`GetOrCreate`/`Get` of it throws).
+`context.Override<T>` accepts a subclass type and routes to the family. JSON for spawnable definitions: `extensions.project_n.instances`
+(the kind is the kind of `factoryId`). See `Assets/Core/Instance/PNInstanceREADME.md`.
+
+VI: Định nghĩa sinh được (area, projectile và kind do mod thêm) là lớp con của `PNInstanceDefinition`, nằm trong một registry tên `instances`. `context.Register`
+gửi định nghĩa của một họ vào registry họ dù kiểu tĩnh là lớp con; kiểu khác vẫn có registry riêng. Mod tự tạo họ bằng `GetOrCreateFamily<MyBase>()`
+trong `Register`; họ không lồng nhau và lớp con không có registry riêng.
+
 ## Lifecycle and loading rules / Vòng đời và quy tắc nạp
 
 - Register chạy một lần mỗi content generation, theo thứ tự dependency trong bootstrap, trước khi khóa registry.

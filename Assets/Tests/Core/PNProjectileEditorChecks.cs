@@ -43,7 +43,7 @@ public sealed class PNProjectileNativeModule : EveIContentModule
 {
     public void Register(EveRegistryHub hub)
     {
-        var registry = hub.Get<PNProjectileDefinition>();
+        var registry = hub.Instances();
         var data = JObject.Parse("{'speed':10,'acceleration':0,'speedMin':0,'speedMax':200,'life':{'mode':'Time','value':0.5},'volume':{'size':[0.4,0.4,0.4]},'environmentMask':['Wall'],'hitLimit':1}");
         var probe = new PNProjectileDefinition(EveId.Parse("test:probe"), typeof(PNProbeProjectile), data, PNDirectionalSettings.ValidateDefinition, PNDirectionalSettings.ValidateInput);
         registry.Register(probe);

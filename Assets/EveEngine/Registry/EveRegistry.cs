@@ -19,10 +19,16 @@ namespace EveEngine
         void Seal();
     }
 
+    // EN: Lets a family registry accept a subclass definition whose static type was inferred as the subclass (mod registration).
+    // VI: Cho registry họ nhận định nghĩa lớp con mà kiểu tĩnh bị suy ra là lớp con (đăng ký của mod).
+    internal interface EveIUntypedRegistry { void RegisterUntyped(EveIIdentified definition); }
+
     // EN: Stores one type of content definition and rejects duplicate IDs.
     // VI: Lưu một loại định nghĩa nội dung và từ chối ID trùng.
-    public sealed partial class EveRegistry<T> : EveIRegistry where T : class, EveIIdentified
+    public sealed partial class EveRegistry<T> : EveIRegistry, EveIUntypedRegistry where T : class, EveIIdentified
     {
+        void EveIUntypedRegistry.RegisterUntyped(EveIIdentified definition)
+            => Register(definition as T ?? throw new ArgumentException($"Definition {definition?.Id} is not a {typeof(T).Name}.", nameof(definition)));
         private readonly Dictionary<EveId, T> entries = new Dictionary<EveId, T>();
         public bool IsSealed { get; private set; }
         public int Count => entries.Count;

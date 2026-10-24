@@ -15,8 +15,8 @@ public sealed class PNProjectileTeamNativeModule : EveIContentModule
 {
     public void Register(EveRegistryHub hub)
     {
-        var registry = hub.Get<PNProjectileDefinition>();
-        var directional = registry.Get(PNProjectileGameplayContent.Directional);
+        var registry = hub.Instances();
+        var directional = registry.GetKind<PNProjectileDefinition>(PNProjectileGameplayContent.Directional);
         var data = JObject.Parse("{'speed':0,'acceleration':0,'speedMin':0,'speedMax':0,'life':{'mode':'Time','value':5},'volume':{'size':[0.4,0.4,0.4]},'environmentMask':[],'hitLimit':5}");
         registry.Register(directional.Derive(EveId.Parse("test:open_still"), data));
         registry.Register(directional.Derive(EveId.Parse("test:locked_still"), data, false));

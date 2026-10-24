@@ -12,7 +12,7 @@ public class PNCreateAreaOperation : PNSkillOperation
     public static void Validate(JToken token, EveRegistryHub hub)
     {
         var data = PNBuffContentBatch.Object(token); PNBuffContentBatch.Fields(data, "areaId", "input", "followCaster");
-        hub.Get<PNAreaDefinition>().GetEffective(EveId.Parse(PNBuffContentBatch.String(data, "areaId"))).ValidateInput(data["input"]);
+        hub.Instances().GetEffectiveKind<PNAreaDefinition>(EveId.Parse(PNBuffContentBatch.String(data, "areaId"))).ValidateInput(data["input"]);
         PNBuffContentBatch.Bool(data, "followCaster");
     }
     public override void Execute(PNSkillActionContext context, JToken token)

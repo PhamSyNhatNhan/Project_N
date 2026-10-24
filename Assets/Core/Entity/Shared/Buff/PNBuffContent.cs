@@ -10,13 +10,12 @@ public sealed partial class PNBuffContentBatch : EveIContentExtensionBatch
     private readonly EveRegistryHub hub;
     private readonly Dictionary<EveId, PNBuffTagDefinition> tags = new Dictionary<EveId, PNBuffTagDefinition>();
     private readonly Dictionary<EveId, PNBuffDefinition> buffs = new Dictionary<EveId, PNBuffDefinition>();
-    private readonly Dictionary<EveId, PNAreaDefinition> areas = new Dictionary<EveId, PNAreaDefinition>();
-    private readonly Dictionary<EveId, PNProjectileDefinition> projectiles = new Dictionary<EveId, PNProjectileDefinition>();
+    private readonly Dictionary<EveId, PNInstanceDefinition> instances = new Dictionary<EveId, PNInstanceDefinition>();
     private readonly Dictionary<EveId,PNSkillBindingProfile> skillProfiles=new Dictionary<EveId,PNSkillBindingProfile>();
     private readonly Dictionary<EveId,PNSkillBaseBindings> skillMappings=new Dictionary<EveId,PNSkillBaseBindings>();
     private readonly List<Action> checks = new List<Action>();
     private readonly HashSet<EveId> pendingStats;
-    public IEnumerable<EveIIdentified> Definitions => tags.Values.Cast<EveIIdentified>().Concat(buffs.Values).Concat(areas.Values).Concat(projectiles.Values).Concat(skillProfiles.Values).Concat(skillMappings.Values);
+    public IEnumerable<EveIIdentified> Definitions => tags.Values.Cast<EveIIdentified>().Concat(buffs.Values).Concat(instances.Values).Concat(skillProfiles.Values).Concat(skillMappings.Values);
     public PNBuffContentBatch(IReadOnlyList<EveContentExtensionDocument> documents, EveRegistryHub hub, IReadOnlyList<EveIIdentified> pendingDefinitions)
     {
         this.hub = hub;
@@ -26,24 +25,18 @@ public sealed partial class PNBuffContentBatch : EveIContentExtensionBatch
             var root = document.Extensions;
             // Each registered processor consumes its own namespaced extension.
             if (root["project_n"] == null) continue;
-            var data = Object(root["project_n"]); Fields(data, "buffTags", "buffs", "areas", "projectiles", "skillBindingProfiles", "skillBaseBindings");
+            var data = Object(root["project_n"]); Fields(data, "buffTags", "buffs", "instances", "skillBindingProfiles", "skillBaseBindings");
             ParseSkillBindings(data,document,pendingDefinitions);
-            foreach (var value in Array(data["areas"]))
+            foreach (var value in Array(data["instances"]))
             {
-                var obj = Object(value); Fields(obj, "id", "factoryId", "data"); var id = Owned(String(obj, "id"), document);
-                var registry = hub.Get<PNAreaDefinition>();
-                if (areas.ContainsKey(id) || registry.TryGet(id, out _)) throw new FormatException("Duplicate area " + id);
+                // The kind comes from the factory; the kind owns the extra entry fields it accepts (for example a projectile's destroyable).
+                var obj = Object(value); var id = Owned(String(obj, "id"), document);
+                var registry = hub.Instances();
+                if (instances.ContainsKey(id) || registry.TryGet(id, out _)) throw new FormatException("Duplicate instance " + id);
                 var factoryId = EveId.Parse(String(obj, "factoryId")); Reference(factoryId, document, registry);
-                var definition = registry.Get(factoryId).Derive(id, obj["data"]); areas.Add(id, definition);
-                checks.Add(() => { definition.ValidatePayload(hub); definition.ValidateReferences(References(document, pendingDefinitions)); });
-            }
-            foreach (var value in Array(data["projectiles"]))
-            {
-                var obj = Object(value); Fields(obj, "id", "factoryId", "data", "destroyable"); var id = Owned(String(obj, "id"), document);
-                var registry = hub.Get<PNProjectileDefinition>();
-                if (projectiles.ContainsKey(id) || registry.TryGet(id, out _)) throw new FormatException("Duplicate projectile " + id);
-                var factoryId = EveId.Parse(String(obj, "factoryId")); Reference(factoryId, document, registry);
-                bool? destroyable = obj["destroyable"] == null ? (bool?)null : Bool(obj, "destroyable"); var definition = registry.Get(factoryId).Derive(id, obj["data"], destroyable); projectiles.Add(id, definition);
+                var factory = registry.Get(factoryId);
+                Fields(obj, new[] { "id", "factoryId", "data" }.Concat(factory.EntryFields).ToArray());
+                var definition = factory.Derive(id, obj["data"], obj); instances.Add(id, definition);
                 checks.Add(() => { definition.ValidatePayload(hub); definition.ValidateReferences(References(document, pendingDefinitions)); });
             }
             foreach (var value in Array(data["buffTags"]))
@@ -94,7 +87,7 @@ public sealed partial class PNBuffContentBatch : EveIContentExtensionBatch
         if (document.ContentNamespace != null && document.Dependencies != null && owner != document.ContentNamespace && !document.Dependencies.Contains(owner)) throw new FormatException("Buff reference requires dependency on " + owner);
     }
     public void Validate() { if (hub.Buffs().IsSealed || hub.BuffTags().IsSealed) throw new InvalidOperationException("Buff registries sealed."); foreach (var check in checks) check(); }
-    public void Commit() { foreach(var profile in skillProfiles.Values)hub.Get<PNSkillBindingProfile>().Register(profile); foreach(var mapping in skillMappings.Values)hub.Get<PNSkillBaseBindings>().Register(mapping); foreach (var tag in tags.Values) hub.BuffTags().Register(tag); foreach (var buff in buffs.Values) hub.Buffs().Register(buff); foreach (var area in areas.Values) hub.Get<PNAreaDefinition>().Register(area); foreach (var projectile in projectiles.Values) hub.Get<PNProjectileDefinition>().Register(projectile); }
+    public void Commit() { foreach(var profile in skillProfiles.Values)hub.Get<PNSkillBindingProfile>().Register(profile); foreach(var mapping in skillMappings.Values)hub.Get<PNSkillBaseBindings>().Register(mapping); foreach (var tag in tags.Values) hub.BuffTags().Register(tag); foreach (var buff in buffs.Values) hub.Buffs().Register(buff); foreach (var instance in instances.Values) hub.Instances().Register(instance); }
     // Absent or null disables the countdown. Required fields; v1 accepts Ceiling/Hide only.
     internal static PNBuffCountdown Countdown(JToken token)
     {

@@ -22,10 +22,24 @@ public sealed class PNContentReferenceContext
     public void Require<T>(JToken token, string path) where T : class, EveIIdentified => Require<T>(Read(token, path), path);
     public void Require<T>(EveId id, string path) where T : class, EveIIdentified
     {
+        // A kind of the shared instance registry is a subclass: the id must exist and be of that kind, not just any spawnable thing.
+        if (typeof(PNInstanceDefinition).IsAssignableFrom(typeof(T)) && typeof(T) != typeof(PNInstanceDefinition))
+        {
+            var instances = Registry.Instances();
+            PNInstanceDefinition found;
+            if (!instances.TryGet(id, out found)) found = pending.OfType<PNInstanceDefinition>().FirstOrDefault(x => x.Id == id);
+            if (!(found is T)) throw new FormatException(path + ": unknown " + typeof(T).Name + " " + id + (found != null ? " (it is a " + found.Kind + " definition)" : ""));
+            RequireOwner(id, path, instances.BindingOwner);
+            return;
+        }
         var registry = Registry.Get<T>();
         if (!registry.TryGet(id, out _) && !pending.OfType<T>().Any(x => x.Id == id))
             throw new FormatException(path + ": unknown " + typeof(T).Name + " " + id);
-        var owner = id.Namespace == "base" ? registry.BindingOwner(id) : id.Namespace;
+        RequireOwner(id, path, registry.BindingOwner);
+    }
+    private void RequireOwner(EveId id, string path, Func<EveId, string> bindingOwner)
+    {
+        var owner = id.Namespace == "base" ? bindingOwner(id) : id.Namespace;
         if (document?.ContentNamespace != null && owner != document.ContentNamespace &&
             document.Dependencies != null && !document.Dependencies.Contains(owner))
             throw new FormatException(path + ": reference requires dependency on " + owner);

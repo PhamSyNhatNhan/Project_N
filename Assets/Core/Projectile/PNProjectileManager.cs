@@ -129,7 +129,7 @@ public sealed class PNProjectileManager : MonoBehaviour
                 throw new ArgumentException("Projectile requires a launch from this session and a loaded scene.");
             var world = PNWorldGameplay.ForScene(Session, spawn.Scene);
             if (world != null && !world.CanExecute) { receipt.Status = PNProjectileStatus.Rejected; return; }
-            var definition = Session.Registry.Get<PNProjectileDefinition>().GetEffective(launch.ProjectileId);
+            var definition = Session.Registry.Instances().GetEffectiveKind<PNProjectileDefinition>(launch.ProjectileId);
             definition.ValidateInput(launch.Input);
             if (!pools.TryGetValue((definition, spawn.Scene), out pool)) pool = AddPool(definition, spawn.Scene);
             if (pool.Pool.HasIdle) root = pool.Pool.TakeIdle();
@@ -142,7 +142,7 @@ public sealed class PNProjectileManager : MonoBehaviour
             root.hideFlags = HideFlags.DontSave; root.transform.position = spawn.Position;
             var instance = root.GetComponent<PNProjectileInstance>();
             id = ++sequence; var handle = new PNProjectileHandle(this, id);
-            var entry = new Entry { Id = id, DefinitionId = Session.Registry.Get<PNProjectileDefinition>().ResolveIdentity(launch.ProjectileId), Root = root, Instance = instance, Pool = pool, Scene = spawn.Scene, World = world, Lease = world?.AcquireLease("projectile") };
+            var entry = new Entry { Id = id, DefinitionId = Session.Registry.Instances().ResolveIdentity(launch.ProjectileId), Root = root, Instance = instance, Pool = pool, Scene = spawn.Scene, World = world, Lease = world?.AcquireLease("projectile") };
             entries.Add(id, entry); order.Add(entry);
             instance.Bind(this, handle, definition, launch, spawn, world); PNWorldPresentationRegistration.Register(world, root); root.SetActive(true);
             if (!instance.isActiveAndEnabled) throw new InvalidOperationException("Selected projectile component must be active after initialization.");

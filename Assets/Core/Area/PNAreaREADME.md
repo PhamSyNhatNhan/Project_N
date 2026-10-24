@@ -26,7 +26,7 @@ every area to have a sphere, duration, Buff or entity owner.
 
 ## Registration and overrides
 
-`PNAreaDefinition` is registered at content startup in the named `areas` registry.
+`PNAreaDefinition` (kind `area`, a `PNInstanceDefinition`; see `Assets/Core/Instance/PNInstanceREADME.md`) is registered at content startup in the shared `instances` registry; read it with `hub.Instances().GetEffectiveKind<PNAreaDefinition>(id)`.
 Payload is cloned; validation runs before publishing the sealed content session.
 The selected definition constructs an inactive pool template containing its concrete
 `PNAreaInstance` component. Manager reuses clones through `EveEasyPooling`; it never
@@ -37,7 +37,7 @@ implementations. Pools are partitioned by selected definition and scene.
 JSON can derive a registered factory/schema:
 
 ```json
-{"extensions":{"project_n":{"areas":[{
+{"extensions":{"project_n":{"instances":[{
   "id":"addon:slow_field",
   "factoryId":"base:timescale_area",
   "data":{"buffId":"base:timescale_reduction_area","pollPeriod":0.05,

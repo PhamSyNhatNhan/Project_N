@@ -18,7 +18,10 @@ namespace EveEngine
         public EveRegistry<T> Get<T>() where T : class, EveIIdentified
         {
             if (!registries.TryGetValue(typeof(T), out EveIRegistry registry))
+            {
+                RejectFamilyMember(typeof(T));
                 throw new KeyNotFoundException($"Registry<{typeof(T).Name}> has not been registered.");
+            }
             return (EveRegistry<T>)registry;
         }
 
@@ -27,9 +30,42 @@ namespace EveEngine
             if (IsSealed) throw new InvalidOperationException("Registry hub is sealed.");
             Type type = typeof(T);
             if (registries.TryGetValue(type, out EveIRegistry existing)) return (EveRegistry<T>)existing;
+            RejectFamilyMember(type);
             var registry = new EveRegistry<T>();
             registries.Add(type, registry);
             return registry;
+        }
+
+        // EN: One registry stores TBase and every subclass of it (a family). Families do not nest, so each definition has exactly one registry.
+        // VI: Một registry chứa TBase và mọi lớp con của nó (một họ). Họ không lồng nhau nên mỗi định nghĩa có đúng một registry.
+        private readonly List<Type> families = new List<Type>();
+        public EveRegistry<TBase> GetOrCreateFamily<TBase>() where TBase : class, EveIIdentified
+        {
+            Type type = typeof(TBase);
+            if (!families.Contains(type))
+            {
+                foreach (Type known in registries.Keys)
+                    if (known != type && type.IsAssignableFrom(known)) throw new InvalidOperationException($"{known.Name} already has its own registry and cannot join the {type.Name} family.");
+                foreach (Type family in families)
+                    if (family.IsAssignableFrom(type) || type.IsAssignableFrom(family)) throw new InvalidOperationException($"{type.Name} and the {family.Name} family overlap; families do not nest.");
+            }
+            var registry = GetOrCreate<TBase>();
+            if (!families.Contains(type)) families.Add(type);
+            return registry;
+        }
+
+        // The registry that stores definitions of this type: its family when one applies, otherwise null.
+        internal EveIRegistry FamilyOf(Type type)
+        {
+            foreach (Type family in families) if (family.IsAssignableFrom(type)) return registries[family];
+            return null;
+        }
+
+        private void RejectFamilyMember(Type type)
+        {
+            foreach (Type family in families)
+                if (family != type && family.IsAssignableFrom(type))
+                    throw new InvalidOperationException($"{type.Name} definitions belong to the Registry<{family.Name}> family registry; use that registry.");
         }
 
         public void Seal()

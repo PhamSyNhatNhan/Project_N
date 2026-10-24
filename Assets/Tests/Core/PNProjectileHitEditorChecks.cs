@@ -21,9 +21,9 @@ public sealed class PNProjectileHitNativeModule : EveIContentModule
 {
     public void Register(EveRegistryHub hub)
     {
-        var registry = hub.Get<PNProjectileDefinition>();
+        var registry = hub.Instances();
         var data = JObject.Parse("{'speed':10,'acceleration':0,'speedMin':0,'speedMax':200,'life':{'mode':'Time','value':5},'volume':{'size':[0.4,0.4,0.4]},'environmentMask':['Wall'],'hitLimit':1}");
-        var directional = registry.Get(PNProjectileGameplayContent.Directional);
+        var directional = registry.GetKind<PNProjectileDefinition>(PNProjectileGameplayContent.Directional);
         void Variant(string name, Action<JObject> change) { var copy = (JObject)data.DeepClone(); change(copy); registry.Register(directional.Derive(EveId.Parse("test:" + name), copy)); }
         Variant("hit_once", d => { });
         Variant("hit_two", d => d["hitLimit"] = 2);
@@ -33,7 +33,7 @@ public sealed class PNProjectileHitNativeModule : EveIContentModule
         Variant("ground_fall", d => { d["environmentMask"] = new JArray("Ground"); d["gravity"] = new JArray(0, -10, 0); d["speed"] = 4; });
         Variant("ground_pass", d => { d["gravity"] = new JArray(0, -10, 0); d["speed"] = 4; });
         Variant("hit_short", d => d["life"] = JObject.Parse("{'mode':'Time','value':0.3}"));
-        var homingBase = registry.Get(PNProjectileGameplayContent.Homing);
+        var homingBase = registry.GetKind<PNProjectileDefinition>(PNProjectileGameplayContent.Homing);
         void Homing(string name, Action<JObject> change) { var copy = (JObject)homingBase.Payload; copy["environmentMask"] = new JArray(); copy["speed"] = 10; copy["speedMax"] = 200; copy["life"] = JObject.Parse("{'mode':'Time','value':6}"); copy["turnRate"] = 360; copy["homeAfter"] = 0; copy["searchRadius"] = 20; copy["searchInterval"] = 0.1; change(copy); registry.Register(homingBase.Derive(EveId.Parse("test:" + name), copy)); }
         Homing("homing_basic", d => { });
         Homing("homing_late", d => d["homeAfter"] = 0.5);

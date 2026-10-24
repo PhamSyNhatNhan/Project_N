@@ -147,7 +147,7 @@ public sealed class PNAreaManager : MonoBehaviour
             if(world!=null&&!world.CanExecute||request.Owner!=null&&(!PNWorldGameplay.CanExecute(request.Owner)||!ReferenceEquals(request.Owner.GetComponent<EveEntityIdentity>()?.World,world))||request.Follow!=null&&(!PNWorldGameplay.CanExecute(request.Follow)||!ReferenceEquals(request.Follow.GetComponent<EveEntityIdentity>()?.World,world)))
                 throw new InvalidOperationException("Area world/owner/follow is unavailable or crosses worlds.");
             if (!Finite(p.x) || !Finite(p.y) || !Finite(p.z)) throw new ArgumentException("Finite area position required.");
-            var definition = Session.Registry.Get<PNAreaDefinition>().GetEffective(request.AreaId);
+            var definition = Session.Registry.Instances().GetEffectiveKind<PNAreaDefinition>(request.AreaId);
             definition.ValidateInput(request.Input);
             if (!pools.TryGetValue((definition, request.Scene), out pool))
             {
@@ -177,7 +177,7 @@ public sealed class PNAreaManager : MonoBehaviour
             root.hideFlags = HideFlags.DontSave; root.transform.position = p;
             var instance = root.GetComponent<PNAreaInstance>();
             id = ++sequence; var handle = new PNAreaHandle(this, id);
-            entries.Add(id, new Entry { Id = Session.Registry.Get<PNAreaDefinition>().ResolveIdentity(request.AreaId), ProfileId = definition.Id, Root = root, Instance = instance, Pool = pool, Scene = request.Scene,World=world,Lease=world?.AcquireLease("area") });
+            entries.Add(id, new Entry { Id = Session.Registry.Instances().ResolveIdentity(request.AreaId), ProfileId = definition.Id, Root = root, Instance = instance, Pool = pool, Scene = request.Scene,World=world,Lease=world?.AcquireLease("area") });
             instance.Bind(this, handle, definition, request);PNWorldPresentationRegistration.Register(world,root);root.SetActive(true);
             if (!instance.isActiveAndEnabled) throw new InvalidOperationException("Selected area component must be active after initialization.");
             // Immediate admission occurs after activation, when owned clock effects may be acquired.

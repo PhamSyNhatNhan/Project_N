@@ -19,7 +19,7 @@ public sealed class PNS3AreaProbe : PNAreaInstance
 }
 public sealed class PNS3AreaModule : EveIContentModule
 {
-    public void Register(EveRegistryHub hub) => hub.Get<PNAreaDefinition>().Register(new PNAreaDefinition(EveId.Parse("s3:area"), typeof(PNS3AreaProbe), new JObject(), (data, content) => {}, input => {}));
+    public void Register(EveRegistryHub hub) => hub.Instances().Register(new PNAreaDefinition(EveId.Parse("s3:area"), typeof(PNS3AreaProbe), new JObject(), (data, content) => {}, input => {}));
 }
 public sealed class PNS3NativeRuntime : EveGameRuntime
 {

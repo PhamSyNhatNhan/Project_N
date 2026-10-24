@@ -6,7 +6,7 @@ A projectile is **not an entity** (no `PNStat`, no `PNBuffManager`), has **no co
 ## Parts
 | Type | Role |
 |---|---|
-| `PNProjectileDefinition` | Registry entry (registry name `projectiles`, same shape as `PNAreaDefinition`): id, one concrete `PNProjectileInstance` implementation, a validated payload, `Derive`, `Settings<T>()` (payload parsed once per definition). |
+| `PNProjectileDefinition` | Registry entry (kind `projectile`, a `PNInstanceDefinition` in the shared `instances` registry; JSON entries sit in `extensions.project_n.instances` with the extra field `destroyable`): id, one concrete `PNProjectileInstance` implementation, a validated payload, `Derive`, `Settings<T>()` (payload parsed once per definition). |
 | `PNProjectileLaunch` | Immutable data captured when a volley is fired: `PNCombatSource`, `PNPreparedDamage` (may be null), `PNSkillHitSnapshot` (may be null), required target layer mask, speed/scale/lifetime factors. `FromSource` reads the factors from the `projectile_speed/scale/lifetime` tags with `PNCombatSourceSnapshot.Calculate(1, tag)`. `projectile_damage` is a tag the damage step adds to the damage tags. |
 | `PNProjectileSpawn` | Per projectile: scene, position, direction (normalized), optional initial target. |
 | `PNProjectileInstance` | Base of an implementation. Author writes `Initialize(spawn)`, `Move(dt)` (update `Velocity`) and `OnContacts(contacts)`; defaults for the rest (`OnEnd`, `Cleanup`, `EnvironmentMask`, `Gravity`, `IsExpired`, `SubStepLimit`). The base integrates `position += (Velocity + External) * dt`, splits a tick into sub-steps, finds contacts, and exposes `Finish(reason)`. |

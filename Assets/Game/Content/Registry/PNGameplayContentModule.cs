@@ -65,6 +65,7 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
 #endif
         PNGameSkillBindings.RegisterBehaviors(hub);
         PNBuffGameplayContent.Register(hub);
+        PNInstances.Create(hub);
         PNAreaGameplayContent.Register(hub);
         PNProjectileGameplayContent.Register(hub);
         PNEnemyGameplayContent.Register(hub);
@@ -181,8 +182,7 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         PNSkillBindingContent.Validate(hub);
         foreach (var category in hub.SkillCategories().Snapshot().Values) category.Validate(hub);
         foreach (var definition in hub.Buffs().Snapshot().Values) definition.Validate(hub);
-        foreach (var definition in hub.Get<PNAreaDefinition>().Snapshot().Values) definition.Validate(hub);
-        foreach (var definition in hub.Get<PNProjectileDefinition>().Snapshot().Values) definition.Validate(hub);
+        foreach (var definition in hub.Instances().Snapshot().Values) definition.Validate(hub);
         foreach(var reference in motionReferences)ValidateReference(reference.id,hub.Skills,reference.owner,reference.dependencies);
         foreach (var definition in hub.Skills.Snapshot().Values)
         {
@@ -268,9 +268,9 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
                 var buffId = (phasePayload as JObject)?["data"]?["buffId"];
                 if (buffId?.Type == JTokenType.String) ValidateReference(EveId.Parse(buffId.Value<string>()), hub.Buffs(), contentNamespace, dependencies);
                 var areaId = (phasePayload as JObject)?["data"]?["areaId"];
-                if (areaId?.Type == JTokenType.String) ValidateReference(EveId.Parse(areaId.Value<string>()), hub.Get<PNAreaDefinition>(), contentNamespace, dependencies);
+                if (areaId?.Type == JTokenType.String) ValidateReference(EveId.Parse(areaId.Value<string>()), hub.Instances(), contentNamespace, dependencies);
                 var projectileId = (phasePayload as JObject)?["data"]?["projectileId"];
-                if (projectileId?.Type == JTokenType.String) ValidateReference(EveId.Parse(projectileId.Value<string>()), hub.Get<PNProjectileDefinition>(), contentNamespace, dependencies);
+                if (projectileId?.Type == JTokenType.String) ValidateReference(EveId.Parse(projectileId.Value<string>()), hub.Instances(), contentNamespace, dependencies);
             }
             if ((phasePayload as JObject)?["permissionId"]?.Type == JTokenType.String)
                 ValidateReference(EveId.Parse(phasePayload["permissionId"].Value<string>()), hub.ControlPermissions(), contentNamespace, dependencies);
@@ -301,8 +301,8 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
                 else ValidateReference(id, hub.Operations(), owner, dependencies);
             }
             if (obj["buffId"]?.Type == JTokenType.String) ValidateReference(EveId.Parse(obj["buffId"].Value<string>()), hub.Buffs(), owner, dependencies);
-            if (obj["areaId"]?.Type == JTokenType.String) ValidateReference(EveId.Parse(obj["areaId"].Value<string>()), hub.Get<PNAreaDefinition>(), owner, dependencies);
-            if (obj["projectileId"]?.Type == JTokenType.String) ValidateReference(EveId.Parse(obj["projectileId"].Value<string>()), hub.Get<PNProjectileDefinition>(), owner, dependencies);
+            if (obj["areaId"]?.Type == JTokenType.String) ValidateReference(EveId.Parse(obj["areaId"].Value<string>()), hub.Instances(), owner, dependencies);
+            if (obj["projectileId"]?.Type == JTokenType.String) ValidateReference(EveId.Parse(obj["projectileId"].Value<string>()), hub.Instances(), owner, dependencies);
             if (obj["statId"]?.Type == JTokenType.String) ValidateReference(EveId.Parse(obj["statId"].Value<string>()), hub.Stats, owner, dependencies);
             foreach (var tag in PNSkillEffect.Ids(obj["tags"])) ValidateReference(tag, hub.Tags(), owner, dependencies);
             foreach (var value in obj.Properties()) ValidateEffectReferences(value.Value, hub, owner, dependencies);
