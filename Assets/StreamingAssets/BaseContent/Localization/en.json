@@ -1,6 +1,10 @@
 {
   "project_n:settings.mobile_icons": "Button icons",
   "project_n:settings.mobile_palette": "Icon colours",
+  "project_n:settings.auto_target": "Auto target",
+  "project_n:settings.auto_target.nearest": "Nearest",
+  "project_n:settings.auto_target.lowest_health": "Lowest health",
+  "project_n:settings.auto_target.lowest_health_percent": "Lowest health %",
   "project_n:mobile.icons.shapes": "Shapes",
   "project_n:mobile.icons.letters": "Letters A–E",
   "project_n:mobile.palette.u": "U · Pastel",

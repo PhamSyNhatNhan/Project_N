@@ -115,13 +115,18 @@ public sealed class PNAgentPerception : IDisposable
             record.ReadyToReact = visible && time - record.VisibleSince >= settings.ReactionDelay;
         }
     }
+    // Best visible, reaction-ready record by the Aggro rule (PNTargetRule.Aggro): distance to its last position minus the actor's aggro stat,
+    // smallest first, ties to the lower entity ID. Without aggro this is the nearest one.
     public PNPerceptionRecord NearestVisible()
     {
         if (disposed || !agent.IsCurrent) return null;
-        PNPerceptionRecord best = null; float distance = float.PositiveInfinity;
+        PNPerceptionRecord best = null; var bestScore = default(PNTargetScore);
         foreach (var record in records.Values)
             if (record.Visible && record.ReadyToReact && record.Actor.TryResolve(out var actor) && agent.CanTarget(actor))
-            { float next = PNAgentGeometry.CenterDistance(agent.Self.Position, record.LastPosition); if (next < distance) { distance = next; best = record; } }
+            {
+                var score = new PNTargetScore { Distance = PNAgentGeometry.CenterDistance(agent.Self.Position, record.LastPosition), Aggro = PNTargetSelector.AggroOf(actor), EntityId = actor.EntityId.Value };
+                if (best == null || PNTargetRanking.Better(score, bestScore, PNTargetRule.Aggro)) { best = record; bestScore = score; }
+            }
         return best;
     }
     public void Dispose() { if (disposed) return; disposed = true; records.Clear(); retired.Clear(); ActiveInstances--; }

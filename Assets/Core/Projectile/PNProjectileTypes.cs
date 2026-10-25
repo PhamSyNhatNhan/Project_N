@@ -112,7 +112,7 @@ public readonly struct PNProjectileTarget
         var loader = candidate.GetComponent<EveEntityLoader>();
         if (loader == null || !loader.IsReady || loader.Generation != generation || candidate.EntityId != Id) return false;
         if (!ReferenceEquals(candidate.GetComponent<EveEntityIdentity>()?.World, world) || !PNWorldGameplay.CanExecute(candidate)) return false;
-        if (PNProjectileTargets.IsDead(candidate)) return false;
+        if (PNTargetCandidates.IsDead(candidate)) return false;
         target = candidate; return true;
     }
 }

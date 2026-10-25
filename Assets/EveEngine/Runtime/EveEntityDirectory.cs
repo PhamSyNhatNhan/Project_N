@@ -14,6 +14,9 @@ namespace EveEngine
         private readonly Dictionary<EveWorldContext,HashSet<EveEntityLoader>> worldEntities=new Dictionary<EveWorldContext,HashSet<EveEntityLoader>>();
         private long lastHostId;
         public virtual int Count => entities.Count;
+        // EN: Increases whenever an entity presence is added, removed or moves to another world; caches of the entity list compare it.
+        // VI: Tăng mỗi khi một entity được thêm, gỡ hoặc chuyển world; bộ nhớ đệm danh sách entity so sánh giá trị này.
+        public ulong Revision { get; private set; }
         // Includes preparing/retiring presences whose cleanup still owns the ID.
         public bool IsReserved(EveEntityId id)=>current.ContainsKey(id);
         // Read-only, deterministic snapshot of ready entities owned by this session.
@@ -31,6 +34,7 @@ namespace EveEngine
         }
         internal void ReindexWorld(EveEntityLoader loader,EveWorldContext previous,EveWorldContext next)
         {
+            Revision++;
             if(previous!=null&&worldEntities.TryGetValue(previous,out var old)){old.Remove(loader);if(old.Count==0)worldEntities.Remove(previous);}
             if(next!=null){if(!worldEntities.TryGetValue(next,out var members))worldEntities.Add(next,members=new HashSet<EveEntityLoader>());members.Add(loader);}
         }
@@ -57,6 +61,7 @@ namespace EveEngine
         }
         internal void Remove(EveEntityIdentity identity, EveEntityLoader loader)
         {
+            Revision++;
             var removed = entities.Where(x => ReferenceEquals(x.Value, loader)).Select(x => x.Key).ToArray();
             foreach (var key in removed) entities.Remove(key);
             foreach(var pair in worldEntities.ToArray()){pair.Value.Remove(loader);if(pair.Value.Count==0)worldEntities.Remove(pair.Key);}

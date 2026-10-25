@@ -31,7 +31,7 @@ public class PNStatFloorSnapshot
     }
 }
 
-// EN: Defense, critical rate and CDR remain signed; other stats/group multipliers are bounded at zero.
+// EN: Defense, critical rate, CDR and aggro remain signed; other stats/group multipliers are bounded at zero.
 // VI: DEF, tỷ lệ chí mạng và CDR giữ dấu; các stat khác/hệ số nhóm được chặn tại 0.
 public class PNStatSet : EveStatSet
 {
@@ -122,6 +122,8 @@ public class PNStatSet : EveStatSet
             AddBase(new EveBaseStat(PNContentIds.CritRate, 0d));
         if (Definitions.TryGet(PNContentIds.CritDamage, out _) && !TryGetBase(PNContentIds.CritDamage, out _))
             AddBase(new EveBaseStat(PNContentIds.CritDamage, 150d));
+        if (Definitions.TryGet(PNContentIds.Aggro, out _) && !TryGetBase(PNContentIds.Aggro, out _))
+            AddBase(new EveBaseStat(PNContentIds.Aggro, 0d));
     }
 
     public PNStatSet(EveRegistryHub registry, EveId defaultCalculationId = default) : base(RequireRegistry(registry))
@@ -304,8 +306,8 @@ public class PNStatSet : EveStatSet
         evaluatingStat = true;
         try { result = Calculate(DefaultCalculationId, (double)baseValue, selected.ToArray()); }
         finally { evaluatingStat = previousEvaluation; }
-        return selected.Count == 1 && (selected.Contains(PNContentIds.Defense) || selected.Contains(PNContentIds.CritRate) || selected.Contains(PNContentIds.CooldownReduction))
-            ? result : Math.Max(0d, result);
+        return selected.Count == 1 && (selected.Contains(PNContentIds.Defense) || selected.Contains(PNContentIds.CritRate) || selected.Contains(PNContentIds.CooldownReduction) ||
+            selected.Contains(PNContentIds.Aggro)) ? result : Math.Max(0d, result);
     }
 
     // EN: Incoming damage already includes outgoing bonuses; apply defense, then tagged mitigation without changing HP.

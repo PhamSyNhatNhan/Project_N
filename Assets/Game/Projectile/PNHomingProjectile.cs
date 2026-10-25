@@ -9,12 +9,16 @@ using UnityEngine;
 //   turnRate: degrees per second the direction can turn toward the target (> 0),
 //   homeAfter: seconds of the projectile clock flown straight before it starts to turn (>= 0),
 //   lostTarget: "Reacquire" (default behavior: pick the nearest live target again) or "KeepHeading" (fly on in the last direction),
-//   searchRadius: how far a search looks (> 0), searchInterval: minimum seconds between two searches of one projectile (> 0).
+//   searchRadius: how far a search looks (> 0), searchInterval: minimum seconds between two searches of one projectile (> 0),
+//   targetMode (optional): "nearest" | "lowest_health" | "lowest_health_percent" = this weapon's own rule for searches; absent = the
+//     shooter's rule captured at launch (the local player's auto target setting, Nearest for a remote player, Aggro for enemies).
 public sealed class PNHomingSettings
 {
     public readonly PNDirectionalSettings Directional;
     public readonly double TurnRate, HomeAfter, SearchRadius, SearchInterval;
     public readonly bool Reacquire;
+    // The weapon's own search rule, or null to use the launch rule.
+    public readonly PNTargetRule? TargetRule;
     public static void ValidateDefinition(JToken token, EveRegistryHub hub) => PNDirectionalSettings.ValidateLayers(new PNHomingSettings(token).Directional);
     public PNHomingSettings(JToken token)
     {
@@ -29,14 +33,20 @@ public sealed class PNHomingSettings
         string policy = PNBuffContentBatch.String(obj, "lostTarget"); obj.Remove("lostTarget");
         if (policy != "Reacquire" && policy != "KeepHeading") throw new FormatException("Homing lostTarget must be Reacquire or KeepHeading.");
         Reacquire = policy == "Reacquire";
+        if (obj["targetMode"] != null)
+        {
+            if (obj["targetMode"].Type != JTokenType.String) throw new FormatException("Homing targetMode must be a string.");
+            TargetRule = PNTargetRule.Autotarget(PNTargetRule.ParseMode((string)obj["targetMode"])); obj.Remove("targetMode");
+        }
         Directional = new PNDirectionalSettings(obj);
     }
 }
 
 #if UNITY_5_3_OR_NEWER
 // EN: A directional projectile that turns toward a target. The target comes from the spawn request or, when it is missing or lost
-//     and the policy is Reacquire, from the nearest live target on the launch layers within searchRadius (searched at most every
-//     searchInterval). Turning is limited by turnRate and starts after homeAfter seconds.
+//     and the policy is Reacquire, from the best live target on the launch layers within searchRadius by the payload targetMode or
+//     the launch rule (searched at most every searchInterval; the shooter is a candidate when its layer is targeted). Turning is
+//     limited by turnRate and starts after homeAfter seconds.
 // VI: Đạn directional bẻ về phía mục tiêu. Mục tiêu từ yêu cầu bắn, hoặc khi thiếu/mất và chính sách là Reacquire thì tìm lại mục
 //     tiêu gần nhất; tốc độ bẻ giới hạn bởi turnRate và bắt đầu sau homeAfter giây.
 public class PNHomingProjectile : PNDirectionalProjectile
@@ -65,10 +75,10 @@ public class PNHomingProjectile : PNDirectionalProjectile
             if (!TryGetTarget(out var target) && homing.Reacquire && Age >= nextSearch)
             {
                 nextSearch = Age + (float)homing.SearchInterval;
-                target = FindNearestTarget((float)homing.SearchRadius);
+                target = FindTarget((float)homing.SearchRadius, homing.TargetRule ?? Launch.TargetRule);
                 if (target != null) SetTarget(target);
             }
-            if (target != null) haveCenter = PNProjectileTargets.TryGetHitVolume(target, out targetCenter, out _);
+            if (target != null) haveCenter = PNTargetCandidates.TryGetHitVolume(target, out targetCenter, out _);
         }
         if (!haveCenter) return;
         var desired = targetCenter - Position;

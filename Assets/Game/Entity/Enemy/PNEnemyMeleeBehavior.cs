@@ -39,15 +39,18 @@ public class PNEnemyMeleeBehavior : PNEnemyStateMachineBehavior
     private void Acquire(float delta)
     {
         timer -= delta; if (timer > 0) return; timer = retryDelay;
-        float best = aggroRange * aggroRange; target = null;
+        float range = aggroRange * aggroRange; target = null; var best = default(PNTargetScore);
         var world = GetComponentInParent<EveEntityIdentity>()?.World;
         if (world == null) return;
+        // Aggro rule (PNTargetRule.Aggro): within aggroRange, the smallest distance minus the candidate's aggro stat; ties go to the lower entity ID.
         foreach (var candidate in world.Session.Entities.Snapshot(world))
         {
             var stat = candidate.GetComponent<PNStat>();
             if (!CanTarget(stat)) continue;
             float distance = (stat.transform.position - Context.Owner.transform.position).sqrMagnitude;
-            if (distance < best) { best = distance; target = stat; }
+            if (distance >= range) continue;
+            var score = new PNTargetScore { Distance = Mathf.Sqrt(distance), Aggro = PNTargetSelector.AggroOf(stat), EntityId = stat.EntityId.Value };
+            if (target == null || PNTargetRanking.Better(score, best, PNTargetRule.Aggro)) { best = score; target = stat; }
         }
         if (target != null) ChangeState("Chase");
     }

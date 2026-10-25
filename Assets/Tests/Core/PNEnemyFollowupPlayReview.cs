@@ -288,6 +288,27 @@ public sealed partial class PNEnemyMoveSkillPlayReview
             hostile = false; sensor.Tick(.04f);
             Check(!agent.CanTarget(reusable) && sensor.NearestVisible() == null, "R01 changed relation cannot select old observed hostile target");
         }
+        // Aggro rule (RulesVersion99): among visible targets the perception ranks by distance minus the target's aggro stat.
+        var aggroTarget = Target(a, new Vector3(-3.6f, 0, -2.9f)); yield return Until(() => aggroTarget.IsReady, 3, "A01 aggroTarget target published");
+        var pair = new[] { reusable, aggroTarget };
+        var aggroAgent = new PNEnemyAgentContext(context, stat => pair.Contains(stat));
+        using (var sensor = new PNAgentPerception(aggroAgent, new PNPerceptionSettings(interval: .02f, reactionDelay: 0)))
+        {
+            float deadline = Time.realtimeSinceStartup + 3;
+            while (sensor.Records.Count(r => r.Visible) < 2 && Time.realtimeSinceStartup < deadline) { sensor.Tick(Time.deltaTime); yield return null; }
+            Check(sensor.Records.Count(r => r.Visible) == 2, "A01 both targets observed");
+            float dReusable = PNAgentGeometry.CenterDistance(aggroAgent.Self.Position, reusable.transform.position), dSecond = PNAgentGeometry.CenterDistance(aggroAgent.Self.Position, aggroTarget.transform.position);
+            var nearer = dReusable <= dSecond ? reusable : aggroTarget; var farther = ReferenceEquals(nearer, reusable) ? aggroTarget : reusable;
+            Check(sensor.NearestVisible().Actor.Id == nearer.EntityId, "A01 without aggro the nearer visible target is chosen");
+            var taunt = EveId.Parse("project_n:review_aggro");
+            farther.SetSource(taunt, new[] { new EveStatModifier(PNContentIds.Aggro, Math.Abs(dReusable - dSecond) + 5d, 0) });
+            Check(sensor.NearestVisible().Actor.Id == farther.EntityId, "A01 the farther target with enough aggro (taunt) is chosen");
+            farther.SetSource(taunt, new[] { new EveStatModifier(PNContentIds.Aggro, -1000d, 0) });
+            Check(sensor.NearestVisible().Actor.Id == nearer.EntityId, "A01 negative aggro on it gives the nearer target back");
+            farther.RemoveSource(taunt);
+            Check(sensor.NearestVisible().Actor.Id == nearer.EntityId, "A01 removing the modifier restores plain distance");
+        }
+        aggroTarget.GetComponent<EveEntityLoader>().Unload(); aggroTarget.GetComponent<EveEntityIdentity>().ResetIdentity(); actors.Remove(aggroTarget.gameObject); Destroy(aggroTarget.gameObject);
         var observed = new List<PNStat>(); var visited = new HashSet<EveEntityId>();
         for (int i = 0; i < 6; i++) observed.Add(Target(a, new Vector3(-3.5f + (i % 3) * .45f, 0, -3 + (i / 3) * .6f)));
         yield return Until(() => observed.All(stat => stat.IsReady), 3, "R03 bounded-memory targets ready");

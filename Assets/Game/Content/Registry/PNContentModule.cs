@@ -64,6 +64,8 @@ public class PNContentModule : EveIContentModule, EveIContentFinalizeModule, Eve
         stats.Register(new EveStatDefinition(PNContentIds.CritRate, EveStatKind.Number));
         stats.Register(new EveStatDefinition(PNContentIds.CritDamage, EveStatKind.Number));
         stats.Register(new EveStatDefinition(Defense, EveStatKind.Number));
+        // Targeting weight in world meters, signed (see PNTargetRule).
+        stats.Register(new EveStatDefinition(PNContentIds.Aggro, EveStatKind.Number));
 
         var damageTypes = hub.GetOrCreate<PNDamageTypeDefinition>();
         damageTypes.Register(new PNDamageTypeDefinition(Physical, 1f));

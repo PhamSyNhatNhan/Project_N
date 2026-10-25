@@ -87,6 +87,13 @@ public static class PNSettingsService
         EnsureLoaded();if(!PNMobileStyleCatalog.HasPalette(id))throw new ArgumentException("Unknown mobile palette.");
         current=current.WithMobileStyle(current.MobileIconSet,id);bool saved=Persist();Notify();return saved;
     }
+    public static bool SetAutoTargetMode(PNTargetMode mode)
+    {
+        EnsureLoaded();var next=current.WithAutoTargetMode(mode);bool changed=current.AutoTargetMode!=mode;current=next;
+        if (current.Locale == null && PNLocalization.IsReady) ResolveDefaultLocale(PNLocalization.Selected);
+        bool saved = !changed && SaveError == null && File.Exists(store.FilePath) || Persist();
+        Notify(); return saved;
+    }
     private static void ApplyFramePolicy()
     {
         if (!ownsFramePolicy) { previousFps = Application.targetFrameRate; previousVSync = QualitySettings.vSyncCount; ownsFramePolicy = true; }

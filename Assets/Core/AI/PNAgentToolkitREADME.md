@@ -18,7 +18,7 @@ Docs/EnemyToolkitFollowupReport.md để biết trạng thái kiểm chứng hi�
 | Actor handle | PNActorHandle.Capture(stat), TryResolve, SameActor, Position/FootprintRadius; pin load-context/world/membership, không chỉ EntityId |
 | Adapter | IPNAgentContext; PNEnemyAgentContext(context, relationPredicate). Không buộc helpers dùng PNEnemyStat |
 | Spatial query | agent.FindPoint(PNPointQuerySettings), query.Tick/Status/Point/Diagnostic/Dispose; score cao được ưu tiên, full path confirmation trước Success |
-| Perception | PNAgentPerception(agent, settings).Tick(entityDelta), Records/NearestVisible; records có Unknown/Visible/Occluded/OutOfRange |
+| Perception | PNAgentPerception(agent, settings).Tick(entityDelta), Records/NearestVisible; records có Unknown/Visible/Occluded/OutOfRange. NearestVisible (RulesVersion99) xếp theo luật Aggro: khoảng cách tới vị trí cuối trừ stat `aggro` của actor, nhỏ nhất trước, hoà thì EntityId nhỏ hơn (không aggro = gần nhất như cũ); `PNEnemyMeleeBehavior` Acquire dùng cùng luật trong aggroRange |
 | Movement tasks | PNMovementTask + PNMovementTaskSettings; caller Tick, Cancel, Dispose; Running/Holding/Succeeded/Failed/Cancelled |
 | Utility | PNUtilitySelector(candidates).Tick(delta) -> stableId/null; pure eligibility/score, hold/margin/cadence |
 | Goals | PNDelegateGoal, PNMovementGoal, PNCompositeGoal(sequence/fallback), PNRetryGoal; 16 shared tick calls, depth8, static tree nodes256 |

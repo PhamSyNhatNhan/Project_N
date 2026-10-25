@@ -40,4 +40,6 @@ public static class PNContentIds
     public static readonly EveId Scale = EveId.Parse("project_n:scale");
     public static readonly EveId Mitigation = EveId.Parse("project_n:mitigation");
     public static readonly EveId Penetration = EveId.Parse("project_n:penetration");
+    // Targeting weight in world meters (may be negative): Aggro rules subtract it from the distance, Autotarget ranks higher aggro first.
+    public static readonly EveId Aggro = EveId.Parse("project_n:aggro");
 }

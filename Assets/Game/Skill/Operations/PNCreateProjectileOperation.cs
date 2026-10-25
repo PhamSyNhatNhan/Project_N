@@ -11,8 +11,10 @@ using UnityEngine;
 //   projectileId: a registered projectile, input: that projectile's launch input (object),
 //   count: 1..3 projectiles per volley, spread: degrees between neighbours of a volley (0..90, around the world up axis),
 //   targetLayers (optional): ordered layer names the volley can hit IN ADDITION to the caster's own TargetLayers (for example ["Projectile"]); the union must not be empty,
-//   aimRadius (optional, > 0): when present the volley aims at the nearest live target on those layers within that radius (planar) and gives
-//     it to every projectile as its initial target; with no target, or when absent, the context direction is used,
+//   aimRadius (optional, > 0): when present the volley aims at the best live target on those layers within that radius (planar), ranked by
+//     the shooter's target rule (PNTargetRules: the local player's auto target setting, Nearest for a remote player, Aggro for enemies; the
+//     shooter itself is never chosen), and gives it to every projectile as its initial target; with no target, or when absent, the context
+//     direction is used. The same rule is captured in the launch for projectiles that search on their own (homing),
 //   pitches (optional): one angle in degrees (-80..80) per projectile, in volley order, tilting its direction upward (positive) or downward,
 //   damage (optional): {value: PNSkillValues, canCrit (bool), tags: tag IDs including exactly one damage type, iframeDuration (optional)};
 //   absent = the projectile deals no damage. The skill's own category/contribution tags and projectile_damage are added at launch.
@@ -101,7 +103,8 @@ public class PNCreateProjectileOperation : PNSkillOperation
         var plan = context.CanFreezeOnHit ? context.Skill.Effects.FreezeOnHit(context) : null;
         var launchLayers = source.TargetLayers.Union(settings.TargetLayers);
         if (launchLayers.IsEmpty) throw new InvalidOperationException("create_projectile: the caster targets no layer and the payload adds none.");
-        var launch = PNProjectileLaunch.FromSource(settings.ProjectileId, settings.Input, source, launchLayers, prepared, plan);
+        var rule = PNTargetRules.For(caster);
+        var launch = PNProjectileLaunch.FromSource(settings.ProjectileId, settings.Input, source, launchLayers, prepared, plan, rule);
         var scene = caster.gameObject.scene;
         var manager = PNProjectileManager.Resolve(EveRegistrySession.Context, scene);
         if (!ReferenceEquals(manager.Session.Registry, context.Registry)) throw new InvalidOperationException("Projectile operation session mismatch.");
@@ -109,7 +112,10 @@ public class PNCreateProjectileOperation : PNSkillOperation
         var aim = context.Direction.Value; PNStat aimTarget = null;
         if (settings.AimRadius.HasValue)
         {
-            aimTarget = manager.ResolveNearest(context.World, position, (float)settings.AimRadius.Value, launchLayers.Mask);
+            aimTarget = PNTargetSelector.Select(manager.Targets.Acquire(context.World), new PNTargetQuery
+            {
+                Origin = position, Range = (float)settings.AimRadius.Value, LayerMask = launchLayers.Mask, Rule = rule, Exclude = caster.EntityId, Planar = true
+            });
             if (aimTarget != null)
             {
                 var toTarget = aimTarget.transform.position - position; toTarget.y = 0;

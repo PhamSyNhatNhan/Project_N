@@ -218,9 +218,30 @@ There is no team and no "hostile" relation. **`PNStat.TargetLayers`** (`PNTarget
   `Npc` joins with the first NPC) and must match ProjectSettings/TagManager.
 - Buffs add layers with `stat.GrantTargetLayers(layers)`: a lease with counts per layer (two grants of one layer keep it until both end; disposing twice does nothing), layers not already
   in the base go after it in first-grant order, and the Buff releases only what it added. Nothing is stored in the stat to "restore" later; a charm will set and revert its own changes.
-- `PNTargetLayers` keeps `Mask` (an `int` for hot loops) and `Order` (first = highest priority, reserved for autotarget; nothing reads it yet). `Union` returns an operand when the result equals it.
+- `PNTargetLayers` keeps `Mask` (an `int` for hot loops) and `Order` (the stored order; it is **not** a priority: lease order depends on when Buffs were granted, so target selection treats
+  every layer of the set alike). `Union` returns an operand when the result equals it.
 - Tests: `stat.Targets(other)` (other's layer is in my `TargetLayers`; not myself, not null) and `stat.SharesLayer(other)` (same layer, the ally test). Both are asymmetric / non-virtual wrappers over
   `PNLayers.Contains(mask, layer)`.
 - An attack hits `caster.TargetLayers` united with the attack's own `targetLayers` (`create_projectile`, Slash `hitbox.targetLayers`, Sweep `targetLayers`); a set that contains the attacker's own layer
-  hits allies but never the attacker. Projectiles capture the set at launch; Slash and Sweep read it when they hit. Areas use their own `targetLayers` as an absolute list.
+  hits allies. Slash and Sweep never hit the attacker; a projectile can hit its shooter once it has left the shooter's box (RulesVersion99, see the projectile README). Projectiles capture the set at launch; Slash and Sweep read it when they hit. Areas use their own `targetLayers` as an absolute list.
 - Not replicated: the host resolves hits and damage. A stat changing layer at run time (charm) is seen by projectile candidate lists after their next refresh (`TargetRefreshSeconds`).
+
+## Choosing a target (RulesVersion99)
+
+One selector for every automatic target choice (`Docs/AutotargetPlan.md`): **`PNTargetSelector.Select(candidates, query)`** over the shared per-world candidate list
+(`PNTargetCandidates`, owned per world by `PNTargetIndex` = `PNProjectileManager.Targets`). Allocation-free; cheap filters first (layer bit, excluded chooser, range, inclusive); aggro and entity ID come from the candidate (aggro is read at membership
+refresh, 0.1 s, and on every `Acquire`, so a query outside the tick sees a change at once and a homing search within 0.1 s), health is read only in the health modes, and liveness is checked only for a candidate that would be kept. Candidates are entities with a hit box (projectiles are never candidates).
+- **Rules** (`PNTargetRule`, `PNTargetRanking`, portable and smoke-tested): **Autotarget** (player side) = higher `aggro` first (compared directly: any positive beats 0, negative loses), then the mode
+  (`Nearest` | `LowestHealth` absolute | `LowestHealthPercent`), then the fixed tie-break (lower absolute health, nearer, lower entity ID). **Aggro** (enemy side, Terraria `TryTrackingTarget` style) =
+  distance minus the candidate's `aggro`, smallest first, then lower entity ID. There is no "prefer boss" option: a boss that should be preferred gets a positive `aggro` in its data.
+- **Held target** (`query.Held`): kept while valid unless `PNTargetRanking.ShouldSwitch`: a higher aggro takes over at once; at equal aggro `Nearest` switches only to a candidate at least 20% nearer
+  (`SwitchRatio` .8) and the health modes keep it until it dies or leaves the query; the Aggro rule switches at a 20% lower positive score, or at once for a negative (taunting) score.
+- **Line of sight** is a per-query (per-skill) option, `RequireSight` (off by default): the best `SightBudget` candidates (default 4, max 16) are tested in rank order with `PNAgentSpatial.HasSight`
+  (walls block, entities do not) and the first visible one wins; a held target out of sight is dropped.
+- **`aggro`** (`project_n:aggro`, Number, base 0 added by `PNStatSet.LoadCharacter`, **signed**: kept in the DEF/crit/CDR list that is not clamped at 0) in world meters. Buffs, gear and taunts change it
+  with ordinary modifiers (flats default to the After contribution); a hard taunt is a very large value. Not replicated (host side); `PNTargetSelector.AggroOf(stat)` reads it.
+- **Who uses what**: `PNTargetRules.For(chooser)` (Game) gives the local player's characters `Autotarget(Settings auto target mode)`, a remote player's character on the host `Nearest` (until Skill
+  networking carries the owner's choice), and every other chooser `Aggro`. `PNAutoTarget` (component, `PNAutoTarget.For(stat)`) holds one target per character for all its skills; `Resolve(range, mask)`
+  uses the default rule and updates the held target, `Resolve(range, mask, ownRule)` is a skill's own rule and leaves it alone. Eve's ordinary casts use the default rule, her ultimate its own
+  `LowestHealth`. `create_projectile` `aimRadius` and homing are in the projectile README; `PNAgentPerception.NearestVisible` and `PNEnemyMeleeBehavior` rank by the Aggro rule.
+- Skills whose rule is not one of these walk `PNTargetCandidates.RawItems` themselves; there is no interface per rule.

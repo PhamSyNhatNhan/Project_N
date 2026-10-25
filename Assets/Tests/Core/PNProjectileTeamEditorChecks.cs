@@ -22,6 +22,10 @@ public sealed class PNProjectileTeamNativeModule : EveIContentModule
         registry.Register(directional.Derive(EveId.Parse("test:locked_still"), data, false));
         var shortLife = (JObject)data.DeepClone(); shortLife["life"] = JObject.Parse("{'mode':'Time','value':0.3}");
         registry.Register(directional.Derive(EveId.Parse("test:locked_short"), shortLife, false));
+        // Homing with the weapon's own search rule (payload targetMode), for the target-rule checks.
+        var homing = registry.GetKind<PNProjectileDefinition>(EveId.Parse("test:homing_basic"));
+        var lowest = (JObject)homing.Payload; lowest["targetMode"] = "lowest_health";
+        registry.Register(homing.Derive(EveId.Parse("test:homing_lowest"), lowest));
     }
 }
 
@@ -65,8 +69,8 @@ public static class PNProjectileTeamEditorChecks
             }
             double Hp(PNStat stat) => stat.GetCurrent(PNContentIds.Health);
             void Advance(int ticks, float step = .1f) { for (int i = 0; i < ticks; i++) manager.Advance(step); }
-            PNProjectileReceipt Fire(string id, Vector3 position, PNCombatSource source, PNTargetLayers layers, PNPreparedDamage damage = null)
-                => manager.Create(new PNProjectileLaunch(EveId.Parse(id), null, source, layers, damage), new PNProjectileSpawn(preview, position, Vector3.right));
+            PNProjectileReceipt Fire(string id, Vector3 position, PNCombatSource source, PNTargetLayers layers, PNPreparedDamage damage = null, Vector3? direction = null, PNStat target = null, PNTargetRule rule = default)
+                => manager.Create(new PNProjectileLaunch(EveId.Parse(id), null, source, layers, damage, null, 1d, 1d, 1d, rule), new PNProjectileSpawn(preview, position, direction ?? Vector3.right, target));
             PNPreparedDamage Damage(PNCombatSource source, double amount = 100) => source.Snapshot.PrepareDamage(amount, false, 0d, PNContentIds.True);
 
             // 1. A Player shooter targets the Enemy layer: its projectile passes through a Player ally (not on the layers) and hits the enemy behind it.
@@ -154,6 +158,47 @@ public static class PNProjectileTeamEditorChecks
             Check(Near(allyFHp - Hp(allyF), 10d) && !shotAfter.Handle.IsAlive, "the projectile fired after the lease is stopped by the ally");
             lease.Dispose();
             Check(shooterF.TargetLayers.Mask == enemyLayer.Mask, "ending the lease returns the shooter to its base layers");
+
+            // 7. The shooter is a target when its layer is targeted, once the projectile has left the shooter's box (or after the grace time).
+            var shooterG = Player(new Vector3(0, 0, 760), out _); Physics.SyncTransforms();
+            var sourceG = PNCombatSource.Capture(shooterG); double shooterGHp = Hp(shooterG);
+            var still = Fire("test:hit_still", new Vector3(0, 0, 760), sourceG, playerLayer, Damage(sourceG, 5));
+            Advance(19);
+            Check(Near(Hp(shooterG), shooterGHp) && still.Handle.IsAlive, "a still projectile inside its shooter does not hit it before the grace time (1.9 s of 2 s)");
+            Advance(2);
+            Check(shooterGHp - Hp(shooterG) >= 5d - 1e-6, "after the grace time the still projectile hits its own shooter (its layer is targeted)");
+            still.Handle.End();
+            var shooterH = Player(new Vector3(0, 0, 780), out _); Physics.SyncTransforms();
+            var sourceH = PNCombatSource.Capture(shooterH); double shooterHHp = Hp(shooterH);
+            var notMine = Fire("test:hit_still", new Vector3(0, 0, 780), sourceH, enemyLayer, Damage(sourceH, 5));
+            Advance(30);
+            Check(Near(Hp(shooterH), shooterHHp), "a projectile whose layers do not include the shooter's never hits it, even after the grace time");
+            notMine.Handle.End();
+            var boomerang = Fire("test:homing_basic", new Vector3(0, 0, 780), sourceH, playerLayer, Damage(sourceH, 5), Vector3.right, shooterH);
+            for (int i = 0; i < 30 && boomerang.Handle.IsAlive; i++) manager.Advance(.05f);
+            Check(Near(shooterHHp - Hp(shooterH), 5d) && !boomerang.Handle.IsAlive, "a homing projectile that leaves its shooter's box and turns back hits the shooter (within 1.5 s, before the grace time)");
+            var shooterI = Player(new Vector3(0, 0, 800), out _); Physics.SyncTransforms();
+            var sourceI = PNCombatSource.Capture(shooterI); double shooterIHp = Hp(shooterI);
+            var muzzle = Fire("test:hit_once", new Vector3(3, 0, 800), sourceI, playerLayer, Damage(sourceI, 5), Vector3.left);
+            Advance(9);
+            Check(Near(shooterIHp - Hp(shooterI), 5d) && !muzzle.Handle.IsAlive, "a projectile spawned outside its shooter (muzzle offset) that flies back at it hits it");
+
+            // 8. Homing search rules: the launch rule (the shooter's, captured at launch) or the weapon's own payload targetMode.
+            var shooterJ = Player(new Vector3(0, 0, 820), out _); var nearJ = Enemy(new Vector3(4, 0, 821.6f)); var lowJ = Enemy(new Vector3(8, 0, 817.5f)); Physics.SyncTransforms();
+            lowJ.SetCurrent(PNContentIds.Health, 1000);
+            var sourceJ = PNCombatSource.Capture(shooterJ); manager.Advance(.2f);
+            double nearJHp = Hp(nearJ), lowJHp = Hp(lowJ);
+            var byLaunch = Fire("test:homing_basic", new Vector3(0, 0, 820), sourceJ, enemyLayer, Damage(sourceJ, 1), Vector3.right, null, PNTargetRule.Autotarget(PNTargetMode.LowestHealth));
+            for (int i = 0; i < 60 && byLaunch.Handle.IsAlive; i++) manager.Advance(.05f);
+            Check(Near(lowJHp - Hp(lowJ), 1d) && Near(Hp(nearJ), nearJHp), "a homing projectile searches with the launch rule (LowestHealth picks the low, farther enemy)");
+            lowJHp = Hp(lowJ);
+            var byNearest = Fire("test:homing_basic", new Vector3(0, 0, 820), sourceJ, enemyLayer, Damage(sourceJ, 1), Vector3.right);
+            for (int i = 0; i < 60 && byNearest.Handle.IsAlive; i++) manager.Advance(.05f);
+            Check(Near(nearJHp - Hp(nearJ), 1d) && Near(Hp(lowJ), lowJHp), "with the default launch rule (Nearest) it picks the nearer enemy");
+            nearJHp = Hp(nearJ);
+            var byPayload = Fire("test:homing_lowest", new Vector3(0, 0, 820), sourceJ, enemyLayer, Damage(sourceJ, 1), Vector3.right);
+            for (int i = 0; i < 60 && byPayload.Handle.IsAlive; i++) manager.Advance(.05f);
+            Check(Near(lowJHp - Hp(lowJ), 1d) && Near(Hp(nearJ), nearJHp), "the payload targetMode (lowest_health) wins over the launch rule (Nearest)");
 
             manager.Shutdown();
             Check(!kept.Handle.IsAlive, "manager Shutdown ends destroyable:false projectiles");

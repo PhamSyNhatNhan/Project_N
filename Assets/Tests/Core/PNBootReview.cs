@@ -43,7 +43,11 @@ public sealed class PNBootReview : MonoBehaviour
         if (title != null && !click && !quit && PNGameBootstrap.AutoStart == null && PNGameBootstrap.PendingTarget == null)
         { Log("waiting at the Title (no click, no auto-start)"); yield return Shot("title"); yield return new WaitForSeconds(Mathf.Max(2, hold)); Finish("title-only"); yield break; }
         if (quit && title != null) { yield return Shot("title"); Press(title, "pn-title-quit"); Log("pressed Quit"); yield return new WaitForSeconds(4f); Finish("quit-pressed-and-still-running"); yield break; }
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
         if (fail) { PNGameFlow.DebugFailNextBoot = true; Log("test hook: the next boot will fail"); }
+#else
+        if (fail) Log("the fail hook exists only in Editor and Development builds; ignored");
+#endif
         if (click && title != null)
         {
             Press(title, "pn-title-start"); Log("pressed Start");

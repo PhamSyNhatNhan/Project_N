@@ -130,23 +130,11 @@ public partial class EveCharacterSkill
     {
 #if UNITY_5_3_OR_NEWER
         if (Stats == null || !Stats.IsReady) return null;
-        PNStat best = null; double bestHealth = double.MaxValue; float bestDistance = float.MaxValue;
-        foreach (var entry in EveRegistrySession.Context.Entities.Snapshot())
-        {
-            var candidate = entry.GetComponent<PNStat>();
-            if (candidate == null || candidate == Stats || !candidate.gameObject.activeInHierarchy || !candidate.isActiveAndEnabled || !candidate.IsReady || candidate.IsDead ||
-                candidate.gameObject.scene != gameObject.scene || candidate.SessionId != Stats.SessionId || !Stats.Targets(candidate)) continue;
-            var loader = candidate.GetComponent<EveEntityLoader>();
-            if (loader == null || !loader.IsReady) continue;
-            var offset = candidate.transform.position - transform.position; offset.y = 0;
-            float distance = offset.sqrMagnitude;
-            if (distance > moveset.TargetRange * moveset.TargetRange) continue;
-            double health = lowestHealth ? candidate.GetCurrent(PNContentIds.Health) : 0;
-            if (best == null || health < bestHealth || (health == bestHealth && (distance < bestDistance ||
-                (distance == bestDistance && candidate.EntityId.Value < best.EntityId.Value))))
-            { best = candidate; bestHealth = health; bestDistance = distance; }
-        }
-        return best;
+        // Ordinary casts follow the player's auto target setting and the character-wide held target; the ultimate keeps its own rule
+        // (lowest absolute health) without touching the held target.
+        var auto = PNAutoTarget.For(Stats);
+        return lowestHealth ? auto.Resolve(moveset.TargetRange, Stats.TargetLayers.Mask, PNTargetRule.Autotarget(PNTargetMode.LowestHealth))
+            : auto.Resolve(moveset.TargetRange, Stats.TargetLayers.Mask);
 #else
         return null;
 #endif

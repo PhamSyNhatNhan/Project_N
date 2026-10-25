@@ -188,10 +188,14 @@ Ability clocks default to Game; motion/charge/slashes use Eve's effective entity
 clock. The Skill executes effects in response to state notifications; Ability never
 changes ATK, creates VFX, chooses targets or performs actions.
 
-Targets come from the active session's deterministic ready-entity snapshot, limited
-to same scene, alive/enabled hostile entities within TargetRange. Ordinary casts
-choose nearest planar distance; Ulti chooses lowest absolute HP after charging,
-then nearest distance, then entity ID for ties. Missing targets use the last movement
+Targets come from the shared selector (RulesVersion99, `PNAutoTarget` over the
+world's `PNTargetCandidates`; see "Choosing a target" in PNCombatREADME): live
+entities with a hit box on Eve's TargetLayers within TargetRange (planar, from the
+box center). Ordinary casts follow the player's auto target setting (Nearest,
+LowestHealth, LowestHealthPercent; higher aggro first) and the character-wide held
+target (Nearest switches only to a target 20% nearer); Ulti keeps its own rule:
+lowest absolute HP after charging, then nearest distance, then entity ID, without
+changing the held target. Missing targets use the last movement
 direction. Skill forces immediate sprite facing (along its glide) while preserving movement locks.
 Each cast keeps its selected direction/target through its phase; next Attack/Repeat
 acquires again. Rush stops short of targets and capsule sweeps clip solid obstacles,

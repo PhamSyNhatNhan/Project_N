@@ -1,6 +1,10 @@
 {
   "project_n:settings.mobile_icons": "Biểu tượng nút",
   "project_n:settings.mobile_palette": "Màu biểu tượng",
+  "project_n:settings.auto_target": "Tự nhắm",
+  "project_n:settings.auto_target.nearest": "Gần nhất",
+  "project_n:settings.auto_target.lowest_health": "Máu thấp nhất",
+  "project_n:settings.auto_target.lowest_health_percent": "Máu % thấp nhất",
   "project_n:mobile.icons.shapes": "Hình",
   "project_n:mobile.icons.letters": "Chữ A–E",
   "project_n:mobile.palette.u": "U · Phấn màu",

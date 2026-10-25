@@ -5,16 +5,18 @@ using System.Linq;
 using EveEngine;
 using UnityEngine;
 
-// EN: Per-world candidate list for projectile contact. Membership (which loaded, ready, living entities have a hit box) is refreshed
-//     at a limited rate by the manager while projectiles fly in the world; the boxes themselves are re-read every tick, and an entity
-//     that died or unloaded is dropped immediately. It is only a coarse filter for contact and the source for nearest-target search.
-// VI: Danh sách ứng viên theo world cho va chạm đạn. Thành viên làm mới theo nhịp giới hạn; hộp được đọc lại mỗi tick và thực thể
-//     đã chết/unload bị loại ngay. Chỉ là lọc thô và nguồn cho tìm mục tiêu gần nhất.
-public sealed class PNProjectileTargets
+// EN: Per-world candidate list shared by projectile contact and target selection (PNTargetSelector). Membership (which loaded, ready,
+//     living entities have a hit box) is refreshed at a limited rate by PNTargetIndex; the boxes themselves are re-read every tick, and
+//     an entity that died or unloaded is dropped immediately. It is only a coarse filter for contact and the source for target search.
+// VI: Danh sách ứng viên theo world dùng chung cho va chạm đạn và chọn mục tiêu (PNTargetSelector). Thành viên làm mới theo nhịp giới
+//     hạn bởi PNTargetIndex; hộp được đọc lại mỗi tick và thực thể đã chết/unload bị loại ngay.
+public sealed class PNTargetCandidates
 {
     public struct Candidate
     {
         public PNStat Stat; public Collider Collider; public PNIProjectileHitVolume Volume; public Vector3 Center, Extents; public float Radius; public int Layer;
+        // Read at membership refresh (and by UpdateAggro for queries outside the tick) so target selection needs no per-candidate stat lookup.
+        public long EntityId; public double Aggro;
     }
     private Candidate[] items = new Candidate[64];
     private int count;
@@ -37,7 +39,7 @@ public sealed class PNProjectileTargets
             if (loader == null || loader.LoadContext == null || !ReferenceEquals(loader.LoadContext.Identity.World, world)) continue;
             var stat = loader.GetComponent<PNStat>();
             if (!IsLive(stat)) continue;
-            var candidate = new Candidate { Stat = stat, Layer = stat.gameObject.layer };
+            var candidate = new Candidate { Stat = stat, Layer = stat.gameObject.layer, EntityId = stat.EntityId.Value };
             stat.TryGetComponent<PNIProjectileHitVolume>(out candidate.Volume);
             if (candidate.Volume == null)
             {
@@ -45,7 +47,7 @@ public sealed class PNProjectileTargets
                 if (collider == null || !collider.enabled || collider.isTrigger) collider = stat.GetComponentsInChildren<Collider>().FirstOrDefault(x => x.enabled && !x.isTrigger);
                 candidate.Collider = collider;
             }
-            if (Read(ref candidate)) { if (count == items.Length) Array.Resize(ref items, count * 2); items[count++] = candidate; }
+            if (Read(ref candidate)) { candidate.Aggro = PNTargetSelector.AggroOf(stat); if (count == items.Length) Array.Resize(ref items, count * 2); items[count++] = candidate; }
         }
     }
     // Per-tick update: re-reads each box and drops entities that are no longer live.
@@ -60,6 +62,8 @@ public sealed class PNProjectileTargets
         }
         count = write; Rebuild();
     }
+    // Re-reads every candidate's aggro stat (PNTargetIndex.Acquire calls it, so a query outside the tick sees an aggro change at once).
+    public void UpdateAggro() { for (int i = 0; i < count; i++) items[i].Aggro = PNTargetSelector.AggroOf(items[i].Stat); }
     private static bool Read(ref Candidate candidate)
     {
         if (candidate.Volume != null) { if (!candidate.Volume.TryGetHitVolume(out candidate.Center, out candidate.Extents)) return false; candidate.Radius = candidate.Extents.magnitude; return true; }

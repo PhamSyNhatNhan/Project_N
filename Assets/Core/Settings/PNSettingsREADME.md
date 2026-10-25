@@ -1,14 +1,15 @@
 # Machine settings
 
-`PNUserSettings` / `PNSettingsStore` own schema2 for the local machine. The game
+`PNUserSettings` / `PNSettingsStore` own schema3 for the local machine. The game
 owner is `Assets/Game/Runtime/PNSettingsService.cs`; UI and Localization do not
 write their own files. Storage is JSON, with no authored ScriptableObject asset.
 
 Runtime path: `<Application.persistentDataPath>/Settings/settings.json`.
 
 ```json
-{ "schemaVersion": 2, "locale": "vi", "targetFrameRate": 60,
-  "mobileIconSet": "project_n:mobile_icons_shapes", "mobilePalette": "project_n:mobile_palette_u" }
+{ "schemaVersion": 3, "locale": "vi", "targetFrameRate": 60,
+  "mobileIconSet": "project_n:mobile_icons_shapes", "mobilePalette": "project_n:mobile_palette_u",
+  "autoTargetMode": "nearest" }
 ```
 
 Locale is a validated code, allowed to be temporarily absent from the loaded
@@ -16,8 +17,16 @@ catalog. The default resolves from the base language manifest before saving.
 Frame rate accepts30/60/90/120/144/0;0 means uncapped on PC. It is a requested
 limit, not an FPS measurement or a guarantee that the hardware reaches it.
 
-Schema1 is read with the built-in Shapes/U defaults; the next explicit save writes
-schema2. Legacy localization migration retains both old files. Locale/FPS/style
+Schema1 is read with the built-in Shapes/U defaults and schema2 with its styles;
+both read `autoTargetMode` as `nearest`, and the next explicit save writes schema3
+(no write on load). `autoTargetMode` (schema3, 2026-10-25) is the player's auto
+target rule: `nearest` | `lowest_health` | `lowest_health_percent`
+(`PNTargetRule.ModeId`); `PNSettingsService.SetAutoTargetMode` saves it, the
+Settings view shows it as the always-visible "Auto target" row (keys
+`project_n:settings.auto_target[.<mode>]`, vi + en), and `PNTargetRules` gives it
+to the local player's characters (see "Choosing a target" in PNCombatREADME). It
+is machine-local and not part of coop parity; an `autoTargetMode` field inside a
+schema2 file counts as unknown and protects the file. Legacy localization migration retains both old files. Locale/FPS/style
 setters preserve all other fields. Unknown but valid style IDs are kept on disk;
 the HUD resolves missing content to built-ins without rewriting the preference.
 

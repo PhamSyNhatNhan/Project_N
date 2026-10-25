@@ -27,8 +27,11 @@ public sealed class PNProjectileLaunch
     public double SpeedFactor { get; }
     public double ScaleFactor { get; }
     public double LifetimeFactor { get; }
+    // How the projectile picks a target on its own (homing): the shooter's rule at launch (the local player's Settings mode, Nearest for a
+    // remote player, Aggro for enemies and system sources). default = Autotarget / Nearest.
+    public PNTargetRule TargetRule { get; }
     public PNProjectileLaunch(EveId projectileId, JToken input, PNCombatSource source, PNTargetLayers targetLayers, PNPreparedDamage damage = null, PNSkillHitSnapshot hitPlan = null,
-        double speedFactor = 1d, double scaleFactor = 1d, double lifetimeFactor = 1d)
+        double speedFactor = 1d, double scaleFactor = 1d, double lifetimeFactor = 1d, PNTargetRule targetRule = default)
     {
         if (!projectileId.IsValid) throw new ArgumentException("Projectile ID required.", nameof(projectileId));
         if (source == null) throw new ArgumentNullException(nameof(source));
@@ -37,14 +40,15 @@ public sealed class PNProjectileLaunch
             if (double.IsNaN(factor) || double.IsInfinity(factor) || factor < 0d) throw new ArgumentOutOfRangeException(nameof(speedFactor), "Modifier factors must be finite and nonnegative.");
         if (damage != null && (damage.SessionId != source.SessionId || damage.SourceId != source.EntityId)) throw new ArgumentException("Prepared damage belongs to another source.", nameof(damage));
         ProjectileId = projectileId; this.input = input?.DeepClone(); Source = source; TargetLayers = targetLayers; Damage = damage; HitPlan = hitPlan;
-        SpeedFactor = speedFactor; ScaleFactor = scaleFactor; LifetimeFactor = lifetimeFactor;
+        SpeedFactor = speedFactor; ScaleFactor = scaleFactor; LifetimeFactor = lifetimeFactor; TargetRule = targetRule;
     }
     // Reads the four projectile_* modifiers from the source snapshot (Scale route over a base of 1: +20% = 1.2).
-    public static PNProjectileLaunch FromSource(EveId projectileId, JToken input, PNCombatSource source, PNTargetLayers targetLayers, PNPreparedDamage damage = null, PNSkillHitSnapshot hitPlan = null)
+    public static PNProjectileLaunch FromSource(EveId projectileId, JToken input, PNCombatSource source, PNTargetLayers targetLayers, PNPreparedDamage damage = null, PNSkillHitSnapshot hitPlan = null,
+        PNTargetRule targetRule = default)
     {
         if (source == null) throw new ArgumentNullException(nameof(source));
         var snapshot = source.Snapshot ?? throw new ArgumentException("Source has no combat snapshot.", nameof(source));
         return new PNProjectileLaunch(projectileId, input, source, targetLayers, damage, hitPlan, snapshot.Calculate(1d, PNContentIds.ProjectileSpeed),
-            snapshot.Calculate(1d, PNContentIds.ProjectileScale), snapshot.Calculate(1d, PNContentIds.ProjectileLifetime));
+            snapshot.Calculate(1d, PNContentIds.ProjectileScale), snapshot.Calculate(1d, PNContentIds.ProjectileLifetime), targetRule);
     }
 }

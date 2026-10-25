@@ -40,7 +40,10 @@ public sealed class PNProjectileFrameworkBenchmark : MonoBehaviour
     }
     private IEnumerator RunAll(List<string> lines, Action<Exception> fail)
     {
-        EveGameRuntime runtime = PNGameBootstrap.Runtime; Scene scene = default; var objects = new List<GameObject>(); PNProjectileManager manager = null; bool began = false;
+        // The runtime is created by the Title boot since the loading handoff; this empty-scene Player has no Title, so load the content here (before any timing).
+        EveGameRuntime runtime = PNGameBootstrap.Runtime;
+        if (runtime == null) { try { runtime = PNGameBootstrap.EnsureContent(); } catch (Exception e) { fail(e); yield break; } }
+        Scene scene = default; var objects = new List<GameObject>(); PNProjectileManager manager = null; bool began = false;
         Exception error = null;
         if (runtime == null) { fail(new InvalidOperationException("The game runtime was not created by the bootstrap.")); yield break; }
         try { runtime.BeginSession(EveSessionRole.Offline); began = true; } catch (Exception e) { fail(e); yield break; }

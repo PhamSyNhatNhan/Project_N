@@ -37,7 +37,7 @@ public sealed class PNSettingsPlayReview : MonoBehaviour
         yield return Until(()=>{title=FindObjectsByType<UIDocument>(FindObjectsInactive.Include,FindObjectsSortMode.None).FirstOrDefault(d=>d.rootVisualElement.Q("pn-title-start")!=null);return title!=null&&PNLocalization.IsReady;},"localized Title");
         var root=title.rootVisualElement;yield return new WaitForSecondsRealtime(.5f);
         if(Arg("-pn-settings-restart=")!=null)
-        {Check(PNSettingsService.Current.Locale=="en"&&PNSettingsService.Current.TargetFrameRate==120&&PNLocalization.Selected=="en","restart restores saved locale/FPS");Check(Application.targetFrameRate==120&&QualitySettings.vSyncCount==0,"restart frame policy");yield return Shot("restart_title");yield break;}
+        {Check(PNSettingsService.Current.Locale=="en"&&PNSettingsService.Current.TargetFrameRate==120&&PNLocalization.Selected=="en","restart restores saved locale/FPS");Check(PNSettingsService.Current.AutoTargetMode==PNTargetMode.LowestHealth&&PNTargetRules.LocalMode==PNTargetMode.LowestHealth,"restart restores the auto target mode");Check(Application.targetFrameRate==120&&QualitySettings.vSyncCount==0,"restart frame policy");yield return Shot("restart_title");yield break;}
         Press(root,"pn-title-settings");yield return new WaitForSecondsRealtime(.18f);yield return Shot("enter_early");yield return new WaitForSecondsRealtime(.4f);yield return Shot("enter_middle");yield return new WaitForSecondsRealtime(.9f);yield return Shot("settings_open");
         Check(root.Q("pn-settings-view")!=null,"shared Settings at Title");
         Press(root,"pn-settings-language-trigger");yield return new WaitForSecondsRealtime(.3f);yield return Shot("language_dropdown");
@@ -45,6 +45,11 @@ public sealed class PNSettingsPlayReview : MonoBehaviour
         Press(root,"pn-settings-fps-trigger");yield return new WaitForSecondsRealtime(.3f);yield return Shot("fps_dropdown");
         Press(root,"pn-settings-fps-option-120");Check(Application.targetFrameRate==120&&QualitySettings.vSyncCount==0,"FPS120 immediate");
         Check(PNSettingsService.Current.Locale=="en"&&new PNSettingsStore(Path.GetDirectoryName(PNSettingsService.FilePath)).Load().Value.TargetFrameRate==120,"combined save");
+        Check(root.Q("pn-settings-auto-target-trigger")!=null&&PNSettingsService.Current.AutoTargetMode==PNTargetMode.Nearest,"auto target row present, default Nearest");
+        Press(root,"pn-settings-auto-target-trigger");yield return new WaitForSecondsRealtime(.3f);yield return Shot("auto_target_dropdown");
+        Press(root,"pn-settings-auto-target-option-lowest_health");yield return new WaitForSecondsRealtime(.25f);
+        Check(PNSettingsService.Current.AutoTargetMode==PNTargetMode.LowestHealth&&new PNSettingsStore(Path.GetDirectoryName(PNSettingsService.FilePath)).Load().Value.AutoTargetMode==PNTargetMode.LowestHealth&&PNTargetRules.LocalMode==PNTargetMode.LowestHealth,"auto target selection saved and used by the local rule");
+        Check(PNSettingsService.Current.Locale=="en"&&PNSettingsService.Current.TargetFrameRate==120,"auto target change keeps locale/FPS");
         foreach(int cap in new[]{30,60,90,120,144,0})
         {PNSettingsService.SetFrameRate(cap);yield return new WaitForSecondsRealtime(.2f);Check(Application.targetFrameRate==(cap==0?-1:cap)&&QualitySettings.vSyncCount==0,"frame cap "+cap);}
         PNSettingsService.SetFrameRate(120);

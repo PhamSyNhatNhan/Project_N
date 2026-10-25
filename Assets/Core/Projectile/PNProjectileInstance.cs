@@ -15,6 +15,14 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable
     private Vector3 position, heading = Vector3.forward;
     private PNProjectileTarget target;
     private bool ending, first;
+    // EN: Shooter arming: a new projectile ignores its own shooter until its box has once been outside the shooter's box (or after
+    //     ShooterGraceSeconds of its clock); from then on the shooter is an ordinary target when its layer is among the launch layers.
+    // VI: Đạn mới bỏ qua người bắn cho tới khi hộp đạn đã ra khỏi hộp người bắn một lần (hoặc sau ShooterGraceSeconds); sau đó người bắn
+    //     là mục tiêu bình thường nếu layer của họ nằm trong các layer của lần bắn.
+    public const float ShooterGraceSeconds = 2f;
+    private bool armed;
+    public bool Armed => armed;
+    private PNTargetCandidates tickCandidates;
     public PNProjectileHandle Handle { get; private set; }
     public bool IsRunning { get; private set; }
     public EveWorldContext World { get; private set; }
@@ -66,14 +74,22 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable
         ending = true; return Manager.End(Handle, reason);
     }
     public bool TryGetTarget(out PNStat result) => target.TryGet(World, out result);
-    // Nearest live target of this projectile's world within the radius on the launch target layers (from the manager candidate list).
-    protected PNStat FindNearestTarget(float radius) => Manager == null ? null : Manager.FindNearest(World, position, radius, Launch.TargetLayers.Mask);
+    // Best live target of this projectile's world within the radius (3D, from the box center) on the launch target layers, ranked by
+    // `rule` (PNTargetSelector over the manager's candidate list). The shooter is not excluded: it is a candidate when its layer is targeted.
+    protected PNStat FindTarget(float radius, PNTargetRule rule)
+    {
+        if (Manager == null || Launch == null) return null;
+        var list = tickCandidates ?? Manager.Targets.Peek(World);
+        return PNTargetSelector.Select(list, new PNTargetQuery { Origin = position, Range = radius, LayerMask = Launch.TargetLayers.Mask, Rule = rule });
+    }
+    // Nearest live target (FindTarget with the Nearest rule).
+    protected PNStat FindNearestTarget(float radius) => FindTarget(radius, PNTargetRule.Autotarget(PNTargetMode.Nearest));
     public void SetTarget(PNStat value) => target = new PNProjectileTarget(value);
 
     internal void Bind(PNProjectileManager manager, PNProjectileHandle handle, PNProjectileDefinition definition, PNProjectileLaunch launch, PNProjectileSpawn spawn, EveWorldContext world)
     {
         Manager = manager; Handle = handle; Definition = definition; Launch = launch; World = world; Scene = spawn.Scene; Clock = GetComponent<PNProjectileClock>();
-        EndReason = null; CleanupFailed = false; ending = false; first = true; Age = 0; Distance = 0; TickIndex = 0; HitCount = 0; hitContext = null; admission = null; Velocity = default; External = default; DestroyedBy = null;
+        EndReason = null; CleanupFailed = false; ending = false; first = true; armed = false; Age = 0; Distance = 0; TickIndex = 0; HitCount = 0; hitContext = null; admission = null; Velocity = default; External = default; DestroyedBy = null;
         position = spawn.Position; heading = spawn.Direction; target = new PNProjectileTarget(spawn.Target); contacts.Clear();
         transform.position = position; transform.rotation = Quaternion.LookRotation(heading);
         IsRunning = true; Initialize(spawn);
@@ -86,7 +102,7 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable
     }
 
     // One manager tick: advance the clock (always, so modifiers whose owner vanished are reclaimed even at scale 0), then move.
-    internal void Tick(float gameDelta, int maxSubSteps, PNProjectileTargets candidates, PhysicsScene physics)
+    internal void Tick(float gameDelta, int maxSubSteps, PNTargetCandidates candidates, PhysicsScene physics)
     {
         if (!IsRunning || ending) return;
         // An untouched clock (no modifier) is exactly scale 1 and has nothing to expire, so the common case skips it.
@@ -98,11 +114,13 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable
         float smallest = Mathf.Max(Mathf.Min(HalfExtents.x, Mathf.Min(HalfExtents.y, HalfExtents.z)), 1e-3f);
         int steps = Mathf.Clamp(Mathf.CeilToInt(StepDistance(dt) / smallest), 1, Mathf.Max(1, Mathf.Min(maxSubSteps, SubStepLimit)));
         float step = dt / steps;
-        for (int i = 0; i < steps && IsRunning && !ending; i++) SubStep(step, candidates, physics);
+        tickCandidates = candidates;
+        try { for (int i = 0; i < steps && IsRunning && !ending; i++) SubStep(step, candidates, physics); }
+        finally { tickCandidates = null; }
         if (IsRunning && !ending && IsExpired) Finish(PNProjectileEndReason.Expired);
         transform.SetPositionAndRotation(position, Quaternion.LookRotation(heading));
     }
-    private void SubStep(float step, PNProjectileTargets candidates, PhysicsScene physics)
+    private void SubStep(float step, PNTargetCandidates candidates, PhysicsScene physics)
     {
         var from = position;
         using (EveHotPathMetrics.Measure("projectile.move")) Move(step);
@@ -115,7 +133,7 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable
         if (!contacts.IsEmpty) OnContacts(contacts);
         first = false;
     }
-    private void Detect(Vector3 from, Vector3 to, PNProjectileTargets candidates, PhysicsScene physics)
+    private void Detect(Vector3 from, Vector3 to, PNTargetCandidates candidates, PhysicsScene physics)
     {
         var segment = to - from; float length = segment.magnitude, segment2 = length * length;
         int environment = EnvironmentMask; Vector3 right = default, up = default, forward = default; bool framed = false;
@@ -128,10 +146,12 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable
                 { contacts.HasEnvironment = true; contacts.Environment = new PNProjectileContact(null, hit.point, hit.normal, Mathf.Clamp01(hit.distance / length)); }
             }
         }
-        if (candidates == null || candidates.Count == 0) return;
+        if (candidates == null || candidates.Count == 0) { armed = true; return; }
         using (EveHotPathMetrics.Measure("projectile.targets"))
         {
             int mask = Launch.TargetLayers.Mask; float radius = HalfExtents.magnitude; var items = candidates.RawItems;
+            // The shooter is skipped for the whole step while unarmed; it becomes a target only in steps that start armed.
+            bool skipShooter = !armed; long shooter = Launch.SourceId.Value;
             float sx = segment.x, sy = segment.y, sz = segment.z;
             // Only candidates near the step (spatial hash on XZ), then a scalar coarse test: the segment must pass within the two bounding radii.
             int n = candidates.Query(Mathf.Min(from.x, to.x), Mathf.Min(from.z, to.z), Mathf.Max(from.x, to.x), Mathf.Max(from.z, to.z), radius, out var indices);
@@ -139,6 +159,7 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable
             {
                 ref var candidate = ref items[indices[k]];
                 if (((mask >> candidate.Layer) & 1) == 0) continue;
+                if (skipShooter && candidate.EntityId == shooter) continue;
                 float rx = candidate.Center.x - from.x, ry = candidate.Center.y - from.y, rz = candidate.Center.z - from.z;
                 float fraction = segment2 < 1e-12f ? 0f : (rx * sx + ry * sy + rz * sz) / segment2;
                 fraction = fraction < 0f ? 0f : fraction > 1f ? 1f : fraction;
@@ -157,8 +178,22 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable
                 if (normal.sqrMagnitude < 1e-10f) { point = at; normal = -forward; } else normal = normal.normalized;
                 contacts.targets.Add(new PNProjectileContact(candidate.Stat, point, normal, fraction));
             }
+            if (skipShooter) armed = Age >= ShooterGraceSeconds || !InsideShooter(to, heading, candidates);
         }
         if (contacts.targets.Count > 1) contacts.targets.Sort((x, y) => x.Fraction.CompareTo(y.Fraction));
+    }
+
+    // True while this projectile's box at `at` overlaps its shooter's box (false when the shooter is no candidate: dead, unloaded, no box).
+    private bool InsideShooter(Vector3 at, Vector3 direction, PNTargetCandidates candidates)
+    {
+        long shooter = Launch.SourceId.Value; var items = candidates.RawItems;
+        for (int i = 0; i < candidates.Count; i++)
+        {
+            if (items[i].EntityId != shooter) continue;
+            PNProjectileGeometry.Frame(direction, out var right, out var up, out var forward);
+            return PNProjectileGeometry.ObbOverlapsAabb(at, right, up, forward, HalfExtents, items[i].Center, items[i].Extents);
+        }
+        return false;
     }
 
     // ---- hits -------------------------------------------------------------------------------------------------------------
@@ -174,11 +209,8 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable
     {
         var target = contact.Target;
         if (target == null || !IsRunning || ending || Manager == null) return null;
-        if (!target.IsReady || !target.gameObject.activeInHierarchy || PNProjectileTargets.IsDead(target) || !PNWorldGameplay.CanExecute(target) ||
+        if (!target.IsReady || !target.gameObject.activeInHierarchy || PNTargetCandidates.IsDead(target) || !PNWorldGameplay.CanExecute(target) ||
             !ReferenceEquals(target.GetComponent<EveEntityIdentity>()?.World, World)) return null;
-        // EN: A projectile never hits its own shooter, even when the shooter's layer is among the targeted ones (friendly fire covers the others).
-        // VI: Đạn không bao giờ trúng chính người bắn, kể cả khi layer của người bắn nằm trong các layer nhắm tới (bắn nhầm đồng minh chỉ áp cho người khác).
-        if (target.EntityId == Launch.SourceId) return null;
         var result = new PNProjectileHitResult { Target = target, HitIndex = HitCount };
         HitCount++;
         if (Launch.Damage != null)

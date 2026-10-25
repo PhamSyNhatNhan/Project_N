@@ -28,8 +28,8 @@ public sealed class PNProjectileManager : MonoBehaviour
     private readonly Dictionary<(PNProjectileDefinition, Scene), PoolEntry> pools = new Dictionary<(PNProjectileDefinition, Scene), PoolEntry>();
     private readonly Dictionary<long, Entry> entries = new Dictionary<long, Entry>();
     private readonly List<Entry> order = new List<Entry>();
-    private sealed class TargetState { internal readonly PNProjectileTargets Targets = new PNProjectileTargets(); internal float Since = float.MaxValue; }
-    private readonly Dictionary<object, TargetState> targets = new Dictionary<object, TargetState>();
+    // Per-world candidate lists, shared with target selection (autotarget, a volley's aim).
+    public PNTargetIndex Targets { get; } = new PNTargetIndex();
     private readonly HashSet<object> refreshed = new HashSet<object>();
     private readonly Queue<Action> pending = new Queue<Action>();
     private readonly HashSet<PNProjectileInstance> pendingResources = new HashSet<PNProjectileInstance>();
@@ -59,8 +59,9 @@ public sealed class PNProjectileManager : MonoBehaviour
     {
         var chosen = profile ?? new PNProjectileProfile(); chosen.Validate();
         MaxActive = chosen.MaxActive; MaxSubSteps = chosen.MaxSubSteps; TargetRefreshSeconds = chosen.TargetRefreshSeconds;
-        if (Session == session && !closing) return;
+        if (Session == session && !closing) { Targets.Initialize(session, TargetRefreshSeconds); return; }
         Shutdown(); Session = session ?? throw new ArgumentNullException(nameof(session)); closing = false;
+        Targets.Initialize(session, TargetRefreshSeconds);
         SceneManager.sceneUnloaded += SceneUnloaded;
     }
     public bool Contains(PNProjectileHandle handle) => ReferenceEquals(handle.Manager, this) && entries.TryGetValue(handle.InstanceId, out var entry) && entry.Instance != null && entry.Instance.IsRunning;
@@ -70,19 +71,10 @@ public sealed class PNProjectileManager : MonoBehaviour
     public IReadOnlyList<PNProjectileSnapshot> Snapshot()
         => order.Where(x => !x.Removed && x.Instance != null && x.Instance.IsRunning).Select(x => new PNProjectileSnapshot(new PNProjectileHandle(this, x.Id), x.DefinitionId, x.DefinitionId, x.Instance)).ToArray();
 
-    // Nearest live target of a world within the radius on the given layers, from the candidate list the manager keeps while projectiles
-    // fly there (null when none, or when no projectile has flown in that world yet).
+    // Nearest live target of a world within the radius on the given layers, from the last candidate list of that world (null when none,
+    // or when no list was built there yet). Target selection with a rule goes through PNTargetSelector over Targets.Acquire(world).
     public PNStat FindNearest(EveWorldContext world, Vector3 position, float radius, int layerMask)
-        => targets.TryGetValue((object)world ?? NoWorld, out var state) ? state.Targets.FindNearest(position, radius, layerMask) : null;
-    // One-shot nearest-target query for launch time (an Operation aiming a volley): rebuilds a scratch candidate list from the current
-    // entities, so it works before any projectile has flown in the world and never touches the per-tick lists.
-    public PNStat ResolveNearest(EveWorldContext world, Vector3 position, float radius, int layerMask)
-    {
-        if (Session == null || !Session.IsActive) return null;
-        aimScratch.Refresh(Session, world); aimScratch.UpdateBounds();
-        return aimScratch.FindNearest(position, radius, layerMask);
-    }
-    private readonly PNProjectileTargets aimScratch = new PNProjectileTargets();
+        => Targets.Peek(world)?.FindNearest(position, radius, layerMask);
     // ---- queries for systems that act on running projectiles (area effects, clearing skills); they do their own filtering ----------
     // Allocation-free: appends the handles of running projectiles of `world` whose position is within `radius` of `center`.
     public int QueryRunning(EveWorldContext world, Vector3 center, float radius, List<PNProjectileHandle> results)
@@ -251,17 +243,14 @@ public sealed class PNProjectileManager : MonoBehaviour
                     if (!entry.Instance.IsRunning) { Return(entry); continue; }
                     if (!entry.Instance.isActiveAndEnabled) { End(new PNProjectileHandle(this, entry.Id), PNProjectileEndReason.Disabled); continue; }
                     object key = (object)entry.World ?? NoWorld;
-                    if (!targets.TryGetValue(key, out var state)) targets.Add(key, state = new TargetState());
+                    PNTargetCandidates candidates;
                     if (refreshed.Add(key))
                     using (EveHotPathMetrics.Measure("projectile.candidates"))
-                    {
                         // Membership at a limited rate, boxes every tick.
-                        state.Since += gameDelta;
-                        if (state.Since >= TargetRefreshSeconds) { state.Targets.Refresh(Session, entry.World); state.Since = 0f; }
-                        state.Targets.UpdateBounds();
-                    }
+                        candidates = Targets.Tick(entry.World, gameDelta);
+                    else candidates = Targets.Peek(entry.World);
                     var physics = (entry.World != null ? entry.World.PhysicsOwner : entry.Scene).GetPhysicsScene();
-                    entry.Instance.Tick(gameDelta, MaxSubSteps, state.Targets, physics);
+                    entry.Instance.Tick(gameDelta, MaxSubSteps, candidates, physics);
                 }
                 catch (Exception error) { Debug.LogException(error, this); End(new PNProjectileHandle(this, entry.Id), PNProjectileEndReason.RuntimeError); }
             }
@@ -301,7 +290,7 @@ public sealed class PNProjectileManager : MonoBehaviour
             foreach (var instance in pair.Value.Instances.Values) instance.DisposePooledResources();
             pair.Value.Pool.Dispose(); DestroyOwned(pair.Value.Template); pools.Remove(pair.Key);
         }
-        targets.Remove((object)world ?? NoWorld);
+        Targets.ReleaseWorld(world);
     }
     public void Shutdown()
     {
@@ -318,7 +307,7 @@ public sealed class PNProjectileManager : MonoBehaviour
         }
         // Required gameplay failures retain entries/pools/session and block the next play.
         if (errors.Count != 0) throw new AggregateException("Projectile gameplay cleanup failed.", errors);
-        order.Clear(); compactNeeded = false; targets.Clear();
+        order.Clear(); compactNeeded = false; Targets.Clear();
         foreach (var resource in pendingResources.ToArray())
         {
             try { resource.DisposePooledResources(); pendingResources.Remove(resource); }
