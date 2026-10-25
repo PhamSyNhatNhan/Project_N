@@ -29,7 +29,7 @@ public class EveGameRuntime : EveRuntime
 #endif
     // EN: Bump when executable gameplay rules change, even if JSON stays the same.
     // VI: TÄƒng phiÃªn báº£n khi luáº­t gameplay trong code Ä‘á»•i dÃ¹ JSON váº«n giá»¯ nguyÃªn.
-    public const string CurrentRulesVersion = "project_n:99";
+    public const string CurrentRulesVersion = "project_n:100";
     public override string RulesVersion => CurrentRulesVersion;
 #if UNITY_5_3_OR_NEWER
     internal bool IsBootstrapOwner { get; set; }
@@ -99,6 +99,8 @@ public class EveGameRuntime : EveRuntime
     protected override IReadOnlyDictionary<string, string> ReadGameplayAssetHashes(EveRegistryHub registry)
     {
         var hashes=PNSlashPrefabContent.Hashes(registry).ToDictionary(x=>x.Key,x=>x.Value);
+        // The gameplay structure of every referenced entity prefab. Mobile has no mods and no crossplay, so it skips the walk.
+        if(!Application.isMobilePlatform)foreach(var pair in PNEntityPrefabReferences.Hashes(registry,PNEntityPrefabs.Source))hashes.Add(pair.Key,pair.Value);
         foreach(var pack in packs??System.Array.Empty<EveContentPack>())if(pack.Assets!=null)
         {
             if(!ModsAllowed)throw new System.NotSupportedException("Mobile does not load mod assets.");

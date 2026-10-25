@@ -1,7 +1,8 @@
 # PNInstanceDefinition: definitions of things spawned into a world / Định nghĩa thứ sinh vào world
 
 EN: `PNInstanceDefinition` is the shared immutable definition of something spawned into a world. Today the kinds are **area**
-(`PNAreaDefinition`, managed by `PNAreaManager`) and **projectile** (`PNProjectileDefinition`, managed by `PNProjectileManager`); Summon, items and
+(`PNAreaDefinition`, managed by `PNAreaManager`), **projectile** (`PNProjectileDefinition`, managed by `PNProjectileManager`) and **entity**
+(`PNEntityDefinition`, the role of a spawned character: player, enemy, NPC, summon, prop; see `Core/Entity/Shared/Spawn/PNEntitySpawnREADME.md`); Summon, items and
 kinds added by mods are further subclasses. All kinds live in **one registry named `instances`** (RulesVersion 97). The kind is the subclass; there is no
 separate kind registry.
 
@@ -12,15 +13,16 @@ thêm là các lớp con khác. Mọi kind nằm trong **một registry tên `in
 
 - Not a spawn system: no spawn rules, random tables, waves, drops or `Spawn(id)` gateway. Whatever uses a definition (a skill, a chest, mod code, a
   terrain-generation definition) owns its rules. Each kind's manager keeps its own request type, pools and lifetime.
-- Not Buff, the world-level provider registries, Action/Operation/Calculation, the small vocabulary registries, mobile style registries or the entity
-  template (`PNEntityTemplateDefinition`): those stay separate.
-- A definition is not an entity. Dynamic entities need their own spawn system (not built yet).
+- Not Buff, the world-level provider registries, Action/Operation/Calculation, the small vocabulary registries or mobile style registries: those stay separate.
+- A definition is not a spawned entity. Area and projectile are built by their managers from a pool template; kind `entity` is built by `PNEntityFactory`
+  from a prefab in the entity prefab catalog, so it has no pool template (`HasPoolTemplate` is false and `CreatePoolTemplate()` throws).
 
 ## Parts
 
 | Type | Role |
 |---|---|
-| `PNInstanceDefinition` | Abstract base: `Id`, `Kind`, `ImplementationType`, `Payload`, validators, `EntryFields`, `Derive(id, data, entry)`, `CreatePoolTemplate()` (Unity). |
+| `PNInstanceDefinition` | Abstract base: `Id`, `Kind`, `ImplementationType` (a component for area/projectile, a recipe class for entity), `Payload`, validators, `EntryFields`, `Derive(id, data, entry)`; under Unity `HasPoolTemplate` and `CreatePoolTemplate()` (optional: kinds not built from one component keep the default). |
+| `PNEntityDefinition` | Kind `entity` (RulesVersion 100): `Settings` from the payload (owner, persist, followsOwner, lifetime, countsForClear, dropsLoot, prefab, spawnBuffs). |
 | `PNAreaDefinition` / `PNProjectileDefinition` | Kinds `area` / `projectile`. The projectile adds `Destroyable` (JSON entry field `destroyable`) and `Settings<T>()`. |
 | `PNInstances` | `Create(hub)` (once, in `PNGameplayContentModule`), `hub.Instances()`, kind-checked `GetKind<T>` / `GetEffectiveKind<T>` / `TryGetKind<T>`, `RegisterBase<T>` (override must be the same kind). |
 
@@ -55,7 +57,7 @@ The kind is the kind of `factoryId` (no `kind` field). Beside `id`, `factoryId` 
 
 1. Subclass `PNInstanceDefinition`: `Kind` (constant lowercase name), constructor calling `base(...)` plus the required implementation check
    (`RequireImplementation(implementation, typeof(MyInstance), "MyKind")` under `UNITY_5_3_OR_NEWER`), `EntryFields` if it has JSON fields, and
-   `Derive(id, data, entry)` reading them; override `CreatePoolTemplate()` under Unity.
+   `Derive(id, data, entry)` reading them; under Unity override `HasPoolTemplate` and `CreatePoolTemplate()` when the kind is built from a pool template.
 2. Register definitions with `hub.Instances().Register(...)` (game code) or `context.Register(...)` (mod).
 3. Write the kind's manager (request type, pools, lifetime). Nothing in `PNBuffContent` changes.
 

@@ -38,6 +38,7 @@ public class PNProjectileDefinition : PNInstanceDefinition
     }
 #if UNITY_5_3_OR_NEWER
     // Construction happens only through the selected definition, before pool callback discovery.
+    public override bool HasPoolTemplate => true;
     public override UnityEngine.GameObject CreatePoolTemplate()
     {
         var root = new UnityEngine.GameObject("Projectile template: " + Id);

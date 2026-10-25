@@ -32,7 +32,13 @@ public partial class PNStat
 
     public event Action<PNDamageResult> DamageReceived;
     public event Action<PNDamageResult> Died;
-    public virtual bool IsDead => GetCurrent(PNContentIds.Health) <= 0d;
+    // Damageable <=> the character declares a health resource. Without one the entity is never dead and ReceiveDamage applies nothing.
+    public bool HasHealth { get; private set; }
+    // "hits": every damaging hit outside iframe removes exactly 1 of the declared maximum Health (set from the character's body block).
+    public PNDamageMode DamageMode { get; private set; }
+    // "hidden": the world health bar is not shown even though the entity has Health (body.healthBar).
+    public PNHealthBarMode HealthBar { get; private set; }
+    public virtual bool IsDead => HasHealth && GetCurrent(PNContentIds.Health) <= 0d;
 
     // EN: Capture outgoing bonuses once so delayed effects remain valid after the source unloads.
     // VI: Chụp bonus phía gây một lần để hiệu ứng trì hoãn vẫn dùng được sau khi nguồn unload.
@@ -97,6 +103,7 @@ public partial class PNStat
         var stats = RequireCombatReady();
         if (damage == null) throw new ArgumentNullException(nameof(damage));
         if (damage.SessionId != SessionId) throw new ArgumentException("Damage belongs to another session.", nameof(damage));
+        if (!HasHealth) return new PNDamageResult(damage, EntityId, 0d, 0d, 0d, ignored: true);
         var damageType = stats.ResolveDamageType(damage.Tags);
         double iframeBefore = IFrameRemaining;
         double duration = damage.IFrameDuration ?? DefaultIFrameDuration;
@@ -105,13 +112,15 @@ public partial class PNStat
             throw new OverflowException("IFrame time must remain finite.");
         double multiplier = iframeBefore > 0d ? IFrameDamageMultiplier : 1d;
         var tagArray = damage.Tags.ToArray();
-        double calculated = CalculateDamage(damage.Amount, damage.Penetration, tagArray);
-        calculated *= multiplier;
+        double calculated;
+        // Hit counting skips DEF, Mitigation, critical and the absorption hook: a damaging hit outside iframe is exactly 1, inside iframe 0.
+        if (DamageMode == PNDamageMode.Hits) calculated = damage.Amount > 0d && iframeBefore <= 0d ? 1d : 0d;
+        else { calculated = CalculateDamage(damage.Amount, damage.Penetration, tagArray); calculated *= multiplier; }
         if (double.IsNaN(calculated) || double.IsInfinity(calculated) || calculated < 0d)
             throw new InvalidOperationException("Incoming damage must be finite and nonnegative.");
         double before = GetCurrent(PNContentIds.Health);
         var absorption = default(PNDamageAbsorption);
-        double healthLoss = before == 0d ? calculated : AbsorbDamage(damage, damageType, calculated, out absorption);
+        double healthLoss = before == 0d || DamageMode == PNDamageMode.Hits ? calculated : AbsorbDamage(damage, damageType, calculated, out absorption);
         if (double.IsNaN(healthLoss) || healthLoss < 0d || healthLoss > calculated + 1e-9) throw new InvalidOperationException("Absorbed damage must leave a finite health loss between 0 and the incoming amount.");
         double after = Math.Max(0d, before - healthLoss);
         var result = new PNDamageResult(damage, EntityId, calculated, before, after,

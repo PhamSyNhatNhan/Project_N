@@ -16,8 +16,10 @@ public readonly struct PNLocalPlayerBound
 }
 // Factory instances, including deferred Unity destruction, are never authored enrollment candidates.
 public sealed class PNFactoryEntity : MonoBehaviour
-{[NonSerialized] public string Template,SceneKey,SpawnEntry;[NonSerialized] public bool Player;[NonSerialized] public GameObject Prototype;}
-public sealed class PNPlayerFactory : IPNWorldEntityFactory
+{[NonSerialized] public string Entity,Template,SceneKey,SpawnEntry;[NonSerialized] public GameObject Prototype;
+    // Receipts of the spawn Buffs the entity's role applied when it was published (queued: they resolve on the Buff manager's next advance).
+    [NonSerialized] public readonly List<PNBuffReceipt> SpawnBuffReceipts=new List<PNBuffReceipt>();}
+public sealed class PNEntityFactory : IPNWorldEntityFactory
 {
     private readonly EveSessionContext session;
     private readonly Dictionary<(Guid,GameObject),EveEasyPooling> pools=new Dictionary<(Guid,GameObject),EveEasyPooling>();
@@ -29,9 +31,13 @@ public sealed class PNPlayerFactory : IPNWorldEntityFactory
     private readonly Dictionary<GameObject,EveWorldContext> resourceWorlds=new Dictionary<GameObject,EveWorldContext>();
     private readonly HashSet<EveWorldContext> cleanupWorlds=new HashSet<EveWorldContext>();
     private readonly IPNWorldRuntime explicitWorlds;
+    // The scheduler that owns the spawned entities; an entity with a lifetime is retired through it. The game session sets it.
+    public EveEntityPreparationScheduler Scheduler{get;set;}
+    // Spawn points per (world, slot), read once when first asked and dropped with the world.
+    private readonly Dictionary<(Guid,string),PNPlayerSpawnPoint[]> spawnPoints=new Dictionary<(Guid,string),PNPlayerSpawnPoint[]>();
     private IPNWorldRuntime worlds=>explicitWorlds??PNWorldRuntime.Resolve(session);
-    public PNPlayerFactory(EveSessionContext session) : this(session,null) { }
-    public PNPlayerFactory(EveSessionContext session,IPNWorldRuntime worlds){this.session=session;explicitWorlds=worlds;}
+    public PNEntityFactory(EveSessionContext session) : this(session,null) { }
+    public PNEntityFactory(EveSessionContext session,IPNWorldRuntime worlds){this.session=session;explicitWorlds=worlds;}
     private EveWorldContext LegacyWorld()
     {
         if(worlds==null||worlds.DefaultWorld==null||session.Worlds.Snapshot().Count!=1)throw new InvalidOperationException("Use explicit world/slot/spawn when no unambiguous default exists.");
@@ -40,6 +46,8 @@ public sealed class PNPlayerFactory : IPNWorldEntityFactory
     private PNWorldBuildContext Resolve(PNEntityRequest request)
     {
         request.World=request.World??LegacyWorld();
+        if(string.IsNullOrEmpty(request.Entity))request.Entity=request.Template;else if(string.IsNullOrEmpty(request.Template))request.Template=request.Entity;
+        else if(request.Entity!=request.Template)throw new InvalidOperationException("Entity and Template name different roles.");
         if(request.WorldIncarnation==0)request.WorldIncarnation=request.World.Incarnation;
         if(!ReferenceEquals(request.World.Session,session)||request.WorldIncarnation!=request.World.Incarnation||
             request.World.State!=EveWorldState.Ready&&request.World.State!=EveWorldState.Paused)throw new InvalidOperationException("Stale/nonresident factory world.");
@@ -50,10 +58,23 @@ public sealed class PNPlayerFactory : IPNWorldEntityFactory
     private PNWorldSlot Slot(PNEntityRequest request)=>Resolve(request).Slots.Single(x=>x.Id==request.ContentSlot);
     private PNPlayerSpawnPoint Spawn(PNEntityRequest request)
     {
-        var values=Slot(request).Roots.Where(x=>x!=null).SelectMany(x=>x.GetComponentsInChildren<PNPlayerSpawnPoint>(true)).ToArray();
+        var values=SpawnPoints(request);
         var spawn=request.SpawnEntry==null?values.Single():values.Single(x=>x.SpawnEntry==request.SpawnEntry);
         spawn.Validate();request.SpawnEntry=spawn.SpawnEntry;return spawn;
     }
+    private PNPlayerSpawnPoint[] SpawnPoints(PNEntityRequest request)
+    {
+        Resolve(request);
+        var key=(request.World.InstanceId,request.ContentSlot);
+        if(spawnPoints.TryGetValue(key,out var cached)&&cached.All(x=>x!=null))return cached;
+        var values=Slot(request).Roots.Where(x=>x!=null).SelectMany(x=>x.GetComponentsInChildren<PNPlayerSpawnPoint>(true)).ToArray();
+        spawnPoints[key]=values;return values;
+    }
+    private PNEntityDefinition Role(PNEntityRequest request)=>session.Registry.Instances().GetEffectiveKind<PNEntityDefinition>(EveId.Parse(request.Entity??request.Template));
+    // A player role (its recipe says so) is placed at a spawn point and gets input and ground binding.
+    private static bool IsPlayer(PNEntityDefinition role)=>role.IsPlayer;
+    private bool HasRole(PNEntityRequest request)=>!string.IsNullOrEmpty(request.Entity)||!string.IsNullOrEmpty(request.Template);
+    private static PNEntityRecipe Recipe(PNEntityDefinition role)=>role.Recipe as PNEntityRecipe??throw new InvalidOperationException("Entity "+role.Id+" has no game recipe.");
     public IEnumerable<PNEntityRequest> SceneEntities()=>SceneEntities(LegacyWorld());
     public IEnumerable<PNEntityRequest> SceneEntities(EveWorldContext world,string slot=null)
     {
@@ -70,23 +91,30 @@ public sealed class PNPlayerFactory : IPNWorldEntityFactory
     public PNEntityRequest Player(long owner,EveWorldContext world,string slot,string spawn)
     {
         if(owner<0)throw new ArgumentOutOfRangeException(nameof(owner));
-        var request=new PNEntityRequest{Player=true,Owner=owner,World=world,WorldIncarnation=world.Incarnation,ContentSlot=slot,SpawnEntry=spawn,Template="base:scene_spawn"};
+        var request=new PNEntityRequest{Owner=owner,World=world,WorldIncarnation=world.Incarnation,ContentSlot=slot,SpawnEntry=spawn,Template="base:scene_spawn",Entity="base:scene_spawn"};
         var point=Spawn(request);
         session.Registry.Characters.Get(EveId.Parse(point.Character));
         request.Character=point.Character;request.SceneKey=point.SceneKey;request.EntityKey="";request.Position=point.transform.position;return request;
+    }
+    // The prefab the request spawns from (validates the role, the character and the spawn point). The transfer coordinator compares it with the prototype of a live actor.
+    public GameObject ResolvePrefab(PNEntityRequest request)
+    {
+        Resolve(request);
+        if(!HasRole(request))throw new InvalidOperationException("An authored entity has no role to resolve a prefab from.");
+        var role=Role(request);
+        session.Registry.Characters.Get(EveId.Parse(request.Character));
+        // The spawn point supplies the prefab only for a character that names none; entities without a spawn point need a catalog key.
+        var point=IsPlayer(role)||request.SpawnEntry!=null?Spawn(request):null;
+        return PNEntityPrefabs.For(session,request.Character,point?.Prefab,role)??throw new InvalidOperationException("Entity "+request.Entity+" of character "+request.Character+" has no prefab: name one with body.prefab.");
     }
     public EveEntityLoader Get(PNEntityRequest request)
     {
         Resolve(request);
         if(cleanupWorlds.Add(request.World))request.World.RegisterCleanup(()=>ReleaseWorld(request.World));
         EveEntityLoader loader;
-        if(request.Player||!string.IsNullOrEmpty(request.Template))
+        if(HasRole(request))
         {
-            if(request.Player&&request.Template==null)request.Template="base:scene_spawn";
-            if(request.Player)Spawn(request);
-            session.Registry.Characters.Get(EveId.Parse(request.Character));
-            var prefab=session.Registry.Get<PNEntityTemplateDefinition>().Get(EveId.Parse(request.Template)).Resolve(Resolve(request),request.ContentSlot,request.SpawnEntry);
-            if(request.Player)prefab=PNPlayerPrefabCatalog.For(session,request.Character,prefab);
+            var prefab=ResolvePrefab(request);
             if(!pools.TryGetValue((request.World.InstanceId,prefab),out var pool))
             {
                 pool=new EveEasyPooling(prefab);pools.Add((request.World.InstanceId,prefab),pool);
@@ -110,19 +138,27 @@ public sealed class PNPlayerFactory : IPNWorldEntityFactory
     public void Configure(EveEntityLoader loader,PNEntityRequest request)
     {
         Resolve(request);
-        var marker=loader.GetComponent<PNFactoryEntity>();if(marker!=null){marker.Template=request.Template;marker.SceneKey=request.SceneKey;marker.SpawnEntry=request.SpawnEntry;marker.Player=request.Player;}
+        var marker=loader.GetComponent<PNFactoryEntity>();if(marker!=null){marker.Entity=request.Entity;marker.Template=request.Template;marker.SceneKey=request.SceneKey;marker.SpawnEntry=request.SpawnEntry;}
         if(session.Role==EveSessionRole.Client)loader.GetComponent<EveEntityIdentity>().BindReplicaWorld(request.World,request.ContentSlot,request.MembershipRevision);
         else loader.GetComponent<EveEntityIdentity>().BindWorld(request.World,request.ContentSlot);
         var gate=loader.GetComponent<PNNetworkInputGate>();if(gate!=null)gate.Blocked=false;
-        if(!request.Player&&string.IsNullOrEmpty(request.Template))return;
-        var spawn=request.Player?Spawn(request):null;var root=loader.gameObject;
+        if(!HasRole(request))return;
+        var role=Role(request);var spawn=IsPlayer(role)?Spawn(request):null;var root=loader.gameObject;
         if(spawn!=null&&request.SceneKey!=spawn.SceneKey)throw new InvalidOperationException("Player factory content/scene mismatch.");
-            SceneManager.MoveGameObjectToScene(root,worlds.Get(request.World).PhysicsScene);
-            root.transform.position=request.Position;
-            // Explicit initialization occurs before prepare. Awake reuses these same input owners.
-            if(Application.isPlaying){loader.GetComponent<PNPlayerMove>()?.EnsureInputInitialized();
-            loader.GetComponent<PNPlayerSkill>()?.EnsureInputInitialized();}
-            if(spawn!=null)foreach(var shadow in root.GetComponentsInChildren<MonoBehaviour>(true).OfType<IPNSceneEntityVisual>())shadow.BindGround(spawn.Ground);
+        SceneManager.MoveGameObjectToScene(root,worlds.Get(request.World).PhysicsScene);
+        root.transform.position=request.Position;
+        Recipe(role).Configure(loader,request,spawn);
+        var body=PNBodySettings.Parse(session.Registry.Characters.Get(EveId.Parse(request.Character)).Data);
+        double? lifetime=request.Lifetime??role.Settings.Lifetime;
+        (loader.GetComponent<PNEntityRole>()??loader.gameObject.AddComponent<PNEntityRole>()).Apply(request.Entity,role.Settings,body,lifetime);
+        var life=loader.GetComponent<PNEntityLifetime>();
+        // Only the authority removes an entity by time; a client entity is removed when the host's removal reaches it.
+        if(lifetime.HasValue&&session.Role!=EveSessionRole.Client)
+        {
+            life=life??loader.gameObject.AddComponent<PNEntityLifetime>();
+            life.Begin(lifetime.Value,()=>{if(Scheduler==null)throw new InvalidOperationException("Entity lifetime needs the factory scheduler.");Scheduler.RetirePublished(loader);});
+        }
+        else life?.Cancel();
     }
     public void Return(EveEntityLoader loader)
     {
@@ -157,18 +193,22 @@ public sealed class PNPlayerFactory : IPNWorldEntityFactory
     {
         loader.gameObject.SetActive(true);
         PNWorldPresentation.RegisterActor(session,loader.gameObject);
-        var id=loader.GetComponent<EveEntityIdentity>();
-        if(loader.GetComponent<PNPlayerStat>()!=null && (session.Role==EveSessionRole.Offline||id.OwnerId==(session.Role==EveSessionRole.Host?0:session.LocalOwnerId.GetValueOrDefault(-1))))
-        {
-            if(ReferenceEquals(PNLocalWorldContext.Current?.Session,session))PNLocalWorldContext.Current.Select(id.World,loader);
-            foreach(var error in EveEventManager.Global.PublishSafely(PNLocalPlayerBound.Event,new PNLocalPlayerBound(loader.transform)))Debug.LogException(error,loader);
-        }
+        // An authored entity has no role of its own: it keeps the player behaviour (a no-op unless it is a player stat).
+        var entity=loader.GetComponent<PNFactoryEntity>()?.Entity;
+        var role=session.Registry.Instances().GetEffectiveKind<PNEntityDefinition>(EveId.Parse(string.IsNullOrEmpty(entity)?"base:scene_spawn":entity));
+        Recipe(role).Published(session,loader);
+        // Buffs a role applies at spawn (an elite's aura). Only the authority applies them; clients receive the result.
+        if(string.IsNullOrEmpty(entity)||session.Role==EveSessionRole.Client||role.Settings.SpawnBuffs.Count==0)return;
+        var buffs=loader.GetComponent<PNBuffManager>();var stat=loader.GetComponent<PNStat>();
+        if(buffs==null||stat==null)throw new InvalidOperationException("Entity "+entity+" names spawn Buffs but has no Buff manager or stat.");
+        var marker=loader.GetComponent<PNFactoryEntity>();marker.SpawnBuffReceipts.Clear();
+        foreach(var id in role.Settings.SpawnBuffs)marker.SpawnBuffReceipts.Add(buffs.Buffs.Apply(new PNBuffApplyRequest(id,PNCombatSource.Capture(stat))));
     }
     public void RebindWorldPresentation(EveEntityLoader loader,PNEntityRequest request)
     {
         if(loader.LoadContext.Identity.World!=request.World)throw new InvalidOperationException("Presentation binding must follow actor membership.");
-        if(request.Player){var point=Spawn(request);foreach(var visual in loader.GetComponentsInChildren<MonoBehaviour>(true).OfType<IPNSceneEntityVisual>())visual.BindGround(point.Ground);}
-        var marker=loader.GetComponent<PNFactoryEntity>();if(marker!=null){marker.SceneKey=request.SceneKey;marker.SpawnEntry=request.SpawnEntry;marker.Template=request.Template;}
+        if(HasRole(request)&&IsPlayer(Role(request))){var point=Spawn(request);foreach(var visual in loader.GetComponentsInChildren<MonoBehaviour>(true).OfType<IPNSceneEntityVisual>())visual.BindGround(point.Ground);}
+        var marker=loader.GetComponent<PNFactoryEntity>();if(marker!=null){marker.SceneKey=request.SceneKey;marker.SpawnEntry=request.SpawnEntry;marker.Template=request.Template;marker.Entity=request.Entity??request.Template;}
     }
     public void ReleaseWorld(EveWorldContext world)
     {
@@ -176,6 +216,7 @@ public sealed class PNPlayerFactory : IPNWorldEntityFactory
         foreach(var root in resourceWorlds.Where(x=>ReferenceEquals(x.Value,world)).Select(x=>x.Key).ToArray())DisposeResources(root);
         foreach(var pair in pools.Where(x=>x.Key.Item1==world.InstanceId).ToArray())
         {pair.Value.Dispose();pools.Remove(pair.Key);}
+        foreach(var key in spawnPoints.Keys.Where(x=>x.Item1==world.InstanceId).ToArray())spawnPoints.Remove(key);
     }
     public void Dispose()
     {

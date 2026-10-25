@@ -32,7 +32,7 @@ public static class PNWorldLifetimeChecks
         var docs=new PNGameContentSource(Path.Combine(Application.streamingAssetsPath,"BaseContent"),".utmp/no-mods",Array.Empty<string>()).ReadDocuments().ToArray();
         var hub=new EveContentBootstrap().Build(new EveIContentModule[]{new PNContentModule(),new PNGameplayContentModule(),new PNLifetimeFixtureModule()},docs);
         EveRegistrySession.Begin();EveRegistrySession.Start(hub,EveSessionRole.Offline,EveContentCompatibility.Create(hub,docs,"fixture:lifetime"));
-        var session=EveRegistrySession.Context;var scheduler=new EveEntityPreparationScheduler(session,new EvePreparationProfile());var worlds=new PNWorldRuntime(session,scheduler);var factory=new PNPlayerFactory(session,worlds);var life=new PNWorldLifetimeController(session,worlds,factory,scheduler);
+        var session=EveRegistrySession.Context;var scheduler=new EveEntityPreparationScheduler(session,new EvePreparationProfile());var worlds=new PNWorldRuntime(session,scheduler);var factory=new PNEntityFactory(session,worlds);var life=new PNWorldLifetimeController(session,worlds,factory,scheduler);
         void Pump(Func<bool> ready){for(int i=0;i<2000&&!ready();i++)scheduler.AdvanceFrame();if(!ready())throw new Exception("Lifetime work did not drain.");}
         EveWorldContext Create(PNEmptyWorldPolicy policy){var world=worlds.Create(EveId.Parse("fixture:lifetime_"+policy.ToString().ToLowerInvariant()));Pump(()=>world.CanExecute);return world;}
         EveEntityPreparationScheduler.Candidate[] Spawn(EveWorldContext world)

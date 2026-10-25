@@ -64,6 +64,15 @@ public static class PNTargetSelectorEditorChecks
             Check(ReferenceEquals(Pick(p, 10, player), ally) && ReferenceEquals(Pick(p, 10, player, exclude: false), p), "the chooser is excluded by ID; without Exclude it is a candidate like any other");
             Check(Pick(p, 10, 0) == null && Pick(p, 10, PNLayers.Bit(PNLayers.Wall)) == null, "an empty mask or a layer without entities finds nothing");
 
+            // An entity without Health is never chosen by the Autotarget rule, but the Aggro rule (enemy side) still sees it (a decoy).
+            var propObject = Fixture("prop no health"); propObject.SetActive(false); propObject.transform.position = new Vector3(1, 0, 0); propObject.layer = PNLayers.Enemy;
+            propObject.AddComponent<EveEntityIdentity>().Assign(new EveEntityId(nextId++), EveId.Parse("test:prop_no_health"), 0);
+            var prop = propObject.AddComponent<PNEnemyStat>(); propObject.AddComponent<BoxCollider>().size = Vector3.one;
+            propObject.AddComponent<EveEntityLoader>().Load(hub); propObject.SetActive(true); Physics.SyncTransforms();
+            Check(!prop.HasHealth && !ReferenceEquals(Pick(p, 10, enemy, nearest), prop) && !ReferenceEquals(Pick(p, 10, enemy, lowest), prop), "the Autotarget rule skips an entity without Health even when it is the nearest");
+            Check(ReferenceEquals(Pick(p, 10, enemy, PNTargetRule.Aggro), prop), "the Aggro rule still sees an entity without Health (a decoy)");
+            propObject.GetComponent<EveEntityLoader>().Unload(); Physics.SyncTransforms();
+
             // Modes over real Health resources.
             e2.SetCurrent(PNContentIds.Health, e1.GetCurrent(PNContentIds.Health) / 2);
             Check(ReferenceEquals(Pick(p, 10, enemy, lowest), e2) && ReferenceEquals(Pick(p, 10, enemy, percent), e2) && ReferenceEquals(Pick(p, 10, enemy, nearest), e1),

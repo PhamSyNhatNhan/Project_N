@@ -152,11 +152,14 @@ public sealed class PNDamageResult
     public double LoricaAfter { get; }
     public double LoricaAbsorbed => LoricaBefore - LoricaAfter;
     public bool LoricaBroke { get; }
+    // True when the receiver has no health resource: nothing was applied (no iframe, popup or event); Killed is false.
+    public bool Ignored { get; }
 
     internal PNDamageResult(PNDamage damage, EveEntityId targetId, double calculatedDamage,
         double healthBefore, double healthAfter, double iframeMultiplier = 1d,
-        double iframeBefore = 0d, double iframeAfter = 0d, double resolvedIFrameDuration = 0d, PNDamageAbsorption absorption = default)
+        double iframeBefore = 0d, double iframeAfter = 0d, double resolvedIFrameDuration = 0d, PNDamageAbsorption absorption = default, bool ignored = false)
     {
+        Ignored = ignored;
         LoricaBefore = absorption.LoricaBefore; LoricaAfter = absorption.LoricaAfter; LoricaBroke = absorption.LoricaBroke;
         Damage = damage;
         TargetId = targetId;

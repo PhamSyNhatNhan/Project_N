@@ -8,12 +8,16 @@ public sealed class PNEntityRequest
     public string Character,SceneKey,EntityKey;
     public long Owner;
     public Vector3 Position;
-    public bool Player;
     public EveWorldContext World;
     public ulong WorldIncarnation;
     public ulong MembershipRevision=1;
     public string ContentSlot,SpawnEntry;
+    // Entity role id (kind "entity" of the instances registry). Template is the older name of the same value: wire and checkpoints still carry it,
+    // and the factory keeps the two equal.
+    public string Entity;
     public string Template;
+    // Seconds of entity time before the entity is removed; overrides the role's lifetime (null = the role's).
+    public double? Lifetime;
 }
 public interface IPNEntityFactory : IDisposable
 {

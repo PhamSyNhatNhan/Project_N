@@ -26,6 +26,8 @@ public partial class PNStat
         RequireCombatReady();
         if (heal == null) throw new ArgumentNullException(nameof(heal));
         if (heal.SessionId != SessionId) throw new ArgumentException("Heal belongs to another session.", nameof(heal));
+        if (!HasHealth) return new PNHealResult(heal, EntityId, 0d, 0d, 0d, PNHealStatus.NoHealth);
+        if (DamageMode == PNDamageMode.Hits) { double current = GetCurrent(PNContentIds.Health); return new PNHealResult(heal, EntityId, 0d, current, current, PNHealStatus.Blocked); }
         double before = GetCurrent(PNContentIds.Health);
         double calculated = before == 0d ? 0d : Calculate(PNContentIds.Mitigation, heal.Amount, PNContentIds.Heal);
         PNHeal.RequireAmount(calculated);

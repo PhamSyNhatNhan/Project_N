@@ -44,8 +44,10 @@ public abstract class PNInstanceDefinition : EveIIdentified
     public abstract PNInstanceDefinition Derive(EveId id, JToken data, JObject entry);
 #if UNITY_5_3_OR_NEWER
     // Construction happens only through the selected definition, before pool callback discovery.
-    public abstract UnityEngine.GameObject CreatePoolTemplate();
-    // The implementation of a kind must be a concrete component of that kind's base.
+    // Kinds that are not built from one pool template (entity: a recipe class, the prefab comes from a catalog) keep the default.
+    public virtual bool HasPoolTemplate => false;
+    public virtual UnityEngine.GameObject CreatePoolTemplate() => throw new NotSupportedException(Kind + " definitions are not built from a pool template.");
+    // For kinds whose implementation is a component: it must be a concrete component of that kind's base.
     protected static void RequireImplementation(Type implementation, Type required, string kind)
     {
         if (implementation == null || !required.IsAssignableFrom(implementation) || implementation.IsAbstract || implementation.ContainsGenericParameters)

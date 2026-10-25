@@ -454,6 +454,7 @@ public partial class PNStat : EveStat, EveIEntityLoadPreparation
         persistentSourceIds.Clear();
         buffSourceIds.Clear();
         ResetTargetLayers();
+        HasHealth = false; DamageMode = PNDamageMode.Normal; HealthBar = PNHealthBarMode.Auto;
         CharacterId = default;
         base.Unload();
     }
@@ -495,16 +496,20 @@ public partial class PNStat : EveStat, EveIEntityLoadPreparation
         if (character == null) throw new ArgumentNullException(nameof(character));
         if (IsInitialized) throw new InvalidOperationException("EveStat is already initialized.");
         var combat = PNCombatSettings.Parse(character.Data);
+        var body = PNBodySettings.Parse(character.Data);
         var gameSet = new PNStatSet(registry);
         gameSet.LoadCharacter(character);
         Initialize(gameSet);
         if (combat != null) SetBaseTargetLayers(combat.TargetLayers);
+        DamageMode = body.DamageMode; HealthBar = body.HealthBar;
         CharacterId = character.Id;
     }
 
     public override void Initialize(EveStatSet statSet)
     {
         base.Initialize(statSet);
+        HasHealth = statSet.TryGetBase(PNContentIds.Health, out var health) && health is EveResourceStat;
+        DamageMode = PNDamageMode.Normal; HealthBar = PNHealthBarMode.Auto;
         SetBaseTargetLayers(DefaultTargetLayers);
         InitializeCombatAbilities();
     }

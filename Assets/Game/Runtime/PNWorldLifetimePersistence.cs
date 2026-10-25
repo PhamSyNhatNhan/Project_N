@@ -62,7 +62,7 @@ public sealed partial class PNWorldLifetimeController
         if(definition.ContentHash!=envelope.ContentHash)throw new InvalidOperationException("Saved world content differs.");
         var data=envelope.Document;var schemas=(JObject)data["providers"];
         foreach(var actor in (JArray)data["state"][0]["actors"])
-        {session.Registry.Get<EveCharacterDefinition>().Get(EveId.Parse((string)actor["character"]));string template=(string)actor["template"];if(!string.IsNullOrEmpty(template))session.Registry.Get<PNEntityTemplateDefinition>().Get(EveId.Parse(template));}
+        {session.Registry.Get<EveCharacterDefinition>().Get(EveId.Parse((string)actor["character"]));string template=(string)actor["template"];if(!string.IsNullOrEmpty(template))session.Registry.Instances().GetEffectiveKind<PNEntityDefinition>(EveId.Parse(template));}
         var expected=definition.Policy.ActorStateProviders.Concat(definition.Policy.WorldStateProviders).Distinct().ToArray();
         if(schemas.Count!=expected.Length||expected.Any(id=>(int?)schemas[id.ToString()]!=session.Registry.Get<PNWorldStateDefinition>().Get(id).Schema))throw new FormatException("Saved required provider selection/schema differs.");
         worlds.ValidateLoadDescriptor(definition.Id,data["descriptor"]);

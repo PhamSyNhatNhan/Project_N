@@ -227,20 +227,19 @@ namespace ProjectN.Coop
         private void EnrollHost(PNEntityRequest request,NetworkConnectionToClient owner)
         {
             if(request.World==null||request.WorldIncarnation!=request.World.Incarnation)throw new InvalidOperationException("Enrollment requires explicit current world membership.");
-            var metadata=new PNActorMetadata {World=request.World.InstanceId,WorldIncarnation=request.World.Incarnation,MembershipRevision=1,ContentSlot=request.ContentSlot,SpawnEntry=request.SpawnEntry,Template=request.Template,Player=request.Player,Position=request.Position,HostSession=EveRegistrySession.Context.SessionId,Owner=request.Owner,Character=request.Character,SceneKey=request.SceneKey,EntityKey=request.EntityKey,Generation=1};
+            var metadata=new PNActorMetadata {World=request.World.InstanceId,WorldIncarnation=request.World.Incarnation,MembershipRevision=1,ContentSlot=request.ContentSlot,SpawnEntry=request.SpawnEntry,Template=request.Template,Position=request.Position,HostSession=EveRegistrySession.Context.SessionId,Owner=request.Owner,Character=request.Character,SceneKey=request.SceneKey,EntityKey=request.EntityKey,Generation=1};
             metadata.Entity=EveRegistrySession.Context.Entities.AllocateHostId().Value;
             var binding=new Binding {Metadata=metadata,Token=checked(++nextToken),OwnerConnection=owner,AwaitingAt=Time.realtimeSinceStartupAsDouble,WorldLease=request.World.AcquireLease("replication binding",EveWorldLeaseKind.Resident)};
             awaitingSpawn.Add(binding);
-            binding.Candidate=Scheduler.Enqueue(()=>Factory.Get(request),loader=>
+            binding.Candidate=PNEntitySpawner.Enqueue(Scheduler,Factory,request,loader=>
             {
-                Factory.Configure(loader,request);ConfigureMove(binding,loader);loader.GetComponent<EveEntityIdentity>().Assign(new EveEntityId(metadata.Entity),EveId.Parse(metadata.Character),metadata.Owner,metadata.Generation);
-            },Factory.Return,loader=>
+                ConfigureMove(binding,loader);loader.GetComponent<EveEntityIdentity>().Assign(new EveEntityId(metadata.Entity),EveId.Parse(metadata.Character),metadata.Owner,metadata.Generation);
+            },loader=>
             {
                 if(stopping||!IsPlaying||fatalSerialization)return;
                 Factory.Published(loader);
                 PublishMove(binding);
-            },error=>FailActor(binding,error));
-            if(request.World!=null)Scheduler.AssociateWorld(binding.Candidate,request.World);
+            },error=>FailActor(binding,error),factoryPublished:false);
         }
         public void ReceiveActor(PNActorShell shell)
         {
@@ -253,15 +252,14 @@ namespace ProjectN.Coop
                 if(bindings.Values.Any(x=>x.Metadata.Entity==metadata.Entity))throw new InvalidOperationException("Duplicate actor entity identity.");
                 if(!ClientScope(metadata,out var worldSubscription))throw new FormatException("Actor initial state has no loaded authorized world.");
                 session.Registry.Characters.Get(EveId.Parse(metadata.Character));
-                var request=new PNEntityRequest {Player=metadata.Player,Template=metadata.Template,Owner=metadata.Owner,Character=metadata.Character,SceneKey=metadata.SceneKey,EntityKey=metadata.EntityKey,World=worldSubscription.World,WorldIncarnation=metadata.WorldIncarnation,MembershipRevision=metadata.MembershipRevision,ContentSlot=metadata.ContentSlot,SpawnEntry=metadata.SpawnEntry,Position=metadata.Position};
+                var request=new PNEntityRequest {Template=metadata.Template,Owner=metadata.Owner,Character=metadata.Character,SceneKey=metadata.SceneKey,EntityKey=metadata.EntityKey,World=worldSubscription.World,WorldIncarnation=metadata.WorldIncarnation,MembershipRevision=metadata.MembershipRevision,ContentSlot=metadata.ContentSlot,SpawnEntry=metadata.SpawnEntry,Position=metadata.Position};
                 // P1 actor metadata positions are initial content/spawn positions; Move replication follows in P4.
                 // World/slot/template and initial position are part of the immutable presence.
                 if(!initialStates.TryGetValue(shell.netId,out var initial)||!ReferenceEquals(initial.Shell,shell))throw new FormatException("Actor lacks initial required state reservation.");
                 var binding=new Binding {Shell=shell,Metadata=metadata,Token=initial.Token,WorldSubscriptionRevision=worldSubscription.Offer.Ticket.Subscription,WorldLease=request.World.AcquireLease("replication binding",EveWorldLeaseKind.Resident)};bindings.Add(shell.netId,binding);initialStates.Remove(shell.netId);
-                binding.Candidate=Scheduler.Enqueue(()=>Factory.Get(request),loader=>
-                {Factory.Configure(loader,request);ConfigureMove(binding,loader);loader.GetComponent<EveEntityIdentity>().Assign(new EveEntityId(metadata.Entity),EveId.Parse(metadata.Character),metadata.Owner,metadata.Generation);},Factory.Return,loader=>
-                {PublishBindingStages(binding);PublishBuff(binding);Factory.Published(loader);PublishMove(binding);inbox.Release(shell.netId,binding.Token);SetInput(binding,clientInputReady);},error=>FailActor(binding,error),loader=>{CommitBuff(binding);StageStat(binding,loader);inbox.Apply(shell.netId,binding.Token,bytes=>ApplyLatestState(loader,bytes),bytes=>ApplyRequiredEvent(loader,bytes));},loader=>PrepareBuff(binding,loader)&&PrepareMove(binding,loader),()=>!session.Entities.IsReserved(new EveEntityId(metadata.Entity)));
-                if(request.World!=null)Scheduler.AssociateWorld(binding.Candidate,request.World);
+                binding.Candidate=PNEntitySpawner.Enqueue(Scheduler,Factory,request,loader=>
+                {ConfigureMove(binding,loader);loader.GetComponent<EveEntityIdentity>().Assign(new EveEntityId(metadata.Entity),EveId.Parse(metadata.Character),metadata.Owner,metadata.Generation);},loader=>
+                {PublishBindingStages(binding);PublishBuff(binding);Factory.Published(loader);PublishMove(binding);inbox.Release(shell.netId,binding.Token);SetInput(binding,clientInputReady);},error=>FailActor(binding,error),loader=>{CommitBuff(binding);StageStat(binding,loader);inbox.Apply(shell.netId,binding.Token,bytes=>ApplyLatestState(loader,bytes),bytes=>ApplyRequiredEvent(loader,bytes));},loader=>PrepareBuff(binding,loader)&&PrepareMove(binding,loader),()=>!session.Entities.IsReserved(new EveEntityId(metadata.Entity)),factoryPublished:false);
                 if(shell.HasMove)RequestMove(binding,true);
                 if(shell.HasBuff)NetworkClient.Send(new PNBuffBaselineRequest{Stream=Stream(binding)});
             }
@@ -321,10 +319,10 @@ namespace ProjectN.Coop
         // Host: the owner picked another character in the lobby. The actor is retired and a new one enrolled at the same place, same world.
         private void RespawnAs(long owner,string character)
         {
-            var old=bindings.Values.Concat(awaitingSpawn).FirstOrDefault(x=>!x.Retiring&&x.Metadata.Player&&x.Metadata.Owner==owner);
+            var old=bindings.Values.Concat(awaitingSpawn).FirstOrDefault(x=>!x.Retiring&&PNEntityRoles.IsPlayer(EveRegistrySession.Context.Registry,x.Metadata.Template)&&x.Metadata.Owner==owner);
             if(old==null||old.Metadata.Character==character||subscribedSession==null||!subscribedSession.Worlds.TryGet(old.Metadata.World,old.Metadata.WorldIncarnation,out var world))return;
             var loader=old.Candidate?.Loader;
-            var request=new PNEntityRequest{Player=true,Owner=owner,World=world,WorldIncarnation=world.Incarnation,ContentSlot=old.Metadata.ContentSlot,SpawnEntry=old.Metadata.SpawnEntry,Template=old.Metadata.Template,Character=character,SceneKey=old.Metadata.SceneKey,EntityKey="",Position=loader!=null&&loader.IsReady?loader.transform.position:old.Metadata.Position};
+            var request=new PNEntityRequest{Owner=owner,World=world,WorldIncarnation=world.Incarnation,ContentSlot=old.Metadata.ContentSlot,SpawnEntry=old.Metadata.SpawnEntry,Template=old.Metadata.Template,Character=character,SceneKey=old.Metadata.SceneKey,EntityKey="",Position=loader!=null&&loader.IsReady?loader.transform.position:old.Metadata.Position};
             var connection=old.OwnerConnection;
             RetireBinding(old);EnrollHost(request,connection);
         }
@@ -364,7 +362,7 @@ namespace ProjectN.Coop
                     writer.Write(string.Join("|",RequiredAdapters.OrderBy(x=>x,StringComparer.Ordinal)));
                     foreach(var item in bindings.Where(x=>!x.Value.Retiring&&(world==Guid.Empty?RoomCatchupBinding(x.Value,observer):x.Value.Metadata.World==world)&&(observer==null||x.Value.Shell.netIdentity.observers.ContainsKey(observer.connectionId))).OrderBy(x=>x.Value.Metadata.Entity))
                     {
-                        var m=item.Value.Metadata;var scope=Scope(item.Value,observer);writer.Write(scope.World.ToByteArray());writer.Write(scope.Incarnation);writer.Write(scope.Membership);writer.Write(scope.Subscription);writer.Write(m.ContentSlot??"");writer.Write(m.SpawnEntry??"");writer.Write(m.Template??"");writer.Write(m.Player);writer.Write(m.HostSession.ToByteArray());writer.Write(m.Entity);writer.Write(m.Generation);writer.Write(m.Owner);writer.Write(item.Key);writer.Write(m.Character);writer.Write(m.SceneKey);writer.Write(m.EntityKey);writer.Write(item.Value.Shell.HasBuff);writer.Write(item.Value.Shell.HasMove);
+                        var m=item.Value.Metadata;var scope=Scope(item.Value,observer);writer.Write(scope.World.ToByteArray());writer.Write(scope.Incarnation);writer.Write(scope.Membership);writer.Write(scope.Subscription);writer.Write(m.ContentSlot??"");writer.Write(m.SpawnEntry??"");writer.Write(m.Template??"");writer.Write(m.HostSession.ToByteArray());writer.Write(m.Entity);writer.Write(m.Generation);writer.Write(m.Owner);writer.Write(item.Key);writer.Write(m.Character);writer.Write(m.SceneKey);writer.Write(m.EntityKey);writer.Write(item.Value.Shell.HasBuff);writer.Write(item.Value.Shell.HasMove);
                         ulong nonce=0;if(item.Value.Shell.HasBuff){if(observer==null)nonce=(ulong)item.Value.Token;else if(buffPeers.TryGetValue((observer.connectionId,item.Key),out var peer))nonce=peer.Stream.Nonce;}writer.Write(nonce);
                         ulong moveNonce=0;if(item.Value.Shell.HasMove){if(observer==null)moveNonce=(ulong)item.Value.Token;else if(movePeers.TryGetValue((observer.connectionId,item.Key),out var mp))moveNonce=mp.Stream.Nonce;}writer.Write(moveNonce);
                     }

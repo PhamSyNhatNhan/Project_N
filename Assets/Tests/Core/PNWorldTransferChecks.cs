@@ -36,7 +36,7 @@ public static class PNWorldTransferChecks
         var hub=new EveContentBootstrap().Build(new EveIContentModule[]{new PNContentModule(),new PNGameplayContentModule(),new PNTransferFixtureModule()},docs);
         EveRegistrySession.Begin();EveRegistrySession.Start(hub,EveSessionRole.Offline,EveContentCompatibility.Create(hub,docs,"fixture:transfer"));
         var session=EveRegistrySession.Context;var scheduler=new EveEntityPreparationScheduler(session,new EvePreparationProfile());
-        var worlds=new PNWorldRuntime(session,scheduler);var factory=new PNPlayerFactory(session,worlds);var transfers=new PNWorldTransitionCoordinator(session,worlds,factory,scheduler);
+        var worlds=new PNWorldRuntime(session,scheduler);var factory=new PNEntityFactory(session,worlds);var transfers=new PNWorldTransitionCoordinator(session,worlds,factory,scheduler);
         ulong boundary=0;long id=0;
         void Pump(Func<bool> ready){for(int i=0;i<1000&&!ready();i++){scheduler.AdvanceFrame();transfers.FixedBoundary(++boundary);}if(!ready())throw new Exception("Transfer fixture did not drain.");}
         EveEntityPreparationScheduler.Candidate Spawn(EveWorldContext world,long owner)

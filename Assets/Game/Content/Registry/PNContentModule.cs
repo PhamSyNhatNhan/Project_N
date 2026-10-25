@@ -131,6 +131,7 @@ public class PNContentModule : EveIContentModule, EveIContentFinalizeModule, Eve
             PNLoricaSettings.Parse(character.Data);
             PNPlayableSettings.Parse(character.Data);
             PNCombatSettings.Parse(character.Data);
+            PNBodySettings.Read(character);
         }
     }
 

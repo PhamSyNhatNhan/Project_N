@@ -52,7 +52,7 @@ namespace ProjectN.Coop
         {
             if(!NetworkServer.active||!IsPlaying||candidate?.Loader?.IsReady!=true||candidate.Loader.LoadContext.Identity.World!=request.World)throw new InvalidOperationException("Restored host candidate required.");
             var identity=candidate.Loader.LoadContext.Identity;
-            var metadata=new PNActorMetadata{HostSession=subscribedSession.SessionId,World=identity.World.InstanceId,WorldIncarnation=identity.World.Incarnation,MembershipRevision=identity.MembershipRevision,ContentSlot=request.ContentSlot,Template=request.Template,SpawnEntry=request.SpawnEntry,Player=request.Player,Position=request.Position,Owner=identity.OwnerId,Entity=identity.Id.Value,Generation=identity.Generation,Character=request.Character,SceneKey=request.SceneKey,EntityKey=request.EntityKey};
+            var metadata=new PNActorMetadata{HostSession=subscribedSession.SessionId,World=identity.World.InstanceId,WorldIncarnation=identity.World.Incarnation,MembershipRevision=identity.MembershipRevision,ContentSlot=request.ContentSlot,Template=request.Template,SpawnEntry=request.SpawnEntry,Position=request.Position,Owner=identity.OwnerId,Entity=identity.Id.Value,Generation=identity.Generation,Character=request.Character,SceneKey=request.SceneKey,EntityKey=request.EntityKey};
             var binding=new Binding{Candidate=candidate,Metadata=metadata,Token=checked(++nextToken),AwaitingAt=Time.realtimeSinceStartupAsDouble,WorldLease=identity.World.AcquireLease("replication binding",EveWorldLeaseKind.Resident)};
             try{ConfigureMove(binding,candidate.Loader);PublishMove(binding);awaitingSpawn.Add(binding);}catch{CleanupBinding(binding);throw;}
         }
@@ -69,7 +69,7 @@ namespace ProjectN.Coop
         void IPNWorldTransferTransport.Prepare(PNWorldTransferContext context)
         {
             var binding=TransferBinding(context);var owner=binding.OwnerConnection;
-            if(binding.Metadata.Owner==0&&binding.Metadata.Player)owner=NetworkServer.localConnection;
+            if(binding.Metadata.Owner==0&&PNEntityRoles.IsPlayer(EveRegistrySession.Context.Registry,binding.Metadata.Template))owner=NetworkServer.localConnection;
             if(transferDispatches.Count>=128)throw new InvalidOperationException("Transfer dispatch bound.");
             if(owner!=null)
             {
@@ -122,7 +122,7 @@ namespace ProjectN.Coop
             var dispatch=transferDispatches.Values.FirstOrDefault(x=>x.Notice.Transfer==context.TransferId&&x.Notice.Entity==context.Entity);
             if(dispatch==null)return;
             if(!dispatch.Ending){byte phase=success?(byte)1:committed?(byte)3:(byte)2;QueueTransfer(dispatch,phase);if(dispatch.Replacement.HasValue)QueueTransfer(dispatch,phase,dispatch.Replacement);dispatch.Ending=true;}
-            if(success&&dispatch.Owner!=null&&!bindings.Values.Any(x=>!x.Retiring&&x.Metadata.Player&&x.Metadata.Owner==context.Owner&&x.Metadata.World==context.Source.InstanceId))UnsubscribeWorld(dispatch.Owner,context.Source.InstanceId);
+            if(success&&dispatch.Owner!=null&&!bindings.Values.Any(x=>!x.Retiring&&PNEntityRoles.IsPlayer(EveRegistrySession.Context.Registry,x.Metadata.Template)&&x.Metadata.Owner==context.Owner&&x.Metadata.World==context.Source.InstanceId))UnsubscribeWorld(dispatch.Owner,context.Source.InstanceId);
             transferDispatches.Remove((dispatch.Notice.Transfer,dispatch.Notice.Entity));
             if(dispatch.Owner!=null)
             {

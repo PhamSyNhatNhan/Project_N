@@ -52,7 +52,7 @@ public static class PNWorldLifecycleChecks
         EveRegistrySession.Begin();EveRegistrySession.Start(hub,EveSessionRole.Host,EveContentCompatibility.Create(hub,docs,"fixture:world"));
         var session=EveRegistrySession.Context;
         var scheduler=new EveEntityPreparationScheduler(session,new EvePreparationProfile());
-        var worlds=new PNWorldRuntime(session,scheduler);var factory=new PNPlayerFactory(session,worlds);
+        var worlds=new PNWorldRuntime(session,scheduler);var factory=new PNEntityFactory(session,worlds);
         void Pump(Func<bool> until){for(int i=0;i<1000&&!until();i++)scheduler.AdvanceFrame();if(!until())throw new Exception("Fixture did not drain");}
         try
         {

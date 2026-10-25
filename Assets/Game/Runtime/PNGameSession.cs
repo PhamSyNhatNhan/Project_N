@@ -43,11 +43,11 @@ public sealed class PNGameSession : MonoBehaviour
         var physics=runtime.GetComponent<PNWorldPhysicsLoop>()??runtime.gameObject.AddComponent<PNWorldPhysicsLoop>();physics.Bind(session);
         // One delegate: it must release every world-scoped service, so combine them here instead of assigning separately.
         service.Worlds.BeforeUnload=world=>{runtime.GetComponent<PNAreaManager>()?.ReleaseWorld(world);runtime.GetComponent<PNProjectileManager>()?.ReleaseWorld(world);};
-        service.Factory=new PNPlayerFactory(session,service.Worlds);
+        service.Factory=new PNEntityFactory(session,service.Worlds){Scheduler=service.Scheduler};
         session.RegisterCleanup(service.Factory.Dispose,afterEntities:true);
-        service.Transfers=new PNWorldTransitionCoordinator(session,service.Worlds,(PNPlayerFactory)service.Factory,service.Scheduler);
+        service.Transfers=new PNWorldTransitionCoordinator(session,service.Worlds,(PNEntityFactory)service.Factory,service.Scheduler);
         physics.BeforeSimulation+=service.Transfers.FixedBoundary;
-        service.Lifetimes=new PNWorldLifetimeController(session,service.Worlds,(PNPlayerFactory)service.Factory,service.Scheduler);
+        service.Lifetimes=new PNWorldLifetimeController(session,service.Worlds,(PNEntityFactory)service.Factory,service.Scheduler);
         service.Saves=new PNWorldSaveService(session,service.Worlds,service.Lifetimes,System.IO.Path.Combine(Application.persistentDataPath,"WorldSaves"));
         if(!PNCameraDirector.LegacyRequested)service.Transitions=PNTransitionController.Attach(runtime.gameObject,session,service.Local,service.Transfers,service.CameraDirector);
         var scenes=UnityEngine.Object.FindObjectsByType<PNPlayerSpawnPoint>().Select(x=>x.gameObject.scene).Distinct().ToArray();
@@ -65,8 +65,7 @@ public sealed class PNGameSession : MonoBehaviour
             }
             foreach(var request in requests)
                 {
-                    var candidate=service.Scheduler.Enqueue(()=>service.Factory.Get(request),loader=>service.Factory.Configure(loader,request),service.Factory.Return,service.Factory.Published,error=>{Debug.LogException(error,service);if(session.IsActive)runtime.EndSession();});
-                    service.Scheduler.AssociateWorld(candidate,request.World);
+                    PNEntitySpawner.Enqueue(service.Scheduler,service.Factory,request,failed:error=>{Debug.LogException(error,service);if(session.IsActive)runtime.EndSession();});
                 }
         }
         return service;

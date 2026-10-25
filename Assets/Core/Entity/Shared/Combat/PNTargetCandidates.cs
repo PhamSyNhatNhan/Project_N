@@ -17,14 +17,16 @@ public sealed class PNTargetCandidates
         public PNStat Stat; public Collider Collider; public PNIProjectileHitVolume Volume; public Vector3 Center, Extents; public float Radius; public int Layer;
         // Read at membership refresh (and by UpdateAggro for queries outside the tick) so target selection needs no per-candidate stat lookup.
         public long EntityId; public double Aggro;
+        // The entity has a Health resource (only damageable entities are chosen by the Autotarget rule; the Aggro rule still sees the others).
+        public bool Damageable;
     }
     private Candidate[] items = new Candidate[64];
     private int count;
     // Direct array access for the per-tick contact loops (valid up to Count; do not keep it across ticks).
     public Candidate[] RawItems => items;
     public int Count => count;
-    // Dead check that tolerates entities without a Health stat (they count as alive).
-    public static bool IsDead(PNStat stat) { try { return stat.IsDead; } catch (InvalidOperationException) { return false; } }
+    // Dead check: an entity without a Health resource is never dead.
+    public static bool IsDead(PNStat stat) => stat.IsDead;
     // Ready, active, executable, alive.
     public static bool IsLive(PNStat stat) => stat != null && stat.IsReady && stat.gameObject.activeInHierarchy && PNWorldGameplay.CanExecute(stat) && !IsDead(stat);
     // Membership refresh: rebuilds the list from the world's entities.
@@ -39,7 +41,7 @@ public sealed class PNTargetCandidates
             if (loader == null || loader.LoadContext == null || !ReferenceEquals(loader.LoadContext.Identity.World, world)) continue;
             var stat = loader.GetComponent<PNStat>();
             if (!IsLive(stat)) continue;
-            var candidate = new Candidate { Stat = stat, Layer = stat.gameObject.layer, EntityId = stat.EntityId.Value };
+            var candidate = new Candidate { Stat = stat, Layer = stat.gameObject.layer, EntityId = stat.EntityId.Value, Damageable = stat.HasHealth };
             stat.TryGetComponent<PNIProjectileHitVolume>(out candidate.Volume);
             if (candidate.Volume == null)
             {

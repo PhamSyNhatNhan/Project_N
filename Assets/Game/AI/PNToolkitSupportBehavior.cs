@@ -41,7 +41,7 @@ public sealed class PNToolkitSupportBehavior : PNEnemyBehavior
             member = Context.Own(groups.Join(agent, EveId.Parse("project_n:support_example"), groupInstance,
                 (a, b) => a.Layer == b.Layer));
     }
-    private bool CanSupport() => ally != null && ally.TryResolve(out var actor) && actor.Layer == Context.Stat.Layer &&
+    private bool CanSupport() => ally != null && ally.TryResolve(out var actor) && actor.Layer == Context.Stat.Layer && actor.HasHealth &&
         actor.GetCurrent(PNContentIds.Health) < actor.Evaluate(PNContentIds.Health) * .8 && Context.Abilities.GetCooldown(PNAgentToolkitContent.SupportReady).CanConsume();
     public override void Tick(float delta)
     {

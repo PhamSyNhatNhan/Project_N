@@ -13,7 +13,7 @@ public sealed class PNSentinelSkill : PNEnemySkill
         base.Update();
         var loader = GetComponent<EveEntityLoader>(); var stat = GetComponent<PNStat>(); var clock = GetComponent<EveTimeScale>();
         if (ActiveBehaviorId != "melee" || Failure != null || loader?.LoadContext?.CanSimulate != true ||
-            stat == null || !stat.IsReady || stat.IsDead || (clock != null && clock.isActiveAndEnabled && clock.Scale <= 0) || Time.deltaTime <= 0) return;
+            stat == null || !stat.IsReady || !stat.HasHealth || stat.IsDead || (clock != null && clock.isActiveAndEnabled && clock.Scale <= 0) || Time.deltaTime <= 0) return;
         if (stat.GetCurrent(PNContentIds.Health) > stat.Evaluate(PNContentIds.Health) * chargePhaseHealth) return;
         Switch("charge", PNEnemySwitchPolicy.CancelCurrent);
     }

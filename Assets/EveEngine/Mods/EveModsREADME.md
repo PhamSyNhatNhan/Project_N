@@ -88,8 +88,7 @@ và chọn bằng cơ chế enabled.json hiện có. Không copy DLL từ SDK v�
 Assembly API: `EveEngine`, `ProjectN.Core`, `ProjectN.Game`, `ProjectN.Input`.
 Core dùng `hub.Actions()`, `hub.Operations()`, `hub.Calculations()` và các extension
 tương tự. `PNContentIds` nằm trong Core; các module triển khai nằm trong Game.
-`EveModApi.Version` hiện là `2`: stat/modifier/damage/calculation APIs dùng `double`.
-DLL xây bằng API1 phải biên dịch lại với SDK mới; manifest API1 bị từ chối trước load.
+`EveModApi.Version` là hằng trong `EveModApi.cs` (hiện `8`); loader chỉ nhận đúng phiên bản đó, nên mỗi lần nâng phiên bản mọi DLL và manifest phải biên dịch lại với SDK mới (manifest khác phiên bản bị từ chối trước load). Lịch sử: API2 đổi stat/modifier/damage/calculation sang `double`.
 Khi thay đổi hợp đồng API phải tăng version và
 xây lại SDK; API version không thay thế kiểm tra dependency/assembly identity.
 

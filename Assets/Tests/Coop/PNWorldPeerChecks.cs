@@ -144,7 +144,7 @@ namespace ProjectN.Coop.Tests
             try
             {
                 Check(Shells().All(x=>x.Metadata.World==a),"initial state contains only the authorized world");
-                var owned=Shells().Single(x=>x.Metadata.Owner==manager.RoomOwner&&x.Metadata.Player);ownedNetId=owned.netId;oldScope=manager.BindingWorldScope(ownedNetId);oldNonce=(ulong)manager.BindingToken(ownedNetId);Mark(role+"-a");
+                var owned=Shells().Single(x=>x.Metadata.Owner==manager.RoomOwner&&PNEntityRoles.IsPlayer(EveRegistrySession.Context.Registry,x.Metadata.Template));ownedNetId=owned.netId;oldScope=manager.BindingWorldScope(ownedNetId);oldNonce=(ulong)manager.BindingToken(ownedNetId);Mark(role+"-a");
             }
             catch(Exception error){Fail(error);yield break;}
             yield return Wait(()=>Has("world-b"));if(failed)yield break;b=Guid.Parse(File.ReadAllText(Path.Combine(folder,"world-b")));
@@ -175,7 +175,7 @@ namespace ProjectN.Coop.Tests
                 try{Check(true,"resume refreshes the initial paused observation input gate");}catch(Exception error){Fail(error);yield break;}
                 try
                 {
-                    var shell=Shells().Single(x=>x.Metadata.Owner==manager.RoomOwner&&x.Metadata.Player);
+                    var shell=Shells().Single(x=>x.Metadata.Owner==manager.RoomOwner&&PNEntityRoles.IsPlayer(EveRegistrySession.Context.Registry,x.Metadata.Template));
                     var current=manager.BindingWorldScope(shell.netId);Check(shell.netId==ownedNetId&&current.Subscription>oldScope.Subscription,"reobserve same actor with a new subscription and unchanged authoritative presence");
                     var stat=EveRegistrySession.Context.Entities.Snapshot().Single(x=>x.LoadContext.Identity.OwnerId==manager.RoomOwner&&x.GetComponent<PNPlayerMove>()!=null).GetComponent<PNStatReplication>();
                     long revision=stat.FullViewRevision;var frame=new PNStatFrame(shell.State.Revision+10000,shell.State.LifeRevision+1,true,shell.State.Resources.ToDictionary(x=>x.Key,x=>new PNResourceValue(0,x.Value.Max)));

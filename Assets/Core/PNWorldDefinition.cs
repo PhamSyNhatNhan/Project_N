@@ -55,23 +55,6 @@ public interface IPNWorldPresentationPart
 {
     bool PresentationVisible { get; set; }
 }
-public sealed class PNEntityTemplateDefinition : EveIIdentified
-{
-    public EveId Id { get; }
-    public string Implementation { get; }
-    private readonly Func<PNWorldBuildContext,string,string,GameObject> resolve;
-    public PNEntityTemplateDefinition(EveId id,string implementation,Func<PNWorldBuildContext,string,string,GameObject> resolve)
-    {
-        if(!id.IsValid||string.IsNullOrWhiteSpace(implementation))throw new ArgumentException("Template identity and implementation required.");
-        Id=id;Implementation=implementation;this.resolve=resolve??throw new ArgumentNullException(nameof(resolve));
-    }
-    public GameObject Resolve(PNWorldBuildContext world,string slot,string spawn)
-    {
-        var prefab=resolve(world,slot,spawn);
-        if(prefab==null||prefab.GetComponent<EveEntityLoader>()==null||prefab.GetComponent<EveEntityIdentity>()==null)throw new InvalidOperationException("Selected template lacks its entity boundary.");
-        return prefab;
-    }
-}
 public sealed class PNWorldSlot
 {
     public string Id { get; }

@@ -17,7 +17,7 @@ public static class PNTargetRules
         if (!(chooser is PNPlayerStat)) return PNTargetRule.Aggro;
         return IsLocal(chooser) ? PNTargetRule.Autotarget(LocalMode) : PNTargetRule.Autotarget(PNTargetMode.Nearest);
     }
-    // Same ownership test as PNPlayerFactory.Published: offline every player is local; host owns owner 0; a client owns its LocalOwnerId.
+    // Same ownership test as PNEntityFactory.Published: offline every player is local; host owns owner 0; a client owns its LocalOwnerId.
     public static bool IsLocal(PNStat stat)
     {
         var identity = stat != null ? stat.GetComponent<EveEntityIdentity>() : null;

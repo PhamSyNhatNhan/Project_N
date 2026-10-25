@@ -21,6 +21,9 @@ public sealed class PNProjectileHitNativeModule : EveIContentModule
 {
     public void Register(EveRegistryHub hub)
     {
+        // Entities for the optional-Health checks: a prop without Health and a three-hit prop (Docs/EntitySpawnPlan.md E2).
+        hub.GetOrCreate<EveCharacterDefinition>().Register(new EveCharacterDefinition(EveId.Parse("test:prop_no_health"), new[] { new EveInitialStat(PNContentIds.AttackPower, 1d) }));
+        hub.GetOrCreate<EveCharacterDefinition>().Register(new EveCharacterDefinition(EveId.Parse("test:prop_hits3"), new[] { new EveInitialStat(PNContentIds.Health, 3d, 3d) }, null, "", JObject.Parse("{'body':{'damageMode':'hits'}}")));
         var registry = hub.Instances();
         var data = JObject.Parse("{'speed':10,'acceleration':0,'speedMin':0,'speedMax':200,'life':{'mode':'Time','value':5},'volume':{'size':[0.4,0.4,0.4]},'environmentMask':['Wall'],'hitLimit':1}");
         var directional = registry.GetKind<PNProjectileDefinition>(PNProjectileGameplayContent.Directional);
@@ -113,6 +116,21 @@ public static class PNProjectileHitEditorChecks
             var again = Fire("test:hit_cooldown", new Vector3(0, 0, 10), Vector3.right, source, prepared); hpStill = Hp(still);
             Advance(4); Check(Near(hpStill - Hp(still), 200d) && again.Handle.IsAlive, "a cooldown projectile hits again only after the cooldown");
             Advance(3); Check(Near(hpStill - Hp(still), 300d) && !again.Handle.IsAlive, "the cooldown projectile ends at its hit limit");
+
+            // Optional Health: a projectile stops on a prop without Health and deals nothing; a three-hit prop loses exactly one hit.
+            PNStat Prop(string character, Vector3 position)
+            {
+                var obj = Fixture("prop " + nextId); obj.SetActive(false); obj.transform.position = position; obj.layer = 7;
+                obj.AddComponent<EveEntityIdentity>().Assign(new EveEntityId(nextId++), EveId.Parse(character), 0);
+                var stat = obj.AddComponent<PNEnemyStat>(); obj.AddComponent<BoxCollider>().size = Vector3.one;
+                obj.AddComponent<EveEntityLoader>().Load(hub); obj.SetActive(true); obj.GetComponent<PNBuffManager>().Advance(0); return stat;
+            }
+            var noHealth = Prop("test:prop_no_health", new Vector3(0, 0, 30)); var threeHits = Prop("test:prop_hits3", new Vector3(0, 0, 40)); Physics.SyncTransforms();
+            Check(!noHealth.HasHealth && !noHealth.IsDead && threeHits.HasHealth && threeHits.DamageMode == PNDamageMode.Hits, "the fixtures: a prop without Health and a three-hit prop");
+            var propShot = Fire("test:hit_once", new Vector3(0, 0, 30), Vector3.right, source, prepared); Advance(3);
+            Check(!propShot.Handle.IsAlive && !noHealth.IsDead && noHealth.IFrameRemaining == 0d, "a projectile that hits a prop without Health ends on it and applies nothing (hitLimit counts the contact)");
+            var hitsShot = Fire("test:hit_once", new Vector3(0, 0, 40), Vector3.right, source, prepared); Advance(3);
+            Check(!hitsShot.Handle.IsAlive && Near(Hp(threeHits), 2d), "a 100-damage projectile removes exactly one of three hits");
 
             // Layers and aliveness decide who is hit.
             var wrongLayer = Dummy(new Vector3(0, 0, 20)); wrongLayer.gameObject.layer = 6; Physics.SyncTransforms(); double hpWrong = Hp(wrongLayer);

@@ -466,7 +466,7 @@ public sealed class PNUiRuntime : MonoBehaviour
             float referenceHeight=owner.HudRoot.resolvedStyle.height;
             if(float.IsNaN(referenceHeight) || float.IsInfinity(referenceHeight) || referenceHeight<=0)
             { root.style.display=DisplayStyle.None; if(buffRoot!=null)buffRoot.style.display=DisplayStyle.None; return; }
-            bool visible=!owner.MenuOpen && camera!=null && stat.IsReady && stat.isActiveAndEnabled && stat.gameObject.activeInHierarchy && PNVitals.TryRead(stat,PNContentIds.Health,out _,out _,out var dead) && !dead;
+            bool visible=!owner.MenuOpen && camera!=null && stat.IsReady && stat.isActiveAndEnabled && stat.gameObject.activeInHierarchy && stat.HealthBar!=PNHealthBarMode.Hidden && PNVitals.TryRead(stat,PNContentIds.Health,out _,out _,out var dead) && !dead;
             var position=stat.transform.position+(stat is PNPlayerStat?owner.playerOffset:owner.enemyOffset);
             if(camera!=null && characterSprite!=null && characterSprite.enabled && characterSprite.sprite!=null)
             {

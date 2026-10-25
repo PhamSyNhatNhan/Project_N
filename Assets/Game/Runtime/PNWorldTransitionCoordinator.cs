@@ -49,7 +49,7 @@ public sealed class PNWorldTransitionCoordinator : IDisposable,IPNWorldTransferT
     }
     private readonly EveSessionContext session;
     private readonly PNWorldRuntime worlds;
-    private readonly PNPlayerFactory factory;
+    private readonly PNEntityFactory factory;
     private readonly EveEntityPreparationScheduler scheduler;
     private readonly Dictionary<Guid,Work> active=new Dictionary<Guid,Work>();
     private readonly Dictionary<Guid,(string,PNWorldTransferReceipt)> history=new Dictionary<Guid,(string,PNWorldTransferReceipt)>();
@@ -73,7 +73,7 @@ public sealed class PNWorldTransitionCoordinator : IDisposable,IPNWorldTransferT
     }
     public IReadOnlyList<PNWorldTransferReceipt> SnapshotReceipts()=>history.Values.Select(x=>x.Item2).ToArray();
     public double MaximumCallbackMilliseconds { get; private set; }
-    public PNWorldTransitionCoordinator(EveSessionContext session,PNWorldRuntime worlds,PNPlayerFactory factory,EveEntityPreparationScheduler scheduler)
+    public PNWorldTransitionCoordinator(EveSessionContext session,PNWorldRuntime worlds,PNEntityFactory factory,EveEntityPreparationScheduler scheduler)
     {this.session=session;this.worlds=worlds;this.factory=factory;this.scheduler=scheduler;states=new PNWorldStateService(session);session.RegisterCleanup(Dispose);}
     public PNWorldTransferReceipt Request(PNWorldTransferRequest request)
     {
@@ -173,16 +173,15 @@ public sealed class PNWorldTransitionCoordinator : IDisposable,IPNWorldTransferT
                 var build=worlds.Get(work.Request.Destination);var slot=work.Request.Slot??(build.Slots.Count==1?build.Slots[0].Id:throw new InvalidOperationException("Explicit content slot required."));
                 var marker=loader.GetComponent<PNFactoryEntity>();
                 string template=work.Request.TargetTemplate??marker?.Template??throw new InvalidOperationException("Authored actor transfer requires a registered destination template.");
-                session.Registry.Get<PNEntityTemplateDefinition>().Get(EveId.Parse(template)).Resolve(build,slot,work.Request.Spawn);
                 target=new PNEntityRequest{World=work.Request.Destination,WorldIncarnation=work.Request.Destination.Incarnation,ContentSlot=slot,SpawnEntry=work.Request.Spawn,Template=template,Character=loader.GetComponent<PNStat>().CharacterId.ToString(),Owner=identity.OwnerId,Position=loader.transform.position,SceneKey=loader.GetComponent<EveSceneEntityKey>()?.SceneKey??marker?.SceneKey,EntityKey=""};
             }
-            if(work.Request.ReplacementTemplate!=null){target.Template=work.Request.ReplacementTemplate;session.Registry.Get<PNEntityTemplateDefinition>().Get(EveId.Parse(target.Template)).Resolve(worlds.Get(target.World),target.ContentSlot,target.SpawnEntry);}
+            if(work.Request.ReplacementTemplate!=null){target.Template=target.Entity=work.Request.ReplacementTemplate;factory.ResolvePrefab(target);}
             if(work.Request.ReplacementTemplate==null&&EveId.Parse(target.Character)!=(identity.CharacterId.IsValid?identity.CharacterId:loader.GetComponent<PNStat>().CharacterId))throw new InvalidOperationException("Destination character differs; request explicit replacement.");
             var prototype=loader.GetComponent<PNFactoryEntity>()?.Prototype;
-            if(work.Request.ReplacementTemplate==null&&prototype!=null&&session.Registry.Get<PNEntityTemplateDefinition>().Get(EveId.Parse(target.Template)).Resolve(worlds.Get(target.World),target.ContentSlot,target.SpawnEntry)!=prototype)throw new InvalidOperationException("Destination template selects a different prototype; request explicit replacement.");
+            if(work.Request.ReplacementTemplate==null&&prototype!=null&&factory.ResolvePrefab(target)!=prototype)throw new InvalidOperationException("Destination template selects a different prototype; request explicit replacement.");
             var context=new PNWorldTransferContext(work.Request.Id,loader,work.Request.Destination,target,work.Request.ReplacementTemplate!=null);
             var actor=new ActorWork{Context=context,SourceLease=context.Source.AcquireLease("transfer source")};work.Actors.Add(actor);
-            if(target.Player)actor.SourcePresentation=factory.Player(identity.OwnerId,identity.World,identity.ContentSlot,loader.GetComponent<PNFactoryEntity>()?.SpawnEntry);
+            if(PNEntityRoles.IsPlayer(session.Registry,target.Entity??target.Template))actor.SourcePresentation=factory.Player(identity.OwnerId,identity.World,identity.ContentSlot,loader.GetComponent<PNFactoryEntity>()?.SpawnEntry);
             var source= session.Registry.Get<PNWorldDefinition>().Get(context.Source.DefinitionId).Policy;
             var destination=session.Registry.Get<PNWorldDefinition>().Get(context.Destination.DefinitionId).Policy;
             foreach(var id in source.TransferParticipants.Concat(destination.TransferParticipants).Distinct())actor.Participants.Add(session.Registry.Get<PNWorldTransferParticipantDefinition>().Get(id).Create());
@@ -192,9 +191,8 @@ public sealed class PNWorldTransitionCoordinator : IDisposable,IPNWorldTransferT
     private void PrepareReplacement(Work work,ActorWork actor)
     {
         var context=actor.Context;
-        var candidate=scheduler.Enqueue(()=>factory.Get(context.Target),loader=>
+        var candidate=PNEntitySpawner.Enqueue(scheduler,factory,context.Target,loader=>
         {
-            factory.Configure(loader,context.Target);
             var identity=loader.GetComponent<EveEntityIdentity>();
             EveEntityId id;do{id=session.Role==EveSessionRole.Host?session.Entities.AllocateHostId():session.Entities.AllocateOfflineId();}while(session.Entities.IsReserved(id));
             identity.Assign(id,EveId.Parse(context.Target.Character),context.Owner);
@@ -205,8 +203,8 @@ public sealed class PNWorldTransitionCoordinator : IDisposable,IPNWorldTransferT
                 var map=work.Actors.ToDictionary(x=>x.Context.Entity.ToString(),x=>x.Context.ReplacementCandidate.Loader);
                 states.Restore(new PNWorldStateContext(context.Destination,loader,map),actor.State,session.Registry.Get<PNWorldDefinition>().Get(context.Destination.DefinitionId).Policy.ActorStateProviders);
             };
-        },factory.Return,null,error=>Fail(work,error),null,loader=>false);
-        context.StageReplacement(candidate);scheduler.AssociateWorld(candidate,context.Destination);
+        },null,error=>Fail(work,error),null,loader=>false,factoryPublished:false);
+        context.StageReplacement(candidate);
     }
     private void ValidateActor(ActorWork actor)
     {if(actor.Context.Actor?.IsReady!=true||!ReferenceEquals(actor.Context.Actor.LoadContext.Identity.World,actor.Context.Source)||!actor.Context.Source.CanExecute)throw new InvalidOperationException("Source participant changed during preparation.");Transport?.Validate(actor.Context);}

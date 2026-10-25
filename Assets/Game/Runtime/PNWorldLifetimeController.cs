@@ -56,7 +56,7 @@ public sealed partial class PNWorldLifetimeController : IDisposable
     }
     private readonly EveSessionContext session;
     private readonly PNWorldRuntime worlds;
-    private readonly PNPlayerFactory factory;
+    private readonly PNEntityFactory factory;
     private readonly EveEntityPreparationScheduler scheduler;
     private readonly PNWorldStateService states;
     private readonly Dictionary<Guid,PNWorldCheckpoint> checkpoints=new Dictionary<Guid,PNWorldCheckpoint>();
@@ -68,9 +68,9 @@ public sealed partial class PNWorldLifetimeController : IDisposable
     public long StoredBytes=>checkpoints.Values.Sum(x=>(long)x.Data.Bytes);
     public long StagingBytes=>active.Values.Sum(x=>x.StagingBytes);
     public int PendingCount=>active.Count;
-    public PNWorldLifetimeController(EveSessionContext session,PNWorldRuntime worlds,PNPlayerFactory factory,EveEntityPreparationScheduler scheduler)
+    public PNWorldLifetimeController(EveSessionContext session,PNWorldRuntime worlds,PNEntityFactory factory,EveEntityPreparationScheduler scheduler)
     {this.session=session;this.worlds=worlds;this.factory=factory;this.scheduler=scheduler;states=new PNWorldStateService(session);session.RegisterCleanup(Dispose);}
-    public bool IsEmpty(EveWorldContext world)=>world.ActivityLeaseCount==0&&!scheduler.HasPendingWork(world)&&!session.Entities.Snapshot(world).Any(x=>x.GetComponent<PNPlayerStat>()!=null||x.GetComponent<PNFactoryEntity>()?.Player==true||x.LoadContext.Identity.OwnerId>0);
+    public bool IsEmpty(EveWorldContext world)=>world.ActivityLeaseCount==0&&!scheduler.HasPendingWork(world)&&!session.Entities.Snapshot(world).Any(x=>x.GetComponent<PNPlayerStat>()!=null||PNEntityRoles.IsPlayer(session.Registry,x.GetComponent<PNFactoryEntity>()?.Entity)||x.LoadContext.Identity.OwnerId>0);
     public PNWorldCheckpoint GetCheckpoint(Guid instance)=>checkpoints.TryGetValue(instance,out var state)?state:null;
     public void Tick()
     {
@@ -93,7 +93,7 @@ public sealed partial class PNWorldLifetimeController : IDisposable
     public PNWorldLifetimeOperation CaptureAndUnload(EveWorldContext world)
     {
         Require(world);if(!IsEmpty(world))throw new InvalidOperationException("World has occupants, pending work or activity leases.");
-        var actors=session.Entities.Snapshot(world).ToArray();var references=actors.ToDictionary(Key,x=>x);
+        var actors=session.Entities.Snapshot(world).Where(x=>x.GetComponent<PNEntityRole>()?.Persist!=false).ToArray();var references=actors.ToDictionary(Key,x=>x);
         string descriptor=worlds.SupportsPersistence(world)?worlds.CaptureLoadDescriptor(world).ToString(Formatting.None):null;
         var work=New(world,PNWorldLifetimeState.Capturing);work.WasPaused=world.State==EveWorldState.Paused;work.Descriptor=descriptor;
         work.Lease=world.AcquireLease("checkpoint capture");world.SetPaused(true);
@@ -164,17 +164,17 @@ public sealed partial class PNWorldLifetimeController : IDisposable
                 foreach(var record in records.Cast<JObject>())
                 {
                     var request=new PNEntityRequest{World=world,WorldIncarnation=world.Incarnation,ContentSlot=(string)record["slot"],Template=(string)record["template"],SpawnEntry=(string)record["spawn"],SceneKey=(string)record["scene"],EntityKey=(string)record["entity"],Character=(string)record["character"],Position=ReadVector(record["position"])};
-                    var candidate=scheduler.Enqueue(()=>factory.Get(request),loader=>
+                    var candidate=PNEntitySpawner.Enqueue(scheduler,factory,request,loader=>
                     {
-                        factory.Configure(loader,request);StableKey(loader,(string)record["key"]);EveEntityId id;do{id=session.Role==EveSessionRole.Host?session.Entities.AllocateHostId():session.Entities.AllocateOfflineId();}while(session.Entities.IsReserved(id));loader.GetComponent<EveEntityIdentity>().Assign(id,EveId.Parse(request.Character),0);
+                        StableKey(loader,(string)record["key"]);EveEntityId id;do{id=session.Role==EveSessionRole.Host?session.Entities.AllocateHostId():session.Entities.AllocateOfflineId();}while(session.Entities.IsReserved(id));loader.GetComponent<EveEntityIdentity>().Assign(id,EveId.Parse(request.Character),0);
                         var stage=loader.GetComponent<PNWorldRestoreStage>()??loader.gameObject.AddComponent<PNWorldRestoreStage>();stage.Restore=load=>
                         {
                             states.Restore(new PNWorldStateContext(world,loader,work.References),Record(record["state"]),policy.ActorStateProviders);
                             var rotation=(JArray)record["rotation"];var q=new Quaternion((float)rotation[0],(float)rotation[1],(float)rotation[2],(float)rotation[3]);loader.transform.SetPositionAndRotation(request.Position,q);
                             var body=loader.GetComponent<Rigidbody>();if(body!=null){body.position=request.Position;body.rotation=q;if(!body.isKinematic){body.linearVelocity=ReadVector(record["velocity"]);body.angularVelocity=ReadVector(record["angular"]);}}
                         };
-                    },factory.Return,null,error=>Fail(work,error),null,loader=>false);
-                    scheduler.AssociateWorld(candidate,world);work.Candidates.Add((candidate,request,record));
+                    },null,error=>Fail(work,error),null,loader=>false,factoryPublished:false);
+                    work.Candidates.Add((candidate,request,record));
                 }
                 return false;
             }

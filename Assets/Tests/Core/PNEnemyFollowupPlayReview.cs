@@ -16,8 +16,19 @@ public static class PNEnemyFollowupContent
     public static readonly EveId Budget = EveId.Parse("review:budget_curve");
     public static EveId Fault(string phase) => EveId.Parse("review:fault_" + phase);
     public static IEnumerable<EveId> Ids => new[] { Fast, Budget, Fault("start"), Fault("perform"), Fault("tick"), Fault("dispose"), Fault("none") };
+    // An enemy body without skill or movement for the entity spawn case (E01): the stat, the loader and a collider.
+    public static GameObject Body;
     public static void Register(EveRegistryHub hub)
     {
+        if (Body != null) UnityEngine.Object.Destroy(Body);
+        Body = new GameObject("review enemy body"); Body.SetActive(false); Body.hideFlags = HideFlags.HideAndDontSave;
+        Body.AddComponent<EveEntityIdentity>(); Body.AddComponent<PNEnemyStat>(); Body.AddComponent<EveEntityLoader>(); Body.AddComponent<BoxCollider>();
+        PNEntityPrefabs.Register("review:body", Body, "review");
+        var enemyRole = hub.Instances().GetKind<PNEntityDefinition>(PNEntityGameplayContent.Enemy); var roleData = (JObject)enemyRole.Payload;
+        roleData["prefab"] = "review:body"; roleData["spawnBuffs"] = new JArray("base:buff_stat_template");
+        hub.Instances().Register(enemyRole.Derive(EveId.Parse("review:buffed_enemy"), roleData, null));
+        var plainData = (JObject)enemyRole.Payload; plainData["prefab"] = "review:body";
+        hub.Instances().Register(enemyRole.Derive(EveId.Parse("review:plain_enemy"), plainData, null));
         string fixtureRoot = Environment.GetCommandLineArgs().FirstOrDefault(value => value.StartsWith("--pn-followup-root="))?.Substring("--pn-followup-root=".Length);
         if (fixtureRoot != null && File.Exists(fixtureRoot + "/Disconnected/world.bytes"))
             hub.GetOrCreate<PNWorldDefinition>().Register(new PNWorldDefinition(EveId.Parse("review:disconnected"), PNNavigationCache.Hash("disconnected-followup"),
@@ -309,6 +320,53 @@ public sealed partial class PNEnemyMoveSkillPlayReview
             Check(sensor.NearestVisible().Actor.Id == nearer.EntityId, "A01 removing the modifier restores plain distance");
         }
         aggroTarget.GetComponent<EveEntityLoader>().Unload(); aggroTarget.GetComponent<EveEntityIdentity>().ResetIdentity(); actors.Remove(aggroTarget.gameObject); Destroy(aggroTarget.gameObject);
+        // Entity spawn (RulesVersion100) in a real Player: a runtime enemy role with a spawn Buff and a lifetime, retired through the scheduler and reused from its pool.
+        var spawnFactory = new PNEntityFactory(session, worlds) { Scheduler = scheduler };
+        PNEntityRequest Buffed(double? lifetime) => new PNEntityRequest { Entity = "review:buffed_enemy", Character = "project_n:dummy_lorica", World = a, WorldIncarnation = a.Incarnation, Position = new Vector3(-1, 0, -3), SceneKey = "review", EntityKey = "", Lifetime = lifetime };
+        var buffedRequest = Buffed(.4);
+        var buffed = PNEntitySpawner.Enqueue(scheduler, spawnFactory, buffedRequest, l => PNEntitySpawner.AssignNew(session, l, buffedRequest), failed: error => Check(false, "E01 spawn failed: " + error.Message));
+        yield return Until(() => buffed.Loader?.IsReady == true, 5, "E01 runtime enemy published");
+        var buffedLoader = buffed.Loader; yield return null; yield return null;
+        Check(buffedLoader.GetComponent<PNBuffManager>().Buffs.Snapshot().Count == 1 && buffedLoader.GetComponent<PNEntityRole>().DropsLoot && buffedLoader.GetComponent<PNEntityLifetime>().Armed, "E01 the role's spawn Buff is applied once the enemy is published, with its role flags and lifetime");
+        yield return Until(() => buffed.IsReturned, 4, "E01 the lifetime retires the enemy through the scheduler");
+        var reused = Buffed(null);
+        var again = PNEntitySpawner.Enqueue(scheduler, spawnFactory, reused, l => PNEntitySpawner.AssignNew(session, l, reused), failed: error => Check(false, "E01 respawn failed: " + error.Message));
+        yield return Until(() => again.Loader?.IsReady == true, 5, "E01 reused enemy published"); yield return null; yield return null;
+        var againStat = again.Loader.GetComponent<PNEnemyStat>();
+        Check(ReferenceEquals(again.Loader, buffedLoader) && againStat.GetCurrent(PNContentIds.Health) == againStat.GetMax(PNContentIds.Health) && againStat.IFrameRemaining == 0d && !again.Loader.GetComponent<PNEntityLifetime>().Armed && again.Loader.GetComponent<PNBuffManager>().Buffs.Snapshot().Count == 1,
+            "E01 the pooled enemy comes back fresh: full health, no lifetime, exactly one spawn Buff");
+        scheduler.RetirePublished(again.Loader); yield return Until(() => again.IsReturned, 4, "E01 reused enemy retired");
+        // E02 spawn cost (numbers are the evidence; the checks only guard against a broken run). Factory alone, then whole waves through the scheduler.
+        PNEntityRequest Plain() => new PNEntityRequest { Entity = "review:plain_enemy", Character = "project_n:dummy_lorica", World = a, WorldIncarnation = a.Incarnation, Position = new Vector3(-1, 0, -3), SceneKey = "review", EntityKey = "" };
+        {
+            var clock = new System.Diagnostics.Stopwatch(); long getTicks = 0, configureTicks = 0, returnTicks = 0; const int cycles = 200;
+            var warmRequest = Plain(); var warm = spawnFactory.Get(warmRequest); spawnFactory.Configure(warm, warmRequest); spawnFactory.Return(warm);
+            int collections = GC.CollectionCount(0);
+            for (int i = 0; i < cycles; i++)
+            {
+                var request = Plain();
+                clock.Restart(); var cycleLoader = spawnFactory.Get(request); getTicks += clock.ElapsedTicks;
+                clock.Restart(); spawnFactory.Configure(cycleLoader, request); configureTicks += clock.ElapsedTicks;
+                clock.Restart(); spawnFactory.Return(cycleLoader); returnTicks += clock.ElapsedTicks;
+            }
+            double toUs = 1e6 / System.Diagnostics.Stopwatch.Frequency / cycles;
+            var definition = session.Registry.Characters.Get(EveId.Parse("project_n:dummy_lorica")); clock.Restart();
+            for (int i = 0; i < 1000; i++) PNBodySettings.Parse(definition.Data);
+            double bodyUs = clock.ElapsedTicks * 1e6 / System.Diagnostics.Stopwatch.Frequency / 1000;
+            clock.Restart(); for (int i = 0; i < 1000; i++) { var clone = definition.Data; }
+            double cloneUs = clock.ElapsedTicks * 1e6 / System.Diagnostics.Stopwatch.Frequency / 1000;
+            Check(true, string.Format(System.Globalization.CultureInfo.InvariantCulture, "E02 factory only, warm pool, {0} cycles: Get {1:F1} us, Configure {2:F1} us, Return {3:F1} us per entity; Gen0 collections {4}; reading a character's data block {5:F1} us (of which the JSON clone {6:F1} us)",
+                cycles, getTicks * toUs, configureTicks * toUs, returnTicks * toUs, GC.CollectionCount(0) - collections, bodyUs, cloneUs));
+        }
+        for (int wave = 0; wave < 2; wave++)
+        {
+            var batch = new List<EveEntityPreparationScheduler.Candidate>(); var waveClock = System.Diagnostics.Stopwatch.StartNew(); int frames = 0; double worstFrame = 0;
+            for (int i = 0; i < 50; i++) { var request = Plain(); request.Position = new Vector3(-2 + (i % 10) * .3f, 0, -3 - (i / 10) * .3f); batch.Add(PNEntitySpawner.Enqueue(scheduler, spawnFactory, request, l => PNEntitySpawner.AssignNew(session, l, request), failed: error => Check(false, "E02 spawn failed: " + error.Message))); }
+            while (!batch.All(c => c.Loader?.IsReady == true) && frames < 2000) { float frameStart = Time.realtimeSinceStartup; yield return null; frames++; worstFrame = Math.Max(worstFrame, (Time.realtimeSinceStartup - frameStart) * 1000); }
+            Check(batch.All(c => c.Loader?.IsReady == true), string.Format(System.Globalization.CultureInfo.InvariantCulture, "E02 {0} wave of 50 through the scheduler: all ready after {1} frames, {2:F0} ms wall, worst frame {3:F1} ms", wave == 0 ? "cold" : "warm", frames, waveClock.Elapsed.TotalMilliseconds, worstFrame));
+            foreach (var c in batch) scheduler.RetirePublished(c.Loader);
+            yield return Until(() => batch.All(c => c.IsReturned), 20, "E02 wave retired");
+        }
         var observed = new List<PNStat>(); var visited = new HashSet<EveEntityId>();
         for (int i = 0; i < 6; i++) observed.Add(Target(a, new Vector3(-3.5f + (i % 3) * .45f, 0, -3 + (i / 3) * .6f)));
         yield return Until(() => observed.All(stat => stat.IsReady), 3, "R03 bounded-memory targets ready");

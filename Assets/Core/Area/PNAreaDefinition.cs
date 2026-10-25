@@ -17,6 +17,7 @@ public class PNAreaDefinition : PNInstanceDefinition
     public override PNInstanceDefinition Derive(EveId id, JToken data, JObject entry) => Derive(id, data);
 #if UNITY_5_3_OR_NEWER
     // Construction happens only through the selected definition, before pool callback discovery.
+    public override bool HasPoolTemplate => true;
     public override UnityEngine.GameObject CreatePoolTemplate()
     {
         var root = new UnityEngine.GameObject("Area template: " + Id);

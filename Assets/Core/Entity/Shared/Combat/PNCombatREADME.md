@@ -245,3 +245,14 @@ refresh, 0.1 s, and on every `Acquire`, so a query outside the tick sees a chang
   uses the default rule and updates the held target, `Resolve(range, mask, ownRule)` is a skill's own rule and leaves it alone. Eve's ordinary casts use the default rule, her ultimate its own
   `LowestHealth`. `create_projectile` `aimRadius` and homing are in the projectile README; `PNAgentPerception.NearestVisible` and `PNEnemyMeleeBehavior` rank by the Aggro rule.
 - Skills whose rule is not one of these walk `PNTargetCandidates.RawItems` themselves; there is no interface per rule.
+
+## Optional Health and hit counting (RulesVersion100)
+
+- An entity is damageable only if its character declares a `project_n:health` stat (`PNStat.HasHealth`, cached when the stat set is initialized). Without it `IsDead` is
+  false (it no longer throws), `ReceiveDamage` returns a result with `Ignored == true` and zeros (no iframe, popup, `DamageReceived`, `Died`), `ReceiveHeal` returns
+  `PNHealStatus.NoHealth`, and the Autotarget rule skips the entity (`PNTargetCandidates.Candidate.Damageable`); the Aggro rule (enemies) still sees it, so it can be a decoy.
+  A projectile that hits it ends on it (`hitLimit` counts the contact) and applies nothing. Temporary invulnerability stays a Buff or iframe.
+- `body.damageMode: "hits"` (`PNStat.DamageMode`): N = the declared maximum Health (integer >= 1, no Lorica). In `ReceiveDamage`, after the iframe and instead of DEF / Mitigation /
+  critical / `AbsorbDamage`: `calculated = (damage.Amount > 0 && iframeBefore <= 0) ? 1 : 0`. A hit inside iframe removes 0 and the iframe is still refreshed as usual; damage over time
+  and area ticks go through the same path and count; `ReceiveHeal` returns `PNHealStatus.Blocked`. The popup shows `1`; the health bar is the normal one.
+- `body.healthBar: "hidden"` (`PNStat.HealthBar`) hides the world health bar.

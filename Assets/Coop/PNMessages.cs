@@ -42,7 +42,6 @@ namespace ProjectN.Coop
         public Guid World;
         public ulong WorldIncarnation,MembershipRevision;
         public string ContentSlot,SpawnEntry,Template;
-        public bool Player;
         public UnityEngine.Vector3 Position;
     }
     public struct PNHeartbeat : NetworkMessage { public Guid Session; public ulong PlayRevision; public uint Sequence,ResumeFloor; public bool Paused,ResumeRequired; }

@@ -58,7 +58,7 @@ namespace ProjectN.Coop.Tests
                 if(writing)
                 {
                     world=game.Worlds.Create(EveId.Parse(type));yield return Wait(()=>world.CanExecute||world.State==EveWorldState.Failed);Check(world.CanExecute,"selected external provider loads "+key+": "+world.Failure);
-                    foreach(var request in ((PNPlayerFactory)game.Factory).SceneEntities(world)){var local=request;var candidate=game.Scheduler.Enqueue(()=>game.Factory.Get(local),l=>game.Factory.Configure(l,local),game.Factory.Return,game.Factory.Published,e=>preparationFailure=e);game.Scheduler.AssociateWorld(candidate,world);}
+                    foreach(var request in ((PNEntityFactory)game.Factory).SceneEntities(world)){var local=request;var candidate=game.Scheduler.Enqueue(()=>game.Factory.Get(local),l=>game.Factory.Configure(l,local),game.Factory.Return,game.Factory.Published,e=>preparationFailure=e);game.Scheduler.AssociateWorld(candidate,world);}
                     yield return Wait(()=>game.Session.Entities.Snapshot(world).Count==2);
                     var actors=game.Session.Entities.Snapshot(world);var stat=actors[0].GetComponent<PNStat>();stat.SetCurrent(PNContentIds.Health,stat.GetMax(PNContentIds.Health)*.25);
                     if(key=="generated"){var component=actors[0].GetComponents<Component>().First(c=>c!=null&&c.GetType().FullName=="WorldSandboxMod.ActorData");component.GetType().GetField("Value").SetValue(component,111);}

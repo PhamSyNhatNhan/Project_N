@@ -10,8 +10,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c3d4c39714b87cb41948f29f5dfe34bb, type: 3}
-  m_Name: PNPlayerPrefabs
-  m_EditorClassIdentifier: ProjectN.Game::PNPlayerPrefabCatalog
+  m_Name: PNEntityPrefabs
+  m_EditorClassIdentifier: ProjectN.Game::PNEntityPrefabCatalog
   Entries:
-  - Key: eve_2
+  - Key: project_n:eve_2
     Prefab: {fileID: 4508174443292714787, guid: 6a8ec403197b4f00b91ab411b1970805, type: 3}

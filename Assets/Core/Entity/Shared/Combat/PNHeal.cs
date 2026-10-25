@@ -25,7 +25,8 @@ public sealed class PNHeal
     }
 }
 
-public enum PNHealStatus { Applied, NoMissingHealth, DeadTarget, ZeroAmount }
+// NoHealth: the receiver declares no health resource (not damageable, so nothing to restore). Blocked: the receiver counts hits (damageMode "hits"); healing does not restore hits.
+public enum PNHealStatus { Applied, NoMissingHealth, DeadTarget, ZeroAmount, NoHealth, Blocked }
 
 public sealed class PNHealResult
 {
