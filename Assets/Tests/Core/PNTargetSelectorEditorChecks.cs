@@ -45,7 +45,7 @@ public static class PNTargetSelectorEditorChecks
             {
                 var obj = Fixture("player " + nextId); obj.SetActive(false); obj.transform.position = position; obj.layer = PNLayers.Player;
                 obj.AddComponent<EveEntityIdentity>().Assign(new EveEntityId(nextId++), EveId.Parse("project_n:eve"), 0);
-                var stat = obj.AddComponent<EveCharacterStat>(); obj.AddComponent<PNAbilityManager>(); obj.AddComponent<PNProjectileSkillProbe>(); obj.AddComponent<BoxCollider>().size = Vector3.one;
+                var stat = obj.AddComponent<EveCharacterStat>().AsPlayer(); obj.AddComponent<PNAbilityManager>(); obj.AddComponent<PNProjectileSkillProbe>(); obj.AddComponent<BoxCollider>().size = Vector3.one;
                 obj.AddComponent<EveEntityLoader>().Load(hub); obj.SetActive(true); obj.GetComponent<PNBuffManager>().Advance(0); return stat;
             }
             PNStat Pick(PNStat chooser, float range, int mask, PNTargetRule rule = default, PNStat held = null, bool sight = false, bool exclude = true)
@@ -72,6 +72,24 @@ public static class PNTargetSelectorEditorChecks
             Check(!prop.HasHealth && !ReferenceEquals(Pick(p, 10, enemy, nearest), prop) && !ReferenceEquals(Pick(p, 10, enemy, lowest), prop), "the Autotarget rule skips an entity without Health even when it is the nearest");
             Check(ReferenceEquals(Pick(p, 10, enemy, PNTargetRule.Aggro), prop), "the Aggro rule still sees an entity without Health (a decoy)");
             propObject.GetComponent<EveEntityLoader>().Unload(); Physics.SyncTransforms();
+
+            // body.aggro = ignored (Docs/SummonPlan.md): the Aggro rule never chooses it, Autotarget still can (it has Health); a no-Health taunt stone is still chosen.
+            PNStat Prop(string character, Vector3 position, int layer)
+            {
+                var o = Fixture("prop " + character); o.SetActive(false); o.transform.position = position; o.layer = layer;
+                o.AddComponent<EveEntityIdentity>().Assign(new EveEntityId(nextId++), EveId.Parse(character), 0);
+                var s = o.AddComponent<PNStat>(); o.AddComponent<BoxCollider>().size = Vector3.one;
+                o.AddComponent<EveEntityLoader>().Load(hub); o.SetActive(true); return s;
+            }
+            var ignoredProp = Prop("test:prop_aggro_ignored", new Vector3(0.5f, 0, 0), PNLayers.Player); Physics.SyncTransforms();
+            var ignoreChooser = Pick(e1, 10, player, PNTargetRule.Aggro);
+            Check(ignoredProp.AggroMode == PNAggroMode.Ignored && ignoredProp.HasHealth && !PNTargetSelector.IsAggroEligible(ignoredProp) && PNTargetSelector.IsAggroEligible(p), "body.aggro ignored is read into the stat; the eligibility helper agrees");
+            Check(!ReferenceEquals(ignoreChooser, ignoredProp) && ignoreChooser != null, "the Aggro rule never chooses an entity with aggro ignored although it is the nearest");
+            Check(ReferenceEquals(Pick(p, 10, player, nearest), ignoredProp), "the Autotarget rule does not read the aggro flag (the nearest entity with Health is chosen)");
+            ignoredProp.GetComponent<EveEntityLoader>().Unload();
+            var taunt = Prop("test:prop_taunt", new Vector3(8, 0, 0), PNLayers.Player); Physics.SyncTransforms();
+            Check(!taunt.HasHealth && taunt.AggroMode == PNAggroMode.Normal && ReferenceEquals(Pick(e1, 10, player, PNTargetRule.Aggro), taunt), "a no-Health stone with a high aggro stat draws the Aggro rule although it is farther");
+            taunt.GetComponent<EveEntityLoader>().Unload(); Physics.SyncTransforms();
 
             // Modes over real Health resources.
             e2.SetCurrent(PNContentIds.Health, e1.GetCurrent(PNContentIds.Health) / 2);

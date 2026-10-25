@@ -39,7 +39,7 @@ public sealed class PNUiRuntime : MonoBehaviour
     internal void ResetMobileInput()=>mobile?.Reset();
     public long LocalOwnerId { get=>EveRegistrySession.IsReady && !EveRegistrySession.Context.HasAuthority
         ? EveRegistrySession.Context.LocalOwnerId.GetValueOrDefault(-1) : localOwnerId; set=>localOwnerId=value; }
-    private bool IsLocalPlayer(PNStat stat)=>stat is PNPlayerStat && stat.GetComponent<EveEntityIdentity>().OwnerId==LocalOwnerId;
+    private bool IsLocalPlayer(PNStat stat)=>PNEntityRoles.IsPlayer(stat) && stat.GetComponent<EveEntityIdentity>().OwnerId==LocalOwnerId;
     public EveEntityId LocalPlayerId { get; set; }
     public Camera ViewCamera { get; set; }
     public int WorldLayer => worldLayer;
@@ -209,13 +209,14 @@ public sealed class PNUiRuntime : MonoBehaviour
             var stat=loader.GetComponent<PNStat>();
             if(stat==null || !stat.IsReady || ReferenceEquals(PNLocalWorldContext.Current?.Session,EveRegistrySession.Context)&&!PNLocalWorldContext.Current.Accepts(loader)) continue;
             entities.Add(stat);
-            if(!(stat is PNPlayerStat) && !(stat is PNEnemyStat)) continue;
+            // Players, enemies and any other entity that has Health (a plain PNStat: a summon, an NPC, a prop) get a world view; body.healthBar=hidden hides the bar itself.
+            if(!PNEntityRoles.IsPlayer(stat) && !(stat is PNEnemyStat) && !stat.HasHealth) continue;
             if(!worlds.TryGetValue(stat.EntityId,out var view))
             { view=new WorldView(this,stat); worlds.Add(stat.EntityId,view); }
         }
         foreach(var id in worlds.Keys.Where(id=>!entities.Any(s=>s.EntityId==id)).ToArray())
         { worlds[id].Dispose(); worlds.Remove(id); }
-        HudPlayer=entities.FirstOrDefault(s=>s is PNPlayerStat && s.isActiveAndEnabled &&
+        HudPlayer=entities.FirstOrDefault(s=>PNEntityRoles.IsPlayer(s) && s.isActiveAndEnabled &&
             s.gameObject.activeInHierarchy && s.GetComponent<EveEntityIdentity>().OwnerId==LocalOwnerId &&
             (!LocalPlayerId.IsValid || s.EntityId==LocalPlayerId));
         foreach(var view in worlds.Values) view.Refresh(camera);
@@ -404,7 +405,7 @@ public sealed class PNUiRuntime : MonoBehaviour
             // UIDocument creates an interaction collider; combat labels never participate in physics/input.
             var collider=obj.GetComponent<BoxCollider>(); if(collider!=null) { collider.isTrigger=true; collider.enabled=false; }
             characterSprite=stat.GetComponentInChildren<SpriteRenderer>();
-            if(stat is PNPlayerStat)
+            if(PNEntityRoles.IsPlayer(stat))
             {
                 root.Q("world-root").AddToClassList("player-world");
             }
@@ -413,7 +414,7 @@ public sealed class PNUiRuntime : MonoBehaviour
                 root.Q("world-root").AddToClassList("enemy-world");
                 document.worldSpaceSize=new Vector2(96,48);
             }
-            root.Q("enemy-vitals").style.display=stat is PNEnemyStat || stat is PNPlayerStat && !owner.IsLocalPlayer(stat)?DisplayStyle.Flex:DisplayStyle.None;
+            root.Q("enemy-vitals").style.display=!owner.IsLocalPlayer(stat)?DisplayStyle.Flex:DisplayStyle.None;
             grid=root.Q("ability-grid"); grid.style.display=owner.IsLocalPlayer(stat)?DisplayStyle.Flex:DisplayStyle.None;
             health=root.Q<ProgressBar>("enemy-hp");
             if(stat is PNEnemyStat)
@@ -429,7 +430,7 @@ public sealed class PNUiRuntime : MonoBehaviour
                 root.Q("enemy-buffs").style.display=DisplayStyle.None;
                 buffs=new PNBuffView(owner,buffRoot.Q("enemy-buffs"),true);
             }
-            else if(stat is PNPlayerStat && !owner.IsLocalPlayer(stat))buffs=new PNBuffView(owner,root.Q("enemy-buffs"),true);
+            else if(PNEntityRoles.IsPlayer(stat) && !owner.IsLocalPlayer(stat))buffs=new PNBuffView(owner,root.Q("enemy-buffs"),true);
             if(stat is PNEnemyStat)
             {
                 lorica=new PNLoricaOverlay();health.hierarchy.Add(lorica);
@@ -467,7 +468,7 @@ public sealed class PNUiRuntime : MonoBehaviour
             if(float.IsNaN(referenceHeight) || float.IsInfinity(referenceHeight) || referenceHeight<=0)
             { root.style.display=DisplayStyle.None; if(buffRoot!=null)buffRoot.style.display=DisplayStyle.None; return; }
             bool visible=!owner.MenuOpen && camera!=null && stat.IsReady && stat.isActiveAndEnabled && stat.gameObject.activeInHierarchy && stat.HealthBar!=PNHealthBarMode.Hidden && PNVitals.TryRead(stat,PNContentIds.Health,out _,out _,out var dead) && !dead;
-            var position=stat.transform.position+(stat is PNPlayerStat?owner.playerOffset:owner.enemyOffset);
+            var position=stat.transform.position+(PNEntityRoles.IsPlayer(stat)?owner.playerOffset:owner.enemyOffset);
             if(camera!=null && characterSprite!=null && characterSprite.enabled && characterSprite.sprite!=null)
             {
                 var anchor=camera.WorldToScreenPoint(stat.transform.position);
@@ -501,7 +502,7 @@ public sealed class PNUiRuntime : MonoBehaviour
             obj.transform.localScale=Vector3.one*(100*pixelsToWorld*owner.worldScale);
             if(buffObj!=null) obj.transform.position-=camera.transform.up*(RingGlowMargin*pixelsToWorld*owner.worldScale);      // the glow margin under the ring does not move the ring
             if(buffObj!=null){ buffObj.transform.SetPositionAndRotation(position+camera.transform.up*(14f*pixelsToWorld*owner.worldScale),camera.transform.rotation); buffObj.transform.localScale=obj.transform.localScale; }
-            if(stat is PNEnemyStat || stat is PNPlayerStat && !owner.IsLocalPlayer(stat)) Health(health,stat,false);
+            if(!owner.IsLocalPlayer(stat)) Health(health,stat,false);
             if(lorica!=null) PresentLorica((PNEnemyStat)stat,camera);
             else
             {

@@ -12,6 +12,14 @@ using UnityEngine.SceneManagement;
 
 // A prop whose character declares no Health (the stat class only says which character it is).
 public sealed class PNCrateStat : PNEnemyStat { public override string CharacterDefinitionId => "test:crate"; }
+public sealed class PNKeepSummonProbe : MonoBehaviour, IPNSummonOwnerGone { [NonSerialized] public PNSummonOwnerGone? Seen; public bool Keep = true; public bool KeepWhenOwnerGone(PNSummonOwnerGone reason) { Seen = reason; return Keep; } }
+public class PNSummonSkillProbe : PNSkill
+{
+    public static readonly EveId Plain = EveId.Parse("test:summon_plain"), Reject = EveId.Parse("test:summon_reject"), Free = EveId.Parse("test:summon_free");
+    public override IEnumerable<EveId> BuiltInSkillIds => new[] { Plain, Reject, Free };
+    public bool Begin(EveId id) { if (!CanActivateSkill(id)) return false; BeginActivation(id); return true; }
+    public void End(bool cancel = false) => EndActivation(cancel);
+}
 // Content for the factory checks: a mod-registered prefab, a character without Health that names it, and an entity role with a spawn Buff.
 public sealed class PNEntitySpawnFixtureModule : EveIContentModule
 {
@@ -30,6 +38,11 @@ public sealed class PNEntitySpawnFixtureModule : EveIContentModule
         PNEntityPrefabs.Register("mymod:dummy_body", Dummy, "mymod");
         var enemyRole = hub.Instances().GetKind<PNEntityDefinition>(PNEntityGameplayContent.Enemy); var enemyData = (JObject)enemyRole.Payload; enemyData["prefab"] = "mymod:dummy_body";
         hub.Instances().Register(enemyRole.Derive(EveId.Parse("test:dummy_enemy"), enemyData, null));
+        // Summon plan S4: skills whose action is create_summon, with a limit that replaces, a limit that rejects, and no limit.
+        void SummonSkill(EveId id, string payload) => hub.Skills.Register(new EveSkillDefinition(id, JObject.Parse("{'categoryIds':['base:skill'],'affectedByAttackSpeed':false,'action':{'id':'project_n:summon_action','perform':{'operationId':'project_n:create_summon','data':" + payload + "}}}")));
+        SummonSkill(PNSummonSkillProbe.Plain, "{'character':'test:crate','lifetime':5,'group':'crates','limit':2}");
+        SummonSkill(PNSummonSkillProbe.Reject, "{'character':'test:crate','group':'solo','limit':1,'whenFull':'reject'}");
+        SummonSkill(PNSummonSkillProbe.Free, "{'character':'test:crate','offset':[0,2,0]}");
         var prop = hub.Instances().GetKind<PNEntityDefinition>(PNEntityGameplayContent.Prop);
         var data = (JObject)prop.Payload; data["spawnBuffs"] = new JArray("base:buff_stat_template");
         hub.Instances().Register(prop.Derive(EveId.Parse("test:guard"), data, null));
@@ -87,6 +100,8 @@ public static class PNEntitySpawnEditorChecks
         var hub = new EveContentBootstrap().Build(Modules(), docs);
         Check(PNEntityPrefabReferences.Collect(hub).ContainsKey("project_n:eve_2"), "the shipped content refers to project_n:eve_2 and the real content loads with it in the catalog");
         PNEntityPrefabs.CatalogOverride = ScriptableObject.CreateInstance<PNEntityPrefabCatalog>();
+        // It holds the pet prefab only, so the Eve 2 key is the missing one the error names.
+        PNEntityPrefabs.CatalogOverride.Entries = new[] { new PNEntityPrefabCatalog.Entry { Key = "project_n:eve2_pet", Prefab = catalog.Find("project_n:eve2_pet") } };
         try
         {
             string message = null;
@@ -151,7 +166,7 @@ public static class PNEntitySpawnEditorChecks
 
         // The coop hash carries one entry per referenced prefab.
         var hashes = PNEntityPrefabReferences.Hashes(hub, PNEntityPrefabs.Source);
-        Check(hashes.Count == 1 && hashes["entity_prefab:project_n:eve_2"] == baseline, "the coop hash entry for project_n:eve_2 is the prefab fingerprint");
+        Check(hashes.Count == 2 && hashes.ContainsKey("entity_prefab:project_n:eve2_pet") && hashes["entity_prefab:project_n:eve_2"] == baseline, "the coop hash entry for project_n:eve_2 is the prefab fingerprint");
     }
 
     // E4: the factory builds entities from the instances registry, the catalog and the spawn points, and keeps the old behavior for players.
@@ -162,7 +177,7 @@ public static class PNEntitySpawnEditorChecks
         EveRegistrySession.Begin(); EveRegistrySession.Start(hub, EveSessionRole.Offline, EveContentCompatibility.Create(hub, docs, "test:entity_factory"));
         var session = EveRegistrySession.Context; var scheduler = new EveEntityPreparationScheduler(session, new EvePreparationProfile());
         var worlds = new PNWorldRuntime(session, scheduler); var factory = new PNEntityFactory(session, worlds) { Scheduler = scheduler };
-        void Pump(Func<bool> ready) { for (int i = 0; i < 2000 && !ready(); i++) scheduler.AdvanceFrame(); if (!ready()) throw new Exception("Spawn work did not drain."); }
+        void Pump(Func<bool> ready, [System.Runtime.CompilerServices.CallerLineNumber] int line = 0) { for (int i = 0; i < 2000 && !ready(); i++) scheduler.AdvanceFrame(); if (!ready()) throw new Exception("Spawn work did not drain (line " + line + ")."); }
         EveEntityPreparationScheduler.Candidate Spawn(PNEntityRequest request)
         {
             var candidate = PNEntitySpawner.Enqueue(scheduler, factory, request, loader => PNEntitySpawner.AssignNew(session, loader, request), failed: error => throw error);
@@ -253,6 +268,160 @@ public static class PNEntitySpawnEditorChecks
             var playerAgain = Spawn(factory.Player(3, world, "chunk-0", null)); var freshStat = playerAgain.Loader.GetComponent<PNStat>();
             Check(ReferenceEquals(playerAgain.Loader, playerLoader) && freshStat.GetCurrent(PNContentIds.Health) == playerStart && playerHurt == 0d && freshStat.IFrameRemaining == 0d && !freshStat.Set.SourceSnapshot().ContainsKey(EveId.Parse("test:dirty")),
                 "a player who died and whose pooled object is reused starts again with the character's initial health, no iframe and none of the previous stat sources (same object " + ReferenceEquals(playerAgain.Loader, playerLoader) + ", start " + playerStart + ", hurt " + playerHurt + ", health " + freshStat.GetCurrent(PNContentIds.Health) + "/" + playerHealth + ", iframe " + freshStat.IFrameRemaining + ", dirty source " + freshStat.Set.SourceSnapshot().ContainsKey(EveId.Parse("test:dirty")) + ")");
+
+            // Summon plan S2: TryEnqueue refuses (null) instead of throwing when the queue is full; a local host spawns and retires; retire is safe to repeat.
+            var queued = new List<EveEntityPreparationScheduler.Candidate>();
+            for (int i = 0; i < 64; i++) queued.Add(PNEntitySpawner.TryEnqueue(scheduler, factory, Prop("project_n:prop", position: new Vector3(20 + i % 8, 1, 20 + i / 8)), loader => PNEntitySpawner.AssignNew(session, loader, new PNEntityRequest { Character = "test:crate" }), failed: error => throw error));
+            Check(queued.All(x => x != null) && !scheduler.HasPendingCapacity, "TryEnqueue accepts until the preparation queue is full");
+            Check(PNEntitySpawner.TryEnqueue(scheduler, factory, Prop("project_n:prop"), failed: error => throw error) == null, "TryEnqueue answers null when the queue is full");
+            Reject(() => PNEntitySpawner.Enqueue(scheduler, factory, Prop("project_n:prop")), "Enqueue still throws when the queue is full");
+            Pump(() => queued.All(x => x.Loader?.IsReady == true));
+            Check(scheduler.HasPendingCapacity, "capacity returns once the queue drains");
+            foreach (var item in queued) { var loader = item.Loader; Check(scheduler.TryRetirePublished(loader), "a published candidate retires through TryRetirePublished"); Check(!scheduler.TryRetirePublished(loader), "retiring it again is a harmless false"); break; }
+            for (int i = 1; i < queued.Count; i++) scheduler.TryRetirePublished(queued[i].Loader);
+            Pump(() => queued.All(x => x.IsReturned));
+            Check(!scheduler.TryRetirePublished(queued[0].Loader), "a returned candidate is not retired again");
+
+            var localHost = new PNLocalEntityHost(session, factory, scheduler); PNEntityHosts.Set(session, localHost);
+            Check(ReferenceEquals(PNEntityHosts.Find(session), localHost) && ReferenceEquals(PNEntityHosts.For(session), localHost), "the host registered for a session is found");
+            long hostedId = 0; bool hostedPublished = false;
+            var hostRequest = Prop("project_n:summon"); hostRequest.Summoner = new EveEntityId(4242);
+            var hosted = localHost.TrySpawn(hostRequest, loader => hostedId = loader.GetComponent<EveEntityIdentity>().Id.Value, loader => hostedPublished = true, error => throw error);
+            Check(hosted != null, "the host starts a spawn");
+            Pump(() => hostedPublished);
+            Check(hostedId != 0, "the host gives the entity an id before configure runs (an offline id is negative: " + hostedId + ")");
+            Check(hosted.Loader.IsReady && hostedPublished, "published runs after the entity is ready (ready " + hosted.Loader.IsReady + ")");
+            var hostedRole = hosted.Loader.GetComponent<PNEntityRole>();
+            Check(hostedRole != null && hostedRole.Entity == "project_n:summon" && !hostedRole.Persist, "the summon role is applied and is not persisted (entity " + hostedRole?.Entity + ", persist " + hostedRole?.Persist + ")");
+            Check(localHost.Retire(hosted.Loader) && !localHost.Retire(hosted.Loader), "the host retires it once");
+            Pump(() => hosted.IsReturned);
+            PNEntityHosts.Remove(session);
+            Check(PNEntityHosts.Find(session) == null, "removing the host clears it");
+            Reject(() => PNEntityHosts.For(session), "a session without a host refuses to hand one out");
+            // An entity lifetime retires through the registered host.
+            PNEntityHosts.Set(session, localHost);
+            var hostLife = Prop("project_n:prop", position: new Vector3(30, 1, 30)); hostLife.Lifetime = 1d;
+            var timedHost = Spawn(hostLife); timedHost.Loader.GetComponent<PNEntityLifetime>().Advance(1.5); Pump(() => timedHost.IsReturned);
+            Check(timedHost.IsReturned, "a lifetime retires the entity through the registered host");
+            PNEntityHosts.Remove(session);
+
+            // Summon plan S3: PNSummon / PNSummons. An enemy with Health is the owner; summons are plain props spawned through the host with the component added in configure.
+            PNEntityHosts.Set(session, localHost);
+            PNStat NewOwner(float x) => Spawn(PropIn(world, "test:dummy_enemy", "project_n:dummy_lorica", new Vector3(x, 1, 40))).Loader.GetComponent<PNStat>();
+            var ownerA = NewOwner(40); var ownerB = NewOwner(42); var ownerC = NewOwner(44);
+            (PNSummon Summon, EveEntityPreparationScheduler.Candidate Candidate) Summon(PNStat owner, string group, Action<EveEntityLoader> extra = null, double scale = 1d)
+            {
+                PNSummon made = null; bool done = false;
+                var request = Prop("project_n:summon", position: new Vector3(40, 1, 41)); request.Summoner = owner.EntityId;
+                var candidate = localHost.TrySpawn(request, loader =>
+                {
+                    extra?.Invoke(loader);
+                    var summon = loader.GetComponent<PNSummon>() ?? loader.gameObject.AddComponent<PNSummon>();
+                    summon.Begin(PNCombatSource.Capture(owner), owner.EntityId, group, PNSummons.NextSequence(), scale); made = summon;
+                }, loader => done = true, error => throw error);
+                if (candidate == null) throw new Exception("The host refused the summon spawn.");
+                PNSummons.Reserve(owner.EntityId, group, candidate);
+                Check(PNSummons.Count(owner.EntityId, group) >= 1, "a spawn the host accepted counts toward its group at once");
+                Pump(() => done); PNSummons.Fulfil(candidate);
+                return (made, candidate);
+            }
+            var s1 = Summon(ownerA, "g"); var s2 = Summon(ownerA, "g"); var s3 = Summon(ownerA, "h"); var s4 = Summon(ownerB, "g", scale: 2d);
+            var first1 = s1.Summon; var first2 = s2.Summon; var fromB = s4.Summon;
+            Check(first1.IsActive && first1.Summoner == ownerA.EntityId && first1.Group == "g" && first2.Sequence > first1.Sequence && fromB.Scale == 2d && ReferenceEquals(first1.OwnerSource.LoadedSource, ownerA), "a summon keeps its summoner, group, order, scale and the owner's captured source");
+            Check(PNSummons.Count(ownerA.EntityId, "g") == 2 && PNSummons.Count(ownerA.EntityId, "h") == 1 && PNSummons.Count(ownerB.EntityId, "g") == 1 && PNSummons.Of(ownerA.EntityId).Count == 3, "the index counts live summons per summoner and group (a reserved spawn is not counted twice)");
+            Check(ReferenceEquals(PNSummons.Oldest(ownerA.EntityId, "g"), first1) && PNSummons.Oldest(ownerA.EntityId, "none") == null, "Oldest is the lowest creation order in the group");
+            first1.Tick(); first2.Tick(); fromB.Tick();
+            Check(!first1.IsRetiring && first1.OwnerState() == null, "while the owner is present and alive the summon stays");
+            Reject(() => first1.Begin(PNCombatSource.Capture(ownerA), ownerA.EntityId, "g", 99, 1d), "a summon that is already active refuses a second Begin");
+            Check(first1.Retire() && first1.IsRetiring && !first1.Retire(), "Retire removes through the host once");
+            Check(PNSummons.Count(ownerA.EntityId, "g") == 1 && ReferenceEquals(PNSummons.Oldest(ownerA.EntityId, "g"), first2), "a summon that is being removed no longer counts and is not the oldest");
+            Pump(() => s1.Candidate.IsReturned);
+            Check(!first1.IsActive && first1.OwnerSource == null && PNSummons.Count(ownerA.EntityId, "g") == 1, "a returned summon forgets its owner and leaves the index");
+            var again1 = Summon(ownerC, "r");
+            Check(ReferenceEquals(again1.Summon, first1) && again1.Summon.Summoner == ownerC.EntityId && again1.Summon.Group == "r" && PNSummons.Count(ownerA.EntityId, "g") == 1, "a pooled object reused for another summoner starts clean (same component: " + ReferenceEquals(again1.Summon, first1) + ")");
+            // Owner dies: the default is to retire; a behavior that keeps it is asked first.
+            var keepOwner = NewOwner(46);
+            var keeperMade = Summon(keepOwner, "k", loader => loader.gameObject.AddComponent<PNKeepSummonProbe>()); var keeper = keeperMade.Summon;
+            var plainMade = Summon(keepOwner, "p"); var plain = plainMade.Summon;
+            keepOwner.ReceiveDamage(keepOwner.CreateDamage(keepOwner.GetMax(PNContentIds.Health) * 10, false, 0d, PNContentIds.True));
+            Check(keepOwner.IsDead && plain.OwnerState() == PNSummonOwnerGone.Died, "a dead owner is reported as Died");
+            plain.Tick(); keeper.Tick();
+            Check(plain.IsRetiring, "by default a summon is retired when its owner dies");
+            Check(!keeper.IsRetiring && keeper.GetComponent<PNKeepSummonProbe>().Seen == PNSummonOwnerGone.Died, "a behavior may keep the summon (it was asked once, with the reason)");
+            keeper.GetComponent<PNKeepSummonProbe>().Seen = null; keeper.Tick();
+            Check(!keeper.IsRetiring && keeper.GetComponent<PNKeepSummonProbe>().Seen == null, "a kept summon is not asked again every frame");
+            Check(keeper.Retire(), "a kept summon removes itself through Retire when it wants to");
+            Pump(() => plainMade.Candidate.IsReturned && keeperMade.Candidate.IsReturned);
+            // Owner unloaded.
+            var orphanMade = Summon(ownerB, "o"); var orphan = orphanMade.Summon;
+            scheduler.RetirePublished(ownerB.GetComponent<EveEntityLoader>()); Pump(() => !ownerB.GetComponent<EveEntityLoader>().IsReady);
+            Check(orphan.OwnerState() == PNSummonOwnerGone.Unloaded, "an owner that was removed is reported as Unloaded (the captured source outlives it)");
+            orphan.Tick(); Check(orphan.IsRetiring, "by default a summon is retired when its owner is unloaded");
+            Pump(() => orphanMade.Candidate.IsReturned);
+            // Teardown: retire what is left so the world drains.
+            foreach (var left in PNSummons.All()) left.Retire();
+            Pump(() => PNSummons.LiveCount == 0);
+            Check(PNSummons.LiveCount == 0, "every summon left the index once retired and returned");
+            PNEntityHosts.Remove(session);
+            PNSummons.Reset();
+
+            // Summon plan S4: create_summon through a real skill action (limit, replace, reject, scale, queue full).
+            PNEntityHosts.Set(session, localHost);
+            var casterRequest = PropIn(world, "test:dummy_enemy", "project_n:dummy_lorica", new Vector3(50, 1, 40));
+            var casterCandidate = PNEntitySpawner.Enqueue(scheduler, factory, casterRequest, loader =>
+            {
+                PNEntitySpawner.AssignNew(session, loader, casterRequest);
+                if (loader.GetComponent<PNAbilityManager>() == null) loader.gameObject.AddComponent<PNAbilityManager>();
+                if (loader.GetComponent<PNSummonSkillProbe>() == null) loader.gameObject.AddComponent<PNSummonSkillProbe>();
+            }, failed: error => throw error);
+            Pump(() => casterCandidate.Loader?.IsReady == true);
+            var caster = casterCandidate.Loader.GetComponent<PNStat>(); var probe = casterCandidate.Loader.GetComponent<PNSummonSkillProbe>();
+            PNSummonStatus CastSkill(EveId id)
+            {
+                Check(probe.Begin(id), "the summon skill " + id + " begins");
+                using (var action = probe.CreateAction(id, out var actionContext, Vector3.right))
+                {
+                    action.Start(actionContext); action.Perform(actionContext); action.Exit(actionContext);
+                    probe.End(); return ((PNSummonAction)action).Status;
+                }
+            }
+            void Settle(int expected) => Pump(() => PNSummons.Of(caster.EntityId).Count == expected && PNSummons.Of(caster.EntityId).All(x => x.GetComponent<EveEntityLoader>().IsReady && !x.IsRetiring));
+            Check(CastSkill(PNSummonSkillProbe.Plain) == PNSummonStatus.Spawning, "the summon action starts a spawn");
+            Settle(1);
+            var made1 = PNSummons.Of(caster.EntityId).Single(); var madeRole = made1.GetComponent<PNEntityRole>();
+            Check(made1.Group == "crates" && made1.Summoner == caster.EntityId && ReferenceEquals(made1.OwnerSource.LoadedSource, caster) && madeRole.Entity == "project_n:summon" && !madeRole.Persist && madeRole.Lifetime == 5d,
+                "the summon is the summon role with the caster as owner, the skill group and the skill lifetime");
+            Check(made1.GetComponent<EveEntityIdentity>().World == world && Vector3.Distance(made1.transform.position, caster.transform.position) < .05f, "it appears in the caster's world at the caster's position");
+            Check(made1.GetComponent<PNEntityLifetime>().Armed && Math.Abs(made1.GetComponent<PNEntityLifetime>().Remaining - 5d) < 1e-6, "the lifetime the skill chose arms the entity clock");
+            Check(CastSkill(PNSummonSkillProbe.Plain) == PNSummonStatus.Spawning, "a second cast fills the group"); Settle(2);
+            Check(PNSummons.Count(caster.EntityId, "crates") == 2, "two summons are in the group");
+            var oldestBefore = PNSummons.Oldest(caster.EntityId, "crates"); long oldestSequence = oldestBefore.Sequence;
+            Check(CastSkill(PNSummonSkillProbe.Plain) == PNSummonStatus.Spawning, "a third cast on a full group still spawns (it replaces)");
+            Check(oldestBefore.IsRetiring && PNSummons.Count(caster.EntityId, "crates") == 2, "the oldest summon of the full group is being removed and the new one takes its place at once");
+            Settle(2);
+            Check(PNSummons.Of(caster.EntityId).All(x => x.Sequence > oldestSequence), "the group holds the two newest summons");
+            // Reject policy.
+            Check(CastSkill(PNSummonSkillProbe.Reject) == PNSummonStatus.Spawning, "a limited group accepts its first summon"); Settle(3);
+            Check(CastSkill(PNSummonSkillProbe.Reject) == PNSummonStatus.Rejected && PNSummons.Count(caster.EntityId, "solo") == 1, "whenFull reject refuses the new summon and keeps the old one");
+            // Scale: the caster's summon_scale modifier is captured when the summon is created and given back when it is returned.
+            caster.SetSource(EveId.Parse("test:summon_scale_source"), new[] { new EveStatModifier(PNContentIds.SummonScale, 1d, 1, PNContentIds.Scale) });
+            Check(CastSkill(PNSummonSkillProbe.Free) == PNSummonStatus.Spawning, "an unlimited summon skill spawns"); Settle(4);
+            var scaled = PNSummons.Of(caster.EntityId).Single(x => x.Group == "");
+            Check(Math.Abs(scaled.Scale - 2d) < 1e-9 && Vector3.Distance(scaled.transform.localScale, Vector3.one * 2f) < .01f, "the caster's summon_scale doubles the summon (scale " + scaled.Scale + ")");
+            Check(Vector3.Distance(scaled.transform.position, caster.transform.position + new Vector3(0, 2, 0)) < .05f, "the payload offset places the summon relative to the caster");
+            scaled.Retire(); Pump(() => !scaled.IsActive);
+            Check(Vector3.Distance(scaled.transform.localScale, Vector3.one) < .001f, "a returned summon gives its scale back to the pool");
+            // Queue full.
+            var filler = new List<EveEntityPreparationScheduler.Candidate>();
+            for (int i = 0; i < 64; i++) filler.Add(PNEntitySpawner.TryEnqueue(scheduler, factory, Prop("project_n:prop", position: new Vector3(60 + i % 8, 1, 20 + i / 8)), loader => PNEntitySpawner.AssignNew(session, loader, new PNEntityRequest { Character = "test:crate" }), failed: error => throw error));
+            Check(CastSkill(PNSummonSkillProbe.Free) == PNSummonStatus.QueueFull, "a summon asked while the queue is full reports QueueFull and creates nothing");
+            Pump(() => filler.All(x => x.Loader?.IsReady == true));
+            foreach (var item in filler) scheduler.TryRetirePublished(item.Loader);
+            Pump(() => filler.All(x => x.IsReturned));
+            foreach (var left in PNSummons.All()) left.Retire();
+            Pump(() => PNSummons.LiveCount == 0);
+            Check(PNSummons.LiveCount == 0, "every summon of the skill checks drained");
+            PNEntityHosts.Remove(session); PNSummons.Reset();
 
             // Rejections.
             Reject(() => factory.Get(Prop("project_n:prop", "project_n:dummy")), "an entity whose character names no prefab and has no spawn point is rejected");

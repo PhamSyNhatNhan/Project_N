@@ -224,7 +224,8 @@ namespace ProjectN.Coop
             if(IsPlaying&&peer.Owner>0&&peer.SelectPlayer&&peer.EnrolledRevision!=PlayRevision)
             {peer.EnrolledRevision=PlayRevision;EnrollHost(DefaultPlayerRequest(peer.Owner),conn);}
         }
-        private void EnrollHost(PNEntityRequest request,NetworkConnectionToClient owner)
+        // `configure`, `published` and `failed` are the caller's own steps (a summon's component, its bookkeeping); null for players and authored entities.
+        private EveEntityPreparationScheduler.Candidate EnrollHost(PNEntityRequest request,NetworkConnectionToClient owner,Action<EveEntityLoader> configure=null,Action<EveEntityLoader> published=null,Action<Exception> failed=null)
         {
             if(request.World==null||request.WorldIncarnation!=request.World.Incarnation)throw new InvalidOperationException("Enrollment requires explicit current world membership.");
             var metadata=new PNActorMetadata {World=request.World.InstanceId,WorldIncarnation=request.World.Incarnation,MembershipRevision=1,ContentSlot=request.ContentSlot,SpawnEntry=request.SpawnEntry,Template=request.Template,Position=request.Position,HostSession=EveRegistrySession.Context.SessionId,Owner=request.Owner,Character=request.Character,SceneKey=request.SceneKey,EntityKey=request.EntityKey,Generation=1};
@@ -234,12 +235,15 @@ namespace ProjectN.Coop
             binding.Candidate=PNEntitySpawner.Enqueue(Scheduler,Factory,request,loader=>
             {
                 ConfigureMove(binding,loader);loader.GetComponent<EveEntityIdentity>().Assign(new EveEntityId(metadata.Entity),EveId.Parse(metadata.Character),metadata.Owner,metadata.Generation);
+                configure?.Invoke(loader);
             },loader=>
             {
                 if(stopping||!IsPlaying||fatalSerialization)return;
                 Factory.Published(loader);
                 PublishMove(binding);
-            },error=>FailActor(binding,error),factoryPublished:false);
+                published?.Invoke(loader);
+            },error=>{FailActor(binding,error);failed?.Invoke(error);},factoryPublished:false);
+            return binding.Candidate;
         }
         public void ReceiveActor(PNActorShell shell)
         {

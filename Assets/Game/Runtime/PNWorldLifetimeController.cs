@@ -70,7 +70,7 @@ public sealed partial class PNWorldLifetimeController : IDisposable
     public int PendingCount=>active.Count;
     public PNWorldLifetimeController(EveSessionContext session,PNWorldRuntime worlds,PNEntityFactory factory,EveEntityPreparationScheduler scheduler)
     {this.session=session;this.worlds=worlds;this.factory=factory;this.scheduler=scheduler;states=new PNWorldStateService(session);session.RegisterCleanup(Dispose);}
-    public bool IsEmpty(EveWorldContext world)=>world.ActivityLeaseCount==0&&!scheduler.HasPendingWork(world)&&!session.Entities.Snapshot(world).Any(x=>x.GetComponent<PNPlayerStat>()!=null||PNEntityRoles.IsPlayer(session.Registry,x.GetComponent<PNFactoryEntity>()?.Entity)||x.LoadContext.Identity.OwnerId>0);
+    public bool IsEmpty(EveWorldContext world)=>world.ActivityLeaseCount==0&&!scheduler.HasPendingWork(world)&&!session.Entities.Snapshot(world).Any(x=>PNEntityRoles.IsPlayer(x)||x.LoadContext.Identity.OwnerId>0);
     public PNWorldCheckpoint GetCheckpoint(Guid instance)=>checkpoints.TryGetValue(instance,out var state)?state:null;
     public void Tick()
     {

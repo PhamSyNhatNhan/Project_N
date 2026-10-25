@@ -257,7 +257,7 @@ internal sealed class PNPauseMenu : IDisposable
         foreach(var loader in EveRegistrySession.Context.Entities.Snapshot())
         {
             var identity=loader.GetComponent<EveEntityIdentity>();
-            if(identity==null || identity.OwnerId!=owner.LocalOwnerId || loader.GetComponent<PNPlayerStat>()==null)continue;
+            if(identity==null || identity.OwnerId!=owner.LocalOwnerId || !PNEntityControl.IsDriven(loader))continue;
             var move=loader.GetComponent<PNPlayerMove>();
             if(move!=null && !moves.Contains(move)){moves.Add(move);move.MenuInputBlocked=true;move.SetMoveDirection(Vector2.zero);}
             var skill=loader.GetComponent<PNPlayerSkill>();

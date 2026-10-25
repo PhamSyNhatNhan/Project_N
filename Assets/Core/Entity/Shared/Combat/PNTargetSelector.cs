@@ -37,6 +37,8 @@ public static class PNTargetSelector
     private static readonly PNTargetScore[] rankedScores = new PNTargetScore[MaxSightBudget];
     private static RaycastHit[] sightBuffer = new RaycastHit[16];
 
+    // The one test every Aggro-rule scan uses (this selector, the enemy melee behavior, the agent toolkit): body.aggro = ignored is never chosen.
+    public static bool IsAggroEligible(PNStat stat) => stat != null && stat.AggroMode != PNAggroMode.Ignored;
     // Aggro of an entity (0 when it is not ready or has no aggro base: the stat is not registered in its session).
     public static double AggroOf(PNStat stat)
     {
@@ -71,6 +73,7 @@ public static class PNTargetSelector
             if (((query.LayerMask >> candidate.Layer) & 1) == 0) continue;
             if (exclude != 0 && candidate.EntityId == exclude) continue;
             if (!candidate.Damageable && query.Rule.Kind == PNTargetRuleKind.Autotarget) continue;
+            if (candidate.AggroIgnored && query.Rule.Kind == PNTargetRuleKind.Aggro) continue;
             float dx = candidate.Center.x - origin.x, dy = query.Planar ? 0f : candidate.Center.y - origin.y, dz = candidate.Center.z - origin.z;
             float distance2 = dx * dx + dy * dy + dz * dz;
             if (distance2 > range2) continue;

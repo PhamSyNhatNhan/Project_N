@@ -59,7 +59,7 @@ public static class PNSlashCombatEditorChecks
             var go = new GameObject(name); go.SetActive(false); owned.Add(go); SceneManager.MoveGameObjectToScene(go, preview);
             go.transform.position = position;
             go.AddComponent<EveEntityIdentity>().Assign(new EveEntityId(++id), EveId.Parse(character), 1);
-            var stat = go.AddComponent<T>(); stat.gameObject.layer = stat is PNEnemyStat ? PNLayers.Enemy : stat is PNPlayerStat ? PNLayers.Player : stat.gameObject.layer;
+            var stat = go.AddComponent<T>().Declared(); stat.gameObject.layer = stat is PNEnemyStat ? PNLayers.Enemy : stat is PNPlayerStat ? PNLayers.Player : stat.gameObject.layer;
             if (skill)
             {
                 go.AddComponent<Rigidbody>().useGravity = false;

@@ -78,7 +78,7 @@ public sealed class PNSkillBindingPlayReview:MonoBehaviour
         buffs.Buffs.Remove(buff.Handle);InputSystem.QueueStateEvent(keyboard,new KeyboardState());InputSystem.Update();yield return new WaitForSecondsRealtime(.4f);
         Check(skill.TryAttack()&&!skill.Empowerment.IsActive,"Restored exact Eve attack consumes retained empowerment");yield return new WaitForSecondsRealtime(.6f);
         // Same behavior on a non-Eve player: no Eve runtime object required by the factory.
-        var other=Root(991502,"project_n:dummy");other.AddComponent<PNPlayerStat>();var generic=other.AddComponent<PNPlayerSkill>();other.AddComponent<EveEntityLoader>().Load(hub);other.SetActive(true);yield return null;
+        var other=Root(991502,"project_n:dummy");other.AddComponent<PNPlayerStat>().AsPlayer();var generic=other.AddComponent<PNPlayerSkill>();other.AddComponent<EveEntityLoader>().Load(hub);other.SetActive(true);yield return null;
         var lease=generic.Bindings.AcquireOverride("fixture",new PNSkillOverrideRequest(new[]{new KeyValuePair<EveId,EveId>(PNSkillSlots.Dash,PNSkillBindingFixtureModule.Profile)})).Lease;
         generic.RequestSlot(PNSkillSlots.Dash,new PNSkillInputEvent(PNSkillInputPhase.Started,PNSkillInteraction.Hold));generic.RequestSlot(PNSkillSlots.Dash,new PNSkillInputEvent(PNSkillInputPhase.Performed,PNSkillInteraction.Hold));
         Check(generic.ExecutingProfile==PNSkillBindingFixtureModule.Profile&&generic.Abilities.GetCooldown(PNSkillBindingFixtureModule.Recovery).Current==1,"Independent non-Eve entity runs custom behavior with own recovery");

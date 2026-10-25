@@ -72,7 +72,7 @@ public sealed class PNUIPlayReview : MonoBehaviour
     {
         var obj=Root("UI fixture "+id); obj.transform.position=position;
         obj.AddComponent<EveEntityIdentity>().Assign(new EveEntityId(id),EveId.Parse(player?"project_n:eve":"project_n:dummy"),id);
-        PNStat stat=player?(PNStat)obj.AddComponent<PNPlayerStat>():obj.AddComponent<PNEnemyStat>();
+        PNStat stat=player?(PNStat)obj.AddComponent<PNPlayerStat>().AsPlayer():obj.AddComponent<PNEnemyStat>();
         if(player) obj.AddComponent<PNAbilityManager>();
         obj.AddComponent<EveEntityLoader>().Load(EveRegistrySession.Current); obj.SetActive(true);
         var marker=GameObject.CreatePrimitive(PrimitiveType.Capsule); marker.name="Disposable entity marker";

@@ -4,6 +4,7 @@ using Newtonsoft.Json.Linq;
 
 public enum PNDamageMode { Normal, Hits }
 public enum PNHealthBarMode { Auto, Hidden }
+public enum PNAggroMode { Normal, Ignored }
 
 // EN: The `body` block of a character's game-owned data (Docs/EntitySpawnPlan.md section 3.3): what the thing physically is when spawned.
 //     Fields (all optional, unknown fields rejected):
@@ -11,27 +12,31 @@ public enum PNHealthBarMode { Auto, Hidden }
 //       damageMode: "normal" (default) | "hits" (every damaging hit outside iframe removes exactly 1 of the declared maximum Health; needs Health, an integer
 //                   maximum >= 1 and no Lorica).
 //       healthBar: "auto" (default, shown when the entity has Health) | "hidden".
+//       aggro: "normal" (default) | "ignored" (the enemy Aggro rule never chooses this entity; the aggro stat stays a plain weight, so a no-Health
+//              taunt stone with a high aggro stat still draws enemies).
 //       loot: id of a loot table. Read and checked only; nothing consumes it yet.
 //     Absent block = every default. Damageable <=> the character declares a project_n:health stat.
 // VI: Khối `body` trong dữ liệu character: thứ đó là gì khi được sinh. Có Health <=> nhận sát thương được. `loot` chưa có nơi dùng.
 public sealed class PNBodySettings
 {
     public const int MaxPrefabLength = 128;
-    public static readonly PNBodySettings Default = new PNBodySettings("", PNDamageMode.Normal, PNHealthBarMode.Auto, null);
+    public static readonly PNBodySettings Default = new PNBodySettings("", PNDamageMode.Normal, PNHealthBarMode.Auto, null, PNAggroMode.Normal);
     // Catalog key as authored (may be empty); NormalizeKey gives the namespaced form.
     public string Prefab { get; }
     public PNDamageMode DamageMode { get; }
     public PNHealthBarMode HealthBar { get; }
     public EveId? Loot { get; }
+    public PNAggroMode Aggro { get; }
 
-    public PNBodySettings(string prefab, PNDamageMode damageMode, PNHealthBarMode healthBar, EveId? loot)
+    public PNBodySettings(string prefab, PNDamageMode damageMode, PNHealthBarMode healthBar, EveId? loot, PNAggroMode aggro = PNAggroMode.Normal)
     {
         prefab = prefab ?? "";
         if (prefab.Length > 0) ValidateKey(prefab, "body prefab");
         if (!Enum.IsDefined(typeof(PNDamageMode), damageMode)) throw new FormatException("body damageMode is unknown.");
         if (!Enum.IsDefined(typeof(PNHealthBarMode), healthBar)) throw new FormatException("body healthBar is unknown.");
         if (loot.HasValue && !loot.Value.IsValid) throw new FormatException("body loot needs a valid id.");
-        Prefab = prefab; DamageMode = damageMode; HealthBar = healthBar; Loot = loot;
+        if (!Enum.IsDefined(typeof(PNAggroMode), aggro)) throw new FormatException("body aggro is unknown.");
+        Prefab = prefab; DamageMode = damageMode; HealthBar = healthBar; Loot = loot; Aggro = aggro;
     }
 
     // Catalog keys are [a-z0-9_] with at most one "namespace:" prefix; an old key without a namespace belongs to project_n.
@@ -60,7 +65,7 @@ public sealed class PNBodySettings
         var token = root["body"];
         if (token == null) return Default;
         var obj = PNBuffContentBatch.Object(token);
-        PNBuffContentBatch.Fields(obj, "prefab", "damageMode", "healthBar", "loot");
+        PNBuffContentBatch.Fields(obj, "prefab", "damageMode", "healthBar", "aggro", "loot");
         var mode = PNDamageMode.Normal;
         if (obj["damageMode"] != null)
             switch (PNBuffContentBatch.String(obj, "damageMode"))
@@ -77,13 +82,21 @@ public sealed class PNBodySettings
                 case "hidden": bar = PNHealthBarMode.Hidden; break;
                 default: throw new FormatException("body healthBar must be auto or hidden.");
             }
+        var aggro = PNAggroMode.Normal;
+        if (obj["aggro"] != null)
+            switch (PNBuffContentBatch.String(obj, "aggro"))
+            {
+                case "normal": break;
+                case "ignored": aggro = PNAggroMode.Ignored; break;
+                default: throw new FormatException("body aggro must be normal or ignored.");
+            }
         EveId? loot = null;
         if (obj["loot"] != null)
         {
             if (!EveId.TryParse(PNBuffContentBatch.String(obj, "loot"), out var id)) throw new FormatException("body loot must be a namespaced id.");
             loot = id;
         }
-        return new PNBodySettings(PNBuffContentBatch.OptionalString(obj, "prefab"), mode, bar, loot);
+        return new PNBodySettings(PNBuffContentBatch.OptionalString(obj, "prefab"), mode, bar, loot, aggro);
     }
 
     // Whole check for one character: block fields plus the rules that need its stats and its playable block.

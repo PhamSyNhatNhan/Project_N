@@ -56,6 +56,8 @@ public sealed class PNMenuPlayReview : MonoBehaviour
     private IEnumerator Start()
     {
         string kind = Arg("-pn-menu-play-review="); output = Arg("-pn-menu-play-output=") ?? "MenuPlay_" + kind; Directory.CreateDirectory(output);
+        // -pn-menu-play-character=<id>: start the run as that character (it becomes the profile's last pick before the character screen opens).
+        if (!string.IsNullOrEmpty(Arg("-pn-menu-play-character="))) PNPlayerProfileService.SetLastCharacter(Arg("-pn-menu-play-character="));
         Application.logMessageReceived += OnLog;
         Exception failure = null;
         yield return Run(kind, e => failure = e);
@@ -120,7 +122,8 @@ public sealed class PNMenuPlayReview : MonoBehaviour
         {
             yield return Until("run started (phase Run, session ready)", () => PNGameFlow.Phase == PNFlowPhase.Run && EveRegistrySession.IsReady && !PNGameFlow.Busy, 60, Fail); if (failed) yield break;
             yield return Seconds(3f); yield return Shot("run");
-            Log("run: role=" + EveRegistrySession.Context.Role + " timeScale=" + Time.timeScale + " players=" + EveRegistrySession.Context.Entities.Snapshot().Count(x => x.GetComponent<PNPlayerStat>() != null));
+            Log("run: role=" + EveRegistrySession.Context.Role + " timeScale=" + Time.timeScale + " players=" + EveRegistrySession.Context.Entities.Snapshot().Count(x => PNEntityRoles.IsPlayer(x)));
+            if (Arg("-pn-menu-play-pet") != null) yield return PetCase(Fail, () => failed);
             yield break;
         }
         yield return Until("lobby (room open, session ready)", () => PNGameFlow.Phase == PNFlowPhase.Lobby && EveRegistrySession.IsReady && PNGameBootstrap.LobbyDriver?.Lobby != null && !PNGameFlow.Busy, 60, Fail); if (failed) yield break;
@@ -133,7 +136,7 @@ public sealed class PNMenuPlayReview : MonoBehaviour
         if (!string.IsNullOrEmpty(pick))
         {
             long me = kind == "host" ? 0 : EveRegistrySession.Context.LocalOwnerId.GetValueOrDefault(-1);
-            Func<System.Collections.Generic.List<EveEntityLoader>> mine = () => EveRegistrySession.Context.Entities.Snapshot().Where(x => x.GetComponent<PNPlayerStat>() != null && x.GetComponent<EveEntityIdentity>().OwnerId == me && x.gameObject.activeInHierarchy).ToList();
+            Func<System.Collections.Generic.List<EveEntityLoader>> mine = () => EveRegistrySession.Context.Entities.Snapshot().Where(x => PNEntityRoles.IsPlayer(x) && x.GetComponent<EveEntityIdentity>().OwnerId == me && x.gameObject.activeInHierarchy).ToList();
             yield return Until("own player actor present", () => mine().Count == 1, 30, Fail); if (failed) yield break;
             Vector3 before = mine()[0].transform.position; string was = mine()[0].GetComponent<PNStat>().CharacterDefinitionId;
             Log("pick: before=" + was + " at " + before.ToString("F2"));
@@ -151,22 +154,102 @@ public sealed class PNMenuPlayReview : MonoBehaviour
             {
                 yield return Until("a peer joined with its character", () => driver.Lobby.Peers.Count(p => !p.Host && !string.IsNullOrEmpty(p.Character)) >= want, 120, Fail); if (failed) yield break;
                 Log("peers: " + string.Join(", ", driver.Lobby.Peers.Select(p => p.Label + " [" + p.Character + "] ready=" + p.Ready)));
+                // -pn-menu-play-pet in a coop room: the host calls the pet while both peers are in the lobby world and the client watches the replica (see PetWatch).
+                if (Arg("-pn-menu-play-pet") != null) { yield return Seconds(2f); yield return PetCase(Fail, () => failed); yield return Seconds(4f); yield break; }
                 yield return Until("everyone ready", () => driver.Lobby.AllReady, 60, Fail); if (failed) yield break;
                 PNGameFlow.StartRun();
                 yield return Until("run started", () => PNGameFlow.Phase == PNFlowPhase.Run && EveRegistrySession.IsReady && !PNGameFlow.Busy, 60, Fail); if (failed) yield break;
                 float seen = Time.realtimeSinceStartup;
-                while (Time.realtimeSinceStartup - seen < 10f && EveRegistrySession.Context.Entities.Snapshot().Count(x => x.GetComponent<PNPlayerStat>() != null) < 2) yield return null;
+                while (Time.realtimeSinceStartup - seen < 10f && EveRegistrySession.Context.Entities.Snapshot().Count(x => PNEntityRoles.IsPlayer(x)) < 2) yield return null;
                 yield return Seconds(1f); yield return Shot("run");
-                Log("run (host): players=" + EveRegistrySession.Context.Entities.Snapshot().Count(x => x.GetComponent<PNPlayerStat>() != null));
+                Log("run (host): players=" + EveRegistrySession.Context.Entities.Snapshot().Count(x => PNEntityRoles.IsPlayer(x)));
                 yield return Seconds(6f);
             }
             else yield return Seconds(3f);
             yield break;
         }
         // join: say ready, then wait for the host to start the run
+        if (Arg("-pn-menu-play-pet") != null) { yield return PetWatch(); yield break; }
         driver.SetReady(true); yield return Seconds(1f); yield return Shot("ready");
         yield return Until("run started (client)", () => PNGameFlow.Phase == PNFlowPhase.Run && EveRegistrySession.IsReady && !PNGameFlow.Busy, 120, Fail); if (failed) yield break;
         yield return Seconds(8f); yield return Shot("run");
-        Log("run (client): players=" + EveRegistrySession.Context.Entities.Snapshot().Count(x => x.GetComponent<PNPlayerStat>() != null));
+        Log("run (client): players=" + EveRegistrySession.Context.Entities.Snapshot().Count(x => PNEntityRoles.IsPlayer(x)));
+    }
+
+    // -pn-menu-play-pet (solo, started as Eve 2): the Skill slot calls the pet through the real binding. The cooldown (8 s) refuses a second press, the pet hovers near
+    // the player, lives 7 s and then goes away, and the slot works again once the cooldown is over.
+    private IEnumerator PetCase(Action<Exception> fail, Func<bool> hasFailed)
+    {
+        var loader = EveRegistrySession.Context.Entities.Snapshot().FirstOrDefault(x => PNEntityRoles.IsPlayer(x) && x.gameObject.activeInHierarchy && x.GetComponent<EveEntityIdentity>().OwnerId == 0);
+        if (loader == null) { fail(new Exception("pet: no player")); yield break; }
+        var stat = loader.GetComponent<PNStat>(); var skill = loader.GetComponent<PNPlayerSkill>();
+        Log("pet: player " + stat.CharacterDefinitionId + ", skill " + skill.GetType().Name + ", bindings " + (skill.Bindings != null) + ", ability ready " + skill.Abilities.GetCooldown(PNSummonGameplayContent.Eve2PetReady).CanConsume());
+        var press = new PNSkillInputEvent(PNSkillInputPhase.Started, PNSkillInteraction.Tap);
+        Func<System.Collections.Generic.IReadOnlyList<PNSummon>> pets = () => PNSummons.Of(stat.EntityId);
+        bool sent = skill.RequestSlot(PNSkillSlots.Skill, press);
+        Log("pet: press dispatched=" + sent);
+        yield return Until("a pet appears", () => pets().Count == 1 && pets()[0].GetComponent<EveEntityLoader>().IsReady, 10, fail); if (hasFailed()) yield break;
+        var pet = pets()[0]; float born = Time.realtimeSinceStartup;
+        Log("pet: summoned group=" + pet.Group + " owner=" + (pet.Summoner == stat.EntityId) + " at " + pet.transform.position.ToString("F2") + " player at " + loader.transform.position.ToString("F2") + " scale " + pet.transform.localScale.ToString("F2"));
+        var sprite = pet.GetComponentInChildren<SpriteRenderer>();
+        Log("pet: sprite " + (sprite != null && sprite.enabled && sprite.sprite != null) + " collider " + (pet.GetComponentInChildren<Collider>() != null) + " shots " + pet.GetComponent<PNPetShooterBehavior>().Shots);
+        yield return Seconds(2f); yield return Shot("pet");
+        var spot = loader.transform.position + new Vector3(.9f, .8f, -.8f);
+        Log("pet: after 2 s it is " + Vector3.Distance(pet.transform.position, spot).ToString("F2") + " m from its hover spot");
+        // Smoothness: walk the player for 2 s and record the pet's rendered position every frame (velocity-driven, interpolated Rigidbody).
+        var mover = loader.GetComponent<PNMove>(); var petBody = pet.GetComponent<Rigidbody>();
+        Log("pet: rigidbody " + (petBody != null) + " interpolation " + petBody?.interpolation + " gravity " + petBody?.useGravity);
+        if (mover != null)
+        {
+            var speeds = new System.Collections.Generic.List<float>(); var playerSpeeds = new System.Collections.Generic.List<float>(); var relX = new System.Collections.Generic.List<float>(); var last = pet.transform.position; var playerLast = loader.transform.position; float t0 = Time.realtimeSinceStartup;
+            // The review sets the move direction every frame (+X), the way held input would.
+            while (Time.realtimeSinceStartup - t0 < 2f && pets().Count == 1) { mover.SetMoveDirection(new Vector2(1f, 0f)); yield return null; var now = pet.transform.position; speeds.Add((now - last).magnitude / Mathf.Max(Time.deltaTime, 1e-4f)); last = now; var pnow = loader.transform.position; playerSpeeds.Add((pnow - playerLast).magnitude / Mathf.Max(Time.deltaTime, 1e-4f)); playerLast = pnow; relX.Add(now.x - pnow.x); }
+            mover.SetMoveDirection(Vector2.zero);
+            if (speeds.Count > 20)
+            {
+                var steady = speeds.Skip(speeds.Count / 2).ToList(); float jerk = 0f, playerJerk = 0f; var ps = playerSpeeds.Skip(playerSpeeds.Count / 2).ToList();
+                for (int i = 1; i < steady.Count; i++) jerk = Mathf.Max(jerk, Mathf.Abs(steady[i] - steady[i - 1]));
+                for (int i = 1; i < ps.Count; i++) playerJerk = Mathf.Max(playerJerk, Mathf.Abs(ps[i] - ps[i - 1]));
+                // Relative lag (pet minus player along X) in the steady half: a smooth follower keeps it near v / followRate and moves it by tiny steps from frame to frame.
+                var rel = relX.Skip(relX.Count / 2).ToList(); float relStep = 0f;
+                for (int i = 1; i < rel.Count; i++) relStep = Mathf.Max(relStep, Mathf.Abs(rel[i] - rel[i - 1]));
+                Log("pet: lag behind the player (x) min " + rel.Min().ToString("F3") + " max " + rel.Max().ToString("F3") + " m, largest frame-to-frame change " + relStep.ToString("F4") + " m");
+                Log("pet: reference, the player's own steady speed min " + ps.Min().ToString("F2") + " max " + ps.Max().ToString("F2") + ", largest frame-to-frame change " + playerJerk.ToString("F2") + " m/s");
+                Log("pet: walking 2 s, " + speeds.Count + " frames, steady speed min " + steady.Min().ToString("F2") + " max " + steady.Max().ToString("F2") + " mean " + steady.Average().ToString("F2") + " m/s, largest frame-to-frame change " + jerk.ToString("F2") + " m/s; player now " + loader.transform.position.ToString("F2"));
+            }
+            else Log("pet: walking measurement skipped, frames " + speeds.Count);
+        }
+        int refusalsBefore = PNSummonCastBehavior.Refusals;
+        skill.RequestSlot(PNSkillSlots.Skill, press); yield return Seconds(.3f);
+        Log("pet: second press during the cooldown: pets=" + pets().Count + " refusals +" + (PNSummonCastBehavior.Refusals - refusalsBefore) + " ready=" + skill.Abilities.GetCooldown(PNSummonGameplayContent.Eve2PetReady).CanConsume());
+        yield return Until("the pet goes away after its 7 s", () => pets().Count == 0, 9, fail); if (hasFailed()) yield break;
+        Log("pet: gone after " + (Time.realtimeSinceStartup - born).ToString("F1") + " s; summons left " + PNSummons.LiveCount);
+        yield return Until("the Skill slot is ready again", () => skill.Abilities.GetCooldown(PNSummonGameplayContent.Eve2PetReady).CanConsume(), 12, fail); if (hasFailed()) yield break;
+        float ready = Time.realtimeSinceStartup;
+        skill.RequestSlot(PNSkillSlots.Skill, press);
+        yield return Until("a second pet appears after the cooldown", () => pets().Count == 1 && pets()[0].GetComponent<EveEntityLoader>().IsReady, 10, fail); if (hasFailed()) yield break;
+        Log("pet: second pet summoned " + (Time.realtimeSinceStartup - born).ToString("F1") + " s after the first (cooldown 8 s)");
+        yield return Until("the second pet goes away", () => pets().Count == 0, 9, fail);
+    }
+
+    // -pn-menu-play-pet on a client: watches the entities of the summon role for up to 40 s and says when one appears, where it is and when it goes away.
+    private IEnumerator PetWatch()
+    {
+        Func<System.Collections.Generic.List<EveEntityLoader>> summons = () => EveRegistrySession.Context.Entities.Snapshot().Where(x => x.GetComponent<PNEntityRole>()?.Entity == "project_n:summon" && x.gameObject.activeInHierarchy).ToList();
+        float start = Time.realtimeSinceStartup, appeared = -1f, gone = -1f; bool shot = false;
+        while (Time.realtimeSinceStartup - start < 40f && gone < 0f)
+        {
+            var now = summons();
+            if (now.Count > 0 && appeared < 0f)
+            {
+                appeared = Time.realtimeSinceStartup;
+                var one = now[0]; var sprite = one.GetComponentInChildren<SpriteRenderer>();
+                Log("client pet: appeared after " + (appeared - start).ToString("F1") + " s: " + one.GetComponent<PNStat>().CharacterDefinitionId + " at " + one.transform.position.ToString("F2") + " sprite " + (sprite != null && sprite.enabled && sprite.sprite != null) + " owner " + one.GetComponent<EveEntityIdentity>().OwnerId + " summon component " + (one.GetComponent<PNSummon>() != null));
+            }
+            else if (appeared > 0f && !shot && Time.realtimeSinceStartup - appeared > 1.5f) { shot = true; yield return Shot("client_pet"); }
+            if (appeared > 0f && now.Count == 0) gone = Time.realtimeSinceStartup;
+            yield return null;
+        }
+        Log(appeared < 0f ? "client pet: never appeared" : gone < 0f ? "client pet: never went away" : "client pet: went away after living " + (gone - appeared).ToString("F1") + " s; summon entities left " + summons().Count);
     }
 }

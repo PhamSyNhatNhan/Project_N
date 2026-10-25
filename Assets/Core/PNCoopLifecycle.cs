@@ -18,6 +18,8 @@ public sealed class PNEntityRequest
     public string Template;
     // Seconds of entity time before the entity is removed; overrides the role's lifetime (null = the role's).
     public double? Lifetime;
+    // The entity that summoned this one (Docs/SummonPlan.md); invalid for anything that is not a summon. Host side only: it does not go on the wire.
+    public EveEntityId Summoner;
 }
 public interface IPNEntityFactory : IDisposable
 {

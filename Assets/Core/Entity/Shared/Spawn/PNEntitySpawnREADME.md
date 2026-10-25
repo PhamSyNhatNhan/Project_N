@@ -14,7 +14,7 @@ VI: Mọi thứ sinh ra như một nhân vật (người chơi, quái, NPC, tri�
 |---|---|---|
 | `PNEntityDefinition` | Core | Kind `entity`. `Settings` (`PNEntitySettings`) from the payload; `ImplementationType` is a recipe class (`IPNEntityRecipe`), not a component; `Recipe` is its one shared instance and `IsPlayer` comes from it. |
 | `PNEntitySettings` | Core | Payload `data`. Required: `owner` (`peer`/`host`), `persist`, `followsOwner`, `lifetime` (seconds > 0 or `null`), `countsForClear`, `dropsLoot`. Optional: `prefab` (catalog key overriding the character's), `spawnBuffs` (up to 16 Buff ids). Unknown fields are rejected. |
-| `PNBodySettings` | Core | The `body` block of a character: `prefab`, `damageMode` (`normal`/`hits`), `healthBar` (`auto`/`hidden`), `loot` (id; no consumer yet). `Read(character)` also checks the rules that need stats. |
+| `PNBodySettings` | Core | The `body` block of a character: `prefab`, `damageMode` (`normal`/`hits`), `healthBar` (`auto`/`hidden`), `aggro` (`normal`/`ignored`: the enemy Aggro rule never chooses it), `loot` (id; no consumer yet). `Read(character)` also checks the rules that need stats. |
 | `PNEntityRecipe`, `PNPlayerEntityRecipe`, `PNHostEntityRecipe` | Game | What the factory runs while the object is inactive (`Configure`: input owners, ground binding) and after publication (`Published`: local-player binding). |
 | `PNEntityGameplayContent` | Game | The built-in roles: `project_n:player` (alias `base:scene_spawn`, the old template name), `enemy`, `npc`, `summon`, `prop` (aliases `base:<name>`). |
 | `PNEntityFactory` | Game | `Get` / `Configure` / `Published` / `Return`, pools per (world, prefab), spawn point cache per (world, slot), `ResolvePrefab`, `Scheduler`. |
@@ -28,6 +28,7 @@ VI: Mọi thứ sinh ra như một nhân vật (người chơi, quái, NPC, tri�
 | Flag | Effect today |
 |---|---|
 | recipe `IsPlayer` | The one place that says a role is a player (`PNPlayerEntityRecipe`): placed at a spawn point, gets input and ground binding, local-player binding on its machine, treated as a player by the coop layer (`PNEntityRoles.IsPlayer`). A recipe keeps no state; the definition is registered with a factory (`new PNEntityDefinition(id, typeof(MyRecipe), () => new MyRecipe(), data)`), never created by reflection (IL2CPP stripping). |
+| identity vs control | Two separate questions. **Identity** ("is a player"): `PNEntityRoles.IsPlayer(entity)` reads `PNEntityRole.IsPlayer`, applied from the recipe when the factory builds the object (an authored scene entity has no role, so it is not a player; a fixture that stands for a player calls `PNEntityRole.Declare` / the test helper `AsPlayer`). **Control** ("a human's input drives it"): `PNEntityControl.IsDriven(entity)`; today it answers from the role, but callers must ask it, so a later pet or switchable second form changes only that body. The stat class decides neither: a summon, NPC or prop uses `PNStat` (or `PNEnemyStat`), never `PNPlayerStat`, whose only content is three defaults (iframe 1 s, target layer Enemy, no popup). Where the driver sits is `PNTargetRules.IsLocal`. |
 | `owner` | `peer` / `host` = who controls the entity. **No effect yet**, and independent of `IsPlayer` (a later peer-controlled pet would be `peer` without being a player). Control today is the identity's `OwnerId` set at spawn. |
 | `persist` | `false` = left out of a world checkpoint (summon). |
 | `lifetime` / request `Lifetime` | Removed through `scheduler.RetirePublished` after that many seconds of entity time (authority only). |
@@ -51,7 +52,8 @@ VI: Mọi thứ sinh ra như một nhân vật (người chơi, quái, NPC, tri�
   `Ignored == true` (no iframe, popup or event), `ReceiveHeal` returns `PNHealStatus.NoHealth`, the Autotarget rule skips it (the enemy Aggro rule still sees it).
 - `damageMode: "hits"`: N = the declared maximum Health (an integer >= 1; no Lorica). A damaging hit outside iframe removes exactly 1 whatever its amount,
   DEF or critical; a hit inside iframe removes 0; damage over time and area ticks count; healing returns `Blocked`.
-- `healthBar: "hidden"` hides the world health bar.
+- `healthBar: "hidden"` hides the world health bar. Any `PNStat` with Health (a summon, an NPC, a prop) gets a world bar, not only players and enemies.
+- `aggro: "ignored"` takes the entity out of the enemy Aggro rule; the aggro stat itself stays a plain weight (a no-Health taunt stone still draws enemies).
 
 ## Spawning an entity at runtime (host or offline)
 
@@ -70,5 +72,5 @@ it is derived from the role's recipe (`PNEntityRoles.IsPlayer`).
 
 ## Not done
 
-Summon (`PNSummon`, owner relation), real enemies spawned at runtime from the roguelite loop, loot, floor clear, the work/tool system (DST/Terraria style),
+Summon is done (`Assets/Core/Entity/Shared/Summon/PNSummonREADME.md`; the `Summoner` request field, `IPNEntityHost`, `TryEnqueue`). Not done: real enemies spawned at runtime from the roguelite loop, loot, floor clear, the work/tool system (DST/Terraria style),
 Settings option for health numbers on the bar, coop with a mod prefab on two machines.

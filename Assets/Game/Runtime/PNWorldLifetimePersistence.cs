@@ -38,7 +38,7 @@ public sealed partial class PNWorldLifetimeController
     public PNWorldLifetimeOperation CaptureSnapshot(EveWorldContext world)=>CaptureSnapshot(world,false);
     internal PNWorldLifetimeOperation CaptureSnapshot(EveWorldContext world,bool keepPaused)
     {
-        Require(world);if(!IsEmpty(world))throw new InvalidOperationException("Portable capture requires an empty world without pending activity.");
+        Require(world);if(!IsEmpty(world))throw new InvalidOperationException("Portable capture requires an empty world without pending activity (leases="+world.ActivityLeaseCount+", pending="+scheduler.HasPendingWork(world)+", occupants="+string.Join(",",session.Entities.Snapshot(world).Where(x=>PNEntityRoles.IsPlayer(x)||x.LoadContext.Identity.OwnerId>0).Select(x=>x.name+"/owner"+x.LoadContext.Identity.OwnerId+"/player"+PNEntityRoles.IsPlayer(x)))+").");
         string descriptor=worlds.CaptureLoadDescriptor(world).ToString(Formatting.None);
         var actors=session.Entities.Snapshot(world).ToArray();var references=actors.ToDictionary(Key,x=>x);
         var work=New(world,PNWorldLifetimeState.Capturing);work.WasPaused=world.State==EveWorldState.Paused;work.SnapshotOnly=true;work.KeepPaused=keepPaused;work.Portable=true;work.Descriptor=descriptor;

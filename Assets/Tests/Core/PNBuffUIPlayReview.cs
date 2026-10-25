@@ -45,7 +45,7 @@ public sealed class PNBuffUIPlayReview : MonoBehaviour
     {
         var root=Root("Buff UI fixture "+id);root.transform.position=position;
         root.AddComponent<EveEntityIdentity>().Assign(new EveEntityId(id),EveId.Parse(player?"project_n:eve":"project_n:dummy"),id);
-        root.AddComponent<EveTimeScale>();PNStat stat=player?(PNStat)root.AddComponent<PNPlayerStat>():root.AddComponent<PNEnemyStat>();
+        root.AddComponent<EveTimeScale>();PNStat stat=player?(PNStat)root.AddComponent<PNPlayerStat>().AsPlayer():root.AddComponent<PNEnemyStat>();
         if(player)root.AddComponent<PNAbilityManager>();root.AddComponent<EveEntityLoader>().Load(EveRegistrySession.Current);root.SetActive(true);
         return stat;
     }

@@ -271,7 +271,7 @@ public sealed class PNGameFlow : MonoBehaviour
             try
             {
                 var from = PNLocalWorldContext.Current.World;
-                var players = game.Session.Entities.Snapshot(from).Where(x => x.IsReady && x.GetComponent<PNPlayerStat>() != null).ToArray();
+                var players = game.Session.Entities.Snapshot(from).Where(x => x.IsReady && PNEntityRoles.IsPlayer(x)).ToArray();
                 if (players.Length == 0) throw new InvalidOperationException("Không có người chơi nào trong sảnh.");
                 // A scene world names its slots "chunk-N"; pick the slot that carries the "player" spawn point instead of assuming a name.
                 var slot = game.Worlds.Get(run).Slots.FirstOrDefault(x => x.Roots.Any(r => r != null && r.GetComponentsInChildren<PNPlayerSpawnPoint>(true).Any(p => p.SpawnEntry == "player")));

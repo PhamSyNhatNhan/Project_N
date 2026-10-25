@@ -8,6 +8,7 @@ public static class PNProjectileGameplayContent
     public static readonly EveId Directional = EveId.Parse("project_n:directional");
     public static readonly EveId Homing = EveId.Parse("project_n:homing");
     public static readonly EveId EveSkillHoming = EveId.Parse("project_n:eve_skill_homing");
+    public static readonly EveId Eve2PetShot = EveId.Parse("project_n:eve2_pet_shot");
     public static readonly EveId CreateProjectile = EveId.Parse("project_n:create_projectile");
     public static readonly EveId ProjectileAction = EveId.Parse("project_n:projectile_action");
     public static void Register(EveRegistryHub hub)
@@ -27,6 +28,9 @@ public static class PNProjectileGameplayContent
         projectiles.Register(new PNProjectileDefinition(EveSkillHoming, typeof(PNTrailHomingProjectile), eve, PNHomingSettings.ValidateDefinition, PNDirectionalSettings.ValidateInput));
         projectiles.RegisterBase<PNProjectileDefinition>(EveId.Parse("base:eve_skill_homing"), EveSkillHoming, "project_n",
             compatible: (original, replacement) => original.ImplementationType.IsAssignableFrom(replacement.ImplementationType));
+        // Eve 2's pet shot (placeholder tuning): Eve's volley projectile at 75% of its speed (7 -> 5.25) and size (0.175 -> 0.13125).
+        var pet = (JObject)eve.DeepClone(); pet["speed"] = 5.25; pet["volume"] = JObject.Parse("{'size':[0.13125,0.13125,0.13125]}");
+        projectiles.Register(new PNProjectileDefinition(Eve2PetShot, typeof(PNTrailHomingProjectile), pet, PNHomingSettings.ValidateDefinition, PNDirectionalSettings.ValidateInput));
         hub.Operations().Register(new PNSkillOperationDefinition(CreateProjectile, typeof(PNCreateProjectileOperation), PNCreateProjectileOperation.Validate, PNSkillContextRequirements.Direction,
             (payload, context) => context.Require<PNProjectileDefinition>(payload["projectileId"], "projectileId")));
 #if UNITY_5_3_OR_NEWER

@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "characters": [
+    {
+      "id": "project_n:eve2_pet",
+      "portraitPath": "",
+      "data": {
+        "body": {
+          "prefab": "eve2_pet",
+          "aggro": "ignored",
+          "healthBar": "hidden"
+        },
+        "pet": {
+          "interval": 1.5,
+          "aimStop": 0.3,
+          "searchRadius": 1.5,
+          "followRate": 6,
+          "offset": [0.9, 0.8, -0.8],
+          "projectileId": "project_n:eve2_pet_shot",
+          "damage": {
+            "amount": 10,
+            "canCrit": true,
+            "tags": [ "base:magic" ]
+          }
+        }
+      },
+      "stats": [
+        { "statId": "base:attack_power", "base": 1 }
+      ],
+      "skill": []
+    }
+  ]
+}

@@ -45,6 +45,7 @@ public sealed class PNGameSession : MonoBehaviour
         service.Worlds.BeforeUnload=world=>{runtime.GetComponent<PNAreaManager>()?.ReleaseWorld(world);runtime.GetComponent<PNProjectileManager>()?.ReleaseWorld(world);};
         service.Factory=new PNEntityFactory(session,service.Worlds){Scheduler=service.Scheduler};
         session.RegisterCleanup(service.Factory.Dispose,afterEntities:true);
+        PNEntityHosts.Set(session,new PNLocalEntityHost(session,service.Factory,service.Scheduler));session.RegisterCleanup(()=>{PNEntityHosts.Remove(session);PNSummons.Reset();});
         service.Transfers=new PNWorldTransitionCoordinator(session,service.Worlds,(PNEntityFactory)service.Factory,service.Scheduler);
         physics.BeforeSimulation+=service.Transfers.FixedBoundary;
         service.Lifetimes=new PNWorldLifetimeController(session,service.Worlds,(PNEntityFactory)service.Factory,service.Scheduler);

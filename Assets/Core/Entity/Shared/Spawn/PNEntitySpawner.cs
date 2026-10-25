@@ -9,6 +9,10 @@ public static class PNEntityRoles
     // A role whose recipe is the player's. An empty id (an authored scene entity) has no role.
     public static bool IsPlayer(EveRegistryHub registry, string entity)
         => !string.IsNullOrEmpty(entity) && registry.Instances().GetEffectiveKind<PNEntityDefinition>(EveId.Parse(entity)).IsPlayer;
+
+    // The same question for an entity that exists: its role was applied when it was built (an authored scene entity has no role and is not a player).
+    // The stat class says nothing about it; a summon, NPC or prop may use any stat.
+    public static bool IsPlayer(UnityEngine.Component entity) => entity != null && entity.GetComponent<PNEntityRole>()?.IsPlayer == true;
 }
 
 // EN: The one way to start spawning an entity: Get -> Configure -> (prepare, commit) -> Published through the preparation scheduler, bound to its
@@ -39,6 +43,16 @@ public static class PNEntitySpawner
             failed, beforePublish, preparePublication, canBegin);
         if (request.World != null) scheduler.AssociateWorld(candidate, request.World);
         return candidate;
+    }
+
+    // Enqueue that answers null instead of throwing when the preparation queue is full or closed, for spawns that may be refused (summons).
+    public static EveEntityPreparationScheduler.Candidate TryEnqueue(EveEntityPreparationScheduler scheduler, IPNEntityFactory factory, PNEntityRequest request,
+        Action<EveEntityLoader> configure = null, Action<EveEntityLoader> published = null, Action<Exception> failed = null, Action<EveEntityLoader> beforePublish = null,
+        Func<EveEntityLoader, bool> preparePublication = null, Func<bool> canBegin = null, bool factoryPublished = true)
+    {
+        if (scheduler == null) throw new ArgumentNullException(nameof(scheduler));
+        if (!scheduler.HasPendingCapacity) return null;
+        return Enqueue(scheduler, factory, request, configure, published, failed, beforePublish, preparePublication, canBegin, factoryPublished);
     }
 }
 #endif

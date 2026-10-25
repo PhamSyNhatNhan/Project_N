@@ -68,7 +68,7 @@ public static class PNEnemyTypeEditorChecks
             check(rejected && !bad.IsReady, "Invalid classification cannot initialize native stats");
             var playerRoot = new GameObject("Player parity probe"); playerRoot.SetActive(false); SceneManager.MoveGameObjectToScene(playerRoot, preview);
             playerRoot.AddComponent<EveEntityIdentity>().Assign(new EveEntityId(97210), EveId.Parse("test:old"), 0);
-            var player = playerRoot.AddComponent<PNPlayerStat>(); playerRoot.AddComponent<EveEntityLoader>().Load(hub);
+            var player = playerRoot.AddComponent<PNPlayerStat>().AsPlayer(); playerRoot.AddComponent<EveEntityLoader>().Load(hub);
             check(player.TargetLayers.Mask == PNLayers.Bit(PNLayers.Enemy) && player.GetCurrent(PNContentIds.Health) == 100d, "Player stat loading unchanged");
             bad.Initialize(new PNStatSet(hub));
             check(bad.EnemyTypeId == PNContentIds.NormalEnemy, "Direct stat-set initialization defaults to registered Normal");

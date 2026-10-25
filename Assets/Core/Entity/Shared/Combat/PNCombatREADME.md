@@ -246,6 +246,11 @@ refresh, 0.1 s, and on every `Acquire`, so a query outside the tick sees a chang
   `LowestHealth`. `create_projectile` `aimRadius` and homing are in the projectile README; `PNAgentPerception.NearestVisible` and `PNEnemyMeleeBehavior` rank by the Aggro rule.
 - Skills whose rule is not one of these walk `PNTargetCandidates.RawItems` themselves; there is no interface per rule.
 
+## Aggro eligibility (RulesVersion101)
+
+`body.aggro: "ignored"` (`PNStat.AggroMode`) makes every Aggro-rule scan skip the entity: `PNTargetSelector.Select` (candidate flag `AggroIgnored`), `PNEnemyMeleeBehavior` and
+`PNAgentContext.CanTarget` all ask `PNTargetSelector.IsAggroEligible`. The Autotarget rule does not read it. The aggro stat (`project_n:aggro`) is a separate weight: distance minus aggro, smallest first.
+
 ## Optional Health and hit counting (RulesVersion100)
 
 - An entity is damageable only if its character declares a `project_n:health` stat (`PNStat.HasHealth`, cached when the stat set is initialized). Without it `IsDead` is

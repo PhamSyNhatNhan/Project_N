@@ -43,6 +43,8 @@ namespace ProjectN.Coop
             {
                 StartPlayRuntime(EveSessionRole.Host);PlaySession=EveRegistrySession.Context.SessionId;IsPlaying=true;
                 ResetPlayState();InitializeReplication();
+                // Runtime entities of the host (summons) are enrolled and retired through this manager from now on (it replaces the offline host of the same session).
+                PNEntityHosts.Set(EveRegistrySession.Context,new CoopEntityHost(this));
                 foreach(var conn in NetworkServer.connections.Values.ToArray())
                 {
                     if(!(conn.authenticationData is PNPeer peer))continue;

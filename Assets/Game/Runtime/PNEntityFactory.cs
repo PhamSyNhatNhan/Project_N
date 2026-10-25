@@ -142,7 +142,12 @@ public sealed class PNEntityFactory : IPNWorldEntityFactory
         if(session.Role==EveSessionRole.Client)loader.GetComponent<EveEntityIdentity>().BindReplicaWorld(request.World,request.ContentSlot,request.MembershipRevision);
         else loader.GetComponent<EveEntityIdentity>().BindWorld(request.World,request.ContentSlot);
         var gate=loader.GetComponent<PNNetworkInputGate>();if(gate!=null)gate.Blocked=false;
-        if(!HasRole(request))return;
+        if(!HasRole(request))
+        {
+            // An authored scene entity has no role. Its stat class is the only marker it has, so one with a player stat is declared a player here (as it always was); every other authored entity is not.
+            if(loader.GetComponent<PNPlayerStat>()!=null)(loader.GetComponent<PNEntityRole>()??loader.gameObject.AddComponent<PNEntityRole>()).Declare("",true);
+            return;
+        }
         var role=Role(request);var spawn=IsPlayer(role)?Spawn(request):null;var root=loader.gameObject;
         if(spawn!=null&&request.SceneKey!=spawn.SceneKey)throw new InvalidOperationException("Player factory content/scene mismatch.");
         SceneManager.MoveGameObjectToScene(root,worlds.Get(request.World).PhysicsScene);
@@ -150,13 +155,13 @@ public sealed class PNEntityFactory : IPNWorldEntityFactory
         Recipe(role).Configure(loader,request,spawn);
         var body=PNBodySettings.Parse(session.Registry.Characters.Get(EveId.Parse(request.Character)).Data);
         double? lifetime=request.Lifetime??role.Settings.Lifetime;
-        (loader.GetComponent<PNEntityRole>()??loader.gameObject.AddComponent<PNEntityRole>()).Apply(request.Entity,role.Settings,body,lifetime);
+        (loader.GetComponent<PNEntityRole>()??loader.gameObject.AddComponent<PNEntityRole>()).Apply(request.Entity,role.Settings,body,lifetime,role.IsPlayer);
         var life=loader.GetComponent<PNEntityLifetime>();
         // Only the authority removes an entity by time; a client entity is removed when the host's removal reaches it.
         if(lifetime.HasValue&&session.Role!=EveSessionRole.Client)
         {
             life=life??loader.gameObject.AddComponent<PNEntityLifetime>();
-            life.Begin(lifetime.Value,()=>{if(Scheduler==null)throw new InvalidOperationException("Entity lifetime needs the factory scheduler.");Scheduler.RetirePublished(loader);});
+            life.Begin(lifetime.Value,()=>{var host=PNEntityHosts.Find(session);if(host!=null){host.Retire(loader);return;}if(Scheduler==null)throw new InvalidOperationException("Entity lifetime needs the factory scheduler.");Scheduler.TryRetirePublished(loader);});
         }
         else life?.Cancel();
     }
@@ -164,7 +169,7 @@ public sealed class PNEntityFactory : IPNWorldEntityFactory
     {
         if(loader==null){borrowed.Remove(loader);authored.Remove(loader);detached.Remove(loader);authoredOrigins.Remove(loader);foreach(var root in resources.Keys.Where(x=>x==null).ToArray())DisposeResources(root);return;}
         if(loader.State!=EveEntityLoadState.Idle)throw new InvalidOperationException("Cleanup must complete before return.");
-        loader.gameObject.SetActive(false);loader.GetComponent<EveEntityIdentity>().ResetIdentity();
+        loader.gameObject.SetActive(false);loader.GetComponent<PNSummon>()?.Clear();loader.GetComponent<EveEntityIdentity>().ResetIdentity();
         if(borrowed.TryGetValue(loader,out var pool)){pool.Release(loader.gameObject);borrowed.Remove(loader);}
         else if(detached.Remove(loader)){DisposeResources(loader.gameObject);DestroyReturned(loader.gameObject);}
         else
@@ -193,10 +198,10 @@ public sealed class PNEntityFactory : IPNWorldEntityFactory
     {
         loader.gameObject.SetActive(true);
         PNWorldPresentation.RegisterActor(session,loader.gameObject);
-        // An authored entity has no role of its own: it keeps the player behaviour (a no-op unless it is a player stat).
+        // An authored entity has no role of its own: it gets the player recipe only if Configure declared it a player (a player stat); otherwise nothing runs.
         var entity=loader.GetComponent<PNFactoryEntity>()?.Entity;
         var role=session.Registry.Instances().GetEffectiveKind<PNEntityDefinition>(EveId.Parse(string.IsNullOrEmpty(entity)?"base:scene_spawn":entity));
-        Recipe(role).Published(session,loader);
+        if(!string.IsNullOrEmpty(entity)||PNEntityRoles.IsPlayer(loader))Recipe(role).Published(session,loader);
         // Buffs a role applies at spawn (an elite's aura). Only the authority applies them; clients receive the result.
         if(string.IsNullOrEmpty(entity)||session.Role==EveSessionRole.Client||role.Settings.SpawnBuffs.Count==0)return;
         var buffs=loader.GetComponent<PNBuffManager>();var stat=loader.GetComponent<PNStat>();

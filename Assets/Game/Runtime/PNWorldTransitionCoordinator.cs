@@ -167,7 +167,7 @@ public sealed class PNWorldTransitionCoordinator : IDisposable,IPNWorldTransferT
         {
             var identity=loader.LoadContext.Identity;
             PNEntityRequest target;
-            if(loader.GetComponent<PNPlayerStat>()!=null)target=factory.Player(identity.OwnerId,work.Request.Destination,work.Request.Slot,work.Request.Spawn);
+            if(PNEntityRoles.IsPlayer(loader))target=factory.Player(identity.OwnerId,work.Request.Destination,work.Request.Slot,work.Request.Spawn);
             else
             {
                 var build=worlds.Get(work.Request.Destination);var slot=work.Request.Slot??(build.Slots.Count==1?build.Slots[0].Id:throw new InvalidOperationException("Explicit content slot required."));

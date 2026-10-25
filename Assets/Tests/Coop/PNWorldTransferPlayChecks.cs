@@ -50,7 +50,7 @@ namespace ProjectN.Coop.Tests
         {double until=Time.realtimeSinceStartupAsDouble+seconds;while(!failed){bool done=false;try{diskSaves?.Tick();done=ready();if(!done&&Time.realtimeSinceStartupAsDouble>until)throw new TimeoutException("checks="+checks+" "+manager?.LastFailure);}catch(Exception error){Fail(error);}if(done||failed)yield break;yield return null;}}
         private EveEntityLoader Player(long owner)
         {
-            var all=EveRegistrySession.Context.Entities.Snapshot();var player=all.SingleOrDefault(x=>x.GetComponent<PNPlayerStat>()!=null&&x.LoadContext.Identity.OwnerId==owner);
+            var all=EveRegistrySession.Context.Entities.Snapshot();var player=all.SingleOrDefault(x=>PNEntityRoles.IsPlayer(x)&&x.LoadContext.Identity.OwnerId==owner);
             return player!=null?player:throw new Exception("Missing player owner="+owner+"; live="+string.Join(",",all.Select(x=>x.name+"/"+x.LoadContext.Identity.OwnerId+"/"+x.LoadContext.Identity.World.InstanceId)));
         }
         private static Type ModType(string name)=>AppDomain.CurrentDomain.GetAssemblies().Select(x=>x.GetType(name)).First(x=>x!=null);
@@ -217,7 +217,7 @@ namespace ProjectN.Coop.Tests
             if(role=="client1")
             {
                 yield return Wait(()=>Has("one-b")&&Has("b"));if(failed)yield break;b=Guid.Parse(File.ReadAllText(Path.Combine(folder,"b")));yield return Wait(()=>OwnReady(b));if(failed)yield break;
-                try{CheckView(b);Check(EveRegistrySession.Context.Entities.Snapshot().Count(x=>x.GetComponent<PNPlayerStat>()!=null&&x.LoadContext.Identity.OwnerId==manager.RoomOwner)==1,"owner has one replica after presence replacement");Mark("client1-b");}catch(Exception error){Fail(error);yield break;}yield return Wait(()=>PNTransitionController.Current==null||!PNTransitionController.Current.IsShowing);if(failed)yield break;try{var transition=PNTransitionController.Current;Check(transition==null||transition.ShowCount>=2&&transition.HideCount==transition.ShowCount&&!transition.IsShowing,"join and transfer each opened and closed one transition cycle show="+transition?.ShowCount+" hide="+transition?.HideCount+" showing="+transition?.IsShowing+" source="+PNTransitionSources.Snapshot().OfType<PNTransferTransitionSource>().FirstOrDefault()?.History+" sources="+PNTransitionSources.Snapshot().Count);}catch(Exception error){Fail(error);yield break;}yield return Capture("host-a-client-b");
+                try{CheckView(b);Check(EveRegistrySession.Context.Entities.Snapshot().Count(x=>PNEntityRoles.IsPlayer(x)&&x.LoadContext.Identity.OwnerId==manager.RoomOwner)==1,"owner has one replica after presence replacement");Mark("client1-b");}catch(Exception error){Fail(error);yield break;}yield return Wait(()=>PNTransitionController.Current==null||!PNTransitionController.Current.IsShowing);if(failed)yield break;try{var transition=PNTransitionController.Current;Check(transition==null||transition.ShowCount>=2&&transition.HideCount==transition.ShowCount&&!transition.IsShowing,"join and transfer each opened and closed one transition cycle show="+transition?.ShowCount+" hide="+transition?.HideCount+" showing="+transition?.IsShowing+" source="+PNTransitionSources.Snapshot().OfType<PNTransferTransitionSource>().FirstOrDefault()?.History+" sources="+PNTransitionSources.Snapshot().Count);}catch(Exception error){Fail(error);yield break;}yield return Capture("host-a-client-b");
                 yield return Wait(()=>Has("one-a")&&OwnReady(a));if(failed)yield break;try{CheckView(a);Mark("client1-back");}catch(Exception error){Fail(error);yield break;}
                 yield return Wait(()=>Has("group-b")&&OwnReady(b));if(failed)yield break;try{CheckView(b);Mark("client1-group");}catch(Exception error){Fail(error);yield break;}
             }
@@ -228,7 +228,7 @@ namespace ProjectN.Coop.Tests
             if(role=="client1")
             {
                 yield return Wait(()=>Has("replacement")&&OwnReady(a));if(failed)yield break;
-                try{CheckView(a);Check(EveRegistrySession.Context.Entities.Snapshot().Count(x=>x.GetComponent<PNPlayerStat>()!=null&&x.LoadContext.Identity.OwnerId==manager.RoomOwner)==1,"replacement catch-up releases one owned body/presence");Mark("client1-replaced");}catch(Exception error){Fail(error);yield break;}
+                try{CheckView(a);Check(EveRegistrySession.Context.Entities.Snapshot().Count(x=>PNEntityRoles.IsPlayer(x)&&x.LoadContext.Identity.OwnerId==manager.RoomOwner)==1,"replacement catch-up releases one owned body/presence");Mark("client1-replaced");}catch(Exception error){Fail(error);yield break;}
             }
             if(role=="client2")
             {

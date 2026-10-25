@@ -51,7 +51,7 @@ public sealed class PNAbilityUIPlayReview : MonoBehaviour
         fixture=new GameObject("Ability effects fixture");fixture.SetActive(false);
         fixture.transform.position=ui.HudPlayer.transform.position+new Vector3(1,0,0);
         fixture.AddComponent<EveEntityIdentity>().Assign(new EveEntityId(998201),EveId.Parse("project_n:eve"),998201);
-        fixture.AddComponent<PNPlayerStat>();var manager=fixture.AddComponent<PNAbilityManager>();
+        fixture.AddComponent<PNPlayerStat>().AsPlayer();var manager=fixture.AddComponent<PNAbilityManager>();
         var stateId=EveId.Parse("test:ui_fx_state");var counterId=EveId.Parse("test:ui_fx_counter");var cdId=EveId.Parse("test:ui_fx_cd");
         manager.Configure(new[]{
             new PNAbilitySettings{Id=stateId.ToString(),Kind=PNAbilityKind.State,ShowInUI=true,InitiallyActive=true,DisplayOrder=-30}.Create(),

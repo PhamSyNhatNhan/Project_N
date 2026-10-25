@@ -38,6 +38,8 @@ public partial class PNStat
     public PNDamageMode DamageMode { get; private set; }
     // "hidden": the world health bar is not shown even though the entity has Health (body.healthBar).
     public PNHealthBarMode HealthBar { get; private set; }
+    // "ignored": the enemy Aggro rule never chooses this entity (body.aggro). The aggro stat is a separate weight.
+    public PNAggroMode AggroMode { get; private set; }
     public virtual bool IsDead => HasHealth && GetCurrent(PNContentIds.Health) <= 0d;
 
     // EN: Capture outgoing bonuses once so delayed effects remain valid after the source unloads.

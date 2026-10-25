@@ -52,7 +52,32 @@
           "base": 3.2
         }
       ],
-      "skill": []
+      "skill": [
+        {
+          "id": "project_n:eve2_pet_skill",
+          "data": {
+            "skill": {},
+            "action": {
+              "id": "project_n:summon_action",
+              "start": {},
+              "perform": {
+                "operationId": "project_n:create_summon",
+                "data": {
+                  "character": "project_n:eve2_pet",
+                  "lifetime": 7,
+                  "group": "eve2_pet",
+                  "limit": 1,
+                  "offset": [0.9, 0.8, -0.8]
+                }
+              },
+              "exit": {},
+              "cancel": {}
+            },
+            "categoryIds": [ "base:skill" ],
+            "affectedByAttackSpeed": false
+          }
+        }
+      ]
     }
   ]
 }

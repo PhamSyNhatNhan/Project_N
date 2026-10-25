@@ -128,7 +128,7 @@ public sealed class PNPausePlayReview : MonoBehaviour
     {
         var obj=new GameObject("Pause fixture "+id);obj.SetActive(false);SceneManager.MoveGameObjectToScene(obj,scene);obj.transform.position=position;
         obj.AddComponent<EveEntityIdentity>().Assign(new EveEntityId(id),EveId.Parse("project_n:eve"),owner);
-        obj.AddComponent<PNAbilityManager>();obj.AddComponent<PNPlayerStat>();
+        obj.AddComponent<PNAbilityManager>();obj.AddComponent<PNPlayerStat>().AsPlayer();
         var body=obj.AddComponent<Rigidbody>();body.useGravity=false;body.constraints=RigidbodyConstraints.FreezeRotation;
         var collider=obj.AddComponent<CapsuleCollider>();collider.radius=.12f;collider.height=.6f;
         obj.AddComponent<PNPlayerMove>();var s=obj.AddComponent<PNPlayerSkill>();

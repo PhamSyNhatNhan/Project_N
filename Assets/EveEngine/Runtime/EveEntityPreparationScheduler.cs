@@ -118,6 +118,15 @@ namespace EveEngine
             foreach(var candidate in candidates)candidate.Published?.Invoke(candidate.Loader);
         }
         public void RetirePublished(EveEntityLoader loader)=>Retire(owned.Single(x=>ReferenceEquals(x.Loader,loader)&&!x.Returned));
+        // False (and nothing happens) when the loader is not an owned, still published candidate: already retiring or returned, or not built by this scheduler.
+        public bool TryRetirePublished(EveEntityLoader loader)
+        {
+            var candidate=owned.FirstOrDefault(x=>ReferenceEquals(x.Loader,loader)&&!x.Returned&&!x.Retiring);
+            if(candidate==null)return false;
+            Retire(candidate);return true;
+        }
+        // True while Enqueue would accept one more candidate (the queue is not full, closed or stopping).
+        public bool HasPendingCapacity=>!stopping&&session.IsActive&&pending.Count<profile.Pending;
         private void Fail(Candidate candidate,Exception error)
         {
             candidate.LastError=error;

@@ -67,6 +67,7 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         PNAreaGameplayContent.Register(hub);
         PNProjectileGameplayContent.Register(hub);
         PNEntityGameplayContent.Register(hub);
+        PNSummonGameplayContent.Register(hub);
         PNEnemyGameplayContent.Register(hub);
 #if UNITY_5_3_OR_NEWER
         PNAgentToolkitContent.Register(hub);
@@ -121,6 +122,7 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
     public virtual void FinalizeContent(EveRegistryHub hub)
     {
         PNGameSkillBindings.Register(hub);
+        PNSummonGameplayContent.RegisterBindings(hub);
         foreach(var behavior in hub.Get<PNSkillBehaviorDefinition>().Snapshot().Values.Where(x=>x.Id.Namespace=="project_n"))
             hub.Get<PNSkillBehaviorDefinition>().RegisterBase(new EveId("base",behavior.Id.Path),behavior.Id,"project_n",compatible:(original,replacement)=>true);
         foreach(var profile in hub.Get<PNSkillBindingProfile>().Snapshot().Values.Where(x=>x.Id.Namespace=="project_n"))
@@ -180,6 +182,7 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         }
 #endif
         PNSkillBindingContent.Validate(hub);
+        PNPetSettings.ValidateAll(hub);
         foreach (var category in hub.SkillCategories().Snapshot().Values) category.Validate(hub);
         foreach (var definition in hub.Buffs().Snapshot().Values) definition.Validate(hub);
         foreach (var definition in hub.Instances().Snapshot().Values) definition.Validate(hub);
@@ -195,6 +198,7 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
 #if UNITY_5_3_OR_NEWER
             if (typeof(PNAreaAction).IsAssignableFrom(action.ImplementationType)) PNAreaAction.Validate(data.Action.Perform, hub);
             else if (typeof(PNProjectileAction).IsAssignableFrom(action.ImplementationType)) PNProjectileAction.Validate(data.Action.Perform, hub);
+            else if (typeof(PNSummonAction).IsAssignableFrom(action.ImplementationType)) PNSummonAction.Validate(data.Action.Perform, hub);
 #endif
             data.Action.ValidateTags(hub);
             var metadata = data.Skill as JObject;

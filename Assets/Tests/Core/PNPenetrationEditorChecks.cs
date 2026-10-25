@@ -38,7 +38,7 @@ public static class PNPenetrationEditorChecks
             {
                 var go = Fixture(name); go.SetActive(false); go.transform.position = position; go.layer = layer;
                 go.AddComponent<EveEntityIdentity>().Assign(new EveEntityId(nextId++), EveId.Parse(character), 1);
-                var stat = go.AddComponent<T>(); stat.gameObject.layer = stat is PNEnemyStat ? PNLayers.Enemy : stat is PNPlayerStat ? PNLayers.Player : stat.gameObject.layer;
+                var stat = go.AddComponent<T>().Declared(); stat.gameObject.layer = stat is PNEnemyStat ? PNLayers.Enemy : stat is PNPlayerStat ? PNLayers.Player : stat.gameObject.layer;
                 if (skill) { go.AddComponent<Rigidbody>().useGravity = false; go.AddComponent<CapsuleCollider>(); go.AddComponent<PNPlayerMove>(); go.AddComponent<PNEveAttackSpeedProbe>(); }
                 else go.AddComponent<BoxCollider>().size = Vector3.one;
                 go.AddComponent<EveEntityLoader>().Load(hub); go.SetActive(true); go.GetComponent<PNBuffManager>().Advance(0); return stat;

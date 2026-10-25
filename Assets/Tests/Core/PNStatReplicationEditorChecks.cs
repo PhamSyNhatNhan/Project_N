@@ -27,7 +27,7 @@ public static class PNStatReplicationEditorChecks
         {
             var root = new GameObject("Disposable Stat1 actor"); roots.Add(root);root.SetActive(false);SceneManager.MoveGameObjectToScene(root,preview);
             root.AddComponent<EveEntityIdentity>();root.AddComponent<CapsuleCollider>();root.AddComponent<EveTimeScale>();
-            if(player)root.AddComponent<PNPlayerStat>();else root.AddComponent<PNEnemyStat>();root.AddComponent<PNBuffManager>().RenderPresentation=false;
+            if(player)root.AddComponent<PNPlayerStat>().AsPlayer();else root.AddComponent<PNEnemyStat>();root.AddComponent<PNBuffManager>().RenderPresentation=false;
             return root.AddComponent<EveEntityLoader>();
         }
         void Begin(EveSessionRole role) { EveRegistrySession.Begin();EveRegistrySession.Start(hub,role,compatibility); }

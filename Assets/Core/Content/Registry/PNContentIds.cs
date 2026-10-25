@@ -16,6 +16,9 @@ public static class PNContentIds
     public static readonly EveId ProjectileScale = EveId.Parse("project_n:projectile_scale");
     public static readonly EveId ProjectileDamage = EveId.Parse("project_n:projectile_damage");
     public static readonly EveId ProjectileLifetime = EveId.Parse("project_n:projectile_lifetime");
+    // Summon modifiers: ordinary tags read from the owner's source snapshot when the summon is created (Docs/SummonPlan.md).
+    public static readonly EveId SummonDamage = EveId.Parse("project_n:summon_damage");
+    public static readonly EveId SummonScale = EveId.Parse("project_n:summon_scale");
     public static readonly EveId NormalEnemy = EveId.Parse("project_n:normal");
     public static readonly EveId EliteEnemy = EveId.Parse("project_n:elite");
     public static readonly EveId BossEnemy = EveId.Parse("project_n:boss");

@@ -62,7 +62,7 @@ public sealed class PNEnemyAgentContext : IPNAgentContext
     public Vector2 Heading => context.Move.LookDirection;
     public PNEnemyAgentContext(PNEnemyBehaviorContext context, Predicate<PNStat> relation)
     { this.context = context ?? throw new ArgumentNullException(nameof(context)); this.relation = relation ?? throw new ArgumentNullException(nameof(relation)); Self = PNActorHandle.Capture(context.Stat); }
-    public bool CanTarget(PNStat target) => IsCurrent && target != null && target != context.Stat && target.IsReady && !target.IsDead &&
+    public bool CanTarget(PNStat target) => IsCurrent && target != null && target != context.Stat && target.IsReady && !target.IsDead && PNTargetSelector.IsAggroEligible(target) &&
         PNWorldGameplay.CanTarget(context.Owner, target) && relation(target);
     public PNEnemyNavigationRequest GoTo(Vector3 goal, PNLocomotionOptions options) { Require(); return context.GoTo(goal, options); }
     public bool UpdateGoal(PNEnemyNavigationRequest request, Vector3 goal) { Require(); return context.UpdateGoal(request, goal); }

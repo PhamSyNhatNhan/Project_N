@@ -24,6 +24,9 @@ public sealed class PNProjectileHitNativeModule : EveIContentModule
         // Entities for the optional-Health checks: a prop without Health and a three-hit prop (Docs/EntitySpawnPlan.md E2).
         hub.GetOrCreate<EveCharacterDefinition>().Register(new EveCharacterDefinition(EveId.Parse("test:prop_no_health"), new[] { new EveInitialStat(PNContentIds.AttackPower, 1d) }));
         hub.GetOrCreate<EveCharacterDefinition>().Register(new EveCharacterDefinition(EveId.Parse("test:prop_hits3"), new[] { new EveInitialStat(PNContentIds.Health, 3d, 3d) }, null, "", JObject.Parse("{'body':{'damageMode':'hits'}}")));
+        // Summon plan S1: a prop with Health that the Aggro rule must not choose (body.aggro = ignored), and one without Health that keeps a taunt.
+        hub.GetOrCreate<EveCharacterDefinition>().Register(new EveCharacterDefinition(EveId.Parse("test:prop_aggro_ignored"), new[] { new EveInitialStat(PNContentIds.Health, 3d, 3d) }, null, "", JObject.Parse("{'body':{'aggro':'ignored'}}")));
+        hub.GetOrCreate<EveCharacterDefinition>().Register(new EveCharacterDefinition(EveId.Parse("test:prop_taunt"), new[] { new EveInitialStat(PNContentIds.AttackPower, 1d), new EveInitialStat(PNContentIds.Aggro, 50d) }));
         var registry = hub.Instances();
         var data = JObject.Parse("{'speed':10,'acceleration':0,'speedMin':0,'speedMax':200,'life':{'mode':'Time','value':5},'volume':{'size':[0.4,0.4,0.4]},'environmentMask':['Wall'],'hitLimit':1}");
         var directional = registry.GetKind<PNProjectileDefinition>(PNProjectileGameplayContent.Directional);
@@ -203,6 +206,76 @@ public static class PNProjectileHitEditorChecks
                 var statuses = ((PNProjectileAction)action).Results.Select(x => x.Status).ToArray();
                 Check(statuses.Length == 3 && statuses[0] == PNProjectileStatus.Created && statuses[1] == PNProjectileStatus.Created && statuses[2] == PNProjectileStatus.Rejected && manager.ActiveCount == 2, "a volley against a full cap comes out short with a Rejected receipt instead of failing");
             }
+
+            // Summon plan S5: the real Eve 2 pet (prefab, character, projectile) hovers near its owner and fires one magic shot at an enemy within 1.5 m of itself.
+            manager.Shutdown(); manager.Initialize(session, new PNProjectileProfile { MaxActive = 20 });
+            var petPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Game/Entity/Summon/Eve2Pet/Prefab/Eve2Pet.prefab");
+            Check(petPrefab != null && petPrefab.GetComponent<PNPetShooterBehavior>() != null && petPrefab.GetComponent<Collider>() == null && petPrefab.GetComponentInChildren<Collider>() == null && petPrefab.GetComponentInChildren<SpriteRenderer>() != null, "the pet prefab has its behavior and a sprite and no collider");
+            var ownerObject = Shooter(new Vector3(100, 0, 100), out _); var petOwner = ownerObject.GetComponent<PNStat>();
+            petOwner.SetSource(EveId.Parse("test:no_crit"), new[] { new EveStatModifier(PNContentIds.CritRate, -100d, 0) });
+            PNSummon petSummon; PNPetShooterBehavior petBehavior;
+            GameObject MakePet(Vector3 at)
+            {
+                var obj = (GameObject)PrefabUtility.InstantiatePrefab(petPrefab, preview); fixtures.Add(obj); obj.SetActive(false); obj.transform.position = at;
+                obj.GetComponent<EveEntityIdentity>().Assign(new EveEntityId(nextId++), EveId.Parse("project_n:eve2_pet"), 0);
+                petSummon = obj.AddComponent<PNSummon>(); petSummon.Begin(PNCombatSource.Capture(petOwner), petOwner.EntityId, "eve2_pet", PNSummons.NextSequence(), 1d);
+                obj.GetComponent<EveEntityLoader>().Load(hub); obj.SetActive(true); petBehavior = obj.GetComponent<PNPetShooterBehavior>(); return obj;
+            }
+            var petSpot = new Vector3(100.9f, .8f, 99.2f);
+            Check(PNPetShooterBehavior.NextSide(1f, 0f) == 1f && PNPetShooterBehavior.NextSide(1f, -.2f) == 1f && PNPetShooterBehavior.NextSide(1f, -.4f) == -1f && PNPetShooterBehavior.NextSide(-1f, .2f) == -1f && PNPetShooterBehavior.NextSide(-1f, .4f) == 1f, "the pet keeps its side and changes it only once it is clearly on the other (0.3 m)");
+            var petAObject = MakePet(petSpot + new Vector3(3, 0, 3)); var petA = petBehavior; var petASummon = petSummon;
+            var petStat = petAObject.GetComponent<PNStat>();
+            Check(petStat.HasHealth == false && petStat.AggroMode == PNAggroMode.Ignored && petStat.HealthBar == PNHealthBarMode.Hidden && !PNTargetSelector.IsAggroEligible(petStat) && petAObject.layer == PNLayers.Player, "the pet has no Health, is ignored by the Aggro rule, hides its bar and carries the Player layer");
+            Check(petA.Settings == null && petA.Shots == 0 && petA.State == PNPetShooterBehavior.PetState.Hover, "a new pet starts hovering with no shot");
+            double distance0 = Vector3.Distance(petAObject.transform.position, petSpot);
+            // Movement is a Rigidbody velocity set by Drive once per physics step; Edit Mode has no physics step, so the fixture integrates the velocity itself.
+            var petABody = petAObject.GetComponent<Rigidbody>();
+            Check(petABody != null && !petABody.useGravity && !petABody.isKinematic && petABody.interpolation == RigidbodyInterpolation.Interpolate, "the pet moves by a Rigidbody velocity (no gravity, interpolated)");
+            void PetStep(float seconds) { for (int s = 0; s < Mathf.RoundToInt(seconds / .02f); s++) { petA.Tick(.02); petA.Drive(.02f); petABody.position += petABody.linearVelocity * .02f; petAObject.transform.position = petABody.position; } }
+            PetStep(.5f); PetStep(.5f);
+            double distance1 = Vector3.Distance(petAObject.transform.position, petSpot);
+            Check(petA.Settings != null && distance1 < distance0 && distance1 > 0d, "the pet closes on its hover spot behind and above the owner (" + distance0.ToString("0.00") + " -> " + distance1.ToString("0.00") + ")");
+            for (int i = 0; i < 20; i++) PetStep(.5f);
+            Check(Vector3.Distance(petAObject.transform.position, petSpot) < .05f && petA.Shots == 0 && petA.State == PNPetShooterBehavior.PetState.Hover, "it settles on the spot and, with no enemy within 1.5 m, fires nothing");
+            // Edit Mode never runs the entity clocks, so an iframe from one hit would stay: every shot gets a fresh target (a new dummy at the same place).
+            PNStat petTarget = null;
+            PNStat FreshTarget()
+            {
+                if (petTarget != null) { petTarget.GetComponent<EveEntityLoader>().Unload(); UnityEngine.Object.DestroyImmediate(petTarget.gameObject); }
+                petTarget = Dummy(new Vector3(100.5f, 0, 99.2f)); Physics.SyncTransforms(); return petTarget;
+            }
+            FreshTarget();
+            double Hp2() => Hp(petTarget);
+            double hpBefore = Hp2();
+            petA.Tick(.1);
+            Check(petA.State == PNPetShooterBehavior.PetState.Aim && petA.Shots == 0, "with the shot ready and an enemy in reach it stops to aim");
+            var stopped = petAObject.transform.position;
+            petA.Tick(.2); petA.Drive(.02f);
+            Check(petA.State == PNPetShooterBehavior.PetState.Aim && petAObject.transform.position == stopped && petABody.linearVelocity == Vector3.zero && petA.Shots == 0, "it stands still while aiming (0.3 s): velocity zero");
+            petA.Tick(.2);
+            Check(petA.Shots == 1 && petA.State == PNPetShooterBehavior.PetState.Hover && petA.LastShot != null && petA.LastShot.Status != PNProjectileStatus.Failed, "after the stop it fires one projectile and goes back to hovering");
+            for (int i = 0; i < 40; i++) manager.Advance(.1f);
+            Check(Near(hpBefore - Hp2(), 10d, 1e-4), "the shot deals 10 magic damage with no modifier (dealt " + (hpBefore - Hp2()).ToString("0.###") + ")");
+            double afterFirst = Hp2();
+            for (int i = 0; i < 2; i++) petA.Tick(.5); Check(petA.Shots == 1 && petA.State == PNPetShooterBehavior.PetState.Hover, "the next shot waits for the 1.5 s interval");
+            // The owner's modifiers are captured once, when the pet is summoned.
+            petOwner.SetSource(EveId.Parse("test:summon_damage"), new[] { new EveStatModifier(PNContentIds.SummonDamage, .5d, 1, PNContentIds.Scale) });
+            FreshTarget(); afterFirst = Hp2();
+            for (int i = 0; i < 4; i++) petA.Tick(.5);
+            Check(petA.Shots == 2, "the pet fires again after the interval");
+            for (int i = 0; i < 40; i++) manager.Advance(.1f);
+            Check(Near(afterFirst - Hp2(), 10d, 1e-4), "a modifier gained after the pet was summoned does not change its damage (dealt " + (afterFirst - Hp2()).ToString("0.###") + ")");
+            FreshTarget(); double afterSecond = Hp2();
+            var petBObject = MakePet(petSpot); var petB = petBehavior;
+            for (int i = 0; i < 5; i++) petB.Tick(.5);
+            Check(petB.Shots == 1, "a pet summoned later fires its first shot");
+            for (int i = 0; i < 40; i++) manager.Advance(.1f);
+            Check(Near(afterSecond - Hp2(), 15d, 1e-4), "a pet summoned after the modifier carries it: +50% summon_damage makes 15 (dealt " + (afterSecond - Hp2()).ToString("0.###") + ")");
+            // Time: no time passes without entity time, and a retiring pet does nothing.
+            double shotsBefore = petB.Shots; petB.Tick(0d); petB.Tick(-1d);
+            Check(petB.Shots == shotsBefore, "a step of no time changes nothing");
+            Check(Near(petSummon.Scale, 1d) && petSummon.Group == "eve2_pet" && petSummon.Summoner == petOwner.EntityId, "the pet knows its owner and group");
+            PNSummons.Reset();
         }
         finally
         {

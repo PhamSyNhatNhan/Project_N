@@ -29,7 +29,7 @@ public static class PNDamagePopupEditorChecks
         {
             var go = new GameObject(typeof(T).Name); go.SetActive(false); owned.Add(go); SceneManager.MoveGameObjectToScene(go, scene);
             go.AddComponent<EveEntityIdentity>().Assign(new EveEntityId(id), EveId.Parse(character), 1);
-            var stat = go.AddComponent<T>(); stat.PreviewDamagePopupsInEditor = true;
+            var stat = go.AddComponent<T>().Declared(); stat.PreviewDamagePopupsInEditor = true;
             go.AddComponent<EveEntityLoader>().Load(hub); go.SetActive(true); return stat;
         }
         try

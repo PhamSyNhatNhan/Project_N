@@ -56,7 +56,7 @@ public sealed class PNSparklePlayReview : MonoBehaviour
                 if(action.enabled){enabledActions.Add(action);action.Disable();}
         fixture=SceneManager.CreateScene("Disposable shimmer fixture");var obj=new GameObject("Shimmer fixture player");obj.SetActive(false);SceneManager.MoveGameObjectToScene(obj,fixture);
         obj.AddComponent<EveEntityIdentity>().Assign(new EveEntityId(998771),EveId.Parse("project_n:eve"),90771);
-        obj.AddComponent<PNAbilityManager>();stat=obj.AddComponent<PNPlayerStat>();obj.AddComponent<EveEntityLoader>().Load(EveRegistrySession.Current);obj.SetActive(true);
+        obj.AddComponent<PNAbilityManager>();stat=obj.AddComponent<PNPlayerStat>().AsPlayer();obj.AddComponent<EveEntityLoader>().Load(EveRegistrySession.Current);obj.SetActive(true);
         stat.SetCurrent(PNContentIds.Health,stat.GetMax(PNContentIds.Health));
         ui.LocalOwnerId=90771;ui.LocalPlayerId=stat.EntityId;ui.ShowMobileControls=true;ui.SetTestExpanded(false);Time.timeScale=1;ui.RefreshUI();
         touch=InputSystem.AddDevice<Touchscreen>("ShimmerReviewTouch");yield return new WaitForSecondsRealtime(.3f);

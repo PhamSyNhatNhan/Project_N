@@ -67,7 +67,7 @@ public static class PNIFrameEditorChecks
             {
                 var obj=new GameObject("Iframe native "+id); obj.SetActive(false); SceneManager.MoveGameObjectToScene(obj,preview);
                 obj.AddComponent<EveEntityIdentity>().Assign(new EveEntityId(id),hero,0);
-                PNStat stat=player?(PNStat)obj.AddComponent<PNIFramePlayerProbe>():obj.AddComponent<PNEnemyStat>();
+                PNStat stat=player?(PNStat)obj.AddComponent<PNIFramePlayerProbe>().AsPlayer():obj.AddComponent<PNEnemyStat>();
                 obj.AddComponent<EveTimeScale>();
                 if(skill) { obj.AddComponent<PNAbilityManager>(); obj.AddComponent<PNSkill>(); }
                 obj.AddComponent<EveEntityLoader>().Load(hub); obj.SetActive(true); return stat;

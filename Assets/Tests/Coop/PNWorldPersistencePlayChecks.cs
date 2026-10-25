@@ -80,7 +80,7 @@ namespace ProjectN.Coop.Tests
                     }
                     game.Local.Select(world,actors[0]);yield return null;yield return null;
                     yield return Wait(()=>PNViewCamera.Current!=null&&PNViewCamera.Current.cullingMask!=0&&(PNTransitionController.Current==null||!PNTransitionController.Current.IsShowing));
-                    yield return Capture(key+"-"+step);game.Local.Select(game.Worlds.DefaultWorld,game.Session.Entities.Snapshot(game.Worlds.DefaultWorld).FirstOrDefault(a=>a.GetComponent<PNPlayerStat>()!=null));
+                    yield return Capture(key+"-"+step);game.Local.Select(game.Worlds.DefaultWorld,game.Session.Entities.Snapshot(game.Worlds.DefaultWorld).FirstOrDefault(a=>PNEntityRoles.IsPlayer(a)));
                     var second=saves.SaveResident(key,world,true);yield return Wait(()=>second.IsTerminal);Check(second.State==PNWorldSaveState.Saved&&world.State==EveWorldState.Disposed,"resave/unload committed "+key+": "+second.Error);
                 }
             }

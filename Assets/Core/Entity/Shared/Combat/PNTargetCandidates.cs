@@ -19,6 +19,8 @@ public sealed class PNTargetCandidates
         public long EntityId; public double Aggro;
         // The entity has a Health resource (only damageable entities are chosen by the Autotarget rule; the Aggro rule still sees the others).
         public bool Damageable;
+        // body.aggro = ignored: the Aggro rule skips it (the Autotarget rule does not read this).
+        public bool AggroIgnored;
     }
     private Candidate[] items = new Candidate[64];
     private int count;
@@ -41,7 +43,7 @@ public sealed class PNTargetCandidates
             if (loader == null || loader.LoadContext == null || !ReferenceEquals(loader.LoadContext.Identity.World, world)) continue;
             var stat = loader.GetComponent<PNStat>();
             if (!IsLive(stat)) continue;
-            var candidate = new Candidate { Stat = stat, Layer = stat.gameObject.layer, EntityId = stat.EntityId.Value, Damageable = stat.HasHealth };
+            var candidate = new Candidate { Stat = stat, Layer = stat.gameObject.layer, EntityId = stat.EntityId.Value, Damageable = stat.HasHealth, AggroIgnored = stat.AggroMode == PNAggroMode.Ignored };
             stat.TryGetComponent<PNIProjectileHitVolume>(out candidate.Volume);
             if (candidate.Volume == null)
             {

@@ -10,7 +10,9 @@ using UnityEngine;
 public sealed class PNEntityRole : MonoBehaviour
 {
     public string Entity { get; private set; }
-    // No effect yet: being a player is the recipe's IsPlayer, and who controls an entity is its identity's OwnerId.
+    // Identity: the role's recipe says it is a player (PNEntityRoles.IsPlayer reads this). Whether a human drives the entity is a separate question (PNEntityControl).
+    public bool IsPlayer { get; private set; }
+    // No effect yet: who controls an entity is its identity's OwnerId.
     public PNEntityOwner Owner { get; private set; }
     // Written into the world checkpoint (read by PNWorldLifetimeController).
     public bool Persist { get; private set; }
@@ -23,9 +25,12 @@ public sealed class PNEntityRole : MonoBehaviour
     public EveId? Loot { get; private set; }
     public double? Lifetime { get; private set; }
 
-    public void Apply(string entity, PNEntitySettings settings, PNBodySettings body, double? lifetime)
+    // For an object the factory did not build (a verification fixture): names its role and whether it is a player, nothing else.
+    public void Declare(string entity, bool isPlayer) { Entity = entity; IsPlayer = isPlayer; Persist = true; }
+
+    public void Apply(string entity, PNEntitySettings settings, PNBodySettings body, double? lifetime, bool isPlayer)
     {
-        Entity = entity; Owner = settings.Owner; Persist = settings.Persist; FollowsOwner = settings.FollowsOwner; CountsForClear = settings.CountsForClear;
+        IsPlayer = isPlayer; Entity = entity; Owner = settings.Owner; Persist = settings.Persist; FollowsOwner = settings.FollowsOwner; CountsForClear = settings.CountsForClear;
         DropsLoot = settings.DropsLoot; Loot = body.Loot; Lifetime = lifetime;
     }
 }

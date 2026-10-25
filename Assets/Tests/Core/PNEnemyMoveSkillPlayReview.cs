@@ -189,7 +189,7 @@ public sealed partial class PNEnemyMoveSkillPlayReview : MonoBehaviour
         var collider = root.AddComponent<CapsuleCollider>(); collider.radius = .2f; collider.height = 1.4f; collider.center = Vector3.up * .7f;
         var body = root.AddComponent<Rigidbody>(); body.isKinematic = true;
         Visual(root, new Color(.25f, .75f, 1));
-        var stat = root.AddComponent<PNPlayerStat>(); root.AddComponent<EveEntityLoader>().Load(session.Registry); root.SetActive(true); return stat;
+        var stat = root.AddComponent<PNPlayerStat>().AsPlayer(); root.AddComponent<EveEntityLoader>().Load(session.Registry); root.SetActive(true); return stat;
     }
     private void Visual(GameObject root, Color color)
     {

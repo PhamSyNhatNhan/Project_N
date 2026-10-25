@@ -31,7 +31,7 @@ public sealed class PNPlayerEntityRecipe : PNEntityRecipe
     public override void Published(EveSessionContext session, EveEntityLoader loader)
     {
         var id = loader.GetComponent<EveEntityIdentity>();
-        if (loader.GetComponent<PNPlayerStat>() != null && (session.Role == EveSessionRole.Offline || id.OwnerId == (session.Role == EveSessionRole.Host ? 0 : session.LocalOwnerId.GetValueOrDefault(-1))))
+        if ((session.Role == EveSessionRole.Offline || id.OwnerId == (session.Role == EveSessionRole.Host ? 0 : session.LocalOwnerId.GetValueOrDefault(-1))))
         {
             if (ReferenceEquals(PNLocalWorldContext.Current?.Session, session)) PNLocalWorldContext.Current.Select(id.World, loader);
             foreach (var error in EveEventManager.Global.PublishSafely(PNLocalPlayerBound.Event, new PNLocalPlayerBound(loader.transform))) Debug.LogException(error, loader);
