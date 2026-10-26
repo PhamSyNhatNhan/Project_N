@@ -15,6 +15,7 @@ internal sealed class PNSettingsDropdown
         internal Chevron(){pickingMode=PickingMode.Ignore;generateVisualContent+=ctx=>{var p=ctx.painter2D;Vector2 c=contentRect.center;p.strokeColor=new Color(.4f,.47f,.5f);p.lineWidth=1.5f;p.lineJoin=LineJoin.Round;p.lineCap=LineCap.Round;p.BeginPath();p.MoveTo(c+new Vector2(-5,-2));p.LineTo(c+new Vector2(0,3));p.LineTo(c+new Vector2(5,-2));p.Stroke();};}
     }
     private readonly ScrollView scroll;
+    private readonly PNSettingsScrollFade scrollFade;
     private readonly List<Button> options=new List<Button>();
     private readonly Action<PNSettingsDropdown> opening;
     private readonly Action<string> selected;
@@ -28,7 +29,7 @@ internal sealed class PNSettingsDropdown
         value=new Label();value.AddToClassList("pn-settings-value");Trigger.Add(value);
         chevron=new Chevron();chevron.AddToClassList("pn-settings-chevron");Trigger.Add(chevron);row.Add(Trigger);
         Popup=new VisualElement{name=name+"-options",usageHints=UsageHints.DynamicTransform};Popup.AddToClassList("pn-settings-options");Popup.style.display=DisplayStyle.None;overlay.Add(Popup);
-        scroll=new ScrollView(ScrollViewMode.Vertical){horizontalScrollerVisibility=ScrollerVisibility.Hidden,verticalScrollerVisibility=ScrollerVisibility.Auto};scroll.AddToClassList("pn-settings-scroll");Popup.Add(scroll);
+        scroll=new ScrollView(ScrollViewMode.Vertical){horizontalScrollerVisibility=ScrollerVisibility.Hidden,verticalScrollerVisibility=ScrollerVisibility.Auto};scroll.AddToClassList("pn-settings-scroll");Popup.Add(scroll);scrollFade=new PNSettingsScrollFade(scroll);
         Popup.RegisterCallback<PointerDownEvent>(e=>e.StopPropagation());
         Trigger.RegisterCallback<KeyDownEvent>(e=>{if(e.keyCode==KeyCode.DownArrow||e.keyCode==KeyCode.UpArrow){Open();FocusOption(e.keyCode==KeyCode.DownArrow?0:options.Count-1);e.StopPropagation();}});
     }
@@ -60,6 +61,7 @@ internal sealed class PNSettingsDropdown
     { if(!IsOpen)return;IsOpen=false;Popup.pickingMode=PickingMode.Ignore;chevron.style.rotate=new Rotate(0);if(focus)Trigger.Focus(); }
     internal void Tick(float dt,VisualElement root)
     {
+        scrollFade.Tick(dt);
         float target=IsOpen?1:0;progress=Mathf.MoveTowards(progress,target,dt/(IsOpen?.24f:.16f));
         if(progress<=0){Popup.style.display=DisplayStyle.None;return;}
         Rect anchor=Trigger.worldBound;Vector2 pos=root.WorldToLocal(new Vector2(anchor.xMin,anchor.yMax));

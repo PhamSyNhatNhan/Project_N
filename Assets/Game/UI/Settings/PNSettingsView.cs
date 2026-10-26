@@ -19,12 +19,15 @@ internal sealed class PNSettingsView : IDisposable
     private readonly Label error;
     private readonly PNMenuCorner corners;
     private readonly PNSettingsDropdown language,fps,autoTarget;
-    private readonly PNSettingsDropdown icons,palette;
+    private readonly PNSettingsDropdown icons,palette,pcControls,bindingLabels;
+    private readonly List<VisualElement> animated=new List<VisualElement>();
+    private readonly List<VisualElement> fields=new List<VisualElement>();
+    private readonly List<float> animationExit=new List<float>();
+    private readonly PNSettingsScrollFade scrollFade;
     private readonly Action back,closeAll,closeAllStarted;
     private bool disposed,exiting,closeWhole;
     private float elapsed,clock,artProgress,exitFrom;
     private float exitAlpha;
-    private readonly List<float> rowExitAlpha=new List<float>();
     private int cancelFrame=-1;
     internal bool IsExiting=>exiting;
     internal float Progress=>artProgress;
@@ -37,14 +40,27 @@ internal sealed class PNSettingsView : IDisposable
         decoration=new PNSettingsDecoration();Root.Add(decoration);
         rowScroll=new ScrollView(ScrollViewMode.Vertical){name="pn-settings-rows",horizontalScrollerVisibility=ScrollerVisibility.Hidden,verticalScrollerVisibility=ScrollerVisibility.Auto};rowScroll.AddToClassList("pn-settings-rows");Root.Add(rowScroll);rows=rowScroll.contentContainer;
         bool showMobile=mobileOptions||PNMobilePlatform.IsMobile(PNMobilePlatform.UsesSimulatedScreen)||((Debug.isDebugBuild||Application.isEditor)&&Array.Exists(Environment.GetCommandLineArgs(),a=>a.StartsWith("-pn-mobile-style-review=")));
-        string[] names={"language","fps","auto-target","mobile-icons","mobile-palette"};string[] labels={"language","fps","auto_target","mobile_icons","mobile_palette"};
-        for(int i=0;i<(showMobile?5:3);i++){var item=new VisualElement{name="pn-settings-"+names[i]+"-row"};item.AddToClassList("pn-settings-row");row.Add(item);rowExitAlpha.Add(0);rows.Add(item);var label=new Label();label.AddToClassList("pn-settings-label");PNLocalizationUI.Bind(label,"project_n:settings."+labels[i]);item.Add(label);}
-        // Overlay popups are outside the row's transform and clipping hierarchy.
-        language=new PNSettingsDropdown("pn-settings-language",row[0],Root,Opening,code=>Apply(()=>PNSettingsService.SetLocale(code)));
-        fps=new PNSettingsDropdown("pn-settings-fps",row[1],Root,Opening,code=>Apply(()=>PNSettingsService.SetFrameRate(int.Parse(code))));
-        autoTarget=new PNSettingsDropdown("pn-settings-auto-target",row[2],Root,Opening,id=>Apply(()=>PNSettingsService.SetAutoTargetMode(PNTargetRule.ParseMode(id))));
+        bool desktop=!PNMobilePlatform.IsMobile(PNMobilePlatform.UsesSimulatedScreen);
+        var general=Section("general",false);var combat=Section("combat",true);var appearance=Section("interface",true);
+        var languageRow=AddRow(general,"language","language");var fpsRow=AddRow(general,"fps","fps");
+        var targetRow=AddRow(combat,"auto-target","auto_target");
+        language=new PNSettingsDropdown("pn-settings-language",languageRow,Root,Opening,code=>Apply(()=>PNSettingsService.SetLocale(code)));
+        fps=new PNSettingsDropdown("pn-settings-fps",fpsRow,Root,Opening,code=>Apply(()=>PNSettingsService.SetFrameRate(int.Parse(code))));
+        autoTarget=new PNSettingsDropdown("pn-settings-auto-target",targetRow,Root,Opening,id=>Apply(()=>PNSettingsService.SetAutoTargetMode(PNTargetRule.ParseMode(id))));
         dropdowns.Add(language);dropdowns.Add(fps);dropdowns.Add(autoTarget);
-        if(showMobile){icons=new PNSettingsDropdown("pn-settings-mobile-icons",row[3],Root,Opening,id=>Apply(()=>PNSettingsService.SetMobileIconSet(id)));palette=new PNSettingsDropdown("pn-settings-mobile-palette",row[4],Root,Opening,id=>Apply(()=>PNSettingsService.SetMobilePalette(id)));dropdowns.Add(icons);dropdowns.Add(palette);}
+        if(desktop)
+        {
+            pcControls=new PNSettingsDropdown("pn-settings-pc-controls",AddRow(appearance,"pc-controls","pc_controls"),Root,Opening,id=>Apply(()=>PNSettingsService.SetShowPcControls(id=="on")));
+            bindingLabels=new PNSettingsDropdown("pn-settings-pc-binding-labels",AddRow(appearance,"pc-binding-labels","pc_binding_labels"),Root,Opening,id=>Apply(()=>PNSettingsService.SetShowPcBindingLabels(id=="on")));
+            dropdowns.Add(pcControls);dropdowns.Add(bindingLabels);
+        }
+        if(showMobile||desktop)
+        {
+            icons=new PNSettingsDropdown("pn-settings-mobile-icons",AddRow(appearance,"mobile-icons","mobile_icons"),Root,Opening,id=>Apply(()=>PNSettingsService.SetMobileIconSet(id)));
+            palette=new PNSettingsDropdown("pn-settings-mobile-palette",AddRow(appearance,"mobile-palette","mobile_palette"),Root,Opening,id=>Apply(()=>PNSettingsService.SetMobilePalette(id)));
+            dropdowns.Add(icons);dropdowns.Add(palette);
+        }
+        scrollFade=new PNSettingsScrollFade(rowScroll);
         error=new Label{name="pn-settings-error"};error.AddToClassList("pn-settings-error");rows.Add(error);
         corners=new PNMenuCorner(()=>RequestClose(false),()=>RequestClose(true));Root.Add(corners);corners.Back.focusable=corners.Close.focusable=true;
         Root.RegisterCallback<PointerDownEvent>(e=>{if(dropdowns.Any(d=>d.IsOpen)&&!dropdowns.Any(d=>d.Trigger.worldBound.Contains(e.position)||(d.IsOpen&&d.Popup.worldBound.Contains(e.position)))){foreach(var d in dropdowns)d.Close(false);e.StopImmediatePropagation();}},TrickleDown.TrickleDown);
@@ -52,6 +68,20 @@ internal sealed class PNSettingsView : IDisposable
         Root.RegisterCallback<NavigationCancelEvent>(e=>{Cancel();e.StopImmediatePropagation();});
         PNLocalization.Changed+=Refresh;PNSettingsService.Changed+=Refresh;PNMobileStyleCatalog.Changed+=Refresh;parent.Add(Root);Refresh();Tick(0);language.Trigger.Focus();
     }
+    private VisualElement Section(string id,bool divider)
+    {
+        if(divider){var line=new PNSettingsRule(true);line.AddToClassList("pn-settings-divider");rows.Add(line);Animate(line);}
+        var section=new VisualElement{name="pn-settings-section-"+id};section.AddToClassList("pn-settings-section");rows.Add(section);
+        var heading=new VisualElement();heading.AddToClassList("pn-settings-heading");var title=new Label();PNLocalizationUI.Bind(title,"project_n:settings.section."+id);heading.Add(title);
+        var underline=new PNSettingsRule(false);underline.AddToClassList("pn-settings-heading-line");heading.Add(underline);title.RegisterCallback<GeometryChangedEvent>(e=>underline.style.width=e.newRect.width);section.Add(heading);Animate(heading);
+        var grid=new VisualElement();grid.AddToClassList("pn-settings-fields");section.Add(grid);fields.Add(grid);return grid;
+    }
+    private VisualElement AddRow(VisualElement grid,string name,string key)
+    {
+        var item=new VisualElement{name="pn-settings-"+name+"-row"};item.AddToClassList("pn-settings-row");row.Add(item);grid.Add(item);Animate(item);
+        var label=new Label();label.AddToClassList("pn-settings-label");PNLocalizationUI.Bind(label,"project_n:settings."+key);item.Add(label);return item;
+    }
+    private void Animate(VisualElement element){animated.Add(element);animationExit.Add(0);}
     internal static void Stretch(VisualElement e){e.style.position=Position.Absolute;e.style.left=0;e.style.right=0;e.style.top=0;e.style.bottom=0;}
     internal static float Ease(float t){t=Mathf.Clamp01(t);return t*t*t*(t*(t*6-15)+10);}
     private void Opening(PNSettingsDropdown opened){foreach(var d in dropdowns)if(d!=opened)d.Close(false);}
@@ -76,6 +106,8 @@ internal sealed class PNSettingsView : IDisposable
             icons.SetOptions(sets.Select(s=>s.Id.ToString()).ToArray(),sets.Select(s=>PNLocalization.Text(s.DisplayNameKey)).ToArray(),PNMobileStyleCatalog.ResolveIconSet(settings.MobileIconSet).Id.ToString());
             palette.SetOptions(palettes.Select(s=>s.Id.ToString()).ToArray(),palettes.Select(s=>PNLocalization.Text(s.DisplayNameKey)).ToArray(),PNMobileStyleCatalog.ResolvePalette(settings.MobilePalette).Id.ToString());
         }
+        pcControls?.SetOptions(new[]{"off","on"},new[]{PNLocalization.Text("project_n:settings.off"),PNLocalization.Text("project_n:settings.on")},PNSettingsService.Current.ShowPcControls?"on":"off");
+        bindingLabels?.SetOptions(new[]{"off","on"},new[]{PNLocalization.Text("project_n:settings.off"),PNLocalization.Text("project_n:settings.on")},PNSettingsService.Current.ShowPcBindingLabels?"on":"off");
         corners.Back.tooltip=PNLocalization.Text("project_n:ui.back");corners.Close.tooltip=PNLocalization.Text("project_n:settings.close");
         if(PNSettingsService.SaveError!=null)error.text=PNLocalization.Text("project_n:settings.save_failed");
     }
@@ -86,7 +118,7 @@ internal sealed class PNSettingsView : IDisposable
     }
     private void RequestClose(bool whole)
     {
-        if(disposed||exiting)return;exitAlpha=Root.resolvedStyle.opacity;for(int i=0;i<row.Count;i++)rowExitAlpha[i]=row[i].resolvedStyle.opacity;exiting=true;closeWhole=whole;elapsed=0;exitFrom=artProgress;
+        if(disposed||exiting)return;exitAlpha=Root.resolvedStyle.opacity;for(int i=0;i<animated.Count;i++)animationExit[i]=animated[i].resolvedStyle.opacity;exiting=true;closeWhole=whole;elapsed=0;exitFrom=artProgress;
         foreach(var d in dropdowns)d.Close(false);rows.SetEnabled(false);corners.SetEnabled(false);
         if(whole)closeAllStarted?.Invoke();
     }
@@ -94,19 +126,59 @@ internal sealed class PNSettingsView : IDisposable
     {
         if(disposed)return;elapsed+=dt;clock+=dt;
         float width=Root.resolvedStyle.width,height=Root.resolvedStyle.height;if(!float.IsFinite(width)||width<=0||!float.IsFinite(height)||height<=0)return;
-        artProgress=exiting?exitFrom*(1-Ease(elapsed/.9f)):Ease(elapsed/1.3f);
-        Root.style.opacity=exiting?exitAlpha*(1-Ease((elapsed-.9f)/.18f)):Ease(elapsed/.32f);
+        artProgress=exiting?exitFrom*(1-Ease(elapsed/.7f)):Ease(elapsed/.76f);
+        Root.style.opacity=exiting?exitAlpha*(1-Ease((elapsed-.16f)/.54f)):Ease(elapsed/.76f);
         backdrop.Tick(dt);decoration.Animate(clock,artProgress,width,height);
         float insetLeft=0,insetRight=0,insetTop=0;var area=Screen.safeArea;
         if(Screen.width>0&&Screen.height>0){insetLeft=width*area.xMin/Screen.width;insetRight=width*(1-area.xMax/Screen.width);insetTop=height*(1-area.yMax/Screen.height);}
         corners.Inset(insetLeft,insetRight,insetTop);
-        bool narrow=width<820;rowScroll.style.left=Mathf.Max(insetLeft+20,width*(narrow?.08f:.12f));rowScroll.style.top=Mathf.Max(insetTop+90,height*.23f);rowScroll.style.width=Mathf.Min(540,width-insetLeft-insetRight-(narrow?width*.16f:width*.24f));rowScroll.style.bottom=48;
-        foreach(var item in row){item.EnableInClassList("pn-settings-row-narrow",narrow);}
-        for(int i=0;i<row.Count;i++){float p=exiting?rowExitAlpha[i]*(1-Ease(elapsed/.24f)):Ease((elapsed-.1f-i*.07f)/.42f);row[i].style.opacity=p;row[i].style.translate=new Translate(-18*(1-p),0);}
+        bool narrow=width<900;rowScroll.style.left=Mathf.Max(insetLeft+20,width*.07f);rowScroll.style.right=Mathf.Max(insetRight+20,width*.07f);
+        rowScroll.style.top=Mathf.Max(insetTop+88,88);rowScroll.style.bottom=78;
+        float contentWidth=rowScroll.contentViewport.resolvedStyle.width;
+        if(float.IsFinite(contentWidth)&&contentWidth>0)
+        {
+            float gridWidth=Mathf.Floor(Mathf.Min(1160,contentWidth-10)),cell=narrow?gridWidth:(gridWidth-36)/2;
+            foreach(var grid in fields){grid.style.width=gridWidth;int index=0;foreach(var item in grid.Children()){item.style.width=narrow?cell:Mathf.Min(502,cell);item.style.marginRight=!narrow&&index%2==0?Mathf.Max(0,gridWidth-Mathf.Min(502,cell)*2-2):0;index++;}}
+        }
+        foreach(var item in row)item.EnableInClassList("pn-settings-row-narrow",narrow);
+        for(int i=0;i<animated.Count;i++)
+        {
+            float p=exiting?animationExit[i]*(1-Ease(elapsed/.7f)):Ease((elapsed-Mathf.Min(i*.015f,.03f))/.73f);
+            animated[i].style.opacity=p;animated[i].style.translate=new Translate(0,10*(1-p));
+        }
+        corners.style.opacity=artProgress;scrollFade.Tick(dt);
         foreach(var d in dropdowns)d.Tick(dt,Root);
-        if(exiting&&elapsed>=1.08f){Action callback=closeWhole?closeAll:back;Dispose();callback?.Invoke();}
+        if(exiting&&elapsed>=.7f){Action callback=closeWhole?closeAll:back;Dispose();callback?.Invoke();}
     }
     public void Dispose()
     {if(disposed)return;disposed=true;PNLocalization.Changed-=Refresh;PNSettingsService.Changed-=Refresh;PNMobileStyleCatalog.Changed-=Refresh;Root.RemoveFromHierarchy();backdrop.Dispose();sparkles.Dispose();}
+}
+// Fading rules; only section dividers carry a star, headings have an underline alone.
+internal sealed class PNSettingsRule : VisualElement
+{
+    private readonly bool divider;
+    internal PNSettingsRule(bool divider)
+    {
+        this.divider=divider;pickingMode=PickingMode.Ignore;generateVisualContent+=Draw;
+        if(divider){var star=new PNPauseDrawing(PNPauseDrawing.Shape.Star){pickingMode=PickingMode.Ignore};star.style.position=Position.Absolute;star.style.left=Length.Percent(50);star.style.marginLeft=-6;star.style.top=3;star.style.width=12;star.style.height=14;Add(star);}
+    }
+    private void Draw(MeshGenerationContext context)
+    {
+        float w=contentRect.width,y=divider?10:1;if(w<=0)return;var p=context.painter2D;p.lineWidth=1;
+        for(int i=0;i<48;i++){float a=(float)i/48,b=(float)(i+1)/48;if(divider&&Mathf.Abs((a+b)*.5f-.5f)*w<20)continue;
+            p.strokeColor=new Color(1,1,1,Mathf.Sin((a+b)*.5f*Mathf.PI)*(divider?.55f:.85f));p.BeginPath();p.MoveTo(new Vector2(w*a,y));p.LineTo(new Vector2(w*b,y));p.Stroke();}
+    }
+}
+// Owned by a settings scroll view; no scheduled callbacks or effects survive its view.
+internal sealed class PNSettingsScrollFade
+{
+    private readonly ScrollView scroll;private Vector2 previous;private float idle=1,alpha;private bool initialized;
+    internal PNSettingsScrollFade(ScrollView scroll){this.scroll=scroll;scroll.verticalScroller.style.opacity=0;}
+    internal void Tick(float dt)
+    {
+        var offset=scroll.scrollOffset;if(initialized&&(offset-previous).sqrMagnitude>.001f)idle=0;else idle+=dt;previous=offset;initialized=true;
+        float target=idle<.6f?.5f:0;alpha=Mathf.MoveTowards(alpha,target,dt/.15f*.5f);scroll.verticalScroller.style.opacity=alpha;
+        scroll.verticalScroller.pickingMode=alpha>0?PickingMode.Position:PickingMode.Ignore;
+    }
 }
 #endif

@@ -117,6 +117,13 @@
 .mobile-outer-ring { position: absolute; left: -5.5px; right: -5.5px; top: -5.5px; bottom: -5.5px; border-radius: 100px; border-width: 1.5px; border-color: rgba(255,255,255,0.45); background-color: transparent; }
 .mobile-button-icon { position: absolute; left: 16%; right: 16%; top: 16%; bottom: 16%; opacity: 1; }
 .mobile-button.mobile-pressed { background-color: rgba(255,255,255,0.35); border-color: white; }
+.pc-controls { position: absolute; left: 0; right: 0; top: 0; bottom: 0; }
+.pc-action-cluster { position: absolute; right: 22px; bottom: 24px; width: 430px; height: 430px; transform-origin: right bottom; }
+.pc-action-button { width: 60px; height: 60px; background-color: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.44); transition-property: background-color, border-color, scale; transition-duration: 0.14s; }
+.pc-action-button > .mobile-outer-ring { border-width: 1px; border-color: rgba(255,255,255,0.19); }
+.pc-action-button.mobile-pressed { scale: 0.94 0.94; }
+.pc-action-icon { position: absolute; left: 22.8%; right: 22.8%; top: 22.8%; bottom: 22.8%; }
+.pc-action-binding { position: absolute; width: 20px; height: 20px; padding: 0; margin: 0; border-width: 0.6px; border-color: rgba(255,255,255,0.7); border-radius: 4px; color: white; -unity-text-align: middle-center; font-size: 13px; text-shadow: 0 0 3px rgba(30,40,52,0.95); }
 
 /* Roguelite flow UI: mode button, room browser, lobby, notices. Follows the pause-menu palette. */
 .pn-mode-toggle { position: absolute; top: 18px; right: 76px; height: 44px; min-height: 44px; padding: 0; width: 108px; -unity-text-align: middle-center; margin: 0; border-width: 1px; border-color: rgba(255,255,255,0.95); border-radius: 22px; overflow: visible; background-color: rgb(248,250,250); color: rgb(53,69,77); font-size: 18px; }
@@ -174,3 +181,19 @@
 .pn-settings-option:hover, .pn-settings-option:focus { background-color: rgba(255,255,255,.15); }
 .pn-settings-option-selected { background-color: rgba(255,255,255,.11); }
 .pn-settings-error { color: rgb(136,62,62); font-size: 17px; white-space: normal; }
+
+/* Section settings: transparent groups, two columns within each vertical section. */
+.pn-settings-rows > .unity-scroll-view__content-viewport > .unity-scroll-view__content-container { padding-right: 6px; }
+.pn-settings-section { margin-bottom: 46px; flex-shrink: 0; }
+.pn-settings-heading { align-items: flex-start; margin-bottom: 24px; flex-shrink: 0; }
+.pn-settings-heading > Label { font-size: 24px; height: 32px; margin: 0; padding: 0; color: white; -unity-font-style: normal; text-shadow: 0 1px 4px rgba(53,70,80,.35); }
+.pn-settings-heading-line { position: absolute; left: 0; height: 3px; bottom: -7px; }
+.pn-settings-fields { flex-direction: row; flex-wrap: wrap; }
+.pn-settings-row { height: 52px; margin-bottom: 24px; }
+.pn-settings-label { width: 145px; margin-right: 18px; font-size: 19px; white-space: normal; }
+.pn-settings-row-narrow .pn-settings-label { width: 34%; margin-right: 18px; font-size: 18px; }
+.pn-settings-trigger { height: 52px; min-width: 0; padding-left: 18px; padding-right: 18px; }
+.pn-settings-value { font-size: 20px; }
+.pn-settings-divider { height: 20px; width: 76%; max-width: 650px; align-self: center; margin-bottom: 36px; flex-shrink: 0; }
+
+.pn-settings-rows .unity-base-slider__dragger, .pn-settings-scroll .unity-base-slider__dragger { background-color: white; }

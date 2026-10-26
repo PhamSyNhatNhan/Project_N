@@ -1,3 +1,27 @@
+## Current: PC action HUD (2026-10-26)
+
+Desktop Settings can enable the five display-only action channels (default off),
+persisted as `showPcControls` in Settings schema4. `PNPcControls` is owned by
+`PNUiRuntime`, alongside mobile controls. It uses the approved right-side diamond,
+equal inner binding boxes, existing icon/palette registry and mobile-style held
+sparkles. The glyph viewport is80% of mobile's relative viewport; circle size stays60.
+There is no sixth slot, cooldown indicator, input injection or rebind screen.
+
+`PNPcBindingLabel` reads the local skill's runtime InputActions and effective
+resolved controls; overrides/masks/control changes invalidate labels. Keyboard/
+mouse action presses drive feedback; gamepad presses do not light keyboard labels.
+The view does not enable, disable, dispose or create gameplay actions. It hides
+and clears feedback under menus/input gates, loss of focus, dead/despawned players,
+test overlay and mobile/force-mobile preview. Root and all descendants ignore picking.
+Player/action changes reset held state; unbind/dispose drops subscriptions and caches.
+Icon/palette preferences are shared with mobile; fallback never overwrites requested IDs.
+
+The opt-in development fixture is `PNPcControlsPlayReview`:
+`-pn-pc-controls-review=<output> -pn-settings-fixture=<isolated root>`;
+`-pn-pc-restart=1` checks the persisted preference in a second process.
+Settings/native checks remain separate from actual Player input/render checks.
+See `Docs/PCControlsImplementationReport.md` for fresh evidence and limits.
+
 ## Current: Settings and JSON localization (2026-10-23)
 
 Title and pause Settings now open `PNSettingsView`: language/FPS dropdowns, shared
@@ -486,3 +510,18 @@ Checks: smoke `PNMenuMotionTests`, `PNMenuMathTests`, `PNModeListingTests`, `PNP
 `PNMenuVisualReview` (`-pn-menu-visual-review -pn-menu-visual-output=<dir>`: frames of the ring, setup, character screen, closing, with frame times), `PNMenuPlayReview` (`-pn-menu-play-review=solo|host|join` on the Hall/lobby/run Flow Player: drives the real menu to a started run, a host room and a joined room; see HANDOFF). The game start runs one frame after the menu has closed (starting it inside the flow's Tick ended the session under the running UI: `NullReferenceException` in `RefreshUI`); `RefreshUI` also returns when the HUD went away during a menu Tick. Mobile: corner buttons are 68 px (48 px on PC). Known: while the menu fades in (0.3 s) the pause star shows
 through the surface in the top-right corner (the pause toggle is not hidden; pause is untouched).
 Not checked: touch / gamepad on a device, Android, mobile safe area on the real screens, a real art texture on the gates, real play (starting a run from the menu, joining a room), a second playable character.
+
+## Settings sections / PC key labels (2026-10-26)
+The shared Title/pause Settings view uses General, Combat and Interface, each with
+up to two columns. Row labels stay left and dropdowns right. Heading underlines and
+centred star dividers are code-drawn, without extra image assets. No heading-side
+constellation or scrollbar bling. Scroll thumbs are alpha.5 while scrolling, with
+600ms idle/150ms fade. Content and decoration animate in760ms/out700ms together.
+Desktop exposes separate PC-control and key-label choices. Hiding labels leaves
+read-only input feedback active; the same Settings/settings.json stores both.
+The final demo follow-up brings button/keycap centres49 units apart (~3.5 gap to
+outer rim); I/J keycaps have6 units between boxes, U/K sit further from the centre.
+Hidden keycaps show a30x40 hollow pause-style star at the diamond centre, using the
+existing PNSparkleGlyph and its UI-owned halo. It hides when labels return and follows
+the whole HUD's visibility/scale. No extra animation/cooldown or artwork resources.
+The Letters option is named Chữ/Letters; stable style IDs and schema5 are unchanged.

@@ -22,10 +22,15 @@ public static class PNSettingsEditorChecks
             Check(PNSettingsService.SetLocale("en")&&PNLocalization.Selected=="en","shared locale setter");
             Check(PNSettingsService.SetFrameRate(120)&&Application.targetFrameRate==120&&QualitySettings.vSyncCount==0,"FPS policy");
             Check(new PNSettingsStore(dir).Load().Value.Locale=="en","FPS preserves locale");
+            Check(PNSettingsService.SetShowPcControls(true)&&new PNSettingsStore(dir).Load().Value.ShowPcControls,"PC HUD setter saves");
+            Check(PNSettingsService.SetShowPcBindingLabels(false)&&!new PNSettingsStore(dir).Load().Value.ShowPcBindingLabels&&PNSettingsService.Current.ShowPcControls,"label setter saves independently");
+            PNSettingsService.SetAutoTargetMode(PNTargetMode.LowestHealth);PNSettingsService.SetFrameRate(90);
+            Check(PNSettingsService.Current.ShowPcControls&&PNSettingsService.Current.Locale=="en","mode/FPS setters retain PC HUD");
             PNLocalization.Select("vi",false);Check(new PNSettingsStore(dir).Load().Value.Locale=="en","temporary locale selection not persisted");
             Check(PNSettingsService.SetFrameRate(0)&&Application.targetFrameRate==-1,"unlimited mapping");
             PNSettingsService.Shutdown();PNSettingsService.Load(new PNSettingsStore(dir));
-            Check(PNSettingsService.Current.Locale=="en"&&PNSettingsService.Current.TargetFrameRate==0,"service reload");
+            Check(PNSettingsService.Current.Locale=="en"&&PNSettingsService.Current.TargetFrameRate==0&&PNSettingsService.Current.ShowPcControls,"service reload includes PC HUD");
+            Check(!PNSettingsService.Current.ShowPcBindingLabels,"service reload restores hidden labels");
             string localization=Path.Combine(root,"Assets/StreamingAssets/BaseContent/Localization");
             var manifest=JObject.Parse(File.ReadAllText(Path.Combine(localization,"languages.json")));
             ((JArray)manifest["languages"]).Add(new JObject{{"code","fr"},{"nativeName","Français"}});

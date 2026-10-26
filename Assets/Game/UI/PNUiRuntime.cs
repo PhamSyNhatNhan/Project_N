@@ -25,6 +25,7 @@ public sealed class PNUiRuntime : MonoBehaviour
     [SerializeField] private bool showMobileControls;
     public bool ShowMobileControls { get=>showMobileControls; set=>showMobileControls=value; }
     private PNMobileControls mobile;
+    private PNPcControls pcControls;
     private PNPauseMenu pause;
     private PNModeMenu modeMenu;
     private GameObject ownedEventSystem;
@@ -36,7 +37,7 @@ public sealed class PNUiRuntime : MonoBehaviour
     internal PNMenuFlow MenuFlow => menuFlow;
     public void OpenMenu()=>pause?.Open();
     public void CloseMenu()=>pause?.Close();
-    internal void ResetMobileInput()=>mobile?.Reset();
+    internal void ResetMobileInput(){mobile?.Reset();pcControls?.Reset();}
     public long LocalOwnerId { get=>EveRegistrySession.IsReady && !EveRegistrySession.Context.HasAuthority
         ? EveRegistrySession.Context.LocalOwnerId.GetValueOrDefault(-1) : localOwnerId; set=>localOwnerId=value; }
     private bool IsLocalPlayer(PNStat stat)=>PNEntityRoles.IsPlayer(stat) && stat.GetComponent<EveEntityIdentity>().OwnerId==LocalOwnerId;
@@ -151,6 +152,7 @@ public sealed class PNUiRuntime : MonoBehaviour
         statsDetails=root.Q<Label>("test-stats"); abilityDetails=root.Q<Label>("test-abilities");
         SetTestExpanded(false);
         mobile=new PNMobileControls(this,root);
+        pcControls=new PNPcControls(this,root);
         pause=new PNPauseMenu(this,root);
         modeMenu=new PNModeMenu(this,root,pause);
         menuFlow=new PNMenuFlow(this,root);
@@ -199,7 +201,7 @@ public sealed class PNUiRuntime : MonoBehaviour
         if(PNViewCamera.Service==null) SyncCamera();
         if(!EveRegistrySession.IsReady)
         {
-            ClearWorlds(); entities.Clear(); HudPlayer=null; mobile?.Refresh(null); UpdateHud(); UpdateSelection(); UpdateDetails(); return;
+            ClearWorlds(); entities.Clear(); HudPlayer=null; mobile?.Refresh(null); pcControls?.Refresh(null); UpdateHud(); UpdateSelection(); UpdateDetails(); return;
         }
         if(session!=EveRegistrySession.Context.SessionId)
         { ClearWorlds(); ClearPortraits(); selected=default; session=EveRegistrySession.Context.SessionId; images.Clear(); ClearGlows(); }
@@ -221,6 +223,7 @@ public sealed class PNUiRuntime : MonoBehaviour
             (!LocalPlayerId.IsValid || s.EntityId==LocalPlayerId));
         foreach(var view in worlds.Values) view.Refresh(camera);
         mobile?.Refresh(HudPlayer);
+        pcControls?.Refresh(HudPlayer);
         UpdateHud(); UpdateSelection(); UpdateDetails();
     }
     private void UpdateHud()
@@ -341,8 +344,8 @@ public sealed class PNUiRuntime : MonoBehaviour
         portraits.Clear();
     }
     private void OnDisable()=>Unbind();
-    private void OnApplicationFocus(bool focus) { if(!focus)mobile?.Reset(); }
-    private void OnApplicationPause(bool paused) { if(paused)mobile?.Reset(); }
+    private void OnApplicationFocus(bool focus) { if(!focus)ResetMobileInput(); }
+    private void OnApplicationPause(bool paused) { if(paused)ResetMobileInput(); }
     private void OnDestroy()=>Unbind();
     private void DisposeUI()
     {
@@ -353,6 +356,7 @@ public sealed class PNUiRuntime : MonoBehaviour
         if(ownedEventSystem!=null){Retire(ownedEventSystem);ownedEventSystem=null;}
         pause?.Dispose(); pause=null;
         mobile?.Dispose(); mobile=null;
+        pcControls?.Dispose(); pcControls=null;
         sparkleArtwork?.Dispose();sparkleArtwork=null;
         PNViewCamera.Updated-=SyncCamera;
         ClearWorlds(); ClearPortraits(); DisconnectCamera();

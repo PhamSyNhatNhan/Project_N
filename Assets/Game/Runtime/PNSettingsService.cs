@@ -94,6 +94,20 @@ public static class PNSettingsService
         bool saved = !changed && SaveError == null && File.Exists(store.FilePath) || Persist();
         Notify(); return saved;
     }
+    public static bool SetShowPcControls(bool value)
+    {
+        EnsureLoaded();bool changed=current.ShowPcControls!=value;current=current.WithShowPcControls(value);
+        if(current.Locale==null&&PNLocalization.IsReady)ResolveDefaultLocale(PNLocalization.Selected);
+        bool saved=!changed&&SaveError==null&&File.Exists(store.FilePath)||Persist();
+        Notify();return saved;
+    }
+    public static bool SetShowPcBindingLabels(bool value)
+    {
+        EnsureLoaded();bool changed=current.ShowPcBindingLabels!=value;current=current.WithShowPcBindingLabels(value);
+        if(current.Locale==null&&PNLocalization.IsReady)ResolveDefaultLocale(PNLocalization.Selected);
+        bool saved=!changed&&SaveError==null&&File.Exists(store.FilePath)||Persist();
+        Notify();return saved;
+    }
     private static void ApplyFramePolicy()
     {
         if (!ownsFramePolicy) { previousFps = Application.targetFrameRate; previousVSync = QualitySettings.vSyncCount; ownsFramePolicy = true; }
