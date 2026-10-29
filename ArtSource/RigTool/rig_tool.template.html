@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rig tool</title>
+<style>
+  :root{--bg:#e9edf0;--panel:#fff;--ink:#222;--mut:#667;--line:#d3d9de;--acc:#3b7ddd;--bad:#c0392b;--ok:#2e8b57}
+  *{box-sizing:border-box}
+  body{margin:0;height:100vh;display:flex;font:12.5px/1.35 system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+  #stage{flex:1;min-width:0;position:relative}
+  canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+  #panel{width:420px;overflow:auto;background:var(--panel);border-left:1px solid var(--line);padding:8px 10px 30px}
+  h3{margin:12px 0 5px;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--mut)}
+  .row{display:flex;align-items:center;gap:6px;margin:3px 0;flex-wrap:wrap}
+  .row label{flex:0 0 92px;color:var(--mut)}
+  input[type=number]{width:70px} input[type=text]{width:150px} select{max-width:190px}
+  input[type=range]{flex:1;min-width:90px}
+  button{font:inherit;padding:3px 9px;border:1px solid var(--line);border-radius:6px;background:#f6f8fa;cursor:pointer}
+  button.on{background:var(--acc);border-color:var(--acc);color:#fff}
+  table{border-collapse:collapse;width:100%} td,th{border-bottom:1px solid var(--line);padding:2px 3px;text-align:left;font-weight:normal}
+  th{color:var(--mut);font-size:11px} td input{width:58px}
+  .hint{color:var(--mut);font-size:11.5px;margin:3px 0}
+  #errors{color:var(--bad);font-size:11.5px;white-space:pre-wrap;max-height:130px;overflow:auto}
+  #okmsg{color:var(--ok);font-size:11.5px}
+  .sel{background:#e8f0fe}
+  textarea{width:100%;height:110px;font:11px ui-monospace,monospace}
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="cv"></canvas></div>
+<div id="panel">
+  <div class="row"><b>Rig tool</b><span class="hint">sửa rig, tạo chuyển động bằng khung khóa, xuất JSON đúng schema của game (Docs/VisualPlan.md)</span></div>
+  <div class="row"><button id="bOpen">Mở JSON…</button><button id="bImg">Thêm PNG…</button><button id="bExport">Xuất JSON</button><button id="bReset">Về bản gốc</button>
+    <input type="file" id="fJson" accept=".json" hidden><input type="file" id="fImg" accept=".png" multiple hidden></div>
+  <div id="errors"></div><div id="okmsg"></div>
+
+  <h3>Xem</h3>
+  <div class="row"><label>Rig</label><select id="selRig"></select><label style="flex:0 0 auto">Build</label><select id="selBuild"></select></div>
+  <div class="row"><label>Chuyển động</label><select id="selMotion"></select><button id="bNew">Mới</button><button id="bDup">Nhân đôi</button><button id="bDel">Xóa</button></div>
+  <div class="row"><button id="bPlay">Chạy</button><button id="bFace">Quay trái</button><button id="bBones">Hiện xương</button><label style="flex:0 0 auto">Thời gian</label><input type="range" id="tRange" min="0" max="1" step="0.001" value="0"><output id="tOut">0.000</output></div>
+
+  <h3>Chuyển động</h3>
+  <div id="motionProps"></div>
+
+  <h3>Tư thế: xương đang chọn <span id="selName" style="color:#e8590c"></span></h3>
+  <div class="hint">Bấm vào hình để chọn xương. Kéo thanh để chỉnh tạm, rồi "Đặt khóa" ghi vào chuyển động tại thời điểm hiện tại.</div>
+  <div id="poseRows"></div>
+  <div class="row"><button id="bKey">Đặt khóa tại t</button><button id="bClearPose">Bỏ chỉnh tạm</button></div>
+  <div id="trackTable"></div>
+
+  <h3>Rig (xương)</h3>
+  <div class="hint">Vị trí nghỉ (px art, y xuống) và scale. Sửa ở đây đổi rig ngay.</div>
+  <div id="boneTable"></div>
+  <h3>Slot</h3>
+  <div id="slotTable"></div>
+  <h3>Socket</h3>
+  <div id="socketTable"></div>
+  <h3>JSON</h3>
+  <textarea id="out" readonly></textarea>
+</div>
+<script>
+const BASE_DOC = /*DOC*/;
+const BASE_IMGS = /*IMGS*/;
+const LIM = {bones:64, slots:64, sockets:32, keys:256, coord:100000, maxDur:600, maxBlend:.5, maxFreq:20, maxAngle:1080, maxScale:8};
+const KINDS = ['rot','x','y','sx','sy'];
+const NS = 'project_n';
+const $ = id => document.getElementById(id);
+let doc, imgs = {}, imgCache = {}, tintCache = {}, alphaCache = {};
+let st = {rig:null, build:null, motion:null, t:0, play:false, left:false, bones:false, sel:null, pose:{}};
+
+// ---------- loading ----------
+function clone(o){ return JSON.parse(JSON.stringify(o)); }
+function ext(){ return doc.extensions[NS]; }
+function list(name){ return ext()[name] || (ext()[name]=[]); }
+function byId(name,id){ return list(name).find(x=>x.id===id); }
+function loadDoc(d){
+  doc = d; if(!doc.extensions||!doc.extensions[NS]) throw new Error('Tài liệu không có extensions.project_n');
+  st.rig = ext().visualRigs && ext().visualRigs[0] && ext().visualRigs[0].id; st.build = (ext().visualBuilds||[]).find(b=>/normal/.test(b.id))?.id || ext().visualBuilds?.[0]?.id;
+  st.motion = ext().visualMotions?.[0]?.id; st.t=0; st.sel=null; st.pose={};
+  fillSelects(); refresh();
+}
+function loadImage(path, dataUrl){
+  const im = new Image(); im.onload = ()=>{ imgs[path]=im; tintCache={}; alphaCache={}; draw(); }; im.src = dataUrl;
+}
+function initImages(){ for(const p in BASE_IMGS) loadImage(p, BASE_IMGS[p]); }
+
+// ---------- validation (mirrors the C# parser limits) ----------
+function fin(v){ return typeof v==='number' && isFinite(v); }
+function validate(){
+  const e=[]; const E=m=>e.push(m); const nameOk=s=>typeof s==='string'&&/^[A-Za-z0-9_]{1,64}$/.test(s);
+  const idOk=s=>typeof s==='string'&&/^[a-z0-9_]+:[a-z0-9_]+$/.test(s);
+  const imgOk=s=>typeof s==='string'&&s.length>0&&s.length<=200&&!s.startsWith('/')&&!s.includes('\\')&&!s.includes('..')&&!s.includes(':')&&s.endsWith('.png');
+  const ids=new Set();
+  for(const kind of ['visualRigs','visualParts','visualBuilds','visualMotions','visualMotionSets','visualExpressions','visualAppearances'])
+    for(const d of list(kind)){ if(!idOk(d.id)) E(kind+': id không hợp lệ '+d.id); else if(!d.id.startsWith(NS+':')&&false) E('id'); if(ids.has(kind+d.id)) E('trùng '+d.id); ids.add(kind+d.id); }
+  for(const r of list('visualRigs')){
+    if(!fin(r.pixelsPerMeter)||r.pixelsPerMeter<10||r.pixelsPerMeter>10000) E(r.id+': pixelsPerMeter ngoài 10..10000');
+    if(r.facing&&r.facing!=='right') E(r.id+': facing phải là right');
+    const bs=r.bones||[]; if(!r.extends&&bs.length===0) E(r.id+': cần ít nhất một xương'); if(bs.length>LIM.bones||(r.slots||[]).length>LIM.slots||(r.sockets||[]).length>LIM.sockets) E(r.id+': quá nhiều xương/slot/socket');
+    const set=new Set(); let roots=0;
+    for(const b of bs){ if(!nameOk(b.id)) E(r.id+': tên xương sai '+b.id); if(set.has(b.id)) E(r.id+': lặp xương '+b.id); set.add(b.id); if(!b.parent) roots++;
+      if(!b.at||!fin(b.at[0])||!fin(b.at[1])||Math.abs(b.at[0])>LIM.coord||Math.abs(b.at[1])>LIM.coord) E(r.id+'.'+b.id+': at sai');
+      if(b.scale!==undefined&&(!fin(b.scale)||b.scale<.01||b.scale>LIM.maxScale)) E(r.id+'.'+b.id+': scale ngoài 0.01..8'); }
+    if(!r.extends){ if(roots!==1) E(r.id+': cần đúng một xương gốc (đang '+roots+')'); for(const b of bs) if(b.parent&&!set.has(b.parent)) E(r.id+'.'+b.id+': cha không tồn tại '+b.parent); }
+    for(const b of bs){ let p=b, n=0; while(p&&p.parent&&n<100){ p=bs.find(x=>x.id===p.parent); n++; } if(n>=100) E(r.id+': vòng cha-con ở '+b.id); }
+    for(const s of r.slots||[]){ if(!set.has(s.bone)&&!r.extends) E(r.id+'.slot '+s.id+': xương không tồn tại'); if(!Number.isInteger(s.layer)||Math.abs(s.layer)>1000) E(r.id+'.slot '+s.id+': layer ngoài ±1000'); }
+    for(const s of r.sockets||[]) if(!set.has(s.bone)&&!r.extends) E(r.id+'.socket '+s.id+': xương không tồn tại');
+  }
+  for(const p of list('visualParts')){ if(!imgOk(p.image)) E(p.id+': đường dẫn ảnh sai (tương đối, .png, không "..")'); if(!p.pivot||!fin(p.pivot[0])||!fin(p.pivot[1])) E(p.id+': pivot sai'); }
+  for(const m of list('visualMotions')){
+    const rig=byId('visualRigs',m.rig); if(!rig) E(m.id+': rig không tồn tại '+m.rig);
+    if(!fin(m.duration)||m.duration<.01||m.duration>LIM.maxDur) E(m.id+': duration ngoài 0.01..600');
+    for(const f of ['blendIn','blendOut']) if(m[f]!==undefined&&(!fin(m[f])||m[f]<0||m[f]>LIM.maxBlend)) E(m.id+': '+f+' ngoài 0..0.5');
+    if(m.channel==='overlay'&&(!m.mask||!m.mask.length)) E(m.id+': overlay cần mask');
+    const bones=new Set((rig?.bones||[]).map(b=>b.id));
+    for(const b in m.tracks||{}){ if(rig&&!rig.extends&&!bones.has(b)) E(m.id+': track trên xương lạ '+b);
+      for(const k in m.tracks[b]){ if(!KINDS.includes(k)) E(m.id+'.'+b+': loại track lạ '+k); const c=m.tracks[b][k];
+        if(c.wave){ if(!fin(c.wave.amp)||!fin(c.wave.freq)||c.wave.freq<0||c.wave.freq>LIM.maxFreq) E(m.id+'.'+b+'.'+k+': wave sai (freq 0..20)'); if(c.keys) E(m.id+'.'+b+'.'+k+': vừa keys vừa wave'); }
+        else { const ks=c.keys||[]; if(ks.length<1||ks.length>LIM.keys) E(m.id+'.'+b+'.'+k+': cần 1..256 khóa');
+          ks.forEach((kv,i)=>{ if(!fin(kv[0])||kv[0]<0||kv[0]>LIM.maxDur) E(m.id+'.'+b+'.'+k+': thời gian khóa sai'); if(i>0&&kv[0]<=ks[i-1][0]) E(m.id+'.'+b+'.'+k+': thời gian khóa phải tăng'); if(kv[1]==='current'){ if(i!==0) E(m.id+'.'+b+'.'+k+': "current" chỉ ở khóa đầu'); } else if(!fin(kv[1])||Math.abs(kv[1])>LIM.coord) E(m.id+'.'+b+'.'+k+': giá trị khóa sai'); }); } } }
+  }
+  return e;
+}
+
+// ---------- evaluation (same maths as PNVisualAnimator, without blending) ----------
+function curveValue(c, t, current){
+  if(c.wave){ const w=c.wave, s=Math.sin(2*Math.PI*w.freq*t+(w.phase||0)); return (w.offset||0)+w.amp*(w.abs?Math.abs(s):s); }
+  const ks=c.keys, n=ks.length; const v0=ks[0][1]==='current'?current:ks[0][1];
+  if(n===1||t<=ks[0][0]) return v0; if(t>=ks[n-1][0]) return ks[n-1][1];
+  let hi=1; while(hi<n-1&&ks[hi][0]<t) hi++; const lo=hi-1; const a=lo===0?v0:ks[lo][1], b=ks[hi][1]; let k=(t-ks[lo][0])/(ks[hi][0]-ks[lo][0]);
+  if(c.ease==='step') return a; if(c.ease==='smooth') k=k*k*(3-2*k); return a+(b-a)*k;
+}
+function resolveRig(rig){
+  const chain=[]; let cur=rig, guard=0; while(cur&&guard++<8){ chain.unshift(cur); cur=cur.extends?byId('visualRigs',cur.extends):null; }
+  const bones=[],slots=[],sockets=[]; for(const r of chain){ bones.push(...(r.bones||[])); slots.push(...(r.slots||[])); sockets.push(...(r.sockets||[])); }
+  const ordered=[], placed=new Set(); let n=0;
+  while(ordered.length<bones.length&&n++<100) for(const b of bones) if(!placed.has(b.id)&&(!b.parent||placed.has(b.parent))){ ordered.push(b); placed.add(b.id); }
+  return {bones:ordered,slots,sockets};
+}
+function evaluate(rig, motion, t){
+  const R=resolveRig(rig), build=byId('visualBuilds',st.build)||{scaleGroups:{}}; const idx={}; R.bones.forEach((b,i)=>idx[b.id]=i);
+  const v=R.bones.map(()=>({rot:0,x:0,y:0,sx:1,sy:1}));
+  if(motion&&motion.rig===rig.id) for(const bn in motion.tracks||{}){ const i=idx[bn]; if(i===undefined) continue; for(const k in motion.tracks[bn]) v[i][k]=curveValue(motion.tracks[bn][k], t, 0); }
+  for(const bn in st.pose){ const i=idx[bn]; if(i===undefined) continue; for(const k in st.pose[bn]) v[i][k]=st.pose[bn][k]; }
+  const sc=R.bones.map((b,i)=>{ const g=build.scaleGroups[b.scaleGroup]||[1,1]; return [(b.scale||1)*g[0]*v[i].sx,(b.scale||1)*g[1]*v[i].sy]; });
+  const W=[]; const pidx=R.bones.map(b=>b.parent?idx[b.parent]:-1);
+  R.bones.forEach((b,i)=>{ const p=pidx[i]; let lx,ly; if(p>=0){ lx=b.at[0]*sc[p][0]+v[i].x; ly=b.at[1]*sc[p][1]+v[i].y; } else { lx=b.at[0]*sc[i][0]+v[i].x; ly=b.at[1]*sc[i][1]+v[i].y; }
+    const a=v[i].rot*Math.PI/180, c=Math.cos(a), s=Math.sin(a); const L=[c,s,-s,c,lx,ly];
+    if(p<0) W[i]=L; else { const P=W[p]; W[i]=[P[0]*L[0]+P[2]*L[1],P[1]*L[0]+P[3]*L[1],P[0]*L[2]+P[2]*L[3],P[1]*L[2]+P[3]*L[3],P[0]*L[4]+P[2]*L[5]+P[4],P[1]*L[4]+P[3]*L[5]+P[5]]; } });
+  return {R,idx,v,sc,W};
+}
+
+// ---------- drawing ----------
+const cv=$('cv'), g=cv.getContext('2d');
+function size(){ const d=devicePixelRatio||1, r=cv.getBoundingClientRect(); cv.width=r.width*d; cv.height=r.height*d; }
+addEventListener('resize',()=>{size();draw();}); size();
+function partFor(slotId){ const a=list('visualAppearances')[0]; const pid=a&&a.slots&&a.slots[slotId]; return pid&&byId('visualParts',pid); }
+function tinted(part, color){
+  const key=part.image+color; if(tintCache[key]) return tintCache[key]; const im=imgs[part.image]; if(!im) return null;
+  const c=document.createElement('canvas'); c.width=im.width; c.height=im.height; const x=c.getContext('2d'); x.drawImage(im,0,0);
+  if(color){ x.globalCompositeOperation='multiply'; x.fillStyle=color; x.fillRect(0,0,c.width,c.height); x.globalCompositeOperation='destination-in'; x.drawImage(im,0,0); } return tintCache[key]=c;
+}
+function tintColor(part){ const a=list('visualAppearances')[0]; const col=a&&a.colors||{}; return part.tint==='skin'?col.skin:part.tint==='eye'?col.eye:part.tint==='hair'?col.hair:null; }
+let frame=null;
+function currentMotion(){ return byId('visualMotions',st.motion); }
+function draw(){
+  const rig=byId('visualRigs',st.rig); if(!rig||!doc) return;
+  const d=devicePixelRatio||1, Wd=cv.width, Hd=cv.height; g.setTransform(1,0,0,1,0,0); g.fillStyle='#f4f6f8'; g.fillRect(0,0,Wd,Hd);
+  const motion=currentMotion(); const e=evaluate(rig,motion,st.t); frame=e;
+  const z=Hd/760*.8, flip=st.left?-1:1; const base=[flip*z,0,0,z,Wd/2,Hd*.92]; // px (y down) -> screen
+  const M=(m)=>[base[0]*m[0]+base[2]*m[1],base[1]*m[0]+base[3]*m[1],base[0]*m[2]+base[2]*m[3],base[1]*m[2]+base[3]*m[3],base[0]*m[4]+base[2]*m[5]+base[4],base[1]*m[4]+base[3]*m[5]+base[5]];
+  g.setTransform(1,0,0,1,0,0); g.strokeStyle='#bcc4cc'; g.beginPath(); g.moveTo(0,Hd*.92); g.lineTo(Wd,Hd*.92); g.stroke();
+  const slots=e.R.slots.map((s,i)=>({s,i})).sort((a,b)=>a.s.layer-b.s.layer||a.i-b.i);
+  frame.hits=[];
+  for(const {s} of slots){
+    const part=partFor(s.id); const bi=e.idx[s.bone]; if(!part||bi===undefined) continue; const im=tinted(part,tintColor(part)); if(!im) continue;
+    const bs=e.sc[bi]; const W=e.W[bi]; const local=[bs[0],0,0,bs[1],(s.at?s.at[0]:0)*bs[0],(s.at?s.at[1]:0)*bs[1]];
+    const wm=[W[0]*local[0]+W[2]*local[1],W[1]*local[0]+W[3]*local[1],W[0]*local[2]+W[2]*local[3],W[1]*local[2]+W[3]*local[3],W[0]*local[4]+W[2]*local[5]+W[4],W[1]*local[4]+W[3]*local[5]+W[5]];
+    const m=M(wm); g.setTransform(m[0],m[1],m[2],m[3],m[4],m[5]); const alpha=(s.id.startsWith('blush')?(list('visualAppearances')[0]?.blushAlpha??1):1); g.globalAlpha=alpha; g.drawImage(im,-part.pivot[0],-part.pivot[1]); g.globalAlpha=1;
+    frame.hits.push({slot:s,part,m,im});
+  }
+  if(st.bones){ g.setTransform(1,0,0,1,0,0); e.R.bones.forEach((b,i)=>{ const m=M(e.W[i]); g.fillStyle=st.sel===b.id?'#e8590c':'#2b6cb0'; g.beginPath(); g.arc(m[4],m[5],st.sel===b.id?6:3.5,0,7); g.fill();
+      if(b.parent){ const pm=M(e.W[e.idx[b.parent]]); g.strokeStyle='#2b6cb099'; g.beginPath(); g.moveTo(pm[4],pm[5]); g.lineTo(m[4],m[5]); g.stroke(); } });
+    e.R.sockets.forEach(sk=>{ const bi=e.idx[sk.bone]; const W=e.W[bi], bs=e.sc[bi]; const x=sk.at[0]*bs[0], y=sk.at[1]*bs[1]; const wm=[1,0,0,1,W[0]*x+W[2]*y+W[4],W[1]*x+W[3]*y+W[5]]; const m=M(wm); g.fillStyle='#2e8b57'; g.fillRect(m[4]-3,m[5]-3,6,6); }); }
+  if(st.sel){ const bi=e.idx[st.sel]; if(bi!==undefined){ g.setTransform(1,0,0,1,0,0); const m=M(e.W[bi]); g.strokeStyle='#e8590c'; g.lineWidth=2; g.beginPath(); g.arc(m[4],m[5],11,0,7); g.stroke(); g.lineWidth=1; } }
+}
+cv.addEventListener('pointerdown',ev=>{
+  if(!frame||!frame.hits) return; const r=cv.getBoundingClientRect(), k=cv.width/r.width, x=(ev.clientX-r.left)*k, y=(ev.clientY-r.top)*k;
+  for(let i=frame.hits.length-1;i>=0;i--){ const h=frame.hits[i]; const m=h.m, det=m[0]*m[3]-m[1]*m[2]; if(Math.abs(det)<1e-9) continue;
+    const dx=x-m[4], dy=y-m[5]; const lx=(m[3]*dx-m[2]*dy)/det+h.part.pivot[0], ly=(-m[1]*dx+m[0]*dy)/det+h.part.pivot[1];
+    if(lx<0||ly<0||lx>=h.im.width||ly>=h.im.height) continue; const cx=h.im.getContext('2d'); if(cx.getImageData(Math.floor(lx),Math.floor(ly),1,1).data[3]<12) continue;
+    st.sel=h.slot.bone; refresh(); return; }
+  st.sel=null; refresh();
+});
+
+// ---------- panels ----------
+function opt(sel,items,value){ sel.innerHTML=''; for(const [v,t] of items) sel.add(new Option(t,v)); if(value!==undefined) sel.value=value; }
+function fillSelects(){
+  opt($('selRig'),(ext().visualRigs||[]).map(r=>[r.id,r.id]),st.rig); opt($('selBuild'),(ext().visualBuilds||[]).map(b=>[b.id,b.id]),st.build);
+  opt($('selMotion'),(ext().visualMotions||[]).filter(m=>m.rig===st.rig).map(m=>[m.id,m.id+(m.channel==='overlay'?'  (overlay)':'')]),st.motion);
+}
+function num(v,on,step){ const i=document.createElement('input'); i.type='number'; i.step=step||'any'; i.value=v; i.oninput=()=>{ const x=parseFloat(i.value); if(isFinite(x)) on(x); }; return i; }
+function refresh(){
+  const rig=byId('visualRigs',st.rig); const m=currentMotion();
+  $('tRange').max=m?m.duration:1; $('tOut').textContent=st.t.toFixed(3); $('tRange').value=st.t;
+  // motion properties
+  const mp=$('motionProps'); mp.innerHTML='';
+  if(m){ const row=(label,el)=>{ const d=document.createElement('div'); d.className='row'; const l=document.createElement('label'); l.textContent=label; d.append(l,el); mp.append(d); };
+    row('duration (s)',num(m.duration,v=>{m.duration=v;refreshOut();draw();}));
+    const kind=document.createElement('select'); for(const k of ['time','phase']) kind.add(new Option(k,k)); kind.value=m.clock||'time'; kind.onchange=()=>{m.clock=kind.value;refreshOut();}; row('clock',kind);
+    const loop=document.createElement('input'); loop.type='checkbox'; loop.checked=!!m.loop; loop.onchange=()=>{m.loop=loop.checked;refreshOut();}; row('loop',loop);
+    row('blendIn (s)',num(m.blendIn??.1,v=>{m.blendIn=v;refreshOut();}));
+    const ch=document.createElement('select'); for(const k of ['base','overlay']) ch.add(new Option(k,k)); ch.value=m.channel||'base'; ch.onchange=()=>{m.channel=ch.value; if(m.channel==='overlay'&&!m.mask) m.mask=Object.keys(m.tracks||{}); refreshOut();}; row('channel',ch);
+    if(m.channel==='overlay'){ const mask=document.createElement('input'); mask.type='text'; mask.value=(m.mask||[]).join(','); mask.onchange=()=>{m.mask=mask.value.split(',').map(s=>s.trim()).filter(Boolean);refreshOut();}; row('mask',mask); } }
+  // pose editor
+  const pr=$('poseRows'); pr.innerHTML=''; $('selName').textContent=st.sel||'(chưa chọn)';
+  if(st.sel&&frame){ const bi=frame.idx[st.sel]; const cur=frame.v[bi]||{};
+    for(const [k,min,max,step] of [['rot',-180,180,.5],['x',-300,300,.5],['y',-300,300,.5],['sx',.2,3,.01],['sy',.2,3,.01]]){
+      const row=document.createElement('div'); row.className='row'; const l=document.createElement('label'); l.textContent=k; const rg=document.createElement('input'); rg.type='range'; rg.min=min; rg.max=max; rg.step=step; rg.value=cur[k]; const out=document.createElement('output'); out.textContent=(+cur[k]).toFixed(2);
+      rg.oninput=()=>{ (st.pose[st.sel]=st.pose[st.sel]||{})[k]=+rg.value; out.textContent=(+rg.value).toFixed(2); draw(); }; row.append(l,rg,out); pr.append(row); } }
+  // track table
+  const tt=$('trackTable'); tt.innerHTML='';
+  if(m&&st.sel&&m.tracks&&m.tracks[st.sel]){ for(const k in m.tracks[st.sel]){ const c=m.tracks[st.sel][k]; const d=document.createElement('div'); d.className='row';
+      d.append(Object.assign(document.createElement('b'),{textContent:st.sel+'.'+k}));
+      if(c.wave){ d.append(Object.assign(document.createElement('span'),{textContent:' wave amp '+c.wave.amp+' freq '+c.wave.freq+' (sửa trong JSON)'})); }
+      else { const del=document.createElement('button'); del.textContent='Xóa track'; del.onclick=()=>{ delete m.tracks[st.sel][k]; if(!Object.keys(m.tracks[st.sel]).length) delete m.tracks[st.sel]; refresh(); }; d.append(del);
+        const tb=document.createElement('table'); tb.innerHTML='<tr><th>t</th><th>giá trị</th><th></th></tr>'; c.keys.forEach((kv,i)=>{ const tr=document.createElement('tr'); const td1=document.createElement('td'), td2=document.createElement('td'), td3=document.createElement('td');
+          td1.append(num(kv[0],v=>{kv[0]=v;refreshOut();draw();},'0.01')); td2.append(typeof kv[1]==='number'?num(kv[1],v=>{kv[1]=v;refreshOut();draw();}):Object.assign(document.createElement('span'),{textContent:kv[1]}));
+          const x=document.createElement('button'); x.textContent='×'; x.onclick=()=>{ c.keys.splice(i,1); if(!c.keys.length) delete m.tracks[st.sel][k]; refresh(); }; td3.append(x); tr.append(td1,td2,td3); tb.append(tr); }); d.append(tb); }
+      tt.append(d); } }
+  // rig tables
+  const bt=$('boneTable'); bt.innerHTML='<table><tr><th>id</th><th>cha</th><th>x</th><th>y</th><th>scale</th><th>nhóm</th></tr></table>';
+  if(rig) for(const b of rig.bones||[]){ const tr=document.createElement('tr'); if(b.id===st.sel) tr.className='sel'; const td=()=>document.createElement('td'); const a=td(),p=td(),x=td(),y=td(),s=td(),gp=td();
+    a.textContent=b.id; a.style.cursor='pointer'; a.onclick=()=>{st.sel=b.id;refresh();}; p.textContent=b.parent||'—'; x.append(num(b.at[0],v=>{b.at[0]=v;refreshOut();draw();},'0.5')); y.append(num(b.at[1],v=>{b.at[1]=v;refreshOut();draw();},'0.5')); s.append(num(b.scale??1,v=>{b.scale=v;refreshOut();draw();},'0.01'));
+    const gi=document.createElement('input'); gi.type='text'; gi.value=b.scaleGroup||''; gi.style.width='60px'; gi.onchange=()=>{ if(gi.value) b.scaleGroup=gi.value; else delete b.scaleGroup; refreshOut(); draw(); }; gp.append(gi); tr.append(a,p,x,y,s,gp); bt.firstChild.append(tr); }
+  const sl=$('slotTable'); sl.innerHTML='<table><tr><th>id</th><th>xương</th><th>lớp</th></tr></table>';
+  if(rig) for(const s of rig.slots||[]){ const tr=document.createElement('tr'); const a=document.createElement('td'),b=document.createElement('td'),l=document.createElement('td'); a.textContent=s.id; b.textContent=s.bone+(s.face?' (mặt)':''); l.append(num(s.layer,v=>{s.layer=Math.round(v);refreshOut();draw();},'1')); tr.append(a,b,l); sl.firstChild.append(tr); }
+  const so=$('socketTable'); so.innerHTML='<table><tr><th>id</th><th>xương</th><th>x</th><th>y</th></tr></table>';
+  if(rig) for(const s of rig.sockets||[]){ const tr=document.createElement('tr'); const a=document.createElement('td'),b=document.createElement('td'),x=document.createElement('td'),y=document.createElement('td'); a.textContent=s.id; b.textContent=s.bone; x.append(num(s.at[0],v=>{s.at[0]=v;refreshOut();draw();},'0.5')); y.append(num(s.at[1],v=>{s.at[1]=v;refreshOut();draw();},'0.5')); tr.append(a,b,x,y); so.firstChild.append(tr); }
+  refreshOut(); draw();
+}
+function refreshOut(){
+  const errs=validate(); $('errors').textContent=errs.length?errs.slice(0,25).join('\n')+(errs.length>25?'\n… (+'+(errs.length-25)+')':''):''; $('okmsg').textContent=errs.length?'':'Hợp lệ: '+(ext().visualMotions||[]).length+' chuyển động, '+(ext().visualRigs||[]).length+' rig';
+  $('out').value=JSON.stringify(doc,null,1); $('bExport').disabled=errs.length>0;
+}
+
+// ---------- actions ----------
+$('selRig').onchange=()=>{ st.rig=$('selRig').value; st.motion=(ext().visualMotions||[]).find(m=>m.rig===st.rig)?.id; st.sel=null; st.pose={}; fillSelects(); refresh(); };
+$('selBuild').onchange=()=>{ st.build=$('selBuild').value; draw(); };
+$('selMotion').onchange=()=>{ st.motion=$('selMotion').value; st.t=0; st.pose={}; refresh(); };
+$('tRange').oninput=()=>{ st.t=+$('tRange').value; $('tOut').textContent=st.t.toFixed(3); draw(); refreshTrackOnly(); };
+function refreshTrackOnly(){ }
+$('bPlay').onclick=()=>{ st.play=!st.play; $('bPlay').classList.toggle('on',st.play); last=null; };
+$('bFace').onclick=()=>{ st.left=!st.left; $('bFace').classList.toggle('on',st.left); draw(); };
+$('bBones').onclick=()=>{ st.bones=!st.bones; $('bBones').classList.toggle('on',st.bones); draw(); };
+$('bClearPose').onclick=()=>{ st.pose={}; refresh(); };
+$('bKey').onclick=()=>{
+  const m=currentMotion(); if(!m||!st.sel||!st.pose[st.sel]){ alert('Chọn một xương và chỉnh thanh trước.'); return; }
+  m.tracks=m.tracks||{}; const t=Math.round(st.t*1000)/1000;
+  for(const k in st.pose[st.sel]){ const tr=(m.tracks[st.sel]=m.tracks[st.sel]||{}); let c=tr[k]; if(c&&c.wave){ alert(st.sel+'.'+k+' là wave: sửa trong JSON.'); continue; }
+    if(!c) c=tr[k]={keys:[],ease:'linear'}; const ks=c.keys; const v=Math.round(st.pose[st.sel][k]*1000)/1000; const i=ks.findIndex(x=>Math.abs(x[0]-t)<1e-4);
+    if(i>=0) ks[i][1]=v; else { ks.push([t,v]); ks.sort((a,b)=>a[0]-b[0]); } }
+  st.pose={}; refresh();
+};
+$('bNew').onclick=()=>{ const name=prompt('Tên chuyển động (vd. spin):'); if(!name) return; const id=NS+':'+(st.rig.split(':')[1])+'_'+name.replace(/[^a-z0-9_]/gi,'_').toLowerCase(); if(byId('visualMotions',id)){ alert('Đã có '+id); return; }
+  list('visualMotions').push({id,rig:st.rig,kind:'pose',clock:'time',duration:1,loop:true,blendIn:.1,channel:'base',tracks:{}}); st.motion=id; st.t=0; fillSelects(); refresh(); };
+$('bDup').onclick=()=>{ const m=currentMotion(); if(!m) return; let id=m.id+'_copy', n=2; while(byId('visualMotions',id)) id=m.id+'_copy'+n++; const c=clone(m); c.id=id; list('visualMotions').push(c); st.motion=id; fillSelects(); refresh(); };
+$('bDel').onclick=()=>{ const m=currentMotion(); if(!m||!confirm('Xóa '+m.id+'?')) return; ext().visualMotions=ext().visualMotions.filter(x=>x!==m); for(const s of list('visualMotionSets')) for(const k in s.states) if(s.states[k]===m.id) delete s.states[k]; st.motion=(ext().visualMotions||[]).find(x=>x.rig===st.rig)?.id; fillSelects(); refresh(); };
+$('bReset').onclick=()=>{ if(confirm('Bỏ mọi thay đổi và nạp lại bản gốc?')){ loadDoc(clone(BASE_DOC)); } };
+$('bOpen').onclick=()=>$('fJson').click(); $('bImg').onclick=()=>$('fImg').click();
+$('fJson').onchange=async e=>{ const f=e.target.files[0]; if(!f) return; try{ loadDoc(JSON.parse(await f.text())); }catch(err){ alert('Không đọc được: '+err.message); } e.target.value=''; };
+$('fImg').onchange=async e=>{ for(const f of e.target.files){ const r=new FileReader(); r.onload=()=>{ const path=Object.keys(BASE_IMGS).find(p=>p.split('/').pop()===f.name)||('visual/'+f.name); loadImage(path,r.result); }; r.readAsDataURL(f); } e.target.value=''; };
+$('bExport').onclick=()=>{ const errs=validate(); if(errs.length){ alert('Còn lỗi, chưa xuất được.'); return; } const blob=new Blob([JSON.stringify(doc,null,1)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='visual_content.json'; a.click(); };
+
+let last=null;
+function tick(ts){ if(st.play){ const m=currentMotion(); if(m){ if(last===null) last=ts; const dt=(ts-last)/1000; last=ts; st.t+=dt; if(st.t>m.duration) st.t=m.loop?st.t%m.duration:m.duration; $('tRange').value=st.t; $('tOut').textContent=st.t.toFixed(3); draw(); } } requestAnimationFrame(tick); }
+loadDoc(clone(BASE_DOC)); initImages(); requestAnimationFrame(tick);
+</script>
+</body>
+</html>

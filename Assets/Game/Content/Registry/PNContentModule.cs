@@ -118,6 +118,13 @@ public class PNContentModule : EveIContentModule, EveIContentFinalizeModule, Eve
         hub.NameRegistry<PNDamageTypeDefinition>("damage_types");
         hub.NameRegistry<PNElementDefinition>("elements");
         hub.NameRegistry<PNTagDefinition>("tags");
+        hub.GetOrCreate<PNVisualRigDefinition>(); hub.NameRegistry<PNVisualRigDefinition>("visual_rigs");
+        hub.GetOrCreate<PNVisualPartDefinition>(); hub.NameRegistry<PNVisualPartDefinition>("visual_parts");
+        hub.GetOrCreate<PNVisualBuildDefinition>(); hub.NameRegistry<PNVisualBuildDefinition>("visual_builds");
+        hub.GetOrCreate<PNVisualMotionDefinition>(); hub.NameRegistry<PNVisualMotionDefinition>("visual_motions");
+        hub.GetOrCreate<PNVisualMotionSetDefinition>(); hub.NameRegistry<PNVisualMotionSetDefinition>("visual_motion_sets");
+        hub.GetOrCreate<PNVisualExpressionDefinition>(); hub.NameRegistry<PNVisualExpressionDefinition>("visual_expressions");
+        hub.GetOrCreate<PNVisualAppearanceDefinition>(); hub.NameRegistry<PNVisualAppearanceDefinition>("visual_appearances");
     }
 
     public virtual void FinalizeContent(EveRegistryHub hub) { }
@@ -131,7 +138,13 @@ public class PNContentModule : EveIContentModule, EveIContentFinalizeModule, Eve
             PNLoricaSettings.Parse(character.Data);
             PNPlayableSettings.Parse(character.Data);
             PNCombatSettings.Parse(character.Data);
-            PNBodySettings.Read(character);
+            var body = PNBodySettings.Read(character);
+            if (body.Visual.HasValue)
+            {
+                var appearance = hub.Get<PNVisualAppearanceDefinition>();
+                if (!appearance.TryGet(body.Visual.Value, out _)) throw new System.FormatException("Character " + character.Id + ": body visual " + body.Visual.Value + " is not a registered appearance.");
+                if (body.BuildOverride.HasValue && !hub.Get<PNVisualBuildDefinition>().TryGet(body.BuildOverride.Value, out _)) throw new System.FormatException("Character " + character.Id + ": build " + body.Build + " is not registered.");
+            }
         }
     }
 

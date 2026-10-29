@@ -166,7 +166,7 @@ public static class PNEntitySpawnEditorChecks
 
         // The coop hash carries one entry per referenced prefab.
         var hashes = PNEntityPrefabReferences.Hashes(hub, PNEntityPrefabs.Source);
-        Check(hashes.Count == 2 && hashes.ContainsKey("entity_prefab:project_n:eve2_pet") && hashes["entity_prefab:project_n:eve_2"] == baseline, "the coop hash entry for project_n:eve_2 is the prefab fingerprint");
+        Check(hashes.Count == 3 && hashes.ContainsKey("entity_prefab:project_n:visual_test") && hashes.ContainsKey("entity_prefab:project_n:eve2_pet") && hashes["entity_prefab:project_n:eve_2"] == baseline, "the coop hash entry for project_n:eve_2 is the prefab fingerprint");
     }
 
     // E4: the factory builds entities from the instances registry, the catalog and the spawn points, and keeps the old behavior for players.

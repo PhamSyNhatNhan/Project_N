@@ -217,7 +217,7 @@ MonoBehaviour:
   retryDelay: 0.5
   sightBlockers:
     serializedVersion: 2
-    m_Bits: 4294959103
+    m_Bits: 8183
 --- !u!114 &1553737017815430450
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -240,7 +240,7 @@ MonoBehaviour:
   retryDelay: 0.5
   sightBlockers:
     serializedVersion: 2
-    m_Bits: 4294959103
+    m_Bits: 8183
 --- !u!114 &8384321891635306173
 MonoBehaviour:
   m_ObjectHideFlags: 0

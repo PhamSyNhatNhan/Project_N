@@ -29,7 +29,7 @@ public class EveGameRuntime : EveRuntime
 #endif
     // EN: Bump when executable gameplay rules change, even if JSON stays the same.
     // VI: TÄƒng phiÃªn báº£n khi luáº­t gameplay trong code Ä‘á»•i dÃ¹ JSON váº«n giá»¯ nguyÃªn.
-    public const string CurrentRulesVersion = "project_n:101";
+    public const string CurrentRulesVersion = "project_n:102";
     public override string RulesVersion => CurrentRulesVersion;
 #if UNITY_5_3_OR_NEWER
     internal bool IsBootstrapOwner { get; set; }
@@ -88,6 +88,7 @@ public class EveGameRuntime : EveRuntime
 #if UNITY_5_3_OR_NEWER
         // Existing memory-document runtimes override ReadContentDocuments without pack I/O.
         PNMobileStyleCatalog.Publish(content);
+        PNVisualPacks.Publish(packs);   // where the PNG of every Visual part is read from
         // They retain base presentation; the normal pack path always supplies its staged catalogue.
         if(localizationCandidate==null){PNLocalization.EnsureBase();return;}
         PNLocalization.PublishContent(localizationCandidate,content);localizationCandidate=null;

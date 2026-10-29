@@ -17,3 +17,5 @@ MonoBehaviour:
     Prefab: {fileID: 4508174443292714787, guid: 6a8ec403197b4f00b91ab411b1970805, type: 3}
   - Key: project_n:eve2_pet
     Prefab: {fileID: 8059214730017314496, guid: ceea5109e372fb643a895d423e6570e4, type: 3}
+  - Key: project_n:visual_test
+    Prefab: {fileID: 4508174443292714787, guid: 65506b6df225fd24c83f93d0353c2625, type: 3}

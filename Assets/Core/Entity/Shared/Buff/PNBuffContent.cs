@@ -15,7 +15,7 @@ public sealed partial class PNBuffContentBatch : EveIContentExtensionBatch
     private readonly Dictionary<EveId,PNSkillBaseBindings> skillMappings=new Dictionary<EveId,PNSkillBaseBindings>();
     private readonly List<Action> checks = new List<Action>();
     private readonly HashSet<EveId> pendingStats;
-    public IEnumerable<EveIIdentified> Definitions => tags.Values.Cast<EveIIdentified>().Concat(buffs.Values).Concat(instances.Values).Concat(skillProfiles.Values).Concat(skillMappings.Values);
+    public IEnumerable<EveIIdentified> Definitions => tags.Values.Cast<EveIIdentified>().Concat(buffs.Values).Concat(instances.Values).Concat(skillProfiles.Values).Concat(skillMappings.Values).Concat(VisualDefinitions);
     public PNBuffContentBatch(IReadOnlyList<EveContentExtensionDocument> documents, EveRegistryHub hub, IReadOnlyList<EveIIdentified> pendingDefinitions)
     {
         this.hub = hub;
@@ -25,8 +25,9 @@ public sealed partial class PNBuffContentBatch : EveIContentExtensionBatch
             var root = document.Extensions;
             // Each registered processor consumes its own namespaced extension.
             if (root["project_n"] == null) continue;
-            var data = Object(root["project_n"]); Fields(data, "buffTags", "buffs", "instances", "skillBindingProfiles", "skillBaseBindings");
+            var data = Object(root["project_n"]); Fields(data, new[] { "buffTags", "buffs", "instances", "skillBindingProfiles", "skillBaseBindings" }.Concat(VisualFields).ToArray());
             ParseSkillBindings(data,document,pendingDefinitions);
+            ParseVisual(data, document);
             foreach (var value in Array(data["instances"]))
             {
                 // The kind comes from the factory; the kind owns the extra entry fields it accepts (for example a projectile's destroyable).
@@ -87,7 +88,7 @@ public sealed partial class PNBuffContentBatch : EveIContentExtensionBatch
         if (document.ContentNamespace != null && document.Dependencies != null && owner != document.ContentNamespace && !document.Dependencies.Contains(owner)) throw new FormatException("Buff reference requires dependency on " + owner);
     }
     public void Validate() { if (hub.Buffs().IsSealed || hub.BuffTags().IsSealed) throw new InvalidOperationException("Buff registries sealed."); foreach (var check in checks) check(); }
-    public void Commit() { foreach(var profile in skillProfiles.Values)hub.Get<PNSkillBindingProfile>().Register(profile); foreach(var mapping in skillMappings.Values)hub.Get<PNSkillBaseBindings>().Register(mapping); foreach (var tag in tags.Values) hub.BuffTags().Register(tag); foreach (var buff in buffs.Values) hub.Buffs().Register(buff); foreach (var instance in instances.Values) hub.Instances().Register(instance); }
+    public void Commit() { CommitVisual(); foreach(var profile in skillProfiles.Values)hub.Get<PNSkillBindingProfile>().Register(profile); foreach(var mapping in skillMappings.Values)hub.Get<PNSkillBaseBindings>().Register(mapping); foreach (var tag in tags.Values) hub.BuffTags().Register(tag); foreach (var buff in buffs.Values) hub.Buffs().Register(buff); foreach (var instance in instances.Values) hub.Instances().Register(instance); }
     // Absent or null disables the countdown. Required fields; v1 accepts Ceiling/Hide only.
     internal static PNBuffCountdown Countdown(JToken token)
     {

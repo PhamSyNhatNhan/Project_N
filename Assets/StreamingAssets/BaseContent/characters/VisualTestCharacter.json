@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "characters": [
+    {
+      "id": "project_n:visual_hero",
+      "portraitPath": "UI/Portraits/Eve_Icon",
+      "data": {
+        "playable": {
+          "name": "Visual test",
+          "description": "Rig puppet test body (Docs/VisualPlan.md). Movement only; hidden unless the testing switch allows forbidden characters.",
+          "accent": [255, 237, 219],
+          "availability": "forbidden",
+          "prefab": "visual_test"
+        },
+        "body": {
+          "visual": "project_n:visual_test"
+        }
+      },
+      "stats": [
+        { "statId": "base:health", "base": 100, "initialCurrent": 100 },
+        { "statId": "base:attack_power", "base": 10 },
+        { "statId": "base:attack_speed", "base": 100 },
+        { "statId": "base:cooldown_reduction", "base": 0 },
+        { "statId": "base:crit_rate", "base": 20 },
+        { "statId": "base:crit_damage", "base": 150 },
+        { "statId": "base:defense", "base": 5 },
+        { "statId": "base:move_speed", "base": 3 },
+        { "statId": "base:jump_speed", "base": 3.2 }
+      ],
+      "skill": []
+    }
+  ]
+}
