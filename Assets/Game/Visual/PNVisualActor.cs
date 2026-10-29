@@ -59,11 +59,13 @@ public sealed class PNVisualActor : MonoBehaviour
         public int Slot, Bone; public float AtX, AtY; public int Layer; public PNVisualPartDefinition Part; public string Namespace;
         public Rect Uv; public Vector2Int Size; public PNVisualTint Tint; public bool Blush;
         public Dictionary<string, KeyValuePair<Rect, Vector2Int>> Variants;
+        public int Segments, BendBone, VertexStart; public bool AxisX;   // Segments 1 = a plain quad; otherwise the strips of PNVisualBend driven by the bone's bend/sway
     }
     private PNVisualAnimator animator; private PNVisualResolvedRig rig; private PNVisualAppearanceDefinition appearance; private PNVisualBuildDefinition build;
     private Drawable[] drawables; private Mesh mesh; private Vector3[] vertices; private Vector2[] uv0, uv1; private Color32[] colors;
     private Color32[] tintColors; private MeshRenderer meshRenderer; private EveTimeScale clock; private PNCameraFacingTarget facing;
     private float flash, fade = 1f; private bool dirty = true; private float feetY;
+    private readonly float[] rowX = new float[PNVisualLimits.MaxSegments + 1], rowY = new float[PNVisualLimits.MaxSegments + 1], rowNx = new float[PNVisualLimits.MaxSegments + 1], rowNy = new float[PNVisualLimits.MaxSegments + 1];
 
     public PNVisualAnimator Animator => animator;
     public PNVisualAppearanceDefinition Appearance => appearance;
@@ -114,7 +116,7 @@ public sealed class PNVisualActor : MonoBehaviour
         Drawable Make(PNVisualPartDefinition part)
         {
             if (!atlas.TryGet(part.Id.Namespace, part.Image, out var uv, out var size)) throw new InvalidOperationException("Visual image is not in the atlas: " + part.Image);
-            var d = new Drawable { Part = part, Namespace = part.Id.Namespace, Uv = uv, Size = size, Tint = part.Tint };
+            var d = new Drawable { Part = part, Namespace = part.Id.Namespace, Uv = uv, Size = size, Tint = part.Tint, Segments = part.Segments, AxisX = part.Axis == PNVisualBendAxis.X, BendBone = -1 };
             if (part.Variants.Count > 0)
             {
                 d.Variants = new Dictionary<string, KeyValuePair<Rect, Vector2Int>>(StringComparer.Ordinal);
@@ -126,23 +128,37 @@ public sealed class PNVisualActor : MonoBehaviour
         {
             var s = rig.Slots[slot];
             if (hidden.Contains(s.Id) || !appearance.Slots.TryGetValue(s.Id, out var partId)) continue;
-            var d = Make(parts.Get(partId)); d.Slot = slot; d.Bone = -1; d.Layer = s.Layer; d.Blush = s.Id.StartsWith("blush", StringComparison.Ordinal); list.Add(d);
+            var d = Make(parts.Get(partId)); d.Slot = slot; d.Bone = -1; d.BendBone = rig.BoneIndex(s.Bone); d.Layer = s.Layer; d.Blush = s.Id.StartsWith("blush", StringComparison.Ordinal); list.Add(d);
         }
         foreach (var free in appearance.Free)
         {
-            var d = Make(parts.Get(free.Part)); d.Slot = -1; d.Bone = rig.BoneIndex(free.Bone); d.AtX = free.X; d.AtY = free.Y; d.Layer = free.Layer; list.Add(d);
+            var d = Make(parts.Get(free.Part)); d.Slot = -1; d.Bone = rig.BoneIndex(free.Bone); d.BendBone = d.Bone; d.AtX = free.X; d.AtY = free.Y; d.Layer = free.Layer; list.Add(d);
         }
         // stable sort by layer: the vertex order IS the draw order, so no sorting group is needed
         drawables = list.Select((d, i) => new { d, i }).OrderBy(x => x.d.Layer).ThenBy(x => x.i).Select(x => x.d).ToArray();
+        int vertexCount = 0;
+        for (int i = 0; i < drawables.Length; i++) { drawables[i].VertexStart = vertexCount; vertexCount += drawables[i].Segments == 1 ? 4 : 2 * (drawables[i].Segments + 1); }
     }
 
     private void BuildMesh(PNVisualAtlas atlas)
     {
-        int n = drawables.Length;
+        int n = drawables.Length; int vertexCount = n == 0 ? 0 : drawables[n - 1].VertexStart + (drawables[n - 1].Segments == 1 ? 4 : 2 * (drawables[n - 1].Segments + 1));
         mesh = new Mesh { name = "PN Visual Actor", hideFlags = HideFlags.HideAndDontSave }; mesh.MarkDynamic();
-        vertices = new Vector3[n * 4]; uv0 = new Vector2[n * 4]; uv1 = new Vector2[n * 4]; colors = new Color32[n * 4];
-        var tris = new int[n * 6];
-        for (int i = 0; i < n; i++) { int v = i * 4, t = i * 6; tris[t] = v; tris[t + 1] = v + 1; tris[t + 2] = v + 2; tris[t + 3] = v; tris[t + 4] = v + 2; tris[t + 5] = v + 3; }
+        vertices = new Vector3[vertexCount]; uv0 = new Vector2[vertexCount]; uv1 = new Vector2[vertexCount]; colors = new Color32[vertexCount];
+        int triangleCount = 0; for (int i = 0; i < n; i++) triangleCount += drawables[i].Segments * 6;
+        var tris = new int[triangleCount]; int t = 0;
+        for (int i = 0; i < n; i++)
+        {
+            int v = drawables[i].VertexStart;
+            if (drawables[i].Segments == 1) { tris[t++] = v; tris[t++] = v + 1; tris[t++] = v + 2; tris[t++] = v; tris[t++] = v + 2; tris[t++] = v + 3; continue; }
+            // strips: row k holds (A, B) at v + 2k, v + 2k + 1; A is the low side across the axis, B the high side; the order matches the plain quad's winding
+            for (int k = 0; k < drawables[i].Segments; k++)
+            {
+                int a0 = v + 2 * k, b0 = a0 + 1, a1 = a0 + 2, b1 = a0 + 3;
+                if (drawables[i].AxisX) { tris[t++] = b0; tris[t++] = b1; tris[t++] = a1; tris[t++] = b0; tris[t++] = a1; tris[t++] = a0; }
+                else { tris[t++] = a1; tris[t++] = b1; tris[t++] = b0; tris[t++] = a1; tris[t++] = b0; tris[t++] = a0; }
+            }
+        }
         mesh.vertices = vertices; mesh.triangles = tris; mesh.uv = uv0; mesh.colors32 = colors;
         mesh.bounds = new Bounds(new Vector3(0f, CapsuleHeight * .5f, 0f), new Vector3(CapsuleHeight * 2f, CapsuleHeight * 2.5f, .1f));   // fixed: no per-frame bounds work
         var filter = GetComponent<MeshFilter>(); if (filter == null) filter = gameObject.AddComponent<MeshFilter>(); filter.sharedMesh = mesh;
@@ -205,16 +221,36 @@ public sealed class PNVisualActor : MonoBehaviour
             Rect uv = d.Uv; Vector2Int size = d.Size;
             if (d.Slot >= 0 && d.Variants != null) { var name = a.SlotVariant[d.Slot]; if (name.Length > 0 && d.Variants.TryGetValue(name, out var variant)) { uv = variant.Key; size = variant.Value; } }
             float x0 = -d.Part.PivotX, y0 = -d.Part.PivotY, x1 = size.x - d.Part.PivotX, y1 = size.y - d.Part.PivotY;
-            int v = i * 4;
-            vertices[v] = new Vector3(ta * x0 + tc * y1 + ttx, tb * x0 + td * y1 + tty, 0f);
-            vertices[v + 1] = new Vector3(ta * x1 + tc * y1 + ttx, tb * x1 + td * y1 + tty, 0f);
-            vertices[v + 2] = new Vector3(ta * x1 + tc * y0 + ttx, tb * x1 + td * y0 + tty, 0f);
-            vertices[v + 3] = new Vector3(ta * x0 + tc * y0 + ttx, tb * x0 + td * y0 + tty, 0f);
-            uv0[v] = new Vector2(uv.x, uv.y); uv0[v + 1] = new Vector2(uv.xMax, uv.y); uv0[v + 2] = new Vector2(uv.xMax, uv.yMax); uv0[v + 3] = new Vector2(uv.x, uv.yMax);
+            int v = d.VertexStart, count;
+            if (d.Segments == 1)
+            {
+                count = 4;
+                vertices[v] = new Vector3(ta * x0 + tc * y1 + ttx, tb * x0 + td * y1 + tty, 0f);
+                vertices[v + 1] = new Vector3(ta * x1 + tc * y1 + ttx, tb * x1 + td * y1 + tty, 0f);
+                vertices[v + 2] = new Vector3(ta * x1 + tc * y0 + ttx, tb * x1 + td * y0 + tty, 0f);
+                vertices[v + 3] = new Vector3(ta * x0 + tc * y0 + ttx, tb * x0 + td * y0 + tty, 0f);
+                uv0[v] = new Vector2(uv.x, uv.y); uv0[v + 1] = new Vector2(uv.xMax, uv.y); uv0[v + 2] = new Vector2(uv.xMax, uv.yMax); uv0[v + 3] = new Vector2(uv.x, uv.yMax);
+            }
+            else
+            {
+                count = 2 * (d.Segments + 1);
+                float bend = d.BendBone >= 0 ? a.BoneBend[d.BendBone * 2] : 0f, sway = d.BendBone >= 0 ? a.BoneBend[d.BendBone * 2 + 1] : 0f;
+                float length = d.AxisX ? size.x : size.y, pivotAlong = d.AxisX ? d.Part.PivotX : d.Part.PivotY, lowAcross = d.AxisX ? y0 : x0, highAcross = d.AxisX ? y1 : x1;
+                PNVisualBend.Rows(d.Segments, length, pivotAlong, d.AxisX, bend, sway, rowX, rowY, rowNx, rowNy);
+                for (int k = 0; k <= d.Segments; k++)
+                {
+                    float t = (float)k / d.Segments, lx = rowX[k] + rowNx[k] * lowAcross, ly = rowY[k] + rowNy[k] * lowAcross, hx = rowX[k] + rowNx[k] * highAcross, hy = rowY[k] + rowNy[k] * highAcross;
+                    int row = v + 2 * k;
+                    vertices[row] = new Vector3(ta * lx + tc * ly + ttx, tb * lx + td * ly + tty, 0f);
+                    vertices[row + 1] = new Vector3(ta * hx + tc * hy + ttx, tb * hx + td * hy + tty, 0f);
+                    if (d.AxisX) { float u = uv.x + t * uv.width; uv0[row] = new Vector2(u, uv.yMax); uv0[row + 1] = new Vector2(u, uv.y); }
+                    else { float w = uv.yMax - t * uv.height; uv0[row] = new Vector2(uv.x, w); uv0[row + 1] = new Vector2(uv.xMax, w); }
+                }
+            }
             var tint = tintColors[(int)d.Tint]; float alpha = d.Slot >= 0 ? a.SlotAlpha[d.Slot] : 1f; if (d.Blush) alpha *= appearance.BlushAlpha;
             var color = new Color32(tint.r, tint.g, tint.b, (byte)Mathf.Clamp(Mathf.RoundToInt(tint.a * alpha), 0, 255));
-            colors[v] = color; colors[v + 1] = color; colors[v + 2] = color; colors[v + 3] = color;
-            var effect = new Vector2(flash, fade); uv1[v] = effect; uv1[v + 1] = effect; uv1[v + 2] = effect; uv1[v + 3] = effect;
+            var effect = new Vector2(flash, fade);
+            for (int k = 0; k < count; k++) { colors[v + k] = color; uv1[v + k] = effect; }
         }
         mesh.SetVertices(vertices); mesh.SetUVs(0, uv0); mesh.SetUVs(1, uv1); mesh.SetColors(colors);
         dirty = false;

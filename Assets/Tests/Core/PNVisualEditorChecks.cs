@@ -190,6 +190,169 @@ public static class PNVisualEditorChecks
         return "PASS " + checks + " Visual mod checks (separate pack folder, atlas, path safety)";
     }
 
+    // Starweaver (content written by ArtSource/VisualDemo/export_starweaver.py): the real base content (humanoid + starweaver), drawn in a preview scene in every state, the frames saved for a
+    // human to look at; then the entity side through the Visual test prefab with the character's body block (low build, forbidden test character).
+    public static string RunStarweaver(string outputDirectory = "G:/ProjectN_Camera/VisualStarweaver")
+    {
+        if (EditorApplication.isPlaying) throw new InvalidOperationException("Stop Play Mode first.");
+        PNVisualSystem.Prune();
+        int checks = 0; Stage stage = null; PNVisualActor actor = null; GameObject instance = null; Scene bodyScene = default;
+        string baseDirectory = Path.GetFullPath(Path.Combine(Application.dataPath, "StreamingAssets", "BaseContent"));
+        PNVisualPacks.Clear(); PNVisualPacks.Set("project_n", baseDirectory);
+        var hub = new EveContentBootstrap().Build(new EveIContentModule[] { new PNContentModule(), new PNGameplayContentModule() },
+            new[] { new EveContentDocument("visual", File.ReadAllText(Path.Combine(baseDirectory, "visual", "humanoid.json")), "project_n"), new EveContentDocument("starweaver", File.ReadAllText(Path.Combine(baseDirectory, "visual", "starweaver.json")), "project_n") });
+        try
+        {
+            var atlas = PNVisualRuntime.AtlasFor(hub);
+            Require(atlas.ImageCount == 20 && atlas.Texture != null && atlas.Texture.width <= PNVisualAtlas.MaxSize && atlas.Texture.height <= PNVisualAtlas.MaxSize, "the atlas packs the 10 humanoid and the 10 Starweaver PNGs (" + atlas.ImageCount + ", " + atlas.Texture.width + "x" + atlas.Texture.height + ")"); checks++;
+            stage = new Stage(); stage.Camera.orthographicSize = .45f; stage.Camera.transform.position = new Vector3(.05f, .3f, -5f);
+            var root = new GameObject("Starweaver root"); SceneManager.MoveGameObjectToScene(root, stage.Scene);
+            var visual = new GameObject("Visual"); visual.transform.SetParent(root.transform, false); actor = visual.AddComponent<PNVisualActor>();
+            actor.Bind(hub.Get<PNVisualAppearanceDefinition>().Get(EveId.Parse("project_n:starweaver")), hub, Vector3.zero);
+            var facing = visual.GetComponent<PNCameraFacingTarget>(); facing.ViewCamera = stage.Camera; facing.Align();
+            Require(actor.QuadCount == 23 && actor.Mesh.vertexCount == 20 * 4 + 3 * 2 * 15 && Mathf.Abs(actor.CapsuleHeight - .34f) < 1e-4f, "one mesh holds 20 plain quads and 3 bendable cloak pieces; the low build gives the 0.34 m capsule (" + actor.Mesh.vertexCount + " vertices)"); checks++;
+            foreach (var step in new (string name, string state, float time, bool restart)[] { ("rest", "idle", 0f, false), ("hover", "idle", 1.2f, false), ("fly", "walk", 1.0f, false), ("fly_fast", "run", 1.0f, false),
+                ("hurt", "hurt", .15f, true), ("dead_fall", "dead", .3f, true), ("dead_floor", "dead", 2.2f, false), ("stun_hit", "stun", .3f, true), ("stun_fall", "stun", .6f, false), ("stun_daze", "stun", 3f, false) })
+            {
+                if (step.state == "hurt") { actor.Play("idle", true); actor.Tick(.5f); }
+                actor.Play(step.state, step.restart); float t = 0f; while (t < step.time - 1e-4f) { float dt = Mathf.Min(.02f, step.time - t); actor.Tick(dt); t += dt; }
+                stage.Capture(outputDirectory + "/" + step.name + ".png"); int painted = stage.Painted();
+                Require(painted > 7000, step.name + ": paints a body (" + painted + " px)"); checks++;
+            }
+            // The Hall's camera uses the 3D renderer (index 1): the same puppet must be drawn there too (the shader has a pass for each renderer).
+            actor.Play("idle", true); actor.Tick(.5f);
+            var cameraData = stage.Camera.GetComponent<UnityEngine.Rendering.Universal.UniversalAdditionalCameraData>(); if (cameraData == null) cameraData = stage.Camera.gameObject.AddComponent<UnityEngine.Rendering.Universal.UniversalAdditionalCameraData>(); cameraData.SetRenderer(1);
+            stage.Capture(outputDirectory + "/renderer3d.png"); int painted3D = stage.Painted();
+            Require(painted3D > 7000, "the 3D renderer (the Hall's camera) draws the puppet too (" + painted3D + " px)"); checks++;
+            cameraData.SetRenderer(0);
+            actor.Play("idle", true); for (int i = 0; i < 200; i++) actor.Tick(.016f);
+            actor.Play("run", true); for (int i = 0; i < 200; i++) actor.Tick(.016f);
+            long gc0 = GC.GetAllocatedBytesForCurrentThread(); for (int i = 0; i < 600; i++) actor.Tick(.016f);
+            Require((GC.GetAllocatedBytesForCurrentThread() - gc0) / 600 <= 200, "a flying Starweaver allocates almost nothing per frame"); checks++;
+            // entity side
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Game/Entity/Character/VisualTest/Prefab/VisualTest.prefab");
+            bodyScene = EditorSceneManager.NewPreviewScene(); instance = UnityEngine.Object.Instantiate(prefab); SceneManager.MoveGameObjectToScene(instance, bodyScene);
+            var body = instance.GetComponent<PNVisualBody>(); var capsule = instance.GetComponent<CapsuleCollider>(); float feet0 = capsule.center.y - capsule.height * .5f;
+            var character = new EveCharacterDefinition(EveId.Parse("project_n:starweaver_visual"), new List<EveInitialStat>(), null, "", Newtonsoft.Json.Linq.JObject.Parse("{'body':{'visual':'project_n:starweaver','build':'short'}}"));
+            Require(body.Begin(character, hub) && body.Actor.QuadCount == 23, "the character's body block gives the Starweaver puppet"); checks++;
+            Require(Mathf.Abs(capsule.height - .34f) < 1e-4f && Mathf.Abs(capsule.radius - .099f) < 1e-4f && Mathf.Abs(capsule.center.y - capsule.height * .5f - feet0) < 1e-4f, "the low build: capsule 0.34 x 0.099, feet fixed (" + capsule.height + " x " + capsule.radius + ")"); checks++;
+            body.Feed(.02f); instance.transform.position += new Vector3(.04f, 0f, 0f); body.Feed(.02f);
+            Require(body.Actor.Animator.BaseState == "run" && body.Actor.Animator.HasState("stun"), "moving fast plays the fast flight; the stun state exists"); checks++;
+            body.Clear();
+            // a puppet placed in a scene by hand (the Hall's Starweaver)
+            var propObject = new GameObject("Prop"); SceneManager.MoveGameObjectToScene(propObject, bodyScene); var prop = propObject.AddComponent<PNVisualProp>();
+            prop.Build(hub);
+            Require(prop.Actor != null && prop.Actor.QuadCount == 23 && prop.Actor.Animator.BaseState == "idle" && propObject.GetComponentsInChildren<PNVisualActor>().Length == 1, "a placed prop builds the Starweaver and plays idle"); checks++;
+            UnityEngine.Object.DestroyImmediate(propObject);
+        }
+        finally
+        {
+            if (instance != null) UnityEngine.Object.DestroyImmediate(instance); if (bodyScene.IsValid()) EditorSceneManager.ClosePreviewScene(bodyScene);
+            if (actor != null) UnityEngine.Object.DestroyImmediate(actor.transform.parent.gameObject); stage?.Dispose(); PNVisualRuntime.Release(); PNVisualPacks.Clear();
+        }
+        Require(PNVisualSystem.Count == 0, "no puppet left registered"); checks++;
+        return "PASS " + checks + " Visual Starweaver checks (frames in " + outputDirectory + ")";
+    }
+
+    // Bendable parts: a made-up fox with a body block and a long tapering tail (a PNG written here, a pack folder of its own) is bent by motions; the frames show the tail curling
+    // each way, an S shape and a mirrored fox; the mesh holds the strips; ticking a bending actor allocates nothing.
+    public static string RunBend(string outputDirectory = "G:/ProjectN_Camera/VisualBend", string workDirectory = "G:/ProjectN_Camera/VisualBendPack")
+    {
+        if (EditorApplication.isPlaying) throw new InvalidOperationException("Stop Play Mode first.");
+        PNVisualSystem.Prune();
+        int checks = 0; Stage stage = null; PNVisualActor actor = null; var report = new List<string>();
+        if (Directory.Exists(workDirectory)) Directory.Delete(workDirectory, true);
+        Directory.CreateDirectory(workDirectory);
+        try
+        {
+            WriteTailPng(Path.Combine(workDirectory, "tail.png")); WriteBodyPng(Path.Combine(workDirectory, "body.png"));
+            var motions = new System.Text.StringBuilder(); var states = new System.Text.StringBuilder();
+            foreach (var pair in new (string name, string tracks)[] { ("b0", "'bend':{'keys':[[0,0]]}"), ("b45", "'bend':{'keys':[[0,45]]}"), ("bm45", "'bend':{'keys':[[0,-45]]}"), ("b100", "'bend':{'keys':[[0,100]]}"), ("s30", "'sway':{'keys':[[0,30]]}"),
+                ("wag", "'bend':{'wave':{'amp':30,'freq':1}},'sway':{'wave':{'amp':20,'freq':1,'phase':1.5}}") })
+            {
+                motions.Append("{'id':'bendtest:" + pair.name + "','rig':'bendtest:fox','kind':'pose','clock':'time','duration':1,'loop':true,'blendIn':0,'tracks':{'tail':{" + pair.tracks + "}}},");
+                states.Append("'" + pair.name + "':'bendtest:" + pair.name + "',");
+            }
+            string json = ("{'schemaVersion':1,'extensions':{'project_n':{"
+                + "'visualRigs':[{'id':'bendtest:fox','pixelsPerMeter':1000,'capsule':{'height':0.3,'radius':0.1},'bones':[{'id':'root','at':[0,0]},{'id':'body','parent':'root','at':[0,-150]},{'id':'tail','parent':'body','at':[-38,6]}],"
+                + "'slots':[{'id':'body','bone':'body','layer':10},{'id':'tail','bone':'tail','layer':-5}],'sockets':[]}],"
+                + "'visualParts':[{'id':'bendtest:body','image':'body.png','pivot':[40,30],'tint':'none'},{'id':'bendtest:tail','image':'tail.png','pivot':[199,30],'tint':'none','segments':12,'axis':'x'}],"
+                + "'visualBuilds':[{'id':'bendtest:normal','scaleGroups':{},'capsule':{'height':1,'radius':1},'shadow':1}],"
+                + "'visualMotions':[" + motions.ToString().TrimEnd(',') + "],"
+                + "'visualMotionSets':[{'id':'bendtest:set','rig':'bendtest:fox','states':{" + states.ToString().TrimEnd(',') + "}}],"
+                + "'visualAppearances':[{'id':'bendtest:look','rig':'bendtest:fox','motionSet':'bendtest:set','build':'bendtest:normal','slots':{'body':'bendtest:body','tail':'bendtest:tail'}}]}}}").Replace("'", "\"");
+            PNVisualPacks.Clear(); PNVisualPacks.Set("bendtest", workDirectory);
+            var hub = new EveContentBootstrap().Build(new EveIContentModule[] { new PNContentModule(), new PNGameplayContentModule() }, new[] { new EveContentDocument("bend", json, "bendtest") });
+            stage = new Stage(); stage.Camera.orthographicSize = .2f; stage.Camera.transform.position = new Vector3(0f, .17f, -5f);
+            var root = new GameObject("Bend actor root"); SceneManager.MoveGameObjectToScene(root, stage.Scene);
+            var visual = new GameObject("Visual"); visual.transform.SetParent(root.transform, false); actor = visual.AddComponent<PNVisualActor>();
+            actor.Bind(hub.Get<PNVisualAppearanceDefinition>().Get(EveId.Parse("bendtest:look")), hub, Vector3.zero);
+            var facing = visual.GetComponent<PNCameraFacingTarget>(); facing.ViewCamera = stage.Camera; facing.Align();
+            Require(actor.QuadCount == 2 && actor.Mesh.vertexCount == 4 + 2 * 13 && actor.Mesh.GetIndexCount(0) == 6 + 12 * 6, "one mesh holds the body quad and the 12 strips of the tail (" + actor.Mesh.vertexCount + " vertices)"); checks++;
+
+            var centroid = new Dictionary<string, Vector2>(); var painted = new Dictionary<string, int>();
+            foreach (var state in new[] { "b0", "b45", "bm45", "b100", "s30", "wag" })
+            {
+                actor.Play(state, true); actor.Tick(state == "wag" ? .25f : .01f); stage.Capture(outputDirectory + "/tail_" + state + ".png");
+                centroid[state] = TailCentroid(stage.Image, out int count); painted[state] = count;
+                Require(count > 800, state + ": the tail paints pixels (" + count + ")"); checks++;
+            }
+            Require(Mathf.Abs(painted["b0"] - painted["b45"]) < painted["b0"] * .12f && Mathf.Abs(painted["b0"] - painted["bm45"]) < painted["b0"] * .12f, "bending keeps the tail's size on screen (no stretch or tearing): " + painted["b0"] + " / " + painted["b45"] + " / " + painted["bm45"] + " px"); checks++;
+            Require(centroid["b45"].y < centroid["b0"].y - 4f && centroid["bm45"].y > centroid["b0"].y + 4f, "a positive bend curls the tail down and a negative one up (centroid y " + centroid["b45"].y + " / " + centroid["b0"].y + " / " + centroid["bm45"].y + ")"); checks++;
+            Require(Mathf.Abs(painted["b0"] - painted["s30"]) < painted["b0"] * .12f && Mathf.Abs(centroid["b0"].y - centroid["s30"].y) > 2f, "an S sway reshapes the tail without changing its size (" + painted["s30"] + " px, centroid y " + centroid["s30"].y + ")"); checks++;
+            report.Add("tail centroid y: b0 " + centroid["b0"].y.ToString("0.0") + ", b45 " + centroid["b45"].y.ToString("0.0") + ", bm45 " + centroid["bm45"].y.ToString("0.0") + ", b100 " + centroid["b100"].y.ToString("0.0"));
+
+            actor.Play("b0", true); actor.Tick(.01f); stage.Capture(null); var straight = TailCentroid(stage.Image, out _);
+            actor.SetFacingLeft(true); actor.Tick(.01f); stage.Capture(outputDirectory + "/tail_left.png"); var left = TailCentroid(stage.Image, out _);
+            Require(straight.x < Stage.Size * .5f && left.x > Stage.Size * .5f, "facing left mirrors the fox: the tail goes from the left of the body to its right (x " + straight.x + " -> " + left.x + ")"); checks++;
+            actor.SetFacingLeft(false); actor.Play("b45", true); actor.SetFacingLeft(true); actor.Tick(.01f); stage.Capture(outputDirectory + "/tail_left_b45.png"); var leftBent = TailCentroid(stage.Image, out _);
+            Require(leftBent.y < centroid["b0"].y - 4f, "a bend keeps its direction on screen when the fox faces left (the tail still curls down)"); checks++;
+            actor.SetFacingLeft(false);
+
+            actor.Play("wag", true); for (int i = 0; i < 120; i++) actor.Tick(.016f);
+            long gc0 = GC.GetAllocatedBytesForCurrentThread(); for (int i = 0; i < 600; i++) actor.Tick(.016f);
+            long gc = GC.GetAllocatedBytesForCurrentThread() - gc0;
+            Require(gc / 600 <= 200, "a wagging tail allocates almost nothing per frame (" + gc / 600 + " bytes)"); checks++;
+        }
+        finally
+        {
+            if (actor != null) UnityEngine.Object.DestroyImmediate(actor.transform.parent.gameObject);
+            stage?.Dispose(); PNVisualRuntime.Release(); PNVisualPacks.Clear(); if (Directory.Exists(workDirectory)) Directory.Delete(workDirectory, true);
+        }
+        return "PASS " + checks + " Visual bend checks (" + string.Join("; ", report) + "; frames in " + outputDirectory + ")";
+    }
+
+    // Orange pixels of the tail (the body is blue): count and centroid in image pixels (y up, like ReadPixels).
+    private static Vector2 TailCentroid(Texture2D image, out int count)
+    {
+        double sx = 0, sy = 0; count = 0; var pixels = image.GetPixels32(); int w = image.width;
+        for (int i = 0; i < pixels.Length; i++) { var p = pixels[i]; if (p.r > 180 && p.g > 70 && p.g < 180 && p.b < 100) { sx += i % w; sy += i / w; count++; } }
+        return count == 0 ? Vector2.zero : new Vector2((float)(sx / count), (float)(sy / count));
+    }
+
+    // A fox tail 200 x 60 lying along x: the root is the right end (pivot 199, 30), it swells in the middle, narrows to the tip on the left, which is white; black outline all round.
+    private static void WriteTailPng(string path)
+    {
+        const int w = 200, h = 60; var tex = new Texture2D(w, h, TextureFormat.RGBA32, false); var pixels = new Color32[w * h];
+        for (int x = 0; x < w; x++)
+        {
+            float u = x / (float)(w - 1); float half = 5f + 20f * Mathf.Sin(Mathf.PI * Mathf.Clamp01(.08f + u * .84f));
+            for (int y = 0; y < h; y++)
+            {
+                float d = Mathf.Abs(y - 29.5f); Color32 c = new Color32(0, 0, 0, 0);
+                if (d <= half) c = d > half - 3f || x < 2 || x > w - 3 ? new Color32(20, 20, 20, 255) : (u < .22f ? new Color32(245, 245, 245, 255) : new Color32(230, 120, 30, 255));
+                pixels[y * w + x] = c;
+            }
+        }
+        tex.SetPixels32(pixels); tex.Apply(); File.WriteAllBytes(path, tex.EncodeToPNG()); UnityEngine.Object.DestroyImmediate(tex);
+    }
+    private static void WriteBodyPng(string path)
+    {
+        const int w = 80, h = 60; var tex = new Texture2D(w, h, TextureFormat.RGBA32, false); var pixels = new Color32[w * h];
+        for (int i = 0; i < pixels.Length; i++) { int x = i % w, y = i / w; bool edge = x < 3 || y < 3 || x > w - 4 || y > h - 4; pixels[i] = edge ? new Color32(20, 20, 20, 255) : new Color32(70, 110, 200, 255); }
+        tex.SetPixels32(pixels); tex.Apply(); File.WriteAllBytes(path, tex.EncodeToPNG()); UnityEngine.Object.DestroyImmediate(tex);
+    }
+
     public static string Run(string outputDirectory = "G:/ProjectN_Camera/VisualP3")
     {
         if (EditorApplication.isPlaying) throw new InvalidOperationException("Stop Play Mode first.");

@@ -12,12 +12,13 @@ public enum PNVisualMotionKind { Pose, Flipbook }
 public enum PNVisualClock { Time, Phase }
 public enum PNVisualChannel { Base, Overlay }
 public enum PNVisualEase { Linear, Smooth, Step }
-public enum PNVisualTrackKind { Rot, X, Y, Sx, Sy }
+public enum PNVisualTrackKind { Rot, X, Y, Sx, Sy, Bend, Sway }
+public enum PNVisualBendAxis { Y, X }
 
 public static class PNVisualLimits
 {
-    public const int MaxBones = 64, MaxSlots = 64, MaxSockets = 32, MaxKeys = 256, MaxTracks = 64, MaxEvents = 32, MaxFrames = 256, MaxVariants = 16, MaxFree = 32, MaxMask = 64;
-    public const float MinPixelsPerMeter = 10f, MaxPixelsPerMeter = 10000f, MaxCoordinate = 100000f, MaxAngle = 1080f, MaxScale = 8f, MaxDuration = 600f, MaxBlend = .5f, MaxFrequency = 20f;
+    public const int MaxBones = 64, MaxSlots = 64, MaxSockets = 32, MaxKeys = 256, MaxTracks = 64, MaxEvents = 32, MaxFrames = 256, MaxVariants = 16, MaxFree = 32, MaxMask = 64, MaxSegments = 16, TrackKinds = 7;
+    public const float MinPixelsPerMeter = 10f, MaxPixelsPerMeter = 10000f, MaxCoordinate = 100000f, MaxAngle = 1080f, MaxScale = 8f, MaxDuration = 600f, MaxBlend = .5f, MaxFrequency = 20f, MaxBendAngle = 360f;
     public const int MaxLayer = 1000;
     public static bool Finite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
     public static float Coordinate(float value, string what)
@@ -155,8 +156,13 @@ public sealed class PNVisualPartDefinition : EveIIdentified
 {
     public EveId Id { get; } public string Image { get; } public float PivotX { get; } public float PivotY { get; } public PNVisualTint Tint { get; }
     public IReadOnlyDictionary<string, string> Variants { get; }
-    public PNVisualPartDefinition(EveId id, string image, float pivotX, float pivotY, PNVisualTint tint, IDictionary<string, string> variants)
+    // Bendable part: the image is drawn as `Segments` strips along `Axis` (the pivot is where the bend starts); 1 = a plain rigid quad. See PNVisualBend.
+    public int Segments { get; } public PNVisualBendAxis Axis { get; }
+    public PNVisualPartDefinition(EveId id, string image, float pivotX, float pivotY, PNVisualTint tint, IDictionary<string, string> variants, int segments = 1, PNVisualBendAxis axis = PNVisualBendAxis.Y)
     {
+        if (segments < 1 || segments > PNVisualLimits.MaxSegments) throw new FormatException("part " + id + " segments must be 1.." + PNVisualLimits.MaxSegments + ".");
+        if (!Enum.IsDefined(typeof(PNVisualBendAxis), axis)) throw new FormatException("part bend axis is unknown.");
+        Segments = segments; Axis = axis;
         if (!id.IsValid) throw new FormatException("part needs a valid id.");
         Id = id; Image = PNVisualLimits.ImagePath(image, "part " + id); PivotX = PNVisualLimits.Coordinate(pivotX, "part pivot x"); PivotY = PNVisualLimits.Coordinate(pivotY, "part pivot y");
         if (!Enum.IsDefined(typeof(PNVisualTint), tint)) throw new FormatException("part tint is unknown.");
@@ -222,7 +228,19 @@ public sealed class PNVisualCurve
 public sealed class PNVisualTrack
 {
     public string Bone { get; } public PNVisualTrackKind Kind { get; } public PNVisualCurve Curve { get; }
-    public PNVisualTrack(string bone, PNVisualTrackKind kind, PNVisualCurve curve) { Bone = PNVisualLimits.Name(bone, "track bone"); Kind = kind; Curve = curve ?? throw new ArgumentNullException(nameof(curve)); }
+    public PNVisualTrack(string bone, PNVisualTrackKind kind, PNVisualCurve curve)
+    {
+        Bone = PNVisualLimits.Name(bone, "track bone"); Kind = kind; Curve = curve ?? throw new ArgumentNullException(nameof(curve));
+        if (!Enum.IsDefined(typeof(PNVisualTrackKind), kind)) throw new FormatException("track kind is unknown.");
+        if (kind == PNVisualTrackKind.Bend || kind == PNVisualTrackKind.Sway)
+        {
+            // a bend is a turn in degrees along the whole part; refused (not clamped) beyond +-MaxBendAngle
+            float peak = 0f;
+            if (curve.IsWave) peak = Math.Abs(curve.Offset) + Math.Abs(curve.Amp);
+            else for (int i = 0; i < curve.Values.Length; i++) if (!(curve.StartsFromCurrent && i == 0)) peak = Math.Max(peak, Math.Abs(curve.Values[i]));
+            if (peak > PNVisualLimits.MaxBendAngle) throw new FormatException("bone " + bone + " " + kind + " must stay within +-" + PNVisualLimits.MaxBendAngle + " degrees.");
+        }
+    }
 }
 
 // A slot's variant over time (step) and an alpha curve, for faces inside a motion.
@@ -265,7 +283,7 @@ public sealed class PNVisualMotionDefinition : EveIIdentified
         Mask = (mask ?? Enumerable.Empty<string>()).Select(x => PNVisualLimits.Name(x, "mask bone")).ToArray();
         Tracks = (tracks ?? Enumerable.Empty<PNVisualTrack>()).ToArray(); SlotTracks = (slotTracks ?? Enumerable.Empty<PNVisualSlotTrack>()).ToArray();
         Events = (events ?? Enumerable.Empty<PNVisualEvent>()).ToArray(); Frames = (frames ?? Enumerable.Empty<string>()).Select(x => PNVisualLimits.ImagePath(x, "motion " + id + " frame")).ToArray();
-        if (Mask.Count > PNVisualLimits.MaxMask || Tracks.Count > PNVisualLimits.MaxTracks * 5 || SlotTracks.Count > PNVisualLimits.MaxTracks || Events.Count > PNVisualLimits.MaxEvents || Frames.Count > PNVisualLimits.MaxFrames) throw new FormatException("motion " + id + " has too many masks, tracks, events or frames.");
+        if (Mask.Count > PNVisualLimits.MaxMask || Tracks.Count > PNVisualLimits.MaxTracks * PNVisualLimits.TrackKinds || SlotTracks.Count > PNVisualLimits.MaxTracks || Events.Count > PNVisualLimits.MaxEvents || Frames.Count > PNVisualLimits.MaxFrames) throw new FormatException("motion " + id + " has too many masks, tracks, events or frames.");
         if (Kind == PNVisualMotionKind.Flipbook && (Frames.Count == 0 || Fps <= 0f)) throw new FormatException("flipbook motion " + id + " needs frames and fps.");
         if (Kind == PNVisualMotionKind.Pose && Frames.Count > 0) throw new FormatException("pose motion " + id + " cannot have frames.");
         if (Channel == PNVisualChannel.Overlay && Mask.Count == 0) throw new FormatException("overlay motion " + id + " needs a mask.");

@@ -8,7 +8,7 @@ using System.Collections.Generic;
 // VI: Bộ tính tư thế của một rig. Không dùng Unity. Bốn kênh: chuyển động nền, lớp chồng, biểu cảm, bộ điều chỉnh tự động.
 public sealed class PNVisualAnimator
 {
-    private const int Kinds = 5; // Rot, X, Y, Sx, Sy
+    private const int Kinds = PNVisualLimits.TrackKinds; // Rot, X, Y, Sx, Sy, Bend, Sway (the last two are additive, in degrees)
     private sealed class Compiled
     {
         public PNVisualMotionDefinition Motion; public int[] TrackBone, TrackKind; public PNVisualCurve[] TrackCurve; public bool[] InMask;
@@ -33,6 +33,7 @@ public sealed class PNVisualAnimator
     public int BoneCount => bones;
     public float[] BoneAffine { get; }        // 6 floats per bone: local px (y down) -> metres (y up), mirrored when facing left
     public float[] BoneScale { get; }         // 2 floats per bone: draw scale
+    public float[] BoneBend { get; }          // 2 floats per bone: bend and sway in degrees (PNVisualBend), 0 when the bone is rigid
     public float[] SlotAffine { get; }        // 6 floats per slot, the part pivot is the local origin
     public float[] SlotAlpha { get; }
     public string[] SlotVariant { get; }      // "" = the part's default image
@@ -63,7 +64,7 @@ public sealed class PNVisualAnimator
         Array.Copy(rest, baseShown, rest.Length);
         scaleX = new float[bones]; scaleY = new float[bones]; groupX = new float[bones]; groupY = new float[bones]; world = new float[bones * 6];
         for (int i = 0; i < bones; i++) build.Scale(rig.Bones[i].ScaleGroup, out groupX[i], out groupY[i]);
-        BoneAffine = new float[bones * 6]; BoneScale = new float[bones * 2]; SlotAffine = new float[slots * 6]; SlotAlpha = new float[slots]; SlotVariant = new string[slots]; SocketPosition = new float[sockets * 2];
+        BoneAffine = new float[bones * 6]; BoneScale = new float[bones * 2]; BoneBend = new float[bones * 2]; SlotAffine = new float[slots * 6]; SlotAlpha = new float[slots]; SlotVariant = new string[slots]; SocketPosition = new float[sockets * 2];
         for (int i = 0; i < slots; i++) { SlotAlpha[i] = 1f; SlotVariant[i] = ""; if (rig.Slots[i].Blink) blinkSlots++; }
         exprSx = new float[slots]; exprSy = new float[slots]; exprOx = new float[slots]; exprOy = new float[slots]; exprRot = new float[slots]; exprVariant = new string[slots];
         SetExpression(null);
@@ -151,6 +152,7 @@ public sealed class PNVisualAnimator
             var bone = rig.Bones[i];
             scaleX[i] = bone.Scale * groupX[i] * v[i * Kinds + 3]; scaleY[i] = bone.Scale * groupY[i] * v[i * Kinds + 4];
             BoneScale[i * 2] = scaleX[i]; BoneScale[i * 2 + 1] = scaleY[i];
+            BoneBend[i * 2] = v[i * Kinds + 5]; BoneBend[i * 2 + 1] = v[i * Kinds + 6];
             int p = rig.ParentIndex[i];
             float lx = bone.X + v[i * Kinds + 1], ly = bone.Y + v[i * Kinds + 2];
             if (p >= 0) { lx = bone.X * scaleX[p] + v[i * Kinds + 1]; ly = bone.Y * scaleY[p] + v[i * Kinds + 2]; }
@@ -245,7 +247,7 @@ public sealed class PNVisualAnimator
         {
             int b = c.TrackBone[i]; if (!c.InMask[b]) continue;
             int index = b * Kinds + c.TrackKind[i]; float value = Sample(c.TrackCurve[i], time, 0f);
-            if (c.TrackKind[i] >= 3) v[index] *= 1f + (value - 1f) * weight; else v[index] += value * weight;
+            if (c.TrackKind[i] == 3 || c.TrackKind[i] == 4) v[index] *= 1f + (value - 1f) * weight; else v[index] += value * weight;
         }
     }
 

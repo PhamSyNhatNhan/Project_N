@@ -82,6 +82,7 @@ public sealed partial class PNBuffContentBatch
         if (!(token is JArray array) || array.Count != 2) throw new FormatException(what + " must be [x, y].");
         return new[] { Num(array[0], what), Num(array[1], what) };
     }
+    private static int Integer(JObject obj, string field, int fallback) => obj[field] == null ? fallback : Integer(obj, field);
     private static TEnum EnumOf<TEnum>(JObject obj, string field, TEnum fallback) where TEnum : struct
     {
         if (obj[field] == null) return fallback;
@@ -122,11 +123,11 @@ public sealed partial class PNBuffContentBatch
 
     private PNVisualPartDefinition ParsePart(JObject obj, EveContentExtensionDocument document)
     {
-        Fields(obj, "id", "image", "pivot", "tint", "variants");
+        Fields(obj, "id", "image", "pivot", "tint", "variants", "segments", "axis");
         var id = Owned(String(obj, "id"), document); var pivot = Pair(obj["pivot"], "part pivot");
         var variants = new Dictionary<string, string>();
         if (obj["variants"] != null) foreach (var p in Object(obj["variants"]).Properties()) variants.Add(p.Name, p.Value.Type == JTokenType.String ? p.Value.Value<string>() : throw new FormatException("variant image path required."));
-        return new PNVisualPartDefinition(id, String(obj, "image"), pivot[0], pivot[1], EnumOf(obj, "tint", PNVisualTint.None), variants);
+        return new PNVisualPartDefinition(id, String(obj, "image"), pivot[0], pivot[1], EnumOf(obj, "tint", PNVisualTint.None), variants, Integer(obj, "segments", 1), EnumOf(obj, "axis", PNVisualBendAxis.Y));
     }
 
     private PNVisualBuildDefinition ParseBuild(JObject obj, EveContentExtensionDocument document)
@@ -171,8 +172,8 @@ public sealed partial class PNBuffContentBatch
         if (obj["tracks"] != null)
             foreach (var bone in Object(obj["tracks"]).Properties())
             {
-                var set = Object(bone.Value); Fields(set, "rot", "x", "y", "sx", "sy");
-                foreach (var kind in new[] { PNVisualTrackKind.Rot, PNVisualTrackKind.X, PNVisualTrackKind.Y, PNVisualTrackKind.Sx, PNVisualTrackKind.Sy })
+                var set = Object(bone.Value); Fields(set, "rot", "x", "y", "sx", "sy", "bend", "sway");
+                foreach (var kind in new[] { PNVisualTrackKind.Rot, PNVisualTrackKind.X, PNVisualTrackKind.Y, PNVisualTrackKind.Sx, PNVisualTrackKind.Sy, PNVisualTrackKind.Bend, PNVisualTrackKind.Sway })
                 {
                     string field = kind.ToString().ToLowerInvariant();
                     if (set[field] != null) tracks.Add(new PNVisualTrack(bone.Name, kind, ParseCurve(set[field], id + " " + bone.Name + "." + field)));
