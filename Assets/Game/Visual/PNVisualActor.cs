@@ -10,11 +10,29 @@ using UnityEngine.Rendering;
 // VI: Trạng thái chạy dùng chung của hệ Visual cho một content session: atlas và vật liệu chung.
 public static class PNVisualRuntime
 {
-    private static PNVisualAtlas atlas; private static Material material, materialNoShadow; private static EveRegistryHub atlasHub, builderHub; private static PNVisualAtlas.Builder builder;
-    private static readonly Dictionary<Texture, Material> shadeMaterials = new Dictionary<Texture, Material>();
+    // One atlas flavour: `baked` carries the ink marks (shader PN_BAKED), `raw` is the plain image (the shader computes the marks live). Both have the same tile geometry.
+    private sealed class Flavor
+    {
+        public bool Live; public PNVisualAtlas Atlas; public Material Material, NoShadow; public PNVisualAtlas.Builder Builder; public int Total;
+        public readonly Dictionary<Texture, Material> Shaded = new Dictionary<Texture, Material>();
+    }
+    private static Flavor[] flavors = { new Flavor(), new Flavor { Live = true } };
+    private static Flavor[] nextFlavors;                                  // a rebuild under way (PNVisualLookApply); the current set keeps drawing until the swap
+    private static readonly List<Flavor> retired = new List<Flavor>(); private static readonly List<PNVisualShadeSet> retiredShades = new List<PNVisualShadeSet>();
+    private static EveRegistryHub atlasHub, builderHub, rebuildHub;
     private static readonly Dictionary<string, PNVisualShadeSet> shades = new Dictionary<string, PNVisualShadeSet>(StringComparer.Ordinal);
+    // Bumped when the atlas set is replaced (Rebuild): an actor compares it and re-attaches.
+    public static int Epoch { get; private set; }
     public static bool TryGetShade(string key, out PNVisualShadeSet set) => shades.TryGetValue(key, out set);
     public static void StoreShade(string key, PNVisualShadeSet set) => shades[key] = set;
+    private static Flavor Of(bool live) => flavors[live ? 1 : 0];
+    private static Flavor FlavorOf(PNVisualAtlas atlas)
+    {
+        foreach (var f in flavors) if (ReferenceEquals(f.Atlas, atlas)) return f;
+        foreach (var f in retired) if (ReferenceEquals(f.Atlas, atlas)) return f;
+        if (nextFlavors != null) foreach (var f in nextFlavors) if (ReferenceEquals(f.Atlas, atlas)) return f;
+        return Of(!atlas.Baked);
+    }
     private static List<KeyValuePair<string, string>> CollectImages(EveRegistryHub hub)
     {
         var images = new List<KeyValuePair<string, string>>();
@@ -27,50 +45,74 @@ public static class PNVisualRuntime
             foreach (var frame in motion.Frames) images.Add(new KeyValuePair<string, string>(motion.Id.Namespace, frame));
         return images;
     }
-    // The atlas of this content session. Built on demand (the first actor), or ahead of time in steps by the loading cover (BeginPreload + PreloadStep), so the bake never lands in gameplay.
-    public static PNVisualAtlas AtlasFor(EveRegistryHub hub)
+    // Which flavours the current settings need: baked ink -> baked; live key actors -> both; live actors/all -> raw. `BakeInk` false (the old switch, kept for checks) means everything raw.
+    private static bool Needs(bool live)
+    {
+        if (!PNVisualPaperSettings.BakeInk) return live;
+        switch (PNVisualPaperSettings.Ink) { case PNInkMode.Baked: return !live; case PNInkMode.LiveKeyActors: return true; default: return live; }
+    }
+    // The atlas of this content session for one flavour (`live` = the raw atlas). Built on demand (the first actor), or ahead of time in steps by the loading cover (BeginPreload + PreloadStep).
+    public static PNVisualAtlas AtlasFor(EveRegistryHub hub, bool live)
     {
         if (hub == null) throw new ArgumentNullException(nameof(hub));
-        if (atlas != null && ReferenceEquals(atlasHub, hub)) return atlas;
-        if (builder != null && ReferenceEquals(builderHub, hub))      // a preload is under way: finish it now
+        var f = Of(live);
+        if (f.Atlas != null && ReferenceEquals(atlasHub, hub)) return f.Atlas;
+        if (f.Builder != null && ReferenceEquals(builderHub, hub))      // a preload is under way: finish it now
         {
-            var building = builder; builder = null; builderHub = null; Release();
-            using (building) atlas = building.Finish();
-            atlasHub = hub; return atlas;
+            var building = f.Builder; f.Builder = null;
+            if (atlasHub != null && !ReferenceEquals(atlasHub, hub)) ReleaseResources();
+            using (building) f.Atlas = building.Finish();
+            atlasHub = hub; return f.Atlas;
         }
-        Release();
-        atlas = PNVisualAtlas.Build(CollectImages(hub), PNVisualPaperSettings.BakeInk); atlasHub = hub;
-        return atlas;
+        if (atlasHub != null && !ReferenceEquals(atlasHub, hub)) Release();
+        f.Atlas = PNVisualAtlas.Build(CollectImages(hub), !live); atlasHub = hub;
+        return f.Atlas;
     }
-    // Loading-cover preload: queue the atlas build (no work yet), then call PreloadStep every frame with a millisecond budget until it returns true.
+    // The old single-atlas call: the flavour a non-key actor uses under the current settings.
+    public static PNVisualAtlas AtlasFor(EveRegistryHub hub) => AtlasFor(hub, PNVisualPaperSettings.UsesRaw(false));
+    // Loading-cover preload: queue the atlas builds (no work yet), then call PreloadStep every frame with a millisecond budget until it returns true.
     public static void BeginPreload(EveRegistryHub hub, IEnumerable<KeyValuePair<EveId, EveId?>> extraShades = null)
     {
         if (hub == null) throw new ArgumentNullException(nameof(hub));
-        if (atlas != null && ReferenceEquals(atlasHub, hub)) return;
-        if (builder != null && ReferenceEquals(builderHub, hub)) return;
         if (!hub.Snapshot().ContainsKey(typeof(PNVisualPartDefinition))) return;       // this content has no visual registry (a test hub, a headless run): nothing to preload
-        builder?.Dispose(); builder = null;
-        builder = new PNVisualAtlas.Builder(CollectImages(hub), PNVisualPaperSettings.BakeInk); builderHub = hub; imageTotal = builder.Total; shadeTotal = shadeDone = 0; shadeQueue.Clear(); ShadeTimesMs.Clear();
+        bool queued = false; imageTotal = 0;
+        foreach (bool live in new[] { false, true })
+        {
+            var f = Of(live); if (!Needs(live)) continue;
+            if (f.Atlas != null && ReferenceEquals(atlasHub, hub)) continue;
+            if (f.Builder != null && ReferenceEquals(builderHub, hub)) { queued = true; continue; }
+            f.Builder?.Dispose(); f.Builder = new PNVisualAtlas.Builder(CollectImages(hub), !live); f.Total = f.Builder.Total; builderHub = hub; queued = true;
+        }
+        if (!queued) return;
+        shadeTotal = shadeDone = 0; shadeQueue.Clear(); ShadeTimesMs.Clear();
         shadeExtra = extraShades == null ? null : new List<KeyValuePair<EveId, EveId?>>(extraShades); shadeHub = hub;
     }
-    private static readonly Queue<KeyValuePair<EveId, EveId?>> shadeQueue = new Queue<KeyValuePair<EveId, EveId?>>(); private static int imageTotal, shadeTotal, shadeDone;
+    private struct ShadeJob { public EveId Appearance; public EveId? Build; public bool Live; }
+    private static readonly Queue<ShadeJob> shadeQueue = new Queue<ShadeJob>(); private static int imageTotal, shadeTotal, shadeDone;
     private static List<KeyValuePair<EveId, EveId?>> shadeExtra; private static EveRegistryHub shadeHub;
     // Milliseconds each pre-baked shade took in the last preload (appearance + build), for measurements.
     public static readonly List<double> ShadeTimesMs = new List<double>();
-    public static bool PreloadActive => builder != null || shadeQueue.Count > 0;
-    public static int PreloadTotal => imageTotal + shadeTotal;
-    public static int PreloadDone => (builder != null ? builder.Done : imageTotal) + shadeDone;
-    // The (appearance, build) pairs that get pre-baked shade tiles: those the characters of the content spawn (body.visual + body.build), plus any given explicitly. Only in the Baked shadow mode.
+    private static bool AnyBuilder() { foreach (var f in flavors) if (f.Builder != null) return true; return false; }
+    public static bool PreloadActive => AnyBuilder() || shadeQueue.Count > 0;
+    public static int PreloadTotal { get { int t = shadeTotal; foreach (var f in flavors) t += f.Total; return t; } }
+    public static int PreloadDone { get { int d = shadeDone; foreach (var f in flavors) d += f.Builder != null ? f.Builder.Done : f.Total; return d; } }
+    private static string ShadeKey(EveId appearance, EveId build, bool live) => appearance + "|" + build + (live ? "|raw" : "|baked");
+    public static string ShadeKey(PNVisualAppearanceDefinition appearance, PNVisualBuildDefinition build, bool live) => ShadeKey(appearance.Id, build.Id, live);
+    // The (appearance, build) pairs that get pre-baked shade tiles: those the characters of the content spawn (body.visual + body.build), plus any given explicitly; once per atlas flavour that exists. Only in the Baked shadow mode.
     private static void QueueShades(EveRegistryHub hub)
     {
         shadeQueue.Clear(); shadeTotal = shadeDone = 0;
-        if (PNVisualPaperSettings.Mode != PNPaperShadowMode.Baked || atlas == null || !atlas.Baked) return;
+        if (PNVisualPaperSettings.Mode != PNPaperShadowMode.Baked) return;
         var seen = new HashSet<string>(StringComparer.Ordinal); var appearances = hub.Get<PNVisualAppearanceDefinition>();
         void Add(EveId appearance, EveId? build)
         {
             var def = appearances.Get(appearance); var buildId = build ?? def.Build;
-            if (!seen.Add(def.Id + "|" + buildId) || shades.ContainsKey(def.Id + "|" + buildId)) return;
-            shadeQueue.Enqueue(new KeyValuePair<EveId, EveId?>(appearance, build));
+            foreach (var f in flavors)
+            {
+                if (f.Atlas == null) continue; string key = ShadeKey(def.Id, buildId, f.Live);
+                if (!seen.Add(key) || shades.ContainsKey(key)) continue;
+                shadeQueue.Enqueue(new ShadeJob { Appearance = appearance, Build = build, Live = f.Live });
+            }
         }
         if (hub.Snapshot().ContainsKey(typeof(EveCharacterDefinition)))
             foreach (var character in hub.Get<EveCharacterDefinition>().Snapshot().Values)
@@ -84,10 +126,16 @@ public static class PNVisualRuntime
     // One pair, with a real actor: the same code that will run at spawn (rest pose, affine maps, GPU bake), so the cached result is exactly what a spawned actor would compute.
     private static void PreloadOneShade(EveRegistryHub hub)
     {
-        var pair = shadeQueue.Dequeue(); var clock = System.Diagnostics.Stopwatch.StartNew();
+        var job = shadeQueue.Dequeue(); var clock = System.Diagnostics.Stopwatch.StartNew();
         var go = new GameObject("PN shade preload") { hideFlags = HideFlags.HideAndDontSave };
-        try { var actorComponent = go.AddComponent<PNVisualActor>(); actorComponent.Bind(hub.Get<PNVisualAppearanceDefinition>().Get(pair.Key), hub, Vector3.zero, pair.Value); actorComponent.PreloadShade(); }
+        try { var actorComponent = go.AddComponent<PNVisualActor>(); actorComponent.Bind(hub.Get<PNVisualAppearanceDefinition>().Get(job.Appearance), hub, Vector3.zero, job.Build, job.Live); actorComponent.PreloadShade(); }
         finally { UnityEngine.Object.DestroyImmediate(go); shadeDone++; ShadeTimesMs.Add(clock.Elapsed.TotalMilliseconds); }
+    }
+    private static void FinishBuilders()
+    {
+        var hub = builderHub; if (atlasHub != null && !ReferenceEquals(atlasHub, hub)) ReleaseResources();
+        foreach (var f in flavors) if (f.Builder != null) { var done = f.Builder; f.Builder = null; using (done) f.Atlas = done.Finish(); }
+        builderHub = null; atlasHub = hub; shadeHub = hub; QueueShades(hub);
     }
     // True when nothing is left to do. A failure is logged and dropped; the first actor then builds (and reports) it the ordinary way.
     public static bool PreloadStep(double budgetMs)
@@ -95,12 +143,15 @@ public static class PNVisualRuntime
         var clock = System.Diagnostics.Stopwatch.StartNew();
         try
         {
-            if (builder != null)
+            if (AnyBuilder())
             {
-                if (!builder.Step(budgetMs)) return false;
-                var done = builder; var hub = builderHub; builder = null; builderHub = null; ReleaseResources();
-                using (done) atlas = done.Finish();
-                atlasHub = hub; shadeHub = hub; QueueShades(hub);
+                foreach (var f in flavors)
+                {
+                    if (f.Builder == null) continue;
+                    double left = Math.Max(0.1, budgetMs - clock.Elapsed.TotalMilliseconds);
+                    if (!f.Builder.Step(left)) return false;
+                }
+                FinishBuilders();
                 if (clock.Elapsed.TotalMilliseconds >= budgetMs) return shadeQueue.Count == 0;
             }
             while (shadeQueue.Count > 0)
@@ -109,58 +160,126 @@ public static class PNVisualRuntime
             }
             return shadeQueue.Count == 0;
         }
-        catch (Exception error) { Debug.LogException(error); builder?.Dispose(); builder = null; builderHub = null; shadeQueue.Clear(); return true; }
+        catch (Exception error) { Debug.LogException(error); foreach (var f in flavors) { f.Builder?.Dispose(); f.Builder = null; } builderHub = null; shadeQueue.Clear(); return true; }
+    }
+
+    // ---- Rebuild (the Settings Save changed the ink or the shadow look in the Hall) ----
+    // BeginRebuild builds the NEW atlas set in steps (RebuildStep, under the loading cover) while the current one keeps drawing; at the swap the new set becomes current, its shade tiles are
+    // baked, and only then every actor re-attaches (PNVisualSystem.RebindAll) and the old resources are destroyed, all in one frame.
+    public static bool RebuildActive { get; private set; }
+    private static int rebuildPhase;                         // 0 atlases, 1 shades
+    public static int RebuildTotal { get { int t = shadeTotal; if (nextFlavors != null) foreach (var f in nextFlavors) t += f.Total; return t; } }
+    public static int RebuildDone { get { int d = shadeDone; if (nextFlavors != null) foreach (var f in nextFlavors) d += f.Builder != null ? f.Builder.Done : f.Total; return d; } }
+    public static void BeginRebuild(EveRegistryHub hub)
+    {
+        if (hub == null) throw new ArgumentNullException(nameof(hub));
+        if (RebuildActive) CancelRebuild();
+        if (!hub.Snapshot().ContainsKey(typeof(PNVisualPartDefinition))) return;
+        nextFlavors = new[] { new Flavor(), new Flavor { Live = true } }; rebuildHub = hub; rebuildPhase = 0; RebuildActive = true;
+        foreach (var f in nextFlavors) if (Needs(f.Live)) { f.Builder = new PNVisualAtlas.Builder(CollectImages(hub), !f.Live); f.Total = f.Builder.Total; }
+    }
+    private static void CancelRebuild()
+    {
+        if (nextFlavors != null) foreach (var f in nextFlavors) { f.Builder?.Dispose(); f.Builder = null; DisposeFlavor(f); }
+        nextFlavors = null; RebuildActive = false; shadeQueue.Clear();
+    }
+    // True when the rebuild is finished (the actors already re-attached).
+    public static bool RebuildStep(double budgetMs)
+    {
+        if (!RebuildActive) return true;
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        try
+        {
+            if (rebuildPhase == 0)
+            {
+                foreach (var f in nextFlavors)
+                {
+                    if (f.Builder == null) continue;
+                    if (!f.Builder.Step(Math.Max(0.1, budgetMs - clock.Elapsed.TotalMilliseconds))) return false;
+                }
+                foreach (var f in nextFlavors) if (f.Builder != null) { var done = f.Builder; f.Builder = null; using (done) f.Atlas = done.Finish(); }
+                // swap: the old set is retired (still drawing until the rebind), the new one is current
+                foreach (var f in flavors) if (f.Atlas != null || f.Material != null) retired.Add(f);
+                flavors = nextFlavors; nextFlavors = null; atlasHub = rebuildHub; shadeHub = rebuildHub;
+                retiredShades.AddRange(shades.Values); shades.Clear();
+                QueueShades(rebuildHub); rebuildPhase = 1;
+                if (clock.Elapsed.TotalMilliseconds >= budgetMs) return false;
+            }
+            while (shadeQueue.Count > 0)
+            {
+                PreloadOneShade(shadeHub); if (clock.Elapsed.TotalMilliseconds >= budgetMs) return false;
+            }
+            Epoch++; PNVisualSystem.RebindAll();
+            foreach (var set in retiredShades) set.Dispose(); retiredShades.Clear();
+            foreach (var f in retired) DisposeFlavor(f); retired.Clear(); PNVisualShade.Release();
+            RebuildActive = false; rebuildHub = null; return true;
+        }
+        catch (Exception error) { Debug.LogException(error); CancelRebuild(); return true; }
+    }
+
+    private static void Destroy(UnityEngine.Object o) { if (o == null) return; if (Application.isPlaying) UnityEngine.Object.Destroy(o); else UnityEngine.Object.DestroyImmediate(o); }
+    private static void DisposeFlavor(Flavor f)
+    {
+        foreach (var m in f.Shaded.Values) Destroy(m); f.Shaded.Clear();
+        if (f.Atlas != null) { f.Atlas.Dispose(); f.Atlas = null; }
+        Destroy(f.Material); f.Material = null; Destroy(f.NoShadow); f.NoShadow = null;
     }
     // `overlapShadow` false returns the twin material with the overlap shadow switched off: an actor on it carries no MaterialPropertyBlock, so the SRP batcher can group it.
     public static Material MaterialFor(PNVisualAtlas forAtlas, bool overlapShadow = true, Texture shadeTexture = null)
     {
-        if (material == null)
+        var f = FlavorOf(forAtlas);
+        if (f.Material == null)
         {
             var shader = Resources.Load<Shader>("PNVisualActor"); if (shader == null) shader = Shader.Find("PN/VisualActor"); if (shader == null) throw new InvalidOperationException("Shader PN/VisualActor is missing.");
-            material = new Material(shader) { name = "PN Visual Actor", hideFlags = HideFlags.HideAndDontSave, enableInstancing = false };
+            f.Material = new Material(shader) { name = f.Live ? "PN Visual Actor (live ink)" : "PN Visual Actor", hideFlags = HideFlags.HideAndDontSave, enableInstancing = false };
+            if (f.Live) PNInkBake.ApplyLive(f.Material);
         }
+        var material = f.Material;
         material.SetTexture("_MainTex", forAtlas.Texture);
         if (forAtlas.Baked) material.EnableKeyword("PN_BAKED"); else material.DisableKeyword("PN_BAKED");   // baked atlas: the shader skips every fixed-to-the-image effect
         if (shadeTexture != null)           // an appearance with pre-baked shadow tiles: its own material (the same shader), no dynamic shadow
         {
-            if (!shadeMaterials.TryGetValue(shadeTexture, out var shaded) || shaded == null)
+            if (!f.Shaded.TryGetValue(shadeTexture, out var shaded) || shaded == null)
             {
                 shaded = new Material(MaterialFor(forAtlas, false)) { name = "PN Visual Actor (pre-baked shade)", hideFlags = HideFlags.HideAndDontSave };
-                shaded.SetTexture("_ShadeTex", shadeTexture); shadeMaterials[shadeTexture] = shaded;
+                shaded.SetTexture("_ShadeTex", shadeTexture); f.Shaded[shadeTexture] = shaded;
             }
             return shaded;
         }
         if (!overlapShadow)
         {
-            if (materialNoShadow == null) materialNoShadow = new Material(material) { name = "PN Visual Actor (no overlap shadow)", hideFlags = HideFlags.HideAndDontSave };
+            if (f.NoShadow == null) f.NoShadow = new Material(material) { name = "PN Visual Actor (no overlap shadow)", hideFlags = HideFlags.HideAndDontSave };
             RefreshVariants();
-            return materialNoShadow;
+            return f.NoShadow;
         }
         return material;
     }
     // Copies the shared material's values to the no-shadow twin (call after changing the shared material's properties by code).
     public static void RefreshVariants()
     {
-        if (materialNoShadow == null || material == null) return;
-        materialNoShadow.CopyPropertiesFromMaterial(material); materialNoShadow.SetFloat("_OverlapShadow", 0f);
+        foreach (var f in flavors) { if (f.NoShadow == null || f.Material == null) continue; f.NoShadow.CopyPropertiesFromMaterial(f.Material); f.NoShadow.SetFloat("_OverlapShadow", 0f); }
     }
     public static void Release()
     {
-        if (builder != null) { builder.Dispose(); builder = null; builderHub = null; }
-        shadeQueue.Clear(); imageTotal = shadeTotal = shadeDone = 0; shadeExtra = null; ShadeTimesMs.Clear();
+        CancelRebuild();
+        foreach (var f in flavors) { f.Builder?.Dispose(); f.Builder = null; f.Total = 0; }
+        builderHub = null; shadeQueue.Clear(); imageTotal = shadeTotal = shadeDone = 0; shadeExtra = null; ShadeTimesMs.Clear();
         ReleaseResources();
     }
-    // The atlas, materials and shade tiles (not the preload counters or the queue: a finishing preload replaces the old resources and keeps going).
+    // The atlases, materials and shade tiles (not the preload counters, the queue or builders: a finishing preload replaces the old resources and keeps going).
     private static void ReleaseResources()
     {
-        foreach (var m in shadeMaterials.Values) if (m != null) { if (Application.isPlaying) UnityEngine.Object.Destroy(m); else UnityEngine.Object.DestroyImmediate(m); }
-        shadeMaterials.Clear(); foreach (var set in shades.Values) set.Dispose(); shades.Clear(); PNVisualShade.Release();
-        if (atlas != null) { atlas.Dispose(); atlas = null; }
-        if (material != null) { if (Application.isPlaying) UnityEngine.Object.Destroy(material); else UnityEngine.Object.DestroyImmediate(material); material = null; }
-        if (materialNoShadow != null) { if (Application.isPlaying) UnityEngine.Object.Destroy(materialNoShadow); else UnityEngine.Object.DestroyImmediate(materialNoShadow); materialNoShadow = null; }
+        foreach (var set in shades.Values) set.Dispose(); shades.Clear(); PNVisualShade.Release();
+        foreach (var set in retiredShades) set.Dispose(); retiredShades.Clear();
+        foreach (var f in flavors) DisposeFlavor(f);
+        foreach (var f in retired) DisposeFlavor(f); retired.Clear();
         atlasHub = null;
     }
-    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)] private static void Reset() { atlas = null; material = null; materialNoShadow = null; atlasHub = null; builder = null; builderHub = null; shadeMaterials.Clear(); shades.Clear(); }
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void Reset()
+    {
+        flavors = new[] { new Flavor(), new Flavor { Live = true } }; nextFlavors = null; retired.Clear(); retiredShades.Clear(); atlasHub = builderHub = rebuildHub = null; shades.Clear(); RebuildActive = false; Epoch = 0;
+    }
 }
 
 // EN: One rig puppet drawn as ONE mesh (a quad per visible part, sorted by layer) on the shared atlas. It owns a PNVisualAnimator (pure pose maths), writes the vertices each
@@ -199,7 +318,53 @@ public sealed class PNVisualActor : MonoBehaviour
     public bool CasterCoarsened { get; private set; }
     public int CastersDropped { get; private set; }
     // The player and bosses; the PNPaperShadowMode.KeyActors setting gives the overlap shadow to these only. PNVisualBody sets it for a player; bosses set it when they get a visual.
-    public bool KeyActor { get; set; }
+    public bool KeyActor { get => keyActor; set { if (keyActor == value) return; keyActor = value; Rebind(); } }
+    private bool keyActor; private EveRegistryHub hubUsed; private bool? forcedLive; private int epochUsed;
+    // The atlas flavour this actor wants under the current settings: raw (live ink) or baked.
+    private bool WantsRaw => forcedLive ?? PNVisualPaperSettings.UsesRaw(KeyActor);
+    public bool LiveInk => atlasInUse != null && !atlasInUse.Baked;
+    public int AtlasEpoch => epochUsed;
+
+    // ---- strings (Docs/VisualInkStringsPlan.md): what the stars hang this puppet by. Drawn by PNVisualStringSystem, one mesh for every puppet. Presentation only. ----
+    private PNVisualStringSet strings;
+    public PNVisualStringSet Strings => strings;
+    public bool HasStrings => strings != null && strings.HasStrings;
+    public bool FacingLeft => animator != null && animator.FacingLeft;
+    private PNVisualStringSet EnsureStrings() => strings ?? (strings = new PNVisualStringSet(hubUsed, appearance.Id.ToString(), null));
+    public int AddString(PNVisualStringEntry entry, float lowerSeconds = 0f) => animator == null ? -1 : EnsureStrings().Add(entry, lowerSeconds);
+    public void RemoveString(int handle, bool cut = true) => strings?.Remove(handle, cut);
+    public void SetString(int handle, PNVisualStringEntry entry, float blendSeconds = 0f) => strings?.Set(handle, entry, blendSeconds);
+    public void SetStringColor(int handle, EveId color, float blendSeconds = 0f) => strings?.SetColor(handle, color, blendSeconds);
+    public void SetStringShape(int handle, EveId shape, float blendSeconds = 0f) => strings?.SetShape(handle, shape, blendSeconds);
+    public void SetStringsColor(EveId color, float blendSeconds = 0f) => strings?.SetAllColors(color, blendSeconds);
+    public void CutStrings() => strings?.CutAll();
+    public void LowerStrings(float seconds = 0f) => strings?.LowerAll(seconds);
+    public void ShowStrings() => strings?.ShowAll();
+    public void HideStrings() => strings?.HideAll();
+    internal void PulseStringEffects()=>strings?.Hit();
+    // Re-attaches to the atlas the settings want now (a rebuilt atlas set after Save, or a KeyActor flip under "live: player and bosses"). Pose, animator, effects, facing and the mesh stay;
+    // only the uv rects, the material and the shade tiles are redone.
+    public void Rebind()
+    {
+        if (animator == null || hubUsed == null || drawables == null) return;
+        var next = PNVisualRuntime.AtlasFor(hubUsed, WantsRaw);
+        if (ReferenceEquals(next, atlasInUse) && epochUsed == PNVisualRuntime.Epoch) return;
+        var oldUv = new Rect[drawables.Length]; for (int i = 0; i < oldUv.Length; i++) oldUv[i] = drawables[i].Uv;
+        BuildDrawables(hubUsed, next);
+        if (restUv != null)           // same art, same tile geometry in both flavours: the rest-pose uv moves with its rect
+            for (int i = 0; i < drawables.Length && i < oldUv.Length; i++)
+            {
+                var o = oldUv[i]; var n = drawables[i].Uv; int count = drawables[i].Segments == 1 ? 4 : 2 * (drawables[i].Segments + 1);
+                for (int k = 0; k < count; k++)
+                {
+                    var u = restUv[drawables[i].VertexStart + k];
+                    restUv[drawables[i].VertexStart + k] = new Vector2(n.x + (u.x - o.x) / o.width * n.width, n.y + (u.y - o.y) / o.height * n.height);
+                }
+            }
+        atlasInUse = next; epochUsed = PNVisualRuntime.Epoch; shade = null; shadeOn = false; dirty = true;
+        ApplyShadowMode();
+        if (vertices != null) { EnsurePose(); WriteMesh(); }
+    }
     public bool ShadowActive => shadowOn;
     public bool InView => inView;
     private readonly float[] rowX = new float[PNVisualLimits.MaxSegments + 1], rowY = new float[PNVisualLimits.MaxSegments + 1], rowNx = new float[PNVisualLimits.MaxSegments + 1], rowNy = new float[PNVisualLimits.MaxSegments + 1];
@@ -218,7 +383,7 @@ public sealed class PNVisualActor : MonoBehaviour
     public bool Visible => meshRenderer != null && meshRenderer.isVisible;
 
     // Builds the puppet. `feetLocal` is where the feet are in the parent's space (the mesh origin sits there); `buildOverride` replaces the appearance's build.
-    public void Bind(PNVisualAppearanceDefinition definition, EveRegistryHub hub, Vector3 feetLocal, EveId? buildOverride = null)
+    public void Bind(PNVisualAppearanceDefinition definition, EveRegistryHub hub, Vector3 feetLocal, EveId? buildOverride = null, bool? forceLive = null)
     {
         if (animator != null) throw new InvalidOperationException("This Visual actor is already bound.");
         appearance = definition ?? throw new ArgumentNullException(nameof(definition)); if (hub == null) throw new ArgumentNullException(nameof(hub));
@@ -229,7 +394,8 @@ public sealed class PNVisualActor : MonoBehaviour
         animator = new PNVisualAnimator(rig, set, id => motions.Get(id), build);
         if (appearance.Expression.IsValid) animator.SetExpression(hub.Get<PNVisualExpressionDefinition>().Get(appearance.Expression));
         CapsuleHeight = rigDef.CapsuleHeight * build.CapsuleHeight; CapsuleRadius = rigDef.CapsuleRadius * build.CapsuleRadius; ShadowScale = build.Shadow;
-        var atlas = PNVisualRuntime.AtlasFor(hub);
+        hubUsed = hub; forcedLive = forceLive;
+        var atlas = PNVisualRuntime.AtlasFor(hub, WantsRaw); epochUsed = PNVisualRuntime.Epoch;
         BuildDrawables(hub, atlas);
         tintColors = new Color32[6];
         for (int i = 0; i < tintColors.Length; i++) tintColors[i] = new Color32(255, 255, 255, 255);
@@ -239,6 +405,7 @@ public sealed class PNVisualActor : MonoBehaviour
         var facingTarget = GetComponent<PNCameraFacingTarget>(); if (facingTarget == null) facingTarget = gameObject.AddComponent<PNCameraFacingTarget>();
         facingTarget.FootOffset = 0f; facingTarget.FootAnchor = feetLocal; facing = facingTarget;
         clock = GetComponentInParent<EveTimeScale>();
+        if (appearance.Strings.Count > 0) strings = new PNVisualStringSet(hub, appearance.Id.ToString(), appearance.Strings);
         PNVisualSystem.Register(this);
         animator.Evaluate(); WriteMesh();
         if (casterDrawable != null && casterDrawable.Length > 0) { restVertices = (Vector3[])vertices.Clone(); restUv = (Vector2[])uv0.Clone(); ApplyShadowMode(); }     // the rest pose: the pre-baked shadow is computed from it
@@ -338,6 +505,8 @@ public sealed class PNVisualActor : MonoBehaviour
     {
         if (animator == null) return;
         if (settingsVersion != PNVisualPaperSettings.Version) ApplyShadowMode();
+        strings?.FeedPosition(transform.position,dt);
+        strings?.Advance(dt);                                  // the strings lower and fall away on the same clock
         animator.Advance(dt);                                  // time and blends always advance, so motions keep their meaning while the actor is out of view
         if (writeMesh) { animator.Evaluate(); poseDirty = false; WriteMesh(); }
         else poseDirty = true;                                 // evaluated on demand (EnsurePose) or on re-entry
@@ -349,7 +518,7 @@ public sealed class PNVisualActor : MonoBehaviour
         settingsVersion = PNVisualPaperSettings.Version; var mode = PNVisualPaperSettings.Mode;
         bool dynamicShadow = PNVisualPaperSettings.Wants(mode, KeyActor) && CasterTriangles > 0;
         bool bakedWanted = mode == PNPaperShadowMode.Baked && CasterTriangles > 0;
-        if (bakedWanted && shade == null && restVertices != null && atlasInUse != null && atlasInUse.Baked) shade = BuildShade();
+        if (bakedWanted && shade == null && restVertices != null && atlasInUse != null) shade = BuildShade();
         shadeOn = bakedWanted && shade != null && shade.Tiles > 0; shadowOn = dynamicShadow;
         if (meshRenderer == null || atlasInUse == null) return;
         var material = PNVisualRuntime.MaterialFor(atlasInUse, dynamicShadow, shadeOn ? shade.Texture : null);
@@ -364,7 +533,7 @@ public sealed class PNVisualActor : MonoBehaviour
     // Once per appearance + build (cached): the overlap shadow of the rest pose, computed on the GPU into copies of the receiving parts.
     private PNVisualShadeSet BuildShade()
     {
-        string key = appearance.Id + "|" + build.Id;
+        string key = PNVisualRuntime.ShadeKey(appearance, build, !atlasInUse.Baked);
         if (PNVisualRuntime.TryGetShade(key, out var cached)) return cached;
         PNVisualShade.Affine AffineOf(int di)
         {
@@ -404,7 +573,7 @@ public sealed class PNVisualActor : MonoBehaviour
     }
 
     // Loading-cover preload: compute this appearance + build's pre-baked shade tiles now (cached), if it has casters and the atlas is baked.
-    public void PreloadShade() { if (shade == null && restVertices != null && atlasInUse != null && atlasInUse.Baked && CasterTriangles > 0) shade = BuildShade(); }
+    public void PreloadShade() { if (shade == null && restVertices != null && atlasInUse != null && CasterTriangles > 0) shade = BuildShade(); }
     // Call after changing KeyActor (the setting may now include or exclude this actor).
     public void RefreshShadowMode() => ApplyShadowMode();
 
@@ -413,6 +582,7 @@ public sealed class PNVisualActor : MonoBehaviour
     {
         bounds = default; if (meshRenderer == null) return false;
         bounds = meshRenderer.bounds;
+        if (strings != null && strings.Any) bounds.Encapsulate(bounds.center + transform.up * StringReach);   // the strings run up to the top of the view: the puppet keeps updating while its strings are on screen
         return true;
     }
     // Hysteresis view test against a precomputed view-projection matrix; the actor turns on inside the margin and off only ExitExtra further out.
@@ -422,6 +592,7 @@ public sealed class PNVisualActor : MonoBehaviour
         inView = PNVisualSystem.Overlaps(viewProjection, b, PNVisualPaperSettings.ViewMargin + (inView ? PNVisualPaperSettings.ExitExtra : 0f));
         return inView;
     }
+    private const float StringReach = 20f;
     public float ClockDelta() => clock != null ? clock.DeltaTime : Time.deltaTime;
 
     private void WriteMesh()
@@ -489,7 +660,7 @@ public sealed class PNVisualActor : MonoBehaviour
             var tint = tintColors[(int)d.Tint]; float alpha = d.Slot >= 0 ? a.SlotAlpha[d.Slot] : 1f; if (d.Blush) alpha *= appearance.BlushAlpha;
             var color = new Color32(tint.r, tint.g, tint.b, (byte)Mathf.Clamp(Mathf.RoundToInt(tint.a * alpha), 0, 255));
             var effect = new Vector2(flash, fade);
-            var bounds = atlasInUse != null && atlasInUse.Baked ? new Vector4(uv.xMin, uv.yMin, uv.xMax, uv.yMax) : new Vector4(sourceUv.xMin, sourceUv.yMin, sourceUv.xMax, sourceUv.yMax);   // baked: the border with the baked marks is readable
+            var bounds = new Vector4(uv.xMin, uv.yMin, uv.xMax, uv.yMax);   // both flavours carry the transparent border (baked: with the marks), so samples may read all of it
             for (int k = 0; k < count; k++) { colors[v + k] = color; uv1[v + k] = effect; uvBounds[v + k] = bounds; paperLayer[v+k]=new Vector2(d.Layer,shaded?1f:0f); }
         }
         mesh.SetVertices(vertices); mesh.SetUVs(0, uv0); mesh.SetUVs(1, uv1); mesh.SetUVs(2, uvBounds); mesh.SetColors(colors);
@@ -582,6 +753,7 @@ public static class PNVisualSystem
     private static readonly List<PNVisualActor> actors = new List<PNVisualActor>();
     private static GameObject runner;
     public static int Count => actors.Count;
+    public static IReadOnlyList<PNVisualActor> Actors => actors;
     public static void Register(PNVisualActor actor)
     {
         if (actor == null) throw new ArgumentNullException(nameof(actor));
@@ -592,7 +764,18 @@ public static class PNVisualSystem
     {
         if (ReferenceEquals(actor, null)) return;            // not `actor == null`: while it is being destroyed that is already true and it would stay registered
         actors.Remove(actor);
+        if (actors.Count == 0) PNVisualStringSystem.Release();
         if (actors.Count == 0 && runner != null) { if (Application.isPlaying) UnityEngine.Object.Destroy(runner); else UnityEngine.Object.DestroyImmediate(runner); runner = null; }
+    }
+    // After an atlas rebuild: every actor re-attaches to the new set, in the same frame.
+    public static void RebindAll()
+    {
+        for (int i = actors.Count - 1; i >= 0; i--)
+        {
+            if (i >= actors.Count) continue; var actor = actors[i];
+            if (actor == null) { actors.RemoveAt(i); continue; }
+            try { actor.Rebind(); } catch (Exception error) { Debug.LogException(error); }
+        }
     }
     // Drops entries whose object was destroyed without OnDestroy reaching Unregister (a safety net, and for tests after an aborted run).
     public static int Prune() { int before = actors.Count; actors.RemoveAll(x => x == null); return before - actors.Count; }
@@ -609,6 +792,7 @@ public static class PNVisualSystem
             try { actor.Tick(actor.ClockDelta(), haveView ? actor.UpdateInView(viewProjection) : actor.Visible); }
             catch (Exception error) { Debug.LogException(error); }
         }
+        try { PNVisualStringSystem.Draw(); } catch (Exception error) { Debug.LogException(error); }      // every string of every puppet in view: one mesh, one draw
     }
     // True when the box intersects the view enlarged by `margin` (a fraction of the view on each side). Clip-space outcode test: false only when all 8 corners are outside one plane.
     public static bool Overlaps(in Matrix4x4 vp, in Bounds b, float margin)

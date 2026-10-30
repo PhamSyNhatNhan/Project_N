@@ -125,6 +125,9 @@ public class PNContentModule : EveIContentModule, EveIContentFinalizeModule, Eve
         hub.GetOrCreate<PNVisualMotionSetDefinition>(); hub.NameRegistry<PNVisualMotionSetDefinition>("visual_motion_sets");
         hub.GetOrCreate<PNVisualExpressionDefinition>(); hub.NameRegistry<PNVisualExpressionDefinition>("visual_expressions");
         hub.GetOrCreate<PNVisualAppearanceDefinition>(); hub.NameRegistry<PNVisualAppearanceDefinition>("visual_appearances");
+        hub.GetOrCreate<PNVisualStringShapeDefinition>(); hub.NameRegistry<PNVisualStringShapeDefinition>("visual_string_shapes");
+        hub.GetOrCreate<PNVisualStringColorDefinition>(); hub.NameRegistry<PNVisualStringColorDefinition>("visual_string_colors");
+        hub.GetOrCreate<PNVisualStringStyleDefinition>(); hub.NameRegistry<PNVisualStringStyleDefinition>("visual_string_styles");
     }
 
     public virtual void FinalizeContent(EveRegistryHub hub) { }

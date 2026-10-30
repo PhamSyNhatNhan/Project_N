@@ -6,6 +6,7 @@
     {
      "id": "project_n:starweaver",
      "extends": "project_n:humanoid",
+     "sockets": [{ "id": "tail_tip", "bone": "hatStar", "at": [0, 0] }],
      "pixelsPerMeter": 1630,
      "facing": "right",
      "capsule": {
@@ -22721,6 +22722,7 @@
     {
      "id": "project_n:starweaver",
      "rig": "project_n:starweaver",
+     "strings": [{ "style": "project_n:puppet_main", "socket": "head_top" }, { "style": "project_n:puppet_drape", "socket": "tail_tip" }],
      "motionSet": "project_n:starweaver_default",
      "build": "project_n:build_short",
      "expression": "project_n:starweaver_face",

@@ -70,11 +70,14 @@ Shader "PN/VisualActor"
                         lerp(hashPaper(cell + float2(0,1)), hashPaper(cell + 1), f.x), f.y);
         }
         // Sample only this sprite. Expanded gutters must never borrow another atlas tile.
+        // gShaded: this fragment's part is drawn from its pre-baked shaded copy (layer.y), so the LIVE ink path reads the shade tiles instead of the atlas (set once per fragment in fragDynamic).
+        static float gShaded;
         half4 samplePart(float2 uv, float4 bounds)
         {
-            float2 lo = bounds.xy + _MainTex_TexelSize.xy * .5;
-            float2 hi = bounds.zw - _MainTex_TexelSize.xy * .5;
-            half4 c = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, clamp(uv, lo, hi));
+            float4 texel4 = gShaded > .5 ? _ShadeTex_TexelSize : _MainTex_TexelSize;
+            float2 lo = bounds.xy + texel4.xy * .5;
+            float2 hi = bounds.zw - texel4.xy * .5;
+            half4 c = gShaded > .5 ? SAMPLE_TEXTURE2D(_ShadeTex, sampler_ShadeTex, clamp(uv, lo, hi)) : SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, clamp(uv, lo, hi));
             c.a *= step(bounds.x, uv.x) * step(bounds.y, uv.y) * step(uv.x, bounds.z) * step(uv.y, bounds.w);
             return c;
         }
@@ -118,12 +121,13 @@ Shader "PN/VisualActor"
         half4 fragDynamic(Varyings input)
         {
             // Derivatives keep the ink/shadow in screen pixels. Cap offsets to fit the 16-art-pixel gutter.
+            gShaded = input.layer.y > .5 ? 1 : 0;
             float2 dx = ddx(input.uv), dy = ddy(input.uv);
-            float2 art = input.uv * _MainTex_TexelSize.zw;
+            float2 art = input.uv * (gShaded > .5 ? _ShadeTex_TexelSize.zw : _MainTex_TexelSize.zw);
             float2 wobble = float2(paperNoise(art / 17), paperNoise(art / 19 + 31)) - .5;
             float2 drawUv = input.uv + (dx * wobble.x + dy * wobble.y) * (_LineWobble * _DrawnAmount * 2);
             half4 texel = samplePart(drawUv, input.bounds);
-            float2 maxStep = _MainTex_TexelSize.xy * 10;
+            float2 maxStep = (gShaded > .5 ? _ShadeTex_TexelSize.xy : _MainTex_TexelSize.xy) * 10;
             float2 ex = clamp(dx * _OutlineWidth, -maxStep, maxStep);
             float2 ey = clamp(dy * _OutlineWidth, -maxStep, maxStep);
             half edge = 0;
@@ -133,7 +137,7 @@ Shader "PN/VisualActor"
                            max(samplePart(drawUv + ey, input.bounds).a, samplePart(drawUv - ey, input.bounds).a));
             }
             float fibreScale = max(1, _PaperScale);
-            float footprint = max(length(dx * _MainTex_TexelSize.zw), length(dy * _MainTex_TexelSize.zw));
+            float footprint = max(length(dx * (gShaded > .5 ? _ShadeTex_TexelSize.zw : _MainTex_TexelSize.zw)), length(dy * (gShaded > .5 ? _ShadeTex_TexelSize.zw : _MainTex_TexelSize.zw)));
             float fine = (paperNoise(art / fibreScale) - .5) / (1 + footprint / fibreScale);
             float broad = paperNoise(art / 28) - .5;
             half3 rgb = texel.rgb * input.color.rgb;

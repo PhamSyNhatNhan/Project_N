@@ -28,7 +28,7 @@ public static class PNVisualShadePreloadCheck
         Directory.CreateDirectory(Output);
         var sb = new StringBuilder(); checks = 0;
         sb.AppendLine("GPU: " + SystemInfo.graphicsDeviceName + " | " + SystemInfo.graphicsDeviceType);
-        var starweaver = EveId.Parse("project_n:starweaver"); var shortBuild = EveId.Parse("project_n:build_short"); const string key = "project_n:starweaver|project_n:build_short";
+        var starweaver = EveId.Parse("project_n:starweaver"); var shortBuild = EveId.Parse("project_n:build_short"); const string key = "project_n:starweaver|project_n:build_short|baked";
         var extra = new[] { new KeyValuePair<EveId, EveId?>(starweaver, shortBuild) };
         PNVisualPaperSettings.BakeInk = true; PNVisualPaperSettings.Mode = PNPaperShadowMode.Baked;
 

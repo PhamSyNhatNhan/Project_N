@@ -200,7 +200,7 @@ public static class PNVisualEditorChecks
         string baseDirectory = Path.GetFullPath(Path.Combine(Application.dataPath, "StreamingAssets", "BaseContent"));
         PNVisualPacks.Clear(); PNVisualPacks.Set("project_n", baseDirectory);
         var hub = new EveContentBootstrap().Build(new EveIContentModule[] { new PNContentModule(), new PNGameplayContentModule() },
-            new[] { new EveContentDocument("visual", File.ReadAllText(Path.Combine(baseDirectory, "visual", "humanoid.json")), "project_n"), new EveContentDocument("starweaver", File.ReadAllText(Path.Combine(baseDirectory, "visual", "starweaver.json")), "project_n") });
+            new[] { new EveContentDocument("visual", File.ReadAllText(Path.Combine(baseDirectory, "visual", "humanoid.json")), "project_n"), new EveContentDocument("starweaver", File.ReadAllText(Path.Combine(baseDirectory, "visual", "starweaver.json")), "project_n"), new EveContentDocument("strings", File.ReadAllText(Path.Combine(baseDirectory, "visual", "strings.json")), "project_n") });
         try
         {
             var atlas = PNVisualRuntime.AtlasFor(hub);
@@ -236,6 +236,9 @@ public static class PNVisualEditorChecks
             var character = new EveCharacterDefinition(EveId.Parse("project_n:starweaver_visual"), new List<EveInitialStat>(), null, "", Newtonsoft.Json.Linq.JObject.Parse("{'body':{'visual':'project_n:starweaver','build':'short'}}"));
             Require(body.Begin(character, hub) && body.Actor.QuadCount == 23, "the character's body block gives the Starweaver puppet"); checks++;
             Require(Mathf.Abs(capsule.height - .34f) < 1e-4f && Mathf.Abs(capsule.radius - .099f) < 1e-4f && Mathf.Abs(capsule.center.y - capsule.height * .5f - feet0) < 1e-4f, "the low build: capsule 0.34 x 0.099, feet fixed (" + capsule.height + " x " + capsule.radius + ")"); checks++;
+            Require(body.PullingUp, "the Starweaver comes in on its strings (the entrance holds the movement feed)"); checks++;
+            for (int i = 0; i < 30; i++) { body.Actor.Tick(.05f); body.Feed(.05f); }       // the entrance: strings lowered, puppet pulled up
+            Require(!body.PullingUp, "after the entrance the movement feed is free"); checks++;
             body.Feed(.02f); instance.transform.position += new Vector3(.04f, 0f, 0f); body.Feed(.02f);
             Require(body.Actor.Animator.BaseState == "run" && body.Actor.Animator.HasState("stun"), "moving fast plays the fast flight; the stun state exists"); checks++;
             body.Clear();
@@ -440,6 +443,58 @@ public static class PNVisualEditorChecks
         Require(PNVisualSystem.Count == 0, "no actor is left registered"); checks++;
         Require(original.isDirty == dirty, "the authored scene state is preserved"); checks++;
         return "PASS " + checks + " Visual renderer checks, frames in " + outputDirectory;
+    }
+
+    // Strings and the Lorica break on an entity (P5): the entrance, the cut and slump on a break, lowering and pull-up when it ends, pooled reuse, a puppet without strings.
+    public static string RunStringsGameplay()
+    {
+        if (EditorApplication.isPlaying) throw new InvalidOperationException("Stop Play Mode first.");
+        int checks = 0; PNVisualSystem.Prune();
+        string baseDirectory = Path.GetFullPath(Path.Combine(Application.dataPath, "StreamingAssets", "BaseContent"));
+        PNVisualPacks.Clear(); PNVisualPacks.Set("project_n", baseDirectory);
+        var hub = new EveContentBootstrap().Build(new EveIContentModule[] { new PNContentModule(), new PNGameplayContentModule() },
+            new[] { new EveContentDocument("visual", File.ReadAllText(Path.Combine(baseDirectory, "visual", "humanoid.json")), "project_n"), new EveContentDocument("starweaver", File.ReadAllText(Path.Combine(baseDirectory, "visual", "starweaver.json")), "project_n"),
+                    new EveContentDocument("strings", File.ReadAllText(Path.Combine(baseDirectory, "visual", "strings.json")), "project_n") });
+        var prefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Game/Entity/Character/VisualTest/Prefab/VisualTest.prefab");
+        var scene = EditorSceneManager.NewPreviewScene(); GameObject instance = null;
+        try
+        {
+            EveCharacterDefinition Character(string data) => new EveCharacterDefinition(EveId.Parse("project_n:visual_hero"), new List<EveInitialStat>(), null, "", Newtonsoft.Json.Linq.JObject.Parse(data));
+            instance = UnityEngine.Object.Instantiate(prefab); SceneManager.MoveGameObjectToScene(instance, scene);
+            var body = instance.GetComponent<PNVisualBody>();
+            void Run(float seconds) { for (float t = 0; t < seconds; t += .05f) { body.Actor.Tick(.05f); body.Feed(.05f); } }
+            // ---- a puppet with strings: the entrance ----
+            Require(body.Begin(Character("{'body':{'visual':'project_n:starweaver'}}"), hub), "a Starweaver gets its puppet"); checks++;
+            var actor = body.Actor; var set = actor.Strings;
+            Require(actor.HasStrings && set.Count == 2 && body.PullingUp && set.State(0).Phase == PNVisualStringPhase.Lowering, "the strings come down onto the new puppet (entrance \"slumped\")"); checks++;
+            Require(actor.Animator.BaseState == "stun", "the new puppet hangs slumped until the strings are on (state " + actor.Animator.BaseState + ")"); checks++;
+            Run(.3f); Require(body.PullingUp && actor.Animator.BaseState == "stun", "while the strings are still coming down it stays slumped"); checks++;
+            Run(1.2f); Require(!body.PullingUp && set.State(0).Phase == PNVisualStringPhase.Attached && actor.Animator.BaseState == "idle", "when the strings are on the puppet is pulled up to idle"); checks++;
+            // ---- the Lorica break ----
+            bool broken = false; body.BreakSource = () => broken;
+            broken = true; Run(.2f);
+            Require(body.LoricaBroken && actor.Animator.BaseState == "stun" && set.State(0).Phase != PNVisualStringPhase.Attached, "a Lorica break cuts the strings and the puppet slumps"); checks++;
+            Run(.8f); Require(set.State(0).Phase == PNVisualStringPhase.Hidden && set.State(1).Phase == PNVisualStringPhase.Hidden, "both strings end cut and hidden"); checks++;
+            instance.transform.position += new Vector3(.5f, 0f, 0f); Run(.2f); Require(actor.Animator.BaseState == "stun", "a broken puppet does not walk"); checks++;
+            broken = false; Run(.2f);
+            Require(!body.LoricaBroken && body.PullingUp && set.State(0).Phase == PNVisualStringPhase.Lowering, "when the break ends the strings are lowered again"); checks++;
+            Run(1.2f); Require(!body.PullingUp && set.State(0).Phase == PNVisualStringPhase.Attached && actor.Animator.BaseState != "stun", "and they pull the puppet up (state " + actor.Animator.BaseState + ")"); checks++;
+            // ---- a second break straight away, and the pooled reuse ----
+            broken = true; Run(.2f); broken = false; Run(.2f); broken = true; Run(.2f); Require(body.LoricaBroken && !body.PullingUp, "a new break during the pull-up cancels it"); checks++;
+            body.Clear(); Require(body.Actor == null && PNVisualSystem.Count == 0, "Clear releases the puppet and its strings"); checks++;
+            body.BreakSource = null;
+            Require(body.Begin(Character("{'body':{'visual':'project_n:starweaver'}}"), hub) && body.Actor.Strings.Count == 2 && body.PullingUp && body.Actor.Strings.State(0).Phase == PNVisualStringPhase.Lowering, "a pooled body begins again with the appearance's strings and the entrance"); checks++;
+            body.Clear();
+            // ---- a puppet without strings: no entrance, no pull-up, a break only slumps it ----
+            Require(body.Begin(Character("{'body':{'visual':'project_n:visual_test'}}"), hub), "a humanoid puppet begins"); checks++;
+            Require(!body.Actor.HasStrings && !body.PullingUp && body.Actor.Animator.BaseState == "idle", "a puppet without strings has no entrance"); checks++;
+            broken = true; body.BreakSource = () => broken; Run(.2f); broken = false; Run(.2f);
+            Require(!body.PullingUp && !body.LoricaBroken, "a puppet without strings is not held by a pull-up after a break"); checks++;
+            body.Clear();
+        }
+        finally { if (instance != null) UnityEngine.Object.DestroyImmediate(instance); EditorSceneManager.ClosePreviewScene(scene); PNVisualRuntime.Release(); PNVisualPacks.Clear(); }
+        Require(PNVisualSystem.Count == 0, "no puppet left registered"); checks++;
+        return "PASS " + checks + " Visual strings gameplay checks";
     }
 }
 #endif

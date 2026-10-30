@@ -39,7 +39,7 @@ public static class PNShaderWarmupContent
     }
     private static readonly (string slug, string shader, string[] keywords)[] Keyworded =
     {
-        ("visualactor", "PN/VisualActor", new string[0]), ("visualactor_baked", "PN/VisualActor", new[] { "PN_BAKED" }), ("visualinkbake", "Hidden/PN/VisualInkBake", new string[0]), ("visualshadebake", "Hidden/PN/VisualShadeBake", new string[0]),
+        ("visualactor", "PN/VisualActor", new string[0]), ("visualactor_baked", "PN/VisualActor", new[] { "PN_BAKED" }), ("visualinkbake", "Hidden/PN/VisualInkBake", new string[0]), ("visualstrings", "PN/VisualStrings", new string[0]), ("visualshadebake", "Hidden/PN/VisualShadeBake", new string[0]),
     };
 }
 
@@ -66,14 +66,14 @@ public static class PNShaderWarmup
     public static int StatesTotal => states?.totalGraphicsStateCount ?? 0;
     public static int StatesCompleted => states == null ? 0 : states.completedWarmupCount;
     private static bool StatesDone => states == null || states.isWarmedUp;
-    public static bool IsDone => begun && prepared && pending.Count == 0 && StatesDone && !PNVisualRuntime.PreloadActive;
+    public static bool IsDone => begun && prepared && pending.Count == 0 && StatesDone && !PNVisualRuntime.PreloadActive && !PNVisualRuntime.RebuildActive;
     public static float Fraction
     {
         get
         {
             if (!begun) return 0f;
-            int preload = PNVisualRuntime.PreloadTotal; int all = total + StatesTotal + preload; if (all == 0) return 1f;
-            return Mathf.Clamp01((done + Mathf.Min(StatesCompleted, StatesTotal) + PNVisualRuntime.PreloadDone) / (float)all);
+            int preload = PNVisualRuntime.PreloadTotal; int rebuild = PNVisualRuntime.RebuildActive ? PNVisualRuntime.RebuildTotal : 0; int all = total + StatesTotal + preload + rebuild; if (all == 0) return 1f;
+            return Mathf.Clamp01((done + Mathf.Min(StatesCompleted, StatesTotal) + PNVisualRuntime.PreloadDone + (rebuild > 0 ? PNVisualRuntime.RebuildDone : 0)) / (float)all);
         }
     }
     public static int Compiled => done;
@@ -159,6 +159,7 @@ public static class PNShaderWarmup
             try { PNLoricaShatter.Warm(); } catch (Exception error) { Debug.LogException(error); }       // materials, environment image and meshes of the lorica break
         }
         if (PNVisualRuntime.PreloadActive) PNVisualRuntime.PreloadStep(PreloadBudgetMs);
+        if (PNVisualRuntime.RebuildActive) PNVisualRuntime.RebuildStep(PreloadBudgetMs);       // the Settings Save changed the look: the atlas set is rebuilt under the cover
         var batch = new ShaderVariantCollection(); int added = 0;
         while (pending.Count > 0 && added < PerFrame)
         {

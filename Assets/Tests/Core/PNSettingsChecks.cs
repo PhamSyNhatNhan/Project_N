@@ -60,7 +60,7 @@ public static class PNSettingsChecks
         Check(preserved.ShowPcControls&&preserved.Locale=="vi"&&preserved.TargetFrameRate==144&&preserved.MobileIconSet=="test:missing"&&preserved.AutoTargetMode==PNTargetMode.LowestHealth,"all setters preserve PC HUD");
         var off=preserved.WithShowPcControls(false);
         Check(!off.ShowPcControls&&off.Locale==preserved.Locale&&off.TargetFrameRate==preserved.TargetFrameRate&&off.MobileIconSet==preserved.MobileIconSet&&off.MobilePalette==preserved.MobilePalette&&off.AutoTargetMode==preserved.AutoTargetMode,"PC setter preserves all preferences");
-        var old3=Newtonsoft.Json.Linq.JObject.Parse(lowest.ToJson());old3["schemaVersion"]=3;old3.Remove("showPcControls");old3.Remove("showPcBindingLabels");
+        var old3=Newtonsoft.Json.Linq.JObject.Parse(lowest.ToJson());old3["schemaVersion"]=3;old3.Remove("showPcControls");old3.Remove("showPcBindingLabels");old3.Remove("paperShadow");old3.Remove("inkMode");
         Check(!fromV1.ShowPcControls&&!fromV2.ShowPcControls&&!PNUserSettings.Parse(old3.ToString(),out _).ShowPcControls,"schemas 1 2 3 default PC HUD off");
         old3["showPcControls"]=true;PNUserSettings.Parse(old3.ToString(),out bool oldField);Check(oldField,"PC field in old schema protected");
         foreach(var token in new Newtonsoft.Json.Linq.JToken[]{null,new Newtonsoft.Json.Linq.JValue("true"),new Newtonsoft.Json.Linq.JValue(1),Newtonsoft.Json.Linq.JValue.CreateNull()})
@@ -74,13 +74,47 @@ public static class PNSettingsChecks
         var keep=labelsOff.WithLocale("en").WithFrameRate(120).WithAutoTargetMode(PNTargetMode.LowestHealth).WithMobileStyle(PNMobileStyleDefaults.IconSet,PNMobileStyleDefaults.Palette).WithShowPcControls(false);
         Check(!keep.ShowPcBindingLabels&&!keep.ShowPcControls&&keep.TargetFrameRate==120,"all setters preserve hidden labels");
         Check(labelsOff.ShowPcControls&&labelsOff.AutoTargetMode==pc.AutoTargetMode&&labelsOff.Locale==pc.Locale,"label setter independent of HUD and other preferences");
-        var old4=Newtonsoft.Json.Linq.JObject.Parse(pc.ToJson());old4["schemaVersion"]=4;old4.Remove("showPcBindingLabels");
+        var old4=Newtonsoft.Json.Linq.JObject.Parse(pc.ToJson());old4["schemaVersion"]=4;old4.Remove("showPcBindingLabels");old4.Remove("paperShadow");old4.Remove("inkMode");
         Check(PNUserSettings.Parse(old4.ToString(),out _).ShowPcBindingLabels&&PNUserSettings.Parse(old4.ToString(),out _).ShowPcControls,"schema4 keeps HUD and defaults labels on");
         string old4Root=Path.Combine(folder,"schema4Migration");Directory.CreateDirectory(old4Root);var old4Store=new PNSettingsStore(old4Root);string old4Text=old4.ToString();File.WriteAllText(old4Store.FilePath,old4Text);
         var read4=old4Store.Load();Check(File.ReadAllText(old4Store.FilePath)==old4Text,"schema4 read does not rewrite");old4Store.Save(read4.Value.WithShowPcBindingLabels(false));Check(!old4Store.Load().Value.ShowPcBindingLabels&&old4Store.Load().Value.ShowPcControls,"schema4 explicit save migrates independently");
         old4["showPcBindingLabels"]=false;PNUserSettings.Parse(old4.ToString(),out bool protected4);Check(protected4,"new label field in old schema protected");
         foreach(var token in new Newtonsoft.Json.Linq.JToken[]{null,new Newtonsoft.Json.Linq.JValue("false"),new Newtonsoft.Json.Linq.JValue(0),Newtonsoft.Json.Linq.JValue.CreateNull()})
         {var json=Newtonsoft.Json.Linq.JObject.Parse(labelsOff.ToJson());if(token==null)json.Remove("showPcBindingLabels");else json["showPcBindingLabels"]=token;bool invalid=false;try{PNUserSettings.Parse(json.ToString(),out _);}catch(FormatException){invalid=true;}Check(invalid,"missing or non-bool label preference rejected");}
+        // ---- schema 6: the overlap shadow of the puppets ----
+        Check(new PNUserSettings("vi").PaperShadow==PNPaperShadowMode.Actors&&baseJson.Contains("\"paperShadow\": \"actors\""),"paper shadow defaults to every character and is written");
+        foreach(var mode in new[]{PNPaperShadowMode.Off,PNPaperShadowMode.KeyActors,PNPaperShadowMode.Actors,PNPaperShadowMode.All,PNPaperShadowMode.Baked})
+        {var round=PNUserSettings.Parse(new PNUserSettings("vi").WithPaperShadow(mode).ToJson(),out bool shadowUnsupported);Check(!shadowUnsupported&&round.PaperShadow==mode,"paper shadow roundtrips: "+mode);}
+        var shadowed=labelsOff.WithPaperShadow(PNPaperShadowMode.Baked);
+        Check(shadowed.PaperShadow==PNPaperShadowMode.Baked&&!shadowed.ShowPcBindingLabels&&shadowed.ShowPcControls&&shadowed.Locale==labelsOff.Locale&&shadowed.AutoTargetMode==labelsOff.AutoTargetMode&&shadowed.TargetFrameRate==labelsOff.TargetFrameRate,"paper shadow setter keeps the other preferences");
+        var kept=shadowed.WithLocale("en").WithFrameRate(90).WithAutoTargetMode(PNTargetMode.LowestHealth).WithMobileStyle(PNMobileStyleDefaults.IconSet,PNMobileStyleDefaults.Palette).WithShowPcControls(false).WithShowPcBindingLabels(true);
+        Check(kept.PaperShadow==PNPaperShadowMode.Baked,"every other setter keeps the paper shadow");
+        var old5=Newtonsoft.Json.Linq.JObject.Parse(shadowed.ToJson());old5["schemaVersion"]=5;old5.Remove("paperShadow");old5.Remove("inkMode");
+        Check(PNUserSettings.Parse(old5.ToString(),out bool old5Unsupported).PaperShadow==PNPaperShadowMode.Actors&&!old5Unsupported&&fromV1.PaperShadow==PNPaperShadowMode.Actors&&fromV2.PaperShadow==PNPaperShadowMode.Actors,"schemas 1-5 read as every character");
+        string old5Root=Path.Combine(folder,"schema5Migration");Directory.CreateDirectory(old5Root);var old5Store=new PNSettingsStore(old5Root);string old5Text=old5.ToString();File.WriteAllText(old5Store.FilePath,old5Text);
+        var read5=old5Store.Load();Check(File.ReadAllText(old5Store.FilePath)==old5Text,"schema5 read does not rewrite");
+        old5Store.Save(read5.Value.WithPaperShadow(PNPaperShadowMode.Off));Check(old5Store.Load().Value.PaperShadow==PNPaperShadowMode.Off&&File.ReadAllText(old5Store.FilePath).Contains("\"schemaVersion\": "+PNUserSettings.SchemaVersion),"schema5 explicit save migrates to the current schema");
+        old5["paperShadow"]="off";PNUserSettings.Parse(old5.ToString(),out bool field5);Check(field5,"paper shadow field in schema 5 protected as unknown");
+        foreach(var token in new Newtonsoft.Json.Linq.JToken[]{null,new Newtonsoft.Json.Linq.JValue(1),new Newtonsoft.Json.Linq.JValue(true),Newtonsoft.Json.Linq.JValue.CreateNull(),new Newtonsoft.Json.Linq.JValue("Actors"),new Newtonsoft.Json.Linq.JValue("ultra"),new Newtonsoft.Json.Linq.JValue("")})
+        {var json=Newtonsoft.Json.Linq.JObject.Parse(shadowed.ToJson());if(token==null)json.Remove("paperShadow");else json["paperShadow"]=token;bool invalid=false;try{PNUserSettings.Parse(json.ToString(),out _);}catch(FormatException){invalid=true;}Check(invalid,"missing, non-string or unknown paper shadow rejected");}
+        bool badShadow=false;try{new PNUserSettings("vi",60,PNMobileStyleDefaults.IconSet,PNMobileStyleDefaults.Palette,PNTargetMode.Nearest,false,true,(PNPaperShadowMode)9);}catch(ArgumentOutOfRangeException){badShadow=true;}Check(badShadow,"undefined paper shadow rejected");
+        // ---- schema 7: the ink look ----
+        Check(new PNUserSettings("vi").InkMode==PNInkMode.Baked&&baseJson.Contains("\"inkMode\": \"baked\""),"ink mode defaults to baked and is written");
+        foreach(var mode in new[]{PNInkMode.Baked,PNInkMode.LiveKeyActors,PNInkMode.LiveActors,PNInkMode.LiveAll})
+        {var round=PNUserSettings.Parse(new PNUserSettings("vi").WithInkMode(mode).ToJson(),out bool inkUnsupported);Check(!inkUnsupported&&round.InkMode==mode,"ink mode roundtrips: "+mode);}
+        var inked=shadowed.WithInkMode(PNInkMode.LiveActors);
+        Check(inked.InkMode==PNInkMode.LiveActors&&inked.PaperShadow==PNPaperShadowMode.Baked&&inked.Locale==shadowed.Locale&&inked.TargetFrameRate==shadowed.TargetFrameRate&&inked.ShowPcControls==shadowed.ShowPcControls,"ink setter keeps the other preferences (shadow and ink independent)");
+        var keptInk=inked.WithLocale("en").WithFrameRate(90).WithAutoTargetMode(PNTargetMode.LowestHealth).WithMobileStyle(PNMobileStyleDefaults.IconSet,PNMobileStyleDefaults.Palette).WithShowPcControls(false).WithShowPcBindingLabels(true).WithPaperShadow(PNPaperShadowMode.Off);
+        Check(keptInk.InkMode==PNInkMode.LiveActors,"every other setter keeps the ink mode");
+        var old6=Newtonsoft.Json.Linq.JObject.Parse(inked.ToJson());old6["schemaVersion"]=6;old6.Remove("inkMode");
+        Check(PNUserSettings.Parse(old6.ToString(),out bool old6Unsupported).InkMode==PNInkMode.Baked&&!old6Unsupported&&fromV1.InkMode==PNInkMode.Baked&&fromV2.InkMode==PNInkMode.Baked,"schemas 1-6 read as baked ink");
+        string old6Root=Path.Combine(folder,"schema6Migration");Directory.CreateDirectory(old6Root);var old6Store=new PNSettingsStore(old6Root);string old6Text=old6.ToString();File.WriteAllText(old6Store.FilePath,old6Text);
+        var read6=old6Store.Load();Check(File.ReadAllText(old6Store.FilePath)==old6Text,"schema6 read does not rewrite");
+        old6Store.Save(read6.Value.WithInkMode(PNInkMode.LiveAll));Check(old6Store.Load().Value.InkMode==PNInkMode.LiveAll&&File.ReadAllText(old6Store.FilePath).Contains("\"schemaVersion\": 7"),"schema6 explicit save migrates to 7");
+        old6["inkMode"]="baked";PNUserSettings.Parse(old6.ToString(),out bool field6);Check(field6,"ink field in schema 6 protected as unknown");
+        foreach(var token in new Newtonsoft.Json.Linq.JToken[]{null,new Newtonsoft.Json.Linq.JValue(1),new Newtonsoft.Json.Linq.JValue(true),Newtonsoft.Json.Linq.JValue.CreateNull(),new Newtonsoft.Json.Linq.JValue("Baked"),new Newtonsoft.Json.Linq.JValue("live"),new Newtonsoft.Json.Linq.JValue("")})
+        {var json=Newtonsoft.Json.Linq.JObject.Parse(inked.ToJson());if(token==null)json.Remove("inkMode");else json["inkMode"]=token;bool invalid=false;try{PNUserSettings.Parse(json.ToString(),out _);}catch(FormatException){invalid=true;}Check(invalid,"missing, non-string or unknown ink mode rejected");}
+        bool badInk=false;try{new PNUserSettings("vi",60,PNMobileStyleDefaults.IconSet,PNMobileStyleDefaults.Palette,PNTargetMode.Nearest,false,true,PNPaperShadowMode.Actors,(PNInkMode)9);}catch(ArgumentOutOfRangeException){badInk=true;}Check(badInk,"undefined ink mode rejected");
         return checks+PNMobileStyleChecks.Run();
     }
     private static string WithoutMode(string json){var root=Newtonsoft.Json.Linq.JObject.Parse(json);root.Remove("autoTargetMode");return root.ToString();}

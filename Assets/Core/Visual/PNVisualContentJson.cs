@@ -10,7 +10,7 @@ using Newtonsoft.Json.Linq;
 // VI: JSON của các registry Visual trong `extensions.project_n`. Trường lạ bị từ chối, số phải hữu hạn trong giới hạn cứng, tham chiếu được kiểm theo phụ thuộc pack.
 public sealed partial class PNBuffContentBatch
 {
-    public static readonly string[] VisualFields = { "visualRigs", "visualParts", "visualBuilds", "visualMotions", "visualMotionSets", "visualExpressions", "visualAppearances" };
+    public static readonly string[] VisualFields = { "visualRigs", "visualParts", "visualBuilds", "visualMotions", "visualMotionSets", "visualExpressions", "visualAppearances", "visualStringShapes", "visualStringColors", "visualStringStyles" };
     private readonly Dictionary<EveId, PNVisualRigDefinition> visualRigs = new Dictionary<EveId, PNVisualRigDefinition>();
     private readonly Dictionary<EveId, PNVisualPartDefinition> visualParts = new Dictionary<EveId, PNVisualPartDefinition>();
     private readonly Dictionary<EveId, PNVisualBuildDefinition> visualBuilds = new Dictionary<EveId, PNVisualBuildDefinition>();
@@ -20,7 +20,7 @@ public sealed partial class PNBuffContentBatch
     private readonly Dictionary<EveId, PNVisualAppearanceDefinition> visualAppearances = new Dictionary<EveId, PNVisualAppearanceDefinition>();
 
     private IEnumerable<EveIIdentified> VisualDefinitions => visualRigs.Values.Cast<EveIIdentified>().Concat(visualParts.Values).Concat(visualBuilds.Values).Concat(visualMotions.Values)
-        .Concat(visualMotionSets.Values).Concat(visualExpressions.Values).Concat(visualAppearances.Values);
+        .Concat(visualMotionSets.Values).Concat(visualExpressions.Values).Concat(visualAppearances.Values).Concat(VisualStringDefinitions);
 
     private void CommitVisual()
     {
@@ -31,6 +31,7 @@ public sealed partial class PNBuffContentBatch
         foreach (var d in visualMotionSets.Values) hub.Get<PNVisualMotionSetDefinition>().Register(d);
         foreach (var d in visualExpressions.Values) hub.Get<PNVisualExpressionDefinition>().Register(d);
         foreach (var d in visualAppearances.Values) hub.Get<PNVisualAppearanceDefinition>().Register(d);
+        CommitVisualStrings();
     }
 
     private void ParseVisual(JObject root, EveContentExtensionDocument document)
@@ -41,6 +42,7 @@ public sealed partial class PNBuffContentBatch
         foreach (var token in Array(root["visualMotions"])) AddVisual(visualMotions, ParseMotion(Object(token), document), hub.Get<PNVisualMotionDefinition>());
         foreach (var token in Array(root["visualMotionSets"])) AddVisual(visualMotionSets, ParseMotionSet(Object(token), document), hub.Get<PNVisualMotionSetDefinition>());
         foreach (var token in Array(root["visualExpressions"])) AddVisual(visualExpressions, ParseExpression(Object(token), document), hub.Get<PNVisualExpressionDefinition>());
+        ParseVisualStrings(root, document);
         foreach (var token in Array(root["visualAppearances"])) AddVisual(visualAppearances, ParseAppearance(Object(token), document), hub.Get<PNVisualAppearanceDefinition>());
     }
 
@@ -255,7 +257,7 @@ public sealed partial class PNBuffContentBatch
 
     private PNVisualAppearanceDefinition ParseAppearance(JObject obj, EveContentExtensionDocument document)
     {
-        Fields(obj, "id", "rig", "motionSet", "build", "expression", "colors", "slots", "free", "hide", "blushAlpha", "sockets");
+        Fields(obj, "id", "rig", "motionSet", "build", "expression", "colors", "slots", "free", "hide", "blushAlpha", "sockets", "strings");
         var id = Owned(String(obj, "id"), document); var rigId = EveId.Parse(String(obj, "rig")); Reference(rigId, document, hub.Get<PNVisualRigDefinition>());
         var colors = new Dictionary<string, PNVisualColor>();
         if (obj["colors"] != null) foreach (var p in Object(obj["colors"]).Properties()) colors.Add(p.Name, PNVisualColor.Parse(p.Value.Type == JTokenType.String ? p.Value.Value<string>() : throw new FormatException("colour string required.")));
@@ -264,9 +266,10 @@ public sealed partial class PNBuffContentBatch
         var free = Array(obj["free"]).Select(token => { var f = Object(token); Fields(f, "part", "bone", "at", "layer"); var at = Pair(f["at"], "free part at"); return new PNVisualFreePart(EveId.Parse(String(f, "part")), String(f, "bone"), at[0], at[1], Integer(f, "layer")); }).ToArray();
         var sockets = new Dictionary<string, float[]>();
         if (obj["sockets"] != null) foreach (var p in Object(obj["sockets"]).Properties()) sockets.Add(p.Name, Pair(p.Value, "socket"));
+        var strings = Array(obj["strings"]).Select(t => ParseStringEntry(t, document)).ToArray();
         EveId expression = default;
         if (obj["expression"] != null && obj["expression"].Type != JTokenType.Null) expression = EveId.Parse(String(obj, "expression"));
-        var appearance = new PNVisualAppearanceDefinition(id, rigId, EveId.Parse(String(obj, "motionSet")), EveId.Parse(String(obj, "build")), expression, colors, slots, free, Names(obj["hide"]), Float(obj, "blushAlpha", 1f), sockets);
+        var appearance = new PNVisualAppearanceDefinition(id, rigId, EveId.Parse(String(obj, "motionSet")), EveId.Parse(String(obj, "build")), expression, colors, slots, free, Names(obj["hide"]), Float(obj, "blushAlpha", 1f), sockets, strings);
         checks.Add(() =>
         {
             var rig = RigOf(rigId, document, "appearance " + id);
@@ -277,6 +280,7 @@ public sealed partial class PNBuffContentBatch
             foreach (var f in appearance.Free) { if (rig.BoneIndex(f.Bone) < 0) throw new FormatException("appearance " + id + " free part uses unknown bone " + f.Bone); Require(visualParts, f.Part, document, "appearance " + id + " free part"); }
             foreach (var slot in appearance.Hide) if (rig.SlotIndex(slot) < 0) throw new FormatException("appearance " + id + " hides unknown slot " + slot);
             foreach (var pair in appearance.SocketOverrides) if (rig.SocketIndex(pair.Key) < 0) throw new FormatException("appearance " + id + " overrides unknown socket " + pair.Key);
+            CheckStringEntries(appearance, rig);
         });
         return appearance;
     }

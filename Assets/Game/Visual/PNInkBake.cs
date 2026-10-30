@@ -59,6 +59,24 @@ public static class PNInkBake
             if (Application.isPlaying) Object.Destroy(enlarged); else Object.DestroyImmediate(enlarged);
         }
     }
+    // The raw (live ink) atlas uses the same geometry as the baked one: a copy of the source with `border` transparent pixels on every side, no marks. The source is not modified.
+    public static Texture2D Pad(Texture2D source, int border = Border)
+    {
+        int w = source.width, h = source.height, W = w + 2 * border, H = h + 2 * border;
+        var pixels = source.GetPixels32(); var padded = new Color32[W * H];
+        for (int y = 0; y < h; y++) System.Array.Copy(pixels, y * w, padded, (y + border) * W + border, w);
+        var enlarged = new Texture2D(W, H, TextureFormat.RGBA32, false, false) { hideFlags = HideFlags.HideAndDontSave, filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp };
+        enlarged.SetPixels32(padded); enlarged.Apply(false); return enlarged;
+    }
+    // The live shader (PN/VisualActor without PN_BAKED) computes the same marks per pixel: this sets its parameters to the Strong preset so a live actor looks like a baked one. The shader's own defaults are NOT the preset.
+    public static void ApplyLive(Material m)
+    {
+        var p = Current;
+        m.SetFloat("_PaperStrength", p.Paper); m.SetFloat("_OutlineWidth", p.Outline); m.SetFloat("_ShadowStrength", 0); m.SetFloat("_DrawnAmount", p.Drawn); m.SetFloat("_DryInk", p.DryInk);
+        m.SetFloat("_HatchStrength", p.Hatch); m.SetFloat("_HatchCoverage", p.HatchCoverage); m.SetFloat("_PigmentStrength", p.Pigment); m.SetFloat("_LineWobble", p.Wobble);
+        m.SetFloat("_LooseOutline", p.Loose); m.SetFloat("_DryFiber", p.DryFiber);
+        m.SetVector("_OverlapOffset", new Vector4(2, -3.6f, 0, 0)); m.SetFloat("_OverlapSoftness", .8f);
+    }
     public static void Release() { if (material != null) { if (Application.isPlaying) Object.Destroy(material); else Object.DestroyImmediate(material); material = null; } }
 }
 #endif

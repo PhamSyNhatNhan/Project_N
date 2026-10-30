@@ -1,0 +1,21 @@
+{
+ "schemaVersion": 1,
+ "extensions": {
+  "project_n": {
+   "visualStringShapes": [
+    { "id": "project_n:straight", "leave": [0, 1], "curve": 0, "slack": 0, "sway": [0.0025, 0.7], "width": [0.0135, 0.0045], "length": "toTop", "segments": 24 },
+    { "id": "project_n:drape", "leave": [-1, 0.35], "leaveDistance": 0.055, "curve": 0.3, "slack": 0.02, "sway": [0.0055, 0.6], "width": [0.012, 0.004], "length": "toTop", "segments": 32 },
+    { "id": "project_n:slack", "leave": [0, 1], "curve": 0, "slack": 0.05, "sway": [0.004, 0.5], "width": [0.012, 0.004], "length": "toTop", "segments": 24 }
+   ],
+   "visualStringColors": [
+    { "id": "project_n:star_white", "core": "#f6f1e6", "halo": "#8f86d8", "knot": "#fff8e8", "alpha": 0.9, "fadeTop": 0.45 },
+    { "id": "project_n:silver", "core": "#e3e7ee", "halo": "#9aa6c0", "knot": "#ffffff", "alpha": 0.85, "fadeTop": 0.45 },
+    { "id": "project_n:dark_cord", "core": "#3a3346", "halo": "#6e5f8c", "knot": "#c9b8ff", "alpha": 0.95, "fadeTop": 0.35 }
+   ],
+   "visualStringStyles": [
+    { "id": "project_n:puppet_main", "shape": "project_n:straight", "color": "project_n:star_white", "entrance": "slumped" },
+    { "id": "project_n:puppet_drape", "shape": "project_n:drape", "color": "project_n:star_white", "lean": -1, "entrance": "slumped" }
+   ]
+  }
+ }
+}

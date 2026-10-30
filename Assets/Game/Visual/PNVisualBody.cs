@@ -17,6 +17,13 @@ public sealed class PNVisualBody : MonoBehaviour
 
     private PNVisualActor actor; private PNStat stat; private Vector3 lastPosition; private bool hasLast, dead, savedCapsule, savedShadow, hasHealth; private double lastHealth;
     private float baseHeight, baseRadius; private Vector3 baseCenter, baseShadowScale; private string locomotion = "";
+    // Strings and the Lorica break (all derived from replicated data: the buff presentation snapshot and the health, so a replica needs nothing on the wire).
+    private PNBuffManager buffs; private bool broken, pullPending; private float pollTimer;
+    public const float StringLowerSeconds = .8f, EntranceLowerSeconds = .9f, BreakPollSeconds = .1f;
+    // Checks only: when set, it replaces the buff presentation as the source of "the Lorica is broken".
+    public Func<bool> BreakSource;
+    public bool LoricaBroken => broken;
+    public bool PullingUp => pullPending;
 
     public PNVisualActor Actor => actor;
     public bool Active => actor != null;
@@ -50,7 +57,30 @@ public sealed class PNVisualBody : MonoBehaviour
         stat = GetComponent<PNStat>();
         dead = false; hasLast = false; hasHealth = false; locomotion = "";
         actor.Play("idle");
+        buffs = GetComponent<PNBuffManager>(); broken = false; pullPending = false; pollTimer = 0f;
+        StartEntrance(appearance, hub);
         return true;
+    }
+
+    // The entrance a string style asks for: a puppet that comes into the world hangs slumped and the strings are lowered onto it ("slumped"), or only the strings are lowered ("lowered").
+    // No entrance while the local loading cover is up (the world is not seen yet, and a late joiner meets the puppets already attached).
+    private void StartEntrance(PNVisualAppearanceDefinition appearance, EveRegistryHub hub)
+    {
+        if (!actor.HasStrings) return;
+        string entrance = actor.Strings.Entrance(hub, appearance);
+        if (entrance == PNVisualStringStyleDefinition.EntranceNone) return;
+        var cover = PNTransitionController.Current; if (cover != null && cover.IsShowing) return;
+        if (entrance == PNVisualStringStyleDefinition.EntranceSlumped) { actor.Play("stun", true); actor.Tick(6.5f); }   // the stun motion holds its last pose: start there
+        actor.LowerStrings(EntranceLowerSeconds); pullPending = true;
+    }
+
+    private bool ReadLoricaBroken()
+    {
+        if (BreakSource != null) return BreakSource();
+        if (buffs == null || !buffs.IsReady) return false;
+        var presentation = buffs.Presentation; if (presentation == null) return false;
+        foreach (var state in presentation.PresentationSnapshot()) if (state.Id == PNContentIds.LoricaBreak) return true;
+        return false;
     }
 
     public void Clear()
@@ -60,7 +90,7 @@ public sealed class PNVisualBody : MonoBehaviour
         if (visual != null) visual.gameObject.SetActive(true);
         if (savedCapsule && capsule != null) { capsule.height = baseHeight; capsule.radius = baseRadius; capsule.center = baseCenter; }
         if (savedShadow && shadow != null) shadow.localScale = baseShadowScale;
-        savedCapsule = savedShadow = false; hasLast = false; hasHealth = false; dead = false; locomotion = "";
+        savedCapsule = savedShadow = false; hasLast = false; hasHealth = false; dead = false; locomotion = ""; buffs = null; broken = pullPending = false;
     }
 
     private static void DestroyObject(GameObject go) { if (Application.isPlaying) Destroy(go); else DestroyImmediate(go); }
@@ -74,13 +104,26 @@ public sealed class PNVisualBody : MonoBehaviour
         if (stat != null && stat.HasHealth)
         {
             double hp = stat.GetCurrent(PNContentIds.Health); bool nowDead = stat.IsDead;
-            if (hasHealth && hp < lastHealth - 1e-6 && !nowDead) actor.Play("hurt", true);
+            if (hasHealth && hp < lastHealth - 1e-6 && !nowDead) { actor.PulseStringEffects();actor.Play("hurt", true); }
             lastHealth = hp; hasHealth = true;
-            if (nowDead && !dead) { dead = true; actor.Play("dead"); }
-            else if (!nowDead && dead) { dead = false; locomotion = ""; actor.Play("idle"); }
+            if (nowDead && !dead) { dead = true; broken = pullPending = false; actor.CutStrings(); actor.Play("dead"); }          // death lets the stars let go
+            else if (!nowDead && dead) { dead = false; locomotion = ""; actor.ShowStrings(); actor.Play("idle"); }
         }
         if (dead) return;
+        // The Lorica break: the strings are cut and the puppet slumps; when the break ends the strings are lowered again and pull it up.
+        if ((buffs != null || BreakSource != null) && (pollTimer -= dt) <= 0f)
+        {
+            pollTimer = BreakPollSeconds; bool now = ReadLoricaBroken();
+            if (now && !broken) { broken = true; pullPending = false; actor.CutStrings(); actor.Play("stun", true); }
+            else if (!now && broken)
+            {
+                broken = false;
+                if (actor.HasStrings) { actor.LowerStrings(StringLowerSeconds); pullPending = true; } else { locomotion = ""; actor.Play("idle", true); }
+            }
+        }
+        if (pullPending && actor.Strings != null && !actor.Strings.AnyLowering) { pullPending = false; locomotion = ""; actor.Play("idle", true); }       // the strings are on again: pull the puppet up
         var position = transform.position;
+        if (broken || pullPending) { lastPosition = position; hasLast = true; return; }       // no walking animation while slumped or being pulled up
         if (hasLast && dt > 1e-5f)
         {
             var delta = position - lastPosition; delta.y = 0f; float speed = delta.magnitude / dt;

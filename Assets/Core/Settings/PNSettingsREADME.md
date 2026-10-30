@@ -1,15 +1,15 @@
 # Machine settings
 
-`PNUserSettings` / `PNSettingsStore` own schema5 for the local machine. The game
+`PNUserSettings` / `PNSettingsStore` own schema7 for the local machine. The game
 owner is `Assets/Game/Runtime/PNSettingsService.cs`; UI and Localization do not
 write their own files. Storage is JSON, with no authored ScriptableObject asset.
 
 Runtime path: `<Application.persistentDataPath>/Settings/settings.json`.
 
 ```json
-{ "schemaVersion": 5, "locale": "vi", "targetFrameRate": 60,
+{ "schemaVersion": 7, "locale": "vi", "targetFrameRate": 60,
   "mobileIconSet": "project_n:mobile_icons_shapes", "mobilePalette": "project_n:mobile_palette_u",
-  "autoTargetMode": "nearest", "showPcControls": false, "showPcBindingLabels": true }
+  "autoTargetMode": "nearest", "showPcControls": false, "showPcBindingLabels": true, "paperShadow": "actors", "inkMode": "baked" }
 ```
 
 Locale is a validated code, allowed to be temporarily absent from the loaded
@@ -69,6 +69,8 @@ Development Players can use `-pn-settings-fixture=<root>`, ignored by release bu
 See `Docs/SettingsImplementationReport.md` for actual evidence and limitations;
 the plan/guide describe the implementation sequence, not historical PASS evidence.
 
+`paperShadow` (schema6, 2026-10-30) is the overlap shadow between the parts of a puppet (Visual, `Assets/Core/Visual/PNVisualREADME.md`): the exact lowercase id `off` | `key_actors` | `actors` | `all` | `baked` (`PNPaperShadowModes`), default `actors` on schemas1–5. A missing, non-string or unknown value is invalid (the file is rejected, not repaired); the field in a schema1–5 file is unknown and protects the file. Reading an older file never writes; the next explicit save writes schema6. `PNSettingsService.SetPaperShadow` is the only writer and also sets `PNVisualPaperSettings.Mode` (applied at load and on every change; actors re-select their material on the next tick). The Settings view shows it as the "Part shadow" row in General with four options (off, player and bosses, all characters, pre-baked; `all` is the same as all characters for now and is not offered; keys `project_n:settings.paper_shadow[.<id>]`, vi + en). Machine-local, not coop parity, not content. Every With* method preserves it.
+
 `showPcBindingLabels` (schema5) is a strict Boolean, default true on schemas1–4.
 It independently hides the five PC keycaps; icons and press/hold feedback remain.
 `SetShowPcBindingLabels` uses the same writer/store. Every With* method preserves it;
@@ -80,3 +82,16 @@ section dividers have a centred star. No heading constellation or scrollbar blin
 Scroll thumbs appear at alpha.5 on scroll, fade150ms after600ms idle. All view content
 and decoration share a760ms opening and700ms closing. The view keeps its own unscaled
 clock and owned animation state; it schedules no delayed scroll effects.
+
+## Ink look, one Save, locks (schema 7, 2026-10-31)
+
+`inkMode` (`PNInkMode`: `baked` default | `live_key_actors` | `live_actors` | `live_all`) is the ink look of the puppets (see PNVisualREADME). Schemas 1-6 read as `baked`; a schema 6 read does not rewrite;
+the next explicit save writes 7; an `inkMode` field in a file older than 7 protects it as unknown. A phone's first file gets `paperShadow` `baked` (`Application.isMobilePlatform`, missing/corrupt file only).
+
+The Settings view edits a DRAFT (`PNUserSettings`); nothing changes until the one Save button at the END of the list (inside the scroll, greyed while the draft equals the saved settings, with a status
+line). `PNSettingsService.Apply(draft)` validates, applies the locale, the frame policy and the visual policy, writes once and notifies once; when the ink or shadow choice changed it raises
+`VisualLookChanged` (the Hall rebuilds under the loading cover). Back/Close with a differing draft asks "discard?" (keys `project_n:settings.unsaved*`, `.discard`, `.keep_editing`). The `Set*` methods stay
+for code and checks. Language and FPS therefore lose their instant preview.
+
+`PNSettingsService.VisualLookChangeAllowed` is true in the Title and the Hall only; the shadow and ink rows are disabled with a reason elsewhere (run, lobby) and `Apply` keeps the saved look when it is false.
+The exit animation of the view: the corner buttons and the rows/headings leave in about 0.2-0.35 s, the star art and the backdrop keep the whole 0.7 s.

@@ -48,7 +48,7 @@ public static class PNVisualBakeCheck
     {
         string root = Application.dataPath + "/StreamingAssets/BaseContent"; PNVisualPacks.Set("project_n", root);
         return new EveContentBootstrap().Build(new EveIContentModule[] { new PNContentModule(), new PNGameplayContentModule() },
-            new[] { new EveContentDocument("visual", File.ReadAllText(root + "/visual/humanoid.json"), "project_n"), new EveContentDocument("star", File.ReadAllText(root + "/visual/starweaver.json"), "project_n") });
+            new[] { new EveContentDocument("visual", File.ReadAllText(root + "/visual/humanoid.json"), "project_n"), new EveContentDocument("star", File.ReadAllText(root + "/visual/starweaver.json"), "project_n"), new EveContentDocument("strings", File.ReadAllText(root + "/visual/strings.json"), "project_n") });
     }
     internal static void StrongDynamic(Material m)
     {

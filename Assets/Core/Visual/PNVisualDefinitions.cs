@@ -351,8 +351,10 @@ public sealed class PNVisualAppearanceDefinition : EveIIdentified
     public IReadOnlyDictionary<string, PNVisualColor> Colors { get; } public IReadOnlyDictionary<string, EveId> Slots { get; }
     public IReadOnlyList<PNVisualFreePart> Free { get; } public IReadOnlyList<string> Hide { get; } public float BlushAlpha { get; }
     public IReadOnlyDictionary<string, float[]> SocketOverrides { get; }
+    // The strings the stars hang this puppet by (at most PNVisualStringLimits.MaxPerPuppet); empty for a puppet without strings.
+    public IReadOnlyList<PNVisualStringEntry> Strings { get; }
     public PNVisualAppearanceDefinition(EveId id, EveId rig, EveId motionSet, EveId build, EveId expression, IDictionary<string, PNVisualColor> colors, IDictionary<string, EveId> slots,
-        IEnumerable<PNVisualFreePart> free, IEnumerable<string> hide, float blushAlpha, IDictionary<string, float[]> socketOverrides)
+        IEnumerable<PNVisualFreePart> free, IEnumerable<string> hide, float blushAlpha, IDictionary<string, float[]> socketOverrides, IEnumerable<PNVisualStringEntry> strings = null)
     {
         if (!id.IsValid || !rig.IsValid || !motionSet.IsValid || !build.IsValid) throw new FormatException("appearance needs an id, rig, motionSet and build.");
         Id = id; Rig = rig; MotionSet = motionSet; Build = build; Expression = expression;
@@ -366,6 +368,8 @@ public sealed class PNVisualAppearanceDefinition : EveIIdentified
         BlushAlpha = PNVisualLimits.InRange(blushAlpha, 0f, 1f, "blushAlpha");
         var o = new Dictionary<string, float[]>(); if (socketOverrides != null) foreach (var p in socketOverrides) { if (p.Value == null || p.Value.Length != 2) throw new FormatException("socket override needs [x, y]."); o.Add(PNVisualLimits.Name(p.Key, "socket"), new[] { PNVisualLimits.Coordinate(p.Value[0], "socket x"), PNVisualLimits.Coordinate(p.Value[1], "socket y") }); }
         SocketOverrides = o;
+        Strings = (strings ?? Enumerable.Empty<PNVisualStringEntry>()).ToArray();
+        if (Strings.Count > PNVisualStringLimits.MaxPerPuppet) throw new FormatException("appearance " + id + " has more than " + PNVisualStringLimits.MaxPerPuppet + " strings.");
     }
 }
 

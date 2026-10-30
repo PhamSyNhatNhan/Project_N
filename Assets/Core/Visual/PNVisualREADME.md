@@ -1,4 +1,4 @@
-# Visual (rig puppet), RulesVersion 103
+# Visual (rig puppet), RulesVersion 106
 
 EN: Players and humanoid enemies are drawn as a **rig puppet**: a skeleton of parts (head, chest, hips, thighs, shins, face) driven by data. Everything is JSON + PNG interpreted by code at run time: no Animator, no AnimationClip, no bone GameObjects, no atlas baked in the Editor, so a mod ships only JSON and PNG. Design record and decisions: `Docs/VisualPlan.md`. Authoring tools: `ArtSource/VisualDemo` (the humanoid demo and the PNG/SVG pipeline) and `ArtSource/RigTool` (general editor, exports the JSON below).
 
@@ -44,8 +44,8 @@ other 2D sprites (world art); nothing else uses it yet. Edge widths are therefor
 the shader computes the same marks itself, at about 4 times the GPU cost for a crowd (7.7 vs 2.0 ms for 112 overlapping puppets at 1080p on a GTX 1650 Ti, Editor batch). UV0 is the atlas
 coordinate, UV1 is flash/fade, UV2 the tile bounds (the border-inclusive rect when baked), UV3 the part's layer (x) and a flag that the vertex samples the pre-baked shade texture (y).
 
-Overlap shadow between the parts of a puppet (a higher part darkens the lower part where they overlap; never the background) is a player setting, `PNVisualPaperSettings.Mode`
-(`PNPaperShadowMode`): `Off`; `KeyActors` (the player and bosses, `PNVisualActor.KeyActor`); `Actors` (every actor in view, the default); `All`; `Baked`. The dynamic modes pass up to
+Overlap shadow between the parts of a puppet (a higher part darkens the lower part where they overlap; never the background) is a player setting: the saved `paperShadow` preference (`settings.json`, schema 6; the "Part shadow" row of the Settings view, which offers all but `All`) that `PNSettingsService` writes into `PNVisualPaperSettings.Mode`
+(`PNPaperShadowMode`, in `Assets/Core/Settings`): `Off`; `KeyActors` (the player and bosses, `PNVisualActor.KeyActor`); `Actors` (every actor in view, the default); `All`; `Baked`. The dynamic modes pass up to
 128 caster triangles per actor in a MaterialPropertyBlock (over the cap: bent parts cast with coarser strips, then the smallest parts stop casting, one warning per appearance); an
 actor without the dynamic shadow uses a twin material with no block, so it can batch. `Baked` computes the shadow once at the rest pose on the GPU into copies of the receiving parts
 (`PNVisualShade`, `Hidden/PN/VisualShadeBake`, cached per appearance + build) and costs about the same as no shadow; it does not follow a bent cloak or a mirrored actor and part
@@ -61,8 +61,55 @@ it); in the `Baked` mode it also computes the shade of the (appearance, build) p
 Checks (main Editor, Edit Mode, preview scenes; set `PN_BAKE_SKIP_GPU=1` to skip the timing tables): `PNVisualBakeCheck.Run()` 5, `PNVisualShadeCheck.Run()` 15,
 `PNVisualCullShadowCheck.Run()` 26, `PNVisualPreloadCheck.Run()` 16 (it runs `PNShaderWarmupEditorChecks` too), `PNVisualShadePreloadCheck.Run()` 10. A Windows Mono Player of the
 Hall was run once from a clone: the Starweaver draws with the ink look and the loading cover hides the atlas build. Not measured: mobile/Android/IL2CPP, coop, characters other
-than the Starweaver, the Settings UI (the mode is a static, not a saved setting).
+than the Starweaver, a mobile Player for the Settings row (a Windows Player opened the view and changed the setting).
+
+## Ink and shadow settings: the atlas set, the epoch, re-attaching actors (2026-10-31)
+
+The ink look is a player setting next to the shadow (`inkMode` in `settings.json`, schema 7; `PNInkMode` in `Assets/Core/Settings`: `Baked` (default, also the mobile default), `LiveKeyActors`, `LiveActors`,
+`LiveAll`). Shadow and ink are INDEPENDENT: every shadow choice works with every ink choice. Both change only in the Title and the Hall (`PNSettingsService.VisualLookChangeAllowed`); the Settings view locks the
+two rows with a reason in a run and in a lobby.
+
+`PNVisualRuntime` holds an atlas SET: a baked atlas (marks baked in, shader `PN_BAKED`) and a raw atlas (the plain image; the shader computes the marks live). Both are padded by the same 16 px transparent border, so
+the tile geometry is identical and every actor's uv maths and the shade tiles work on either. `AtlasFor(hub, live)` builds what a flavour needs; `BeginPreload` queues the flavours the current mode needs (baked ->
+baked; live key actors -> both; live actors/all -> raw). Each flavour has its own material; the raw one gets the Strong preset through `PNInkBake.ApplyLive` (the shader's own defaults are NOT the preset).
+An actor picks its flavour from `PNVisualPaperSettings.UsesRaw(KeyActor)`; `KeyActor` flipping under "live: player and bosses" re-attaches it at once (`Rebind`).
+
+Saving a changed look in the Hall: `PNSettingsService.VisualLookChanged` -> `PNVisualLookApply.Request` starts a Custom transition cycle on the same world (the loading cover) and `PNVisualRuntime.BeginRebuild`.
+`PNShaderWarmup.Pump` drives `RebuildStep` (6 ms a frame; `IsDone` and `Fraction` include it): the new atlas set is built while the old one still draws, then swapped, the shade tiles of the new set are baked
+(Baked shadow only), and in ONE frame `Epoch++` and `PNVisualSystem.RebindAll()` re-attach every actor (`PNVisualActor.Rebind`: uv rects, material, shade; animator, pose, flash, fade, facing, strings stay) and the old
+atlases, materials and shade tiles are destroyed. In the Title nothing runs; the next load builds the right set. Shade tiles are copies of the atlas the actor uses (keyed `appearance|build|baked` or `|raw`),
+and the live ink path samples the shade texture when a vertex is flagged shaded (`gShaded` in the shader), so the pre-baked shadow works with live ink (the guide's mask idea was not needed).
+
+Checks: `PNVisualRebindCheck.Run()` (epoch, key-actor flip, poses kept, frames, shadow on both flavours, pooled reuse, old textures destroyed, 0 bytes).
+
+## Puppet strings (2026-10-31, RulesVersion 105)
+
+The stars hang puppets by strings. Data (`extensions.project_n`): `visualStringShapes` (how the line runs: `leave`, `leaveDistance`, `curve`, `slack`, `sway [amp,freq]`, `width [root,top]`, `length "toTop"|metres`,
+`segments`), `visualStringColors` (`core`, `halo`, `knot`, `alpha`, `fadeTop`), `visualStringStyles` (a named bundle: `shape`, `color`, `lean`, `entrance` none|slumped|lowered, `extends` up to 4 deep) and the
+`strings` list of an appearance (`{style | shape+color, socket, offset, lean}`, at most 4). `PNVisualStringResolver.Resolve` is the one place of precedence (style chain, base first, then the entry);
+the run-time API calls it too. Limits are refused, never clamped (segments 4..48, width 0.002..0.08 m, sway amplitude <= 0.05 m and frequency <= 5, slack <= 0.2, length <= 20 m, 64 entries a registry).
+Launch set: shapes `straight`, `drape`, `slack`; colours `star_white`, `silver`, `dark_cord`; styles `puppet_main`, `puppet_drape` (`BaseContent/visual/strings.json`). The Starweaver has a head string and a
+tassel string (socket `tail_tip` on the `hatStar` bone). Names: the socket is a place on the rig, the shape is how the line runs, the colour is a palette, the style is a role; none names a body part.
+
+Core (pure, smoke-tested): `PNVisualStringParams` (a spec as numbers, blendable), `PNVisualStringPath.Sample` (the line in the camera plane, mirrored with the facing), `PNVisualStringState`
+(Hidden / Lowering / Attached / Cut with a blend towards a new target). Game: `PNVisualStringSet` (what one actor owns; `AddString`, `RemoveString`, `SetString`, `SetStringColor`, `SetStringShape`,
+`SetStringsColor`, `CutStrings`, `LowerStrings`, `ShowStrings`, `HideStrings` on `PNVisualActor`; a fifth string and an invalid handle warn once) and `PNVisualStringSystem`, which draws every string of every
+actor in view as ONE mesh with ONE material (`PN/VisualStrings`, passes `Universal2D` + `UniversalForward`, registered in the warm-up): a camera-facing ribbon per string up to the top of the view, preallocated
+arrays, 0 bytes a frame (2026-10-30 recheck: 0.338 ms for 32 strings, 2.539 ms for 224 in the Editor; idle crowd, not a Player/mobile budget). An actor with strings keeps updating while its strings are on screen. Strings are presentation only: no collision, nothing replicated.
+
+Gameplay link (`PNVisualBody`, from replicated data only): a Lorica break (`project_n:lorica_break` in the buff presentation snapshot, polled at 10 Hz) cuts the strings and plays `stun`; when it ends the strings
+are lowered again (0.8 s) and then the puppet is pulled up to idle; death cuts the strings and revival shows them; a new puppet with `entrance: slumped` starts in the `stun` pose, the strings come down (0.9 s)
+and pull it up (no entrance while the local loading cover is up). A rig without a `recover` motion needs none: the pull-up is the strings reaching the puppet. Checks: `PNVisualStringTests` (smoke, 74),
+`PNVisualStringsCheck.Run()` (frames, one draw, allocation), `PNVisualEditorChecks.RunStringsGameplay()`.
+
+### String presentation effects (2026-10-30, RulesVersion 106)
+
+Main implementation, preserving the registered shape/color/style API. Base shapes taper linearly to one third of the root width at the top (root widths unchanged). `PNVisualStringEffects` is internal Game presentation state: a damped bend against world X/Z velocity, a short hit ripple moving upward, sparse falling dust, and a faint single afterimage under motion. No ruler ticks or travelling star beads. Actor Tick feeds actual world position, so replicas and custom actors use the same path; `PNVisualBody` pulses only on a living entity's replicated health decrease. It adds no network messages, gameplay effects, content schema fields or public mod API.
+
+Sway, spring, ripple, trails and particles advance on the actor clock, including pause. Each string has six preallocated dust slots; idle emits none, movement emits sparsely, hit/cut/lowering completion can emit a bounded burst. Hide/remove/reuse clear effects, a >3 m position jump resets them, and a >0.25 s catch-up settles them instead of simulating an unstable spring. Root history is observed when drawn. All ribbons, dust quads and afterimages share the existing mesh/material, with one extra vertex UV channel. Optional effects reserve remaining primary ribbons first and are skipped at the 65,000-vertex cap. This preserves 128 puppets x 4 primary strings x 48 segments; optional effects can disappear in a full batch. Existing view culling applies; mobile/Player/coop appearance and GPU cost of these new effects have not been measured.
+
+Fresh checks: `PNVisualStringTests.PresentationEffects` (idle, motion, bounds, pause, settle, catch-up, reuse); `PNVisualStringEffectsCheck.Run/RunCapacity` (120 captured native frames, 300 active tick/draw frames at 0 B, hide cleanup, both renderer paths, 512 maximal primary ribbons retained); existing `PNVisualStringsCheck.Run` 22 and `PNVisualEditorChecks.RunStringsGameplay` 17. The latter checks Lorica/entrance/reuse; the new render fixture invokes the hit presentation directly, not a network session. Artifacts: `.utmp/StringEffects20261030/Frames`, `strings-main.gif`, `native-final.txt`.
 
 ## Not done
 
-The rig tools (`ArtSource/VisualDemo`, `ArtSource/RigTool`) do not show or author `segments`/`bend`/`sway` yet (write them in the JSON); a bent part's children do not follow the curve; Eve and Eve 2 still use their prefab sprite; first enemy art; equipment art and loadout; corpse behaviour; aim UI; authored interior sketch strokes; the ink look in the Settings UI, a boss flag for `KeyActors`, baking world sprites, the puppet strings; flipbook art; Android and mobile timing; a Player run of the Visual test character through the real factory in a coop session.
+The rig tools (`ArtSource/VisualDemo`, `ArtSource/RigTool`) do not show or author `segments`/`bend`/`sway` yet (write them in the JSON); a bent part's children do not follow the curve; Eve and Eve 2 still use their prefab sprite; first enemy art; equipment art and loadout; corpse behaviour; aim UI; authored interior sketch strokes; a boss flag for `KeyActors`, baking world sprites, the puppet strings; flipbook art; Android and mobile timing; a Player run of the Visual test character through the real factory in a coop session.

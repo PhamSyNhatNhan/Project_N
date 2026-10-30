@@ -40,21 +40,55 @@ public sealed class PNSettingsPlayReview : MonoBehaviour
         {Check(PNSettingsService.Current.Locale=="en"&&PNSettingsService.Current.TargetFrameRate==120&&PNLocalization.Selected=="en","restart restores saved locale/FPS");Check(PNSettingsService.Current.AutoTargetMode==PNTargetMode.LowestHealth&&PNTargetRules.LocalMode==PNTargetMode.LowestHealth,"restart restores the auto target mode");Check(Application.targetFrameRate==120&&QualitySettings.vSyncCount==0,"restart frame policy");yield return Shot("restart_title");yield break;}
         Press(root,"pn-title-settings");yield return new WaitForSecondsRealtime(.18f);yield return Shot("enter_early");yield return new WaitForSecondsRealtime(.4f);yield return Shot("enter_middle");yield return new WaitForSecondsRealtime(.9f);yield return Shot("settings_open");
         Check(root.Q("pn-settings-view")!=null,"shared Settings at Title");
+        string settingsDir=Path.GetDirectoryName(PNSettingsService.FilePath);
+        Check(root.Q<Button>("pn-settings-save")!=null&&!root.Q<Button>("pn-settings-save").enabledSelf,"Save sits at the end of the list and is greyed while nothing changed");
         Press(root,"pn-settings-language-trigger");yield return new WaitForSecondsRealtime(.3f);yield return Shot("language_dropdown");
-        Press(root,"pn-settings-language-option-en");yield return new WaitForSecondsRealtime(.25f);Check(PNLocalization.Selected=="en","language immediate");
+        string localeBefore=PNLocalization.Selected;
+        Press(root,"pn-settings-language-option-en");yield return new WaitForSecondsRealtime(.25f);Check(PNLocalization.Selected==localeBefore,"language waits for Save");
+        Check(root.Q<Button>("pn-settings-save").enabledSelf,"Save turns on after a change");
         Press(root,"pn-settings-fps-trigger");yield return new WaitForSecondsRealtime(.3f);yield return Shot("fps_dropdown");
-        Press(root,"pn-settings-fps-option-120");Check(Application.targetFrameRate==120&&QualitySettings.vSyncCount==0,"FPS120 immediate");
-        Check(PNSettingsService.Current.Locale=="en"&&new PNSettingsStore(Path.GetDirectoryName(PNSettingsService.FilePath)).Load().Value.TargetFrameRate==120,"combined save");
+        Press(root,"pn-settings-fps-option-120");yield return new WaitForSecondsRealtime(.2f);
+        Check(Application.targetFrameRate!=120&&new PNSettingsStore(settingsDir).Load().Value.TargetFrameRate!=120,"FPS waits for Save, the file is untouched");
         Check(root.Q("pn-settings-auto-target-trigger")!=null&&PNSettingsService.Current.AutoTargetMode==PNTargetMode.Nearest,"auto target row present, default Nearest");
         Press(root,"pn-settings-auto-target-trigger");yield return new WaitForSecondsRealtime(.3f);yield return Shot("auto_target_dropdown");
         Press(root,"pn-settings-auto-target-option-lowest_health");yield return new WaitForSecondsRealtime(.25f);
-        Check(PNSettingsService.Current.AutoTargetMode==PNTargetMode.LowestHealth&&new PNSettingsStore(Path.GetDirectoryName(PNSettingsService.FilePath)).Load().Value.AutoTargetMode==PNTargetMode.LowestHealth&&PNTargetRules.LocalMode==PNTargetMode.LowestHealth,"auto target selection saved and used by the local rule");
-        Check(PNSettingsService.Current.Locale=="en"&&PNSettingsService.Current.TargetFrameRate==120,"auto target change keeps locale/FPS");
+        Check(PNSettingsService.Current.AutoTargetMode==PNTargetMode.Nearest&&PNTargetRules.LocalMode==PNTargetMode.Nearest,"auto target waits for Save");
+        Check(root.Q("pn-settings-paper-shadow-trigger")!=null&&PNSettingsService.Current.PaperShadow==PNPaperShadowMode.Actors&&PNVisualPaperSettings.Mode==PNPaperShadowMode.Actors,"paper shadow row present, default every character, applied to the visual look");
+        Press(root,"pn-settings-paper-shadow-trigger");yield return new WaitForSecondsRealtime(.3f);yield return Shot("paper_shadow_dropdown");
+        Check(root.Q("pn-settings-paper-shadow-option-baked")!=null&&root.Q("pn-settings-paper-shadow-option-off")!=null&&root.Q("pn-settings-paper-shadow-option-key_actors")!=null&&root.Q("pn-settings-paper-shadow-option-actors")!=null&&root.Q("pn-settings-paper-shadow-option-all")!=null,"paper shadow offers five choices");
+        Press(root,"pn-settings-paper-shadow-option-baked");yield return new WaitForSecondsRealtime(.25f);
+        Check(root.Q("pn-settings-ink-trigger")!=null&&PNSettingsService.Current.InkMode==PNInkMode.Baked,"ink row present, default baked");
+        Press(root,"pn-settings-ink-trigger");yield return new WaitForSecondsRealtime(.3f);yield return Shot("ink_dropdown");
+        Check(new[]{"baked","live_key_actors","live_actors","live_all"}.All(id=>root.Q("pn-settings-ink-option-"+id)!=null),"ink offers four choices");
+        Press(root,"pn-settings-ink-option-live_actors");yield return new WaitForSecondsRealtime(.25f);
+        Check(root.Q<Button>("pn-settings-paper-shadow-option-baked")!=null&&root.Q("pn-settings-paper-shadow-trigger").enabledSelf,"shadow and ink are independent: baked shadow stays chosen with live ink");
+        Check(PNSettingsService.Current.PaperShadow==PNPaperShadowMode.Actors&&PNSettingsService.Current.InkMode==PNInkMode.Baked,"nothing was applied before Save");
+        yield return Shot("draft_before_save");
+        Press(root,"pn-settings-save");yield return new WaitForSecondsRealtime(.3f);
+        Check(PNLocalization.Selected=="en"&&Application.targetFrameRate==120&&QualitySettings.vSyncCount==0,"Save applies language and FPS");
+        Check(PNSettingsService.Current.AutoTargetMode==PNTargetMode.LowestHealth&&PNTargetRules.LocalMode==PNTargetMode.LowestHealth,"Save applies the auto target mode");
+        Check(PNSettingsService.Current.PaperShadow==PNPaperShadowMode.Baked&&PNVisualPaperSettings.Mode==PNPaperShadowMode.Baked&&PNSettingsService.Current.InkMode==PNInkMode.LiveActors&&PNVisualPaperSettings.Ink==PNInkMode.LiveActors,"Save applies shadow and ink to the visual look");
+        var saved=new PNSettingsStore(settingsDir).Load().Value;
+        Check(saved.Locale=="en"&&saved.TargetFrameRate==120&&saved.AutoTargetMode==PNTargetMode.LowestHealth&&saved.PaperShadow==PNPaperShadowMode.Baked&&saved.InkMode==PNInkMode.LiveActors,"Save wrote everything in one file");
+        Check(!root.Q<Button>("pn-settings-save").enabledSelf,"Save is greyed again after saving");
+        yield return Shot("after_save");
+        // Unsaved changes: Back asks, Keep editing returns to the list, Discard leaves without changing anything.
+        Press(root,"pn-settings-fps-trigger");yield return new WaitForSecondsRealtime(.3f);Press(root,"pn-settings-fps-option-60");yield return new WaitForSecondsRealtime(.2f);
+        Press(root,"pn-menu-back");yield return new WaitForSecondsRealtime(.3f);
+        Check(root.Q("pn-settings-view")!=null&&root.Q("pn-settings-unsaved").resolvedStyle.display==DisplayStyle.Flex,"Back with an unsaved change asks first");yield return Shot("unsaved_confirm");
+        Press(root,"pn-settings-keep");yield return new WaitForSecondsRealtime(.2f);Check(root.Q("pn-settings-unsaved").resolvedStyle.display==DisplayStyle.None&&root.Q<Button>("pn-settings-save").enabledSelf,"Keep editing keeps the draft");
+        Press(root,"pn-settings-fps-trigger");yield return new WaitForSecondsRealtime(.3f);Press(root,"pn-settings-fps-option-120");yield return new WaitForSecondsRealtime(.2f);
+        Check(!root.Q<Button>("pn-settings-save").enabledSelf,"changing a value back greys Save");
+        Press(root,"pn-settings-fps-trigger");yield return new WaitForSecondsRealtime(.3f);Press(root,"pn-settings-fps-option-30");yield return new WaitForSecondsRealtime(.2f);
+        Press(root,"pn-menu-back");yield return new WaitForSecondsRealtime(.3f);Press(root,"pn-settings-discard");yield return new WaitForSecondsRealtime(1.1f);
+        Check(root.Q("pn-settings-view")==null&&Application.targetFrameRate==120&&PNSettingsService.Current.TargetFrameRate==120&&new PNSettingsStore(settingsDir).Load().Value.TargetFrameRate==120,"Discard leaves without changing anything");
+        Press(root,"pn-title-settings");yield return new WaitForSecondsRealtime(1.2f);
         foreach(int cap in new[]{30,60,90,120,144,0})
         {PNSettingsService.SetFrameRate(cap);yield return new WaitForSecondsRealtime(.2f);Check(Application.targetFrameRate==(cap==0?-1:cap)&&QualitySettings.vSyncCount==0,"frame cap "+cap);}
         PNSettingsService.SetFrameRate(120);
+        PNSettingsService.SetFrameRate(120);
         yield return new WaitForSecondsRealtime(.3f);yield return Shot("idle_a");yield return new WaitForSecondsRealtime(.65f);yield return Shot("idle_b");
-        Press(root,"pn-menu-back");yield return new WaitForSecondsRealtime(.22f);yield return Shot("exit_early");yield return new WaitForSecondsRealtime(.42f);yield return Shot("exit_middle");yield return new WaitForSecondsRealtime(.6f);Check(root.Q("pn-settings-view")==null,"Back restores Title");
+        Press(root,"pn-menu-back");yield return new WaitForSecondsRealtime(.1f);yield return Shot("exit_0_1s");yield return new WaitForSecondsRealtime(.15f);yield return Shot("exit_0_25s");yield return new WaitForSecondsRealtime(.15f);yield return Shot("exit_0_4s");yield return new WaitForSecondsRealtime(.2f);yield return Shot("exit_0_6s");yield return new WaitForSecondsRealtime(.6f);Check(root.Q("pn-settings-view")==null,"Back restores Title");
         Press(root,"pn-title-settings");yield return new WaitForSecondsRealtime(.12f);Press(root,"pn-menu-close");yield return new WaitForSecondsRealtime(1.3f);Check(root.Q("pn-title-column").resolvedStyle.display==DisplayStyle.Flex&&!PNGameFlow.Booting,"early Close returns Title without start");
         for(int i=0;i<3;i++){Press(root,"pn-title-settings");yield return new WaitForSecondsRealtime(.08f);Press(root,"pn-menu-back");yield return new WaitForSecondsRealtime(1.2f);Check(root.Q("pn-settings-view")==null,"reentry cycle "+i);}
         Press(root,"pn-title-start");yield return Until(()=>EveRegistrySession.IsReady&&PNGameFlow.Phase==PNFlowPhase.Hall,"Hall ready");
@@ -70,8 +104,29 @@ public sealed class PNSettingsPlayReview : MonoBehaviour
         yield return new WaitForSecondsRealtime(1);Press(ui.HudRoot,"toggle-pause");yield return new WaitForSecondsRealtime(1.15f);
         bool offline=EveRegistrySession.Context.Role==EveSessionRole.Offline;Check(offline?Time.timeScale==0:Time.timeScale>0,"pause role time policy");
         Press(ui.HudRoot,"pause-settings");yield return new WaitForSecondsRealtime(1.4f);yield return Shot("pause_settings");
-        Press(ui.HudRoot,"pn-settings-language-trigger");yield return new WaitForSecondsRealtime(.3f);Press(ui.HudRoot,"pn-settings-language-option-vi");Check(PNLocalization.Selected=="vi","change locale in paused Settings");
-        Press(ui.HudRoot,"pn-settings-fps-trigger");yield return new WaitForSecondsRealtime(.3f);Press(ui.HudRoot,"pn-settings-fps-option-0");Check(Application.targetFrameRate==-1,"unlimited while paused");
+        bool lobby=role=="host"||role=="join";
+        Check(ui.HudRoot.Q("pn-settings-ink-trigger").enabledSelf==!lobby&&ui.HudRoot.Q("pn-settings-paper-shadow-trigger").enabledSelf==!lobby&&ui.HudRoot.Q("pn-settings-fps-trigger").enabledSelf,lobby?"look rows are locked in the lobby, the others are not":"look rows are enabled in the Hall pause menu");
+        Press(ui.HudRoot,"pn-settings-language-trigger");yield return new WaitForSecondsRealtime(.3f);Press(ui.HudRoot,"pn-settings-language-option-vi");Check(PNLocalization.Selected!="vi","paused Settings: language waits for Save");
+        Press(ui.HudRoot,"pn-settings-fps-trigger");yield return new WaitForSecondsRealtime(.3f);Press(ui.HudRoot,"pn-settings-fps-option-0");Check(Application.targetFrameRate!=-1,"paused Settings: FPS waits for Save");
+        var inkBefore=PNVisualPaperSettings.Ink;int requestsBefore=PNVisualLookApply.Requests,epochBefore=PNVisualRuntime.Epoch,coversBefore=PNTransitionController.Current!=null?PNTransitionController.Current.ShowCount:0;
+        if(!lobby)
+        {
+            Press(ui.HudRoot,"pn-settings-ink-trigger");yield return new WaitForSecondsRealtime(.3f);Press(ui.HudRoot,"pn-settings-ink-option-live_all");yield return new WaitForSecondsRealtime(.2f);
+            Press(ui.HudRoot,"pn-settings-paper-shadow-trigger");yield return new WaitForSecondsRealtime(.3f);Press(ui.HudRoot,"pn-settings-paper-shadow-option-baked");yield return new WaitForSecondsRealtime(.2f);
+            Check(PNVisualPaperSettings.Ink==inkBefore&&PNVisualRuntime.Epoch==epochBefore&&PNVisualLookApply.Requests==requestsBefore,"the look waits for Save in the Hall too");
+        }
+        Press(ui.HudRoot,"pn-settings-save");yield return new WaitForSecondsRealtime(.6f);Check(PNLocalization.Selected=="vi"&&Application.targetFrameRate==-1,"change locale and unlimited FPS with Save while paused");
+        if(!lobby)
+        {
+            Check(PNVisualLookApply.Requests==requestsBefore+1&&PNVisualPaperSettings.Ink==PNInkMode.LiveAll&&PNVisualPaperSettings.Mode==PNPaperShadowMode.Baked,"Save in the Hall asked for a look rebuild");
+            yield return Shot("look_cover_0");yield return new WaitForSecondsRealtime(.25f);yield return Shot("look_cover_1");
+            yield return Until(()=>!PNVisualRuntime.RebuildActive&&PNVisualRuntime.Epoch>epochBefore,"the atlas set was rebuilt and the actors re-attached",60);
+            Check(PNTransitionController.Current!=null&&PNTransitionController.Current.ShowCount>coversBefore,"the loading cover was shown for the rebuild");
+            yield return Until(()=>!PNTransitionController.Current.IsShowing,"the cover lifted after the rebuild",60);
+            var puppets=FindObjectsByType<PNVisualActor>(FindObjectsInactive.Include,FindObjectsSortMode.None);
+            Check(puppets.Length>0&&puppets.All(a=>a.LiveInk&&a.AtlasEpoch==PNVisualRuntime.Epoch),"every Hall puppet draws live ink on the new epoch ("+puppets.Length+")");
+            yield return Shot("look_live_hall");
+        }
         // Escape dismisses popup only; then Back restores pause, preserving its lock.
         Press(ui.HudRoot,"pn-settings-fps-trigger");yield return new WaitForSecondsRealtime(.3f);
         using(var e=KeyDownEvent.GetPooled('\0',KeyCode.Escape,EventModifiers.None)){e.target=ui.HudRoot.Q("pn-settings-view");ui.HudRoot.Q("pn-settings-view").SendEvent(e);}

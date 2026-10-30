@@ -83,7 +83,7 @@ public sealed class PNVisualAtlas : IDisposable
                 var texture = new Texture2D(2, 2, TextureFormat.RGBA32, false, false) { hideFlags = HideFlags.HideAndDontSave };
                 if (!texture.LoadImage(PNVisualPacks.Read(pair.Key, pair.Value), false)) { UnityEngine.Object.DestroyImmediate(texture); throw new InvalidDataException("Not a readable PNG: " + key); }
                 atlas.sizes[key] = new Vector2Int(texture.width, texture.height); keys.Add(key);
-                if (bake) { var baked = PNInkBake.Bake(texture); UnityEngine.Object.DestroyImmediate(texture); texture = baked; }
+                { var enlarged = bake ? PNInkBake.Bake(texture) : PNInkBake.Pad(texture); UnityEngine.Object.DestroyImmediate(texture); texture = enlarged; }   // both flavours carry the same transparent border
                 textures.Add(texture); index++; done++;
             }
             return index >= list.Count;
@@ -101,8 +101,8 @@ public sealed class PNVisualAtlas : IDisposable
                 var texture2 = new Texture2D(2, 2, TextureFormat.RGBA32, false, false) { hideFlags = HideFlags.HideAndDontSave, filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp };
                 var packed = texture2.PackTextures(textures.ToArray(), Padding, MaxSize, false);
                 if (packed == null || packed.Length != keys.Count) { UnityEngine.Object.DestroyImmediate(texture2); throw new InvalidOperationException("Visual atlas packing failed."); }
-                float bx = bake ? (float)PNInkBake.Border / texture2.width : 0f, by = bake ? (float)PNInkBake.Border / texture2.height : 0f;
-                for (int i = 0; i < keys.Count; i++) { var r = packed[i]; atlas.rects[keys[i]] = bake ? Rect.MinMaxRect(r.xMin + bx, r.yMin + by, r.xMax - bx, r.yMax - by) : r; }   // inner rect = the original image
+                float bx = (float)PNInkBake.Border / texture2.width, by = (float)PNInkBake.Border / texture2.height;
+                for (int i = 0; i < keys.Count; i++) { var r = packed[i]; atlas.rects[keys[i]] = Rect.MinMaxRect(r.xMin + bx, r.yMin + by, r.xMax - bx, r.yMax - by); }   // inner rect = the original image
                 atlas.Texture = texture2;
                 return atlas;
             }

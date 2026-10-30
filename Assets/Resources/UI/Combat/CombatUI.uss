@@ -197,3 +197,14 @@
 .pn-settings-divider { height: 20px; width: 76%; max-width: 650px; align-self: center; margin-bottom: 36px; flex-shrink: 0; }
 
 .pn-settings-rows .unity-base-slider__dragger, .pn-settings-scroll .unity-base-slider__dragger { background-color: white; }
+
+/* Settings: one Save at the end of the list, the locked-look reason, the discard confirmation. */
+.pn-settings-reason { color: rgb(53,70,80); font-size: 16px; white-space: normal; margin-top: -12px; margin-bottom: 16px; }
+.pn-settings-save-row { flex-direction: row; align-items: center; height: 52px; flex-shrink: 0; margin-top: 8px; margin-bottom: 40px; }
+.pn-settings-save { height: 52px; min-width: 170px; padding-left: 26px; padding-right: 26px; margin: 0 18px 0 0; border-radius: 17px; border-width: 1px; border-color: white; background-color: rgba(243,246,247,.95); color: rgb(53,70,80); font-size: 20px; }
+.pn-settings-save:hover { background-color: white; }
+.pn-settings-save:disabled { background-color: rgba(243,246,247,.45); color: rgba(53,70,80,.5); }
+.pn-settings-save-status { color: white; font-size: 17px; text-shadow: 0 1px 4px rgba(53,70,80,.45); white-space: normal; flex-shrink: 1; }
+.pn-settings-confirm { position: absolute; left: 50%; top: 50%; translate: -50% -50%; max-width: 80%; padding: 22px 26px; border-radius: 22px; border-width: 1px; border-color: rgba(255,255,255,.6); background-color: rgba(137,151,159,.97); align-items: center; }
+.pn-settings-confirm-text { color: white; font-size: 21px; white-space: normal; -unity-text-align: middle-center; margin-bottom: 18px; }
+.pn-settings-confirm-row { flex-direction: row; justify-content: center; }
