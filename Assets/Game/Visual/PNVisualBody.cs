@@ -23,6 +23,16 @@ public sealed class PNVisualBody : MonoBehaviour
     // Checks only: when set, it replaces the buff presentation as the source of "the Lorica is broken".
     public Func<bool> BreakSource;
     public bool LoricaBroken => broken;
+    // An action (a cast) or the recovery plays its motion and holds the locomotion states for `seconds`; EndAction (or a Lorica break, or death) releases it.
+    private float holdTimer;
+    public const float RecoverSeconds = .9f;
+    public bool Holding => holdTimer > 0f;
+    public bool PlayAction(string state, float seconds)
+    {
+        if (actor == null || dead || broken || !actor.Play(state, true)) return false;
+        holdTimer = Mathf.Max(.05f, seconds); locomotion = ""; return true;
+    }
+    public void EndAction() { holdTimer = 0f; locomotion = ""; }
     public bool PullingUp => pullPending;
 
     public PNVisualActor Actor => actor;
@@ -74,6 +84,12 @@ public sealed class PNVisualBody : MonoBehaviour
         actor.LowerStrings(EntranceLowerSeconds); pullPending = true;
     }
 
+    // Up from the slump: the `recover` motion when the rig has one (it starts from the pose being shown), the idle otherwise.
+    private void Recover()
+    {
+        if (actor.Play("recover", true)) holdTimer = RecoverSeconds; else actor.Play("idle", true);
+    }
+
     private bool ReadLoricaBroken()
     {
         if (BreakSource != null) return BreakSource();
@@ -90,7 +106,7 @@ public sealed class PNVisualBody : MonoBehaviour
         if (visual != null) visual.gameObject.SetActive(true);
         if (savedCapsule && capsule != null) { capsule.height = baseHeight; capsule.radius = baseRadius; capsule.center = baseCenter; }
         if (savedShadow && shadow != null) shadow.localScale = baseShadowScale;
-        savedCapsule = savedShadow = false; hasLast = false; hasHealth = false; dead = false; locomotion = ""; buffs = null; broken = pullPending = false;
+        savedCapsule = savedShadow = false; hasLast = false; hasHealth = false; dead = false; locomotion = ""; buffs = null; broken = pullPending = false; holdTimer = 0f;
     }
 
     private static void DestroyObject(GameObject go) { if (Application.isPlaying) Destroy(go); else DestroyImmediate(go); }
@@ -106,7 +122,7 @@ public sealed class PNVisualBody : MonoBehaviour
             double hp = stat.GetCurrent(PNContentIds.Health); bool nowDead = stat.IsDead;
             if (hasHealth && hp < lastHealth - 1e-6 && !nowDead) { actor.PulseStringEffects();actor.Play("hurt", true); }
             lastHealth = hp; hasHealth = true;
-            if (nowDead && !dead) { dead = true; broken = pullPending = false; actor.CutStrings(); actor.Play("dead"); }          // death lets the stars let go
+            if (nowDead && !dead) { dead = true; broken = pullPending = false; holdTimer = 0f; actor.CutStrings(); actor.Play("dead"); }          // death lets the stars let go
             else if (!nowDead && dead) { dead = false; locomotion = ""; actor.ShowStrings(); actor.Play("idle"); }
         }
         if (dead) return;
@@ -114,16 +130,17 @@ public sealed class PNVisualBody : MonoBehaviour
         if ((buffs != null || BreakSource != null) && (pollTimer -= dt) <= 0f)
         {
             pollTimer = BreakPollSeconds; bool now = ReadLoricaBroken();
-            if (now && !broken) { broken = true; pullPending = false; actor.CutStrings(); actor.Play("stun", true); }
+            if (now && !broken) { broken = true; pullPending = false; holdTimer = 0f; actor.CutStrings(); actor.Play("stun", true); }
             else if (!now && broken)
             {
                 broken = false;
-                if (actor.HasStrings) { actor.LowerStrings(StringLowerSeconds); pullPending = true; } else { locomotion = ""; actor.Play("idle", true); }
+                if (actor.HasStrings) { actor.LowerStrings(StringLowerSeconds); pullPending = true; } else { locomotion = ""; Recover(); }
             }
         }
-        if (pullPending && actor.Strings != null && !actor.Strings.AnyLowering) { pullPending = false; locomotion = ""; actor.Play("idle", true); }       // the strings are on again: pull the puppet up
+        if (pullPending && actor.Strings != null && !actor.Strings.AnyLowering) { pullPending = false; locomotion = ""; Recover(); }       // the strings are on again: pull the puppet up
+        if (holdTimer > 0f) { holdTimer -= dt; if (holdTimer <= 0f) locomotion = ""; }
         var position = transform.position;
-        if (broken || pullPending) { lastPosition = position; hasLast = true; return; }       // no walking animation while slumped or being pulled up
+        if (broken || pullPending || holdTimer > 0f) { lastPosition = position; hasLast = true; return; }       // no walking animation while slumped or being pulled up
         if (hasLast && dt > 1e-5f)
         {
             var delta = position - lastPosition; delta.y = 0f; float speed = delta.magnitude / dt;

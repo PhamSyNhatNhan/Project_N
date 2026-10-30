@@ -144,12 +144,14 @@ public static class PNVisualStringSystem
     }
     public static void Release()
     {
+        // Destroy is deferred in Play Mode: stop drawing the old batch immediately.
+        if (meshRenderer != null) meshRenderer.enabled = false;
         if (mesh != null) { if (Application.isPlaying) UnityEngine.Object.Destroy(mesh); else UnityEngine.Object.DestroyImmediate(mesh); }
         if (material != null) { if (Application.isPlaying) UnityEngine.Object.Destroy(material); else UnityEngine.Object.DestroyImmediate(material); }
         if (host != null) { if (Application.isPlaying) UnityEngine.Object.Destroy(host); else UnityEngine.Object.DestroyImmediate(host); }
         host = null; mesh = null; material = null; meshRenderer = null; LastStrings = LastVertices = LastDust = LastTrails = 0;
     }
-    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)] private static void Reset() { host = null; mesh = null; material = null; meshRenderer = null; CameraOverride = null; FixedTime = -1f; }
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)] private static void Reset() { Release(); CameraOverride = null; FixedTime = -1f; }
 
     // Rebuilds the one mesh from every string of every actor that is in view. Called once per frame by PNVisualSystem after the actors ticked.
     public static void Draw()

@@ -19,3 +19,7 @@ MonoBehaviour:
     Prefab: {fileID: 8059214730017314496, guid: ceea5109e372fb643a895d423e6570e4, type: 3}
   - Key: project_n:visual_test
     Prefab: {fileID: 4508174443292714787, guid: 65506b6df225fd24c83f93d0353c2625, type: 3}
+  - Key: project_n:starweaver
+    Prefab: {fileID: 3510511558005995391, guid: d491d243a6cfcd0479d3e168b089b4f0, type: 3}
+  - Key: project_n:starkeeper
+    Prefab: {fileID: 5560690630874277120, guid: 156fcd21bbf0e944c9c42a0cf13329e8, type: 3}

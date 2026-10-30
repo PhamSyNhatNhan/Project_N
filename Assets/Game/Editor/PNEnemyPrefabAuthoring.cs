@@ -9,7 +9,7 @@ using UnityEngine.SceneManagement;
 
 public static class PNEnemyPrefabAuthoring
 {
-    public const string PrefabPath = "Assets/Game/Entity/Enemy/Sentinel/Sentinel.prefab";
+    public const string PrefabPath = "Assets/Game/Entity/Enemy/Sentinel/Prefab/Sentinel.prefab";
     [MenuItem("Tools/Project N/Enemy/Create Sentinel example prefab")]
     public static void CreateSentinel()
     {

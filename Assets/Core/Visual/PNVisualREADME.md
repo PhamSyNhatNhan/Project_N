@@ -99,8 +99,12 @@ arrays, 0 bytes a frame (2026-10-30 recheck: 0.338 ms for 32 strings, 2.539 ms f
 
 Gameplay link (`PNVisualBody`, from replicated data only): a Lorica break (`project_n:lorica_break` in the buff presentation snapshot, polled at 10 Hz) cuts the strings and plays `stun`; when it ends the strings
 are lowered again (0.8 s) and then the puppet is pulled up to idle; death cuts the strings and revival shows them; a new puppet with `entrance: slumped` starts in the `stun` pose, the strings come down (0.9 s)
-and pull it up (no entrance while the local loading cover is up). A rig without a `recover` motion needs none: the pull-up is the strings reaching the puppet. Checks: `PNVisualStringTests` (smoke, 74),
+and pull it up (no entrance while the local loading cover is up). The pull-up plays the `recover` motion (from the slump, rising past the hover and settling, 0.9 s; a rig without it goes straight to idle). The Starweaver's cast motions `cast_weave` (0.95 s) and `cast_constellation` (2.4 s) are played by `PNStarweaverCastAction` through `PNVisualBody.PlayAction` (the body holds the locomotion states until `EndAction`, a Lorica break or death); they and `recover` are authored keyframes in `ArtSource/VisualDemo/starweaver_actions.py` (patches `starweaver.json`; `export_starweaver.py` imports it, so a re-export keeps them and the `tail_tip` socket and strings). Checks: `PNVisualStringTests` (smoke, 74),
 `PNVisualStringsCheck.Run()` (frames, one draw, allocation), `PNVisualEditorChecks.RunStringsGameplay()`.
+
+### String batch lifetime in the Editor
+
+`PNVisualStringSystem.Release` disables drawing immediately before deferred destruction; subsystem reset releases previous resources before clearing references. `PNVisualSystem.Prune` releases the batch when no actors remain. Editor-only `PNVisualStringEditorLifetime` releases before assembly reload, quitting and Play/Edit transitions, and sweeps orphaned batches after reload. Recovery matches exact transient host/mesh/material names, HideAndDontSave and PN/VisualStrings, excludes persistent assets and the current live renderer. This repairs old hidden meshes whose static references were already lost; it does not remove active puppet strings or authored objects. `PNVisualStringLifetimeChecks.Run` verifies orphan host/mesh/material retirement, preserving the live pair, batch recreation and zero renderers after the last actor. A native actual assembly-reload check also seeded one orphan and observed zero afterwards (2026-10-30).
 
 ### String presentation effects (2026-10-30, RulesVersion 106)
 

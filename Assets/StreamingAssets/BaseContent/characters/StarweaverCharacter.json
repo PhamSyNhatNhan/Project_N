@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "characters": [
+    {
+      "id": "project_n:starweaver",
+      "portraitPath": "",
+      "data": {
+        "enemyTypeId": "base:normal",
+        "body": {
+          "prefab": "starweaver",
+          "visual": "project_n:starweaver",
+          "build": "short"
+        }
+      },
+      "stats": [
+        {
+          "statId": "base:health",
+          "base": 2000,
+          "initialCurrent": 2000
+        },
+        {
+          "statId": "base:lorica",
+          "base": 500,
+          "initialCurrent": 500
+        },
+        {
+          "statId": "base:attack_power",
+          "base": 100
+        },
+        {
+          "statId": "base:defense",
+          "base": 10
+        },
+        {
+          "statId": "base:move_speed",
+          "base": 1
+        },
+        {
+          "statId": "base:crit_rate",
+          "base": 10
+        },
+        {
+          "statId": "base:crit_damage",
+          "base": 150
+        },
+        {
+          "statId": "base:attack_speed",
+          "base": 100
+        },
+        {
+          "statId": "base:cooldown_reduction",
+          "base": 0
+        },
+        {
+          "statId": "base:jump_speed",
+          "base": 3
+        }
+      ],
+      "skill": []
+    }
+  ]
+}

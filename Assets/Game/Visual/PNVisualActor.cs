@@ -778,7 +778,7 @@ public static class PNVisualSystem
         }
     }
     // Drops entries whose object was destroyed without OnDestroy reaching Unregister (a safety net, and for tests after an aborted run).
-    public static int Prune() { int before = actors.Count; actors.RemoveAll(x => x == null); return before - actors.Count; }
+    public static int Prune() { int before = actors.Count; actors.RemoveAll(x => x == null); if (actors.Count == 0) PNVisualStringSystem.Release(); return before - actors.Count; }
     public static void Tick()
     {
         // One view-projection per frame; each actor tests its own bounds (puppet + strings) against the view plus a margin, with hysteresis.

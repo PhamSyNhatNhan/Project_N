@@ -60,6 +60,11 @@ public sealed class PNProjectileTrail : MonoBehaviour
         tail.colorGradient = gradient;
         head.gameObject.SetActive(false);
     }
+    public void SetPalette(Color core,Color end)
+    {
+        var block=new MaterialPropertyBlock();block.SetColor("_Tint",core);head.GetComponent<MeshRenderer>().SetPropertyBlock(block);
+        var gradient=new Gradient();gradient.SetKeys(new[]{new GradientColorKey(core,0),new GradientColorKey(end,1)},new[]{new GradientAlphaKey(.9f,0),new GradientAlphaKey(0,1)});tail.colorGradient=gradient;
+    }
     // The pooled object may still be inactive when it is initialized, so the visual starts on the first LateUpdate after activation.
     public void Begin(PNProjectileClock projectileClock)
     {

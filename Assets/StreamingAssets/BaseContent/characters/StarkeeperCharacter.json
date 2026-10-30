@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "characters": [
+    {
+      "id": "project_n:starkeeper",
+      "portraitPath": "",
+      "data": {
+        "enemyTypeId": "base:normal",
+        "body": {
+          "prefab": "starkeeper",
+          "visual": "project_n:starkeeper",
+          "build": "normal"
+        }
+      },
+      "stats": [
+        { "statId": "base:health", "base": 2500, "initialCurrent": 2500 },
+        { "statId": "base:lorica", "base": 500, "initialCurrent": 500 },
+        { "statId": "base:attack_power", "base": 120 },
+        { "statId": "base:defense", "base": 15 },
+        { "statId": "base:move_speed", "base": 1.4 },
+        { "statId": "base:crit_rate", "base": 10 },
+        { "statId": "base:crit_damage", "base": 150 },
+        { "statId": "base:attack_speed", "base": 100 },
+        { "statId": "base:cooldown_reduction", "base": 0 },
+        { "statId": "base:jump_speed", "base": 3 }
+      ],
+      "skill": []
+    }
+  ]
+}

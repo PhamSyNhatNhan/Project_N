@@ -212,7 +212,10 @@ public static class PNVisualEditorChecks
             var facing = visual.GetComponent<PNCameraFacingTarget>(); facing.ViewCamera = stage.Camera; facing.Align();
             Require(actor.QuadCount == 23 && actor.Mesh.vertexCount == 20 * 4 + 3 * 2 * 15 && Mathf.Abs(actor.CapsuleHeight - .34f) < 1e-4f, "one mesh holds 20 plain quads and 3 bendable cloak pieces; the low build gives the 0.34 m capsule (" + actor.Mesh.vertexCount + " vertices)"); checks++;
             foreach (var step in new (string name, string state, float time, bool restart)[] { ("rest", "idle", 0f, false), ("hover", "idle", 1.2f, false), ("fly", "walk", 1.0f, false), ("fly_fast", "run", 1.0f, false),
-                ("hurt", "hurt", .15f, true), ("dead_fall", "dead", .3f, true), ("dead_floor", "dead", 2.2f, false), ("stun_hit", "stun", .3f, true), ("stun_fall", "stun", .6f, false), ("stun_daze", "stun", 3f, false) })
+                ("hurt", "hurt", .15f, true), ("dead_fall", "dead", .3f, true), ("dead_floor", "dead", 2.2f, false), ("stun_hit", "stun", .3f, true), ("stun_fall", "stun", .6f, false), ("stun_daze", "stun", 3f, false),
+                ("recover_0", "recover", .05f, true), ("recover_mid", "recover", .45f, false), ("recover_end", "recover", .9f, false),
+                ("weave_wind", "cast_weave", .46f, true), ("weave_snap", "cast_weave", .1f, false), ("weave_end", "cast_weave", .6f, false),
+                ("constellation_rise", "cast_constellation", .9f, true), ("constellation_snap", "cast_constellation", .2f, false), ("constellation_hold", "cast_constellation", .6f, false) })
             {
                 if (step.state == "hurt") { actor.Play("idle", true); actor.Tick(.5f); }
                 actor.Play(step.state, step.restart); float t = 0f; while (t < step.time - 1e-4f) { float dt = Mathf.Min(.02f, step.time - t); actor.Tick(dt); t += dt; }
@@ -237,7 +240,7 @@ public static class PNVisualEditorChecks
             Require(body.Begin(character, hub) && body.Actor.QuadCount == 23, "the character's body block gives the Starweaver puppet"); checks++;
             Require(Mathf.Abs(capsule.height - .34f) < 1e-4f && Mathf.Abs(capsule.radius - .099f) < 1e-4f && Mathf.Abs(capsule.center.y - capsule.height * .5f - feet0) < 1e-4f, "the low build: capsule 0.34 x 0.099, feet fixed (" + capsule.height + " x " + capsule.radius + ")"); checks++;
             Require(body.PullingUp, "the Starweaver comes in on its strings (the entrance holds the movement feed)"); checks++;
-            for (int i = 0; i < 30; i++) { body.Actor.Tick(.05f); body.Feed(.05f); }       // the entrance: strings lowered, puppet pulled up
+            for (int i = 0; i < 55; i++) { body.Actor.Tick(.05f); body.Feed(.05f); }       // the entrance: strings lowered, puppet pulled up with the recover motion
             Require(!body.PullingUp, "after the entrance the movement feed is free"); checks++;
             body.Feed(.02f); instance.transform.position += new Vector3(.04f, 0f, 0f); body.Feed(.02f);
             Require(body.Actor.Animator.BaseState == "run" && body.Actor.Animator.HasState("stun"), "moving fast plays the fast flight; the stun state exists"); checks++;
@@ -255,6 +258,51 @@ public static class PNVisualEditorChecks
         }
         Require(PNVisualSystem.Count == 0, "no puppet left registered"); checks++;
         return "PASS " + checks + " Visual Starweaver checks (frames in " + outputDirectory + ")";
+    }
+
+    // The Starkeeper (melee flyer in a long cloak): the head is one piece with its own face (the humanoid head and face are hidden), the cloak is two bendable strips, the shoe one sprite on both shins.
+    public static string RunStarkeeper(string outputDirectory = "G:/ProjectN_Camera/VisualStarkeeper")
+    {
+        if (EditorApplication.isPlaying) throw new InvalidOperationException("Stop Play Mode first.");
+        PNVisualSystem.Prune();
+        int checks = 0; Stage stage = null; PNVisualActor actor = null;
+        string baseDirectory = Path.GetFullPath(Path.Combine(Application.dataPath, "StreamingAssets", "BaseContent"));
+        PNVisualPacks.Clear(); PNVisualPacks.Set("project_n", baseDirectory);
+        var hub = new EveContentBootstrap().Build(new EveIContentModule[] { new PNContentModule(), new PNGameplayContentModule() },
+            new[] { new EveContentDocument("visual", File.ReadAllText(Path.Combine(baseDirectory, "visual", "humanoid.json")), "project_n"), new EveContentDocument("starkeeper", File.ReadAllText(Path.Combine(baseDirectory, "visual", "starkeeper.json")), "project_n"), new EveContentDocument("strings", File.ReadAllText(Path.Combine(baseDirectory, "visual", "strings.json")), "project_n") });
+        try
+        {
+            var atlas = PNVisualRuntime.AtlasFor(hub);
+            Require(atlas.ImageCount == 14 && atlas.Texture != null, "the atlas packs the 10 humanoid and the 4 Starkeeper PNGs (" + atlas.ImageCount + ")"); checks++;
+            stage = new Stage(); stage.Camera.orthographicSize = .45f; stage.Camera.transform.position = new Vector3(.05f, .3f, -5f);
+            var root = new GameObject("Starkeeper root"); SceneManager.MoveGameObjectToScene(root, stage.Scene);
+            var visual = new GameObject("Visual"); visual.transform.SetParent(root.transform, false); actor = visual.AddComponent<PNVisualActor>();
+            actor.Bind(hub.Get<PNVisualAppearanceDefinition>().Get(EveId.Parse("project_n:starkeeper")), hub, Vector3.zero);
+            var facing = visual.GetComponent<PNCameraFacingTarget>(); facing.ViewCamera = stage.Camera; facing.Align();
+            Require(actor.QuadCount == 11 + 0 && actor.Mesh.vertexCount == 9 * 4 + 2 * 2 * 15, "the humanoid head and face are hidden: 9 plain quads + 2 bendable cloak strips (" + actor.QuadCount + " quads, " + actor.Mesh.vertexCount + " vertices)"); checks++;
+            foreach (var step in new (string name, string state, float time, bool restart)[] { ("rest", "idle", 0f, false), ("hover", "idle", 1.2f, false), ("fly", "walk", 1.0f, false), ("fly_fast", "run", 1.0f, false),
+                ("hurt", "hurt", .15f, true), ("dead_fall", "dead", .3f, true), ("dead_floor", "dead", 2.2f, false), ("stun_hit", "stun", .3f, true), ("stun_fall", "stun", .6f, false), ("stun_daze", "stun", 3f, false),
+                ("recover_0", "recover", .05f, true), ("recover_mid", "recover", .45f, false), ("recover_end", "recover", .9f, false) })
+            {
+                if (step.state == "hurt") { actor.Play("idle", true); actor.Tick(.5f); }
+                actor.Play(step.state, step.restart); float t = 0f; while (t < step.time - 1e-4f) { float dt = Mathf.Min(.02f, step.time - t); actor.Tick(dt); t += dt; }
+                stage.Capture(outputDirectory + "/" + step.name + ".png"); int painted = stage.Painted();
+                Require(painted > 7000, step.name + ": paints a body (" + painted + " px)"); checks++;
+            }
+            actor.Play("idle", true); for (int i = 0; i < 200; i++) actor.Tick(.016f);
+            actor.Play("run", true); for (int i = 0; i < 200; i++) actor.Tick(.016f);
+            long gc0 = GC.GetAllocatedBytesForCurrentThread(); for (int i = 0; i < 600; i++) actor.Tick(.016f);
+            Require((GC.GetAllocatedBytesForCurrentThread() - gc0) / 600 <= 200, "a flying Starkeeper allocates almost nothing per frame"); checks++;
+            // content side: the character names its visual, its prefab key resolves, the prefab carries the Starkeeper components
+            var prefab = Resources.Load<PNEntityPrefabCatalog>(PNEntityPrefabCatalog.ResourcePath).Find("starkeeper");
+            Require(prefab != null && prefab.GetComponent<PNStarkeeperStat>() != null && prefab.GetComponent<PNStarkeeperSkill>() != null && prefab.GetComponent<PNStarkeeperBehavior>() != null && prefab.GetComponent<PNVisualBody>() != null, "the catalog key 'starkeeper' resolves to the prefab with Stat, Skill, Behavior and the visual body"); checks++;
+        }
+        finally
+        {
+            if (actor != null) UnityEngine.Object.DestroyImmediate(actor.transform.parent.gameObject); stage?.Dispose(); PNVisualRuntime.Release(); PNVisualPacks.Clear();
+        }
+        Require(PNVisualSystem.Count == 0, "no puppet left registered"); checks++;
+        return "PASS " + checks + " Visual Starkeeper checks (frames in " + outputDirectory + ")";
     }
 
     // Bendable parts: a made-up fox with a body block and a long tapering tail (a PNG written here, a pack folder of its own) is bent by motions; the frames show the tail curling
@@ -469,7 +517,8 @@ public static class PNVisualEditorChecks
             Require(actor.HasStrings && set.Count == 2 && body.PullingUp && set.State(0).Phase == PNVisualStringPhase.Lowering, "the strings come down onto the new puppet (entrance \"slumped\")"); checks++;
             Require(actor.Animator.BaseState == "stun", "the new puppet hangs slumped until the strings are on (state " + actor.Animator.BaseState + ")"); checks++;
             Run(.3f); Require(body.PullingUp && actor.Animator.BaseState == "stun", "while the strings are still coming down it stays slumped"); checks++;
-            Run(1.2f); Require(!body.PullingUp && set.State(0).Phase == PNVisualStringPhase.Attached && actor.Animator.BaseState == "idle", "when the strings are on the puppet is pulled up to idle"); checks++;
+            Run(1.2f); Require(!body.PullingUp && set.State(0).Phase == PNVisualStringPhase.Attached && actor.Animator.BaseState == "recover" && body.Holding, "when the strings are on the puppet rises with the recover motion"); checks++;
+            Run(1.0f); Require(!body.Holding && actor.Animator.BaseState == "idle", "and then settles into the idle"); checks++;
             // ---- the Lorica break ----
             bool broken = false; body.BreakSource = () => broken;
             broken = true; Run(.2f);
@@ -478,7 +527,14 @@ public static class PNVisualEditorChecks
             instance.transform.position += new Vector3(.5f, 0f, 0f); Run(.2f); Require(actor.Animator.BaseState == "stun", "a broken puppet does not walk"); checks++;
             broken = false; Run(.2f);
             Require(!body.LoricaBroken && body.PullingUp && set.State(0).Phase == PNVisualStringPhase.Lowering, "when the break ends the strings are lowered again"); checks++;
-            Run(1.2f); Require(!body.PullingUp && set.State(0).Phase == PNVisualStringPhase.Attached && actor.Animator.BaseState != "stun", "and they pull the puppet up (state " + actor.Animator.BaseState + ")"); checks++;
+            Run(1.2f); Require(!body.PullingUp && set.State(0).Phase == PNVisualStringPhase.Attached && actor.Animator.BaseState == "recover", "and they pull the puppet up with the recover motion (state " + actor.Animator.BaseState + ")"); checks++;
+            Run(1.0f); Require(actor.Animator.BaseState == "idle", "then the idle"); checks++;
+            // an action (a cast) holds the locomotion states until it ends or the Lorica breaks
+            Require(body.PlayAction("cast_weave", .95f) && actor.Animator.BaseState == "cast_weave" && body.Holding, "a cast plays its motion"); checks++;
+            instance.transform.position += new Vector3(.5f, 0f, 0f); Run(.3f); Require(actor.Animator.BaseState == "cast_weave", "a cast is not interrupted by movement"); checks++;
+            body.EndAction(); Run(.1f); Require(actor.Animator.BaseState != "cast_weave" && !body.Holding, "ending the action returns to the locomotion states"); checks++;
+            Require(body.PlayAction("cast_constellation", 2.4f), "the long cast starts"); broken = true; Run(.2f); Require(body.LoricaBroken && !body.Holding && actor.Animator.BaseState == "stun", "a Lorica break cuts a cast short"); checks++; broken = false; Run(.2f); Run(1.2f); Run(1.0f);
+            Require(!body.PlayAction("no_such_state", 1f), "an unknown action state is refused"); checks++;
             // ---- a second break straight away, and the pooled reuse ----
             broken = true; Run(.2f); broken = false; Run(.2f); broken = true; Run(.2f); Require(body.LoricaBroken && !body.PullingUp, "a new break during the pull-up cancels it"); checks++;
             body.Clear(); Require(body.Actor == null && PNVisualSystem.Count == 0, "Clear releases the puppet and its strings"); checks++;

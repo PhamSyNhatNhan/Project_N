@@ -69,6 +69,8 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         PNEntityGameplayContent.Register(hub);
         PNSummonGameplayContent.Register(hub);
         PNEnemyGameplayContent.Register(hub);
+        PNStarweaverCombatContent.Register(hub);
+        PNStarkeeperCombatContent.Register(hub);
 #if UNITY_5_3_OR_NEWER
         PNAgentToolkitContent.Register(hub);
 #endif
