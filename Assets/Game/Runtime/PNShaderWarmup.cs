@@ -29,13 +29,25 @@ public static class PNShaderWarmupContent
             registry.Register(new PNShaderWarmupDefinition(id, name));
             registry.RegisterBase(EveId.Parse("base:shader_" + slug), id, "project_n");
         }
+        // The visual puppet shader has a compile-time variant for a baked atlas (PN_BAKED) and two passes (one per renderer), and its ink bake shader runs when the atlas is built.
+        foreach (var entry in Keyworded)
+        {
+            var id = EveId.Parse("project_n:shader_" + entry.slug);
+            registry.Register(new PNShaderWarmupDefinition(id, entry.shader, entry.keywords));
+            registry.RegisterBase(EveId.Parse("base:shader_" + entry.slug), id, "project_n");
+        }
     }
+    private static readonly (string slug, string shader, string[] keywords)[] Keyworded =
+    {
+        ("visualactor", "PN/VisualActor", new string[0]), ("visualactor_baked", "PN/VisualActor", new[] { "PN_BAKED" }), ("visualinkbake", "Hidden/PN/VisualInkBake", new string[0]), ("visualshadebake", "Hidden/PN/VisualShadeBake", new string[0]),
+    };
 }
 
 #if UNITY_5_3_OR_NEWER
 public static class PNShaderWarmup
 {
     private const int PerFrame = 4;
+    private const double PreloadBudgetMs = 6;     // milliseconds of visual atlas work per frame (one image is always done, so a very large image can exceed it)
     private readonly struct Item
     {
         public readonly Shader Shader; public readonly PassType Pass; public readonly string[] Keywords;
@@ -54,14 +66,14 @@ public static class PNShaderWarmup
     public static int StatesTotal => states?.totalGraphicsStateCount ?? 0;
     public static int StatesCompleted => states == null ? 0 : states.completedWarmupCount;
     private static bool StatesDone => states == null || states.isWarmedUp;
-    public static bool IsDone => begun && prepared && pending.Count == 0 && StatesDone;
+    public static bool IsDone => begun && prepared && pending.Count == 0 && StatesDone && !PNVisualRuntime.PreloadActive;
     public static float Fraction
     {
         get
         {
             if (!begun) return 0f;
-            int all = total + StatesTotal; if (all == 0) return 1f;
-            return Mathf.Clamp01((done + Mathf.Min(StatesCompleted, StatesTotal)) / (float)all);
+            int preload = PNVisualRuntime.PreloadTotal; int all = total + StatesTotal + preload; if (all == 0) return 1f;
+            return Mathf.Clamp01((done + Mathf.Min(StatesCompleted, StatesTotal) + PNVisualRuntime.PreloadDone) / (float)all);
         }
     }
     public static int Compiled => done;
@@ -87,6 +99,7 @@ public static class PNShaderWarmup
             }
         }
         catch (Exception error) { Debug.LogException(error); }
+        try { PNVisualRuntime.BeginPreload(registry); } catch (Exception error) { Debug.LogException(error); }      // the visual atlas (and its ink bake) is built under the cover, a few ms per frame (Pump)
         LoadStates();
     }
     private static void LoadStates()
@@ -145,6 +158,7 @@ public static class PNShaderWarmup
             prepared = true;
             try { PNLoricaShatter.Warm(); } catch (Exception error) { Debug.LogException(error); }       // materials, environment image and meshes of the lorica break
         }
+        if (PNVisualRuntime.PreloadActive) PNVisualRuntime.PreloadStep(PreloadBudgetMs);
         var batch = new ShaderVariantCollection(); int added = 0;
         while (pending.Count > 0 && added < PerFrame)
         {

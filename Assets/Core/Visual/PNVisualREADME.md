@@ -31,6 +31,38 @@ VI: Người chơi và quái hình người được vẽ như **con rối rig**
 - Motion: edit it in `ArtSource/RigTool` (or `ArtSource/VisualDemo` for humanoid poses), export the JSON, put it in a content document (or `humanoid.json`), add the state to the motion set. Gameplay calls `actor.Play(state)` and, for skill motions, `actor.SetPhase(0..1)` from the skill's own timeline.
 - Part (equipment, hair): add the PNG beside the JSON, a `visualParts` entry, and fill a rig slot or a free part (`bone, at, layer`) in the appearance. A mod does the same inside its own pack folder (the part's id namespace is the pack).
 
+## Ink-on-paper look (2026-10-30)
+
+The art style is a drawing in ink on paper (a reference: Don't Starve), not a cut-card object. It is NOT computed per frame: when the atlas is built, every image (parts,
+variants, motion frames; a mod's PNG too, the atlas is packed at load) goes through `PNInkBake` (`Hidden/PN/VisualInkBake`) on the GPU. The marks that are fixed to the image
+(grain, colour wash, dry ink, sparse hatching, a faint second contour, a broken offset contour, cut-edge ink) are baked into it with the "Strong Ink" values, expressed at a
+reference scale of 6.17 art pixels per screen pixel (1630 px/m art, about 264 px/m on a 1080p screen). Each image gets a 16-art-pixel border so the marks can leave the
+silhouette (the same 16 px that `PNVisualActor` adds around every quad); `PNVisualAtlas.TryGet` still returns the ORIGINAL image rect and size. `PNInkBake.Bake(texture)` is the hook for
+other 2D sprites (world art); nothing else uses it yet. Edge widths are therefore fixed in art pixels: a close-up shows heavier contours, as intended.
+
+`PN/VisualActor` has a `PN_BAKED` variant (`multi_compile_local_fragment`) that only does part tint, the overlap shadow, flash and fade; without it (`PNVisualPaperSettings.BakeInk = false`)
+the shader computes the same marks itself, at about 4 times the GPU cost for a crowd (7.7 vs 2.0 ms for 112 overlapping puppets at 1080p on a GTX 1650 Ti, Editor batch). UV0 is the atlas
+coordinate, UV1 is flash/fade, UV2 the tile bounds (the border-inclusive rect when baked), UV3 the part's layer (x) and a flag that the vertex samples the pre-baked shade texture (y).
+
+Overlap shadow between the parts of a puppet (a higher part darkens the lower part where they overlap; never the background) is a player setting, `PNVisualPaperSettings.Mode`
+(`PNPaperShadowMode`): `Off`; `KeyActors` (the player and bosses, `PNVisualActor.KeyActor`); `Actors` (every actor in view, the default); `All`; `Baked`. The dynamic modes pass up to
+128 caster triangles per actor in a MaterialPropertyBlock (over the cap: bent parts cast with coarser strips, then the smallest parts stop casting, one warning per appearance); an
+actor without the dynamic shadow uses a twin material with no block, so it can batch. `Baked` computes the shadow once at the rest pose on the GPU into copies of the receiving parts
+(`PNVisualShade`, `Hidden/PN/VisualShadeBake`, cached per appearance + build) and costs about the same as no shadow; it does not follow a bent cloak or a mirrored actor and part
+variants are not shaded. Which parts cast is still the Starweaver slot names (`PNVisualActor.Casts`), to become a data flag.
+
+Only what is in view is worked on: `PNVisualSystem.Tick` tests every actor's bounds against the view plus a margin (12 percent, 5 percent hysteresis); outside it the animator only
+advances, the pose is evaluated on demand (`Animator`, `TryGetSocketLocal`) or on re-entry, and no mesh or caster data is written (0.004-0.012 ms a frame for 96 puppets).
+
+Loading: the atlas build is stepped under the loading cover (`PNShaderWarmup.Begin` queues `PNVisualRuntime.BeginPreload`, `Pump` does 6 ms of it a frame, `IsDone` and `Fraction` include
+it); in the `Baked` mode it also computes the shade of the (appearance, build) pairs the content's characters spawn. An actor that binds earlier finishes the preload at once. The shaders
+(`PN/VisualActor` with and without `PN_BAKED`, both bake shaders) are registered in `PNShaderWarmupContent`.
+
+Checks (main Editor, Edit Mode, preview scenes; set `PN_BAKE_SKIP_GPU=1` to skip the timing tables): `PNVisualBakeCheck.Run()` 5, `PNVisualShadeCheck.Run()` 15,
+`PNVisualCullShadowCheck.Run()` 26, `PNVisualPreloadCheck.Run()` 16 (it runs `PNShaderWarmupEditorChecks` too), `PNVisualShadePreloadCheck.Run()` 10. A Windows Mono Player of the
+Hall was run once from a clone: the Starweaver draws with the ink look and the loading cover hides the atlas build. Not measured: mobile/Android/IL2CPP, coop, characters other
+than the Starweaver, the Settings UI (the mode is a static, not a saved setting).
+
 ## Not done
 
-The rig tools (`ArtSource/VisualDemo`, `ArtSource/RigTool`) do not show or author `segments`/`bend`/`sway` yet (write them in the JSON); a bent part's children do not follow the curve; Eve and Eve 2 still use their prefab sprite; first enemy art; equipment art and loadout; corpse behaviour; aim UI; shader outline; flipbook art; Android and mobile timing; a Player run of the Visual test character through the real factory in a coop session.
+The rig tools (`ArtSource/VisualDemo`, `ArtSource/RigTool`) do not show or author `segments`/`bend`/`sway` yet (write them in the JSON); a bent part's children do not follow the curve; Eve and Eve 2 still use their prefab sprite; first enemy art; equipment art and loadout; corpse behaviour; aim UI; authored interior sketch strokes; the ink look in the Settings UI, a boss flag for `KeyActors`, baking world sprites, the puppet strings; flipbook art; Android and mobile timing; a Player run of the Visual test character through the real factory in a coop session.

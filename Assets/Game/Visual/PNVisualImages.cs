@@ -49,33 +49,72 @@ public sealed class PNVisualAtlas : IDisposable
     private readonly Dictionary<string, Rect> rects = new Dictionary<string, Rect>(StringComparer.Ordinal);
     private readonly Dictionary<string, Vector2Int> sizes = new Dictionary<string, Vector2Int>(StringComparer.Ordinal);
     public Texture2D Texture { get; private set; }
+    // True when every image was baked with the ink marks (PNInkBake): each tile then carries PNInkBake.Border transparent-ish pixels around the rect TryGet reports.
+    public bool Baked { get; private set; }
     public int ImageCount => rects.Count;
     public static string Key(string contentNamespace, string path) => contentNamespace + "|" + path;
 
-    public static PNVisualAtlas Build(IEnumerable<KeyValuePair<string, string>> images)   // (namespace, path) pairs
+    public static PNVisualAtlas Build(IEnumerable<KeyValuePair<string, string>> images, bool bake = false)   // (namespace, path) pairs
     {
-        var atlas = new PNVisualAtlas(); var keys = new List<string>(); var textures = new List<Texture2D>();
-        try
+        using (var builder = new Builder(images, bake)) { while (!builder.Step(double.MaxValue)) { } return builder.Finish(); }
+    }
+
+    // The same build in steps: Step loads (and bakes) images until the time budget is spent (at least one per call), Finish packs. The loading cover calls Step a few milliseconds per frame.
+    public sealed class Builder : IDisposable
+    {
+        private readonly List<KeyValuePair<string, string>> list = new List<KeyValuePair<string, string>>();
+        private readonly List<string> keys = new List<string>(); private readonly List<Texture2D> textures = new List<Texture2D>();
+        private readonly PNVisualAtlas atlas; private readonly bool bake; private int index; private bool finished, disposed;
+        public int Total => list.Count;
+        public int Done => index;
+        public Builder(IEnumerable<KeyValuePair<string, string>> images, bool bake)
         {
-            foreach (var pair in images)
+            this.bake = bake; atlas = new PNVisualAtlas { Baked = bake }; var seen = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var pair in images) if (seen.Add(Key(pair.Key, pair.Value))) list.Add(pair);
+        }
+        // True when every image is loaded.
+        public bool Step(double budgetMs)
+        {
+            if (disposed) throw new ObjectDisposedException(nameof(Builder));
+            var clock = System.Diagnostics.Stopwatch.StartNew(); int done = 0;
+            while (index < list.Count && (done == 0 || clock.Elapsed.TotalMilliseconds < budgetMs))
             {
-                string key = Key(pair.Key, pair.Value); if (atlas.rects.ContainsKey(key) || keys.Contains(key)) continue;
+                var pair = list[index]; string key = Key(pair.Key, pair.Value);
                 var texture = new Texture2D(2, 2, TextureFormat.RGBA32, false, false) { hideFlags = HideFlags.HideAndDontSave };
                 if (!texture.LoadImage(PNVisualPacks.Read(pair.Key, pair.Value), false)) { UnityEngine.Object.DestroyImmediate(texture); throw new InvalidDataException("Not a readable PNG: " + key); }
-                keys.Add(key); textures.Add(texture); atlas.sizes[key] = new Vector2Int(texture.width, texture.height);
+                atlas.sizes[key] = new Vector2Int(texture.width, texture.height); keys.Add(key);
+                if (bake) { var baked = PNInkBake.Bake(texture); UnityEngine.Object.DestroyImmediate(texture); texture = baked; }
+                textures.Add(texture); index++; done++;
             }
-            if (textures.Count == 0) { atlas.Texture = new Texture2D(1, 1, TextureFormat.RGBA32, false, false) { hideFlags = HideFlags.HideAndDontSave }; atlas.Texture.SetPixel(0, 0, Color.white); atlas.Texture.Apply(); return atlas; }
-            long area = 0; foreach (var t in textures) area += (long)(t.width + Padding * 2) * (t.height + Padding * 2);
-            if (area > (long)MaxSize * MaxSize * .8) throw new InvalidOperationException("Visual images do not fit one " + MaxSize + " atlas page.");
-            var texture2 = new Texture2D(2, 2, TextureFormat.RGBA32, false, false) { hideFlags = HideFlags.HideAndDontSave, filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp };
-            var packed = texture2.PackTextures(textures.ToArray(), Padding, MaxSize, false);
-            if (packed == null || packed.Length != keys.Count) { UnityEngine.Object.DestroyImmediate(texture2); throw new InvalidOperationException("Visual atlas packing failed."); }
-            for (int i = 0; i < keys.Count; i++) atlas.rects[keys[i]] = packed[i];
-            atlas.Texture = texture2;
-            return atlas;
+            return index >= list.Count;
         }
-        catch { atlas.Dispose(); throw; }
-        finally { foreach (var t in textures) if (t != null) UnityEngine.Object.DestroyImmediate(t); }
+        public PNVisualAtlas Finish()
+        {
+            if (disposed || finished) throw new InvalidOperationException("The atlas builder is finished.");
+            while (!Step(double.MaxValue)) { }
+            finished = true;
+            try
+            {
+                if (textures.Count == 0) { atlas.Texture = new Texture2D(1, 1, TextureFormat.RGBA32, false, false) { hideFlags = HideFlags.HideAndDontSave }; atlas.Texture.SetPixel(0, 0, Color.white); atlas.Texture.Apply(); return atlas; }
+                long area = 0; foreach (var t in textures) area += (long)(t.width + Padding * 2) * (t.height + Padding * 2);
+                if (area > (long)MaxSize * MaxSize * .8) throw new InvalidOperationException("Visual images do not fit one " + MaxSize + " atlas page.");
+                var texture2 = new Texture2D(2, 2, TextureFormat.RGBA32, false, false) { hideFlags = HideFlags.HideAndDontSave, filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp };
+                var packed = texture2.PackTextures(textures.ToArray(), Padding, MaxSize, false);
+                if (packed == null || packed.Length != keys.Count) { UnityEngine.Object.DestroyImmediate(texture2); throw new InvalidOperationException("Visual atlas packing failed."); }
+                float bx = bake ? (float)PNInkBake.Border / texture2.width : 0f, by = bake ? (float)PNInkBake.Border / texture2.height : 0f;
+                for (int i = 0; i < keys.Count; i++) { var r = packed[i]; atlas.rects[keys[i]] = bake ? Rect.MinMaxRect(r.xMin + bx, r.yMin + by, r.xMax - bx, r.yMax - by) : r; }   // inner rect = the original image
+                atlas.Texture = texture2;
+                return atlas;
+            }
+            catch { atlas.Dispose(); throw; }
+            finally { foreach (var t in textures) if (t != null) UnityEngine.Object.DestroyImmediate(t); textures.Clear(); }
+        }
+        public void Dispose()
+        {
+            if (disposed) return; disposed = true;
+            foreach (var t in textures) if (t != null) UnityEngine.Object.DestroyImmediate(t); textures.Clear();
+            if (!finished) atlas.Dispose();        // never handed out
+        }
     }
 
     public bool TryGet(string contentNamespace, string path, out Rect uv, out Vector2Int size)

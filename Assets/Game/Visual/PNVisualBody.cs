@@ -38,6 +38,7 @@ public sealed class PNVisualBody : MonoBehaviour
         try { created.Bind(appearance, hub, feet, body.BuildOverride); }
         catch { DestroyObject(child); throw; }
         actor = created;
+        actor.KeyActor = GetComponent<PNPlayerStat>() != null; actor.RefreshShadowMode();   // the KeyActors shadow setting: the player now, bosses when they get a visual
         if (visual != null) visual.gameObject.SetActive(false);
         if (capsule != null)
         {

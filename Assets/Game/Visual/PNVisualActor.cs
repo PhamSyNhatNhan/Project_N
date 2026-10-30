@@ -10,12 +10,13 @@ using UnityEngine.Rendering;
 // VI: Trạng thái chạy dùng chung của hệ Visual cho một content session: atlas và vật liệu chung.
 public static class PNVisualRuntime
 {
-    private static PNVisualAtlas atlas; private static Material material; private static EveRegistryHub atlasHub;
-    public static PNVisualAtlas AtlasFor(EveRegistryHub hub)
+    private static PNVisualAtlas atlas; private static Material material, materialNoShadow; private static EveRegistryHub atlasHub, builderHub; private static PNVisualAtlas.Builder builder;
+    private static readonly Dictionary<Texture, Material> shadeMaterials = new Dictionary<Texture, Material>();
+    private static readonly Dictionary<string, PNVisualShadeSet> shades = new Dictionary<string, PNVisualShadeSet>(StringComparer.Ordinal);
+    public static bool TryGetShade(string key, out PNVisualShadeSet set) => shades.TryGetValue(key, out set);
+    public static void StoreShade(string key, PNVisualShadeSet set) => shades[key] = set;
+    private static List<KeyValuePair<string, string>> CollectImages(EveRegistryHub hub)
     {
-        if (hub == null) throw new ArgumentNullException(nameof(hub));
-        if (atlas != null && ReferenceEquals(atlasHub, hub)) return atlas;
-        Release();
         var images = new List<KeyValuePair<string, string>>();
         foreach (var part in hub.Get<PNVisualPartDefinition>().Snapshot().Values)
         {
@@ -24,10 +25,94 @@ public static class PNVisualRuntime
         }
         foreach (var motion in hub.Get<PNVisualMotionDefinition>().Snapshot().Values)
             foreach (var frame in motion.Frames) images.Add(new KeyValuePair<string, string>(motion.Id.Namespace, frame));
-        atlas = PNVisualAtlas.Build(images); atlasHub = hub;
+        return images;
+    }
+    // The atlas of this content session. Built on demand (the first actor), or ahead of time in steps by the loading cover (BeginPreload + PreloadStep), so the bake never lands in gameplay.
+    public static PNVisualAtlas AtlasFor(EveRegistryHub hub)
+    {
+        if (hub == null) throw new ArgumentNullException(nameof(hub));
+        if (atlas != null && ReferenceEquals(atlasHub, hub)) return atlas;
+        if (builder != null && ReferenceEquals(builderHub, hub))      // a preload is under way: finish it now
+        {
+            var building = builder; builder = null; builderHub = null; Release();
+            using (building) atlas = building.Finish();
+            atlasHub = hub; return atlas;
+        }
+        Release();
+        atlas = PNVisualAtlas.Build(CollectImages(hub), PNVisualPaperSettings.BakeInk); atlasHub = hub;
         return atlas;
     }
-    public static Material MaterialFor(PNVisualAtlas forAtlas)
+    // Loading-cover preload: queue the atlas build (no work yet), then call PreloadStep every frame with a millisecond budget until it returns true.
+    public static void BeginPreload(EveRegistryHub hub, IEnumerable<KeyValuePair<EveId, EveId?>> extraShades = null)
+    {
+        if (hub == null) throw new ArgumentNullException(nameof(hub));
+        if (atlas != null && ReferenceEquals(atlasHub, hub)) return;
+        if (builder != null && ReferenceEquals(builderHub, hub)) return;
+        if (!hub.Snapshot().ContainsKey(typeof(PNVisualPartDefinition))) return;       // this content has no visual registry (a test hub, a headless run): nothing to preload
+        builder?.Dispose(); builder = null;
+        builder = new PNVisualAtlas.Builder(CollectImages(hub), PNVisualPaperSettings.BakeInk); builderHub = hub; imageTotal = builder.Total; shadeTotal = shadeDone = 0; shadeQueue.Clear(); ShadeTimesMs.Clear();
+        shadeExtra = extraShades == null ? null : new List<KeyValuePair<EveId, EveId?>>(extraShades); shadeHub = hub;
+    }
+    private static readonly Queue<KeyValuePair<EveId, EveId?>> shadeQueue = new Queue<KeyValuePair<EveId, EveId?>>(); private static int imageTotal, shadeTotal, shadeDone;
+    private static List<KeyValuePair<EveId, EveId?>> shadeExtra; private static EveRegistryHub shadeHub;
+    // Milliseconds each pre-baked shade took in the last preload (appearance + build), for measurements.
+    public static readonly List<double> ShadeTimesMs = new List<double>();
+    public static bool PreloadActive => builder != null || shadeQueue.Count > 0;
+    public static int PreloadTotal => imageTotal + shadeTotal;
+    public static int PreloadDone => (builder != null ? builder.Done : imageTotal) + shadeDone;
+    // The (appearance, build) pairs that get pre-baked shade tiles: those the characters of the content spawn (body.visual + body.build), plus any given explicitly. Only in the Baked shadow mode.
+    private static void QueueShades(EveRegistryHub hub)
+    {
+        shadeQueue.Clear(); shadeTotal = shadeDone = 0;
+        if (PNVisualPaperSettings.Mode != PNPaperShadowMode.Baked || atlas == null || !atlas.Baked) return;
+        var seen = new HashSet<string>(StringComparer.Ordinal); var appearances = hub.Get<PNVisualAppearanceDefinition>();
+        void Add(EveId appearance, EveId? build)
+        {
+            var def = appearances.Get(appearance); var buildId = build ?? def.Build;
+            if (!seen.Add(def.Id + "|" + buildId) || shades.ContainsKey(def.Id + "|" + buildId)) return;
+            shadeQueue.Enqueue(new KeyValuePair<EveId, EveId?>(appearance, build));
+        }
+        if (hub.Snapshot().ContainsKey(typeof(EveCharacterDefinition)))
+            foreach (var character in hub.Get<EveCharacterDefinition>().Snapshot().Values)
+            {
+                PNBodySettings body; try { body = PNBodySettings.Parse(character.Data); } catch (Exception) { continue; }
+                if (body.Visual.HasValue) try { Add(body.Visual.Value, body.BuildOverride); } catch (Exception) { }
+            }
+        if (shadeExtra != null) foreach (var pair in shadeExtra) Add(pair.Key, pair.Value);
+        shadeTotal = shadeQueue.Count;
+    }
+    // One pair, with a real actor: the same code that will run at spawn (rest pose, affine maps, GPU bake), so the cached result is exactly what a spawned actor would compute.
+    private static void PreloadOneShade(EveRegistryHub hub)
+    {
+        var pair = shadeQueue.Dequeue(); var clock = System.Diagnostics.Stopwatch.StartNew();
+        var go = new GameObject("PN shade preload") { hideFlags = HideFlags.HideAndDontSave };
+        try { var actorComponent = go.AddComponent<PNVisualActor>(); actorComponent.Bind(hub.Get<PNVisualAppearanceDefinition>().Get(pair.Key), hub, Vector3.zero, pair.Value); actorComponent.PreloadShade(); }
+        finally { UnityEngine.Object.DestroyImmediate(go); shadeDone++; ShadeTimesMs.Add(clock.Elapsed.TotalMilliseconds); }
+    }
+    // True when nothing is left to do. A failure is logged and dropped; the first actor then builds (and reports) it the ordinary way.
+    public static bool PreloadStep(double budgetMs)
+    {
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        try
+        {
+            if (builder != null)
+            {
+                if (!builder.Step(budgetMs)) return false;
+                var done = builder; var hub = builderHub; builder = null; builderHub = null; ReleaseResources();
+                using (done) atlas = done.Finish();
+                atlasHub = hub; shadeHub = hub; QueueShades(hub);
+                if (clock.Elapsed.TotalMilliseconds >= budgetMs) return shadeQueue.Count == 0;
+            }
+            while (shadeQueue.Count > 0)
+            {
+                PreloadOneShade(shadeHub); if (clock.Elapsed.TotalMilliseconds >= budgetMs) break;       // one pair per step at least; a pair is the unit of work
+            }
+            return shadeQueue.Count == 0;
+        }
+        catch (Exception error) { Debug.LogException(error); builder?.Dispose(); builder = null; builderHub = null; shadeQueue.Clear(); return true; }
+    }
+    // `overlapShadow` false returns the twin material with the overlap shadow switched off: an actor on it carries no MaterialPropertyBlock, so the SRP batcher can group it.
+    public static Material MaterialFor(PNVisualAtlas forAtlas, bool overlapShadow = true, Texture shadeTexture = null)
     {
         if (material == null)
         {
@@ -35,15 +120,47 @@ public static class PNVisualRuntime
             material = new Material(shader) { name = "PN Visual Actor", hideFlags = HideFlags.HideAndDontSave, enableInstancing = false };
         }
         material.SetTexture("_MainTex", forAtlas.Texture);
+        if (forAtlas.Baked) material.EnableKeyword("PN_BAKED"); else material.DisableKeyword("PN_BAKED");   // baked atlas: the shader skips every fixed-to-the-image effect
+        if (shadeTexture != null)           // an appearance with pre-baked shadow tiles: its own material (the same shader), no dynamic shadow
+        {
+            if (!shadeMaterials.TryGetValue(shadeTexture, out var shaded) || shaded == null)
+            {
+                shaded = new Material(MaterialFor(forAtlas, false)) { name = "PN Visual Actor (pre-baked shade)", hideFlags = HideFlags.HideAndDontSave };
+                shaded.SetTexture("_ShadeTex", shadeTexture); shadeMaterials[shadeTexture] = shaded;
+            }
+            return shaded;
+        }
+        if (!overlapShadow)
+        {
+            if (materialNoShadow == null) materialNoShadow = new Material(material) { name = "PN Visual Actor (no overlap shadow)", hideFlags = HideFlags.HideAndDontSave };
+            RefreshVariants();
+            return materialNoShadow;
+        }
         return material;
+    }
+    // Copies the shared material's values to the no-shadow twin (call after changing the shared material's properties by code).
+    public static void RefreshVariants()
+    {
+        if (materialNoShadow == null || material == null) return;
+        materialNoShadow.CopyPropertiesFromMaterial(material); materialNoShadow.SetFloat("_OverlapShadow", 0f);
     }
     public static void Release()
     {
+        if (builder != null) { builder.Dispose(); builder = null; builderHub = null; }
+        shadeQueue.Clear(); imageTotal = shadeTotal = shadeDone = 0; shadeExtra = null; ShadeTimesMs.Clear();
+        ReleaseResources();
+    }
+    // The atlas, materials and shade tiles (not the preload counters or the queue: a finishing preload replaces the old resources and keeps going).
+    private static void ReleaseResources()
+    {
+        foreach (var m in shadeMaterials.Values) if (m != null) { if (Application.isPlaying) UnityEngine.Object.Destroy(m); else UnityEngine.Object.DestroyImmediate(m); }
+        shadeMaterials.Clear(); foreach (var set in shades.Values) set.Dispose(); shades.Clear(); PNVisualShade.Release();
         if (atlas != null) { atlas.Dispose(); atlas = null; }
         if (material != null) { if (Application.isPlaying) UnityEngine.Object.Destroy(material); else UnityEngine.Object.DestroyImmediate(material); material = null; }
+        if (materialNoShadow != null) { if (Application.isPlaying) UnityEngine.Object.Destroy(materialNoShadow); else UnityEngine.Object.DestroyImmediate(materialNoShadow); materialNoShadow = null; }
         atlasHub = null;
     }
-    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)] private static void Reset() { atlas = null; material = null; atlasHub = null; }
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)] private static void Reset() { atlas = null; material = null; materialNoShadow = null; atlasHub = null; builder = null; builderHub = null; shadeMaterials.Clear(); shades.Clear(); }
 }
 
 // EN: One rig puppet drawn as ONE mesh (a quad per visible part, sorted by layer) on the shared atlas. It owns a PNVisualAnimator (pure pose maths), writes the vertices each
@@ -62,12 +179,34 @@ public sealed class PNVisualActor : MonoBehaviour
         public int Segments, BendBone, VertexStart; public bool AxisX;   // Segments 1 = a plain quad; otherwise the strips of PNVisualBend driven by the bone's bend/sway
     }
     private PNVisualAnimator animator; private PNVisualResolvedRig rig; private PNVisualAppearanceDefinition appearance; private PNVisualBuildDefinition build;
-    private Drawable[] drawables; private Mesh mesh; private Vector3[] vertices; private Vector2[] uv0, uv1; private Color32[] colors;
+    // Transparent geometry gutter gives the paper edge/shadow room outside the source image.
+    // UV2 bounds stop offset samples from reading a neighbour in the shared atlas.
+    private const float PaperPadding = 16f;
+    private Drawable[] drawables; private Mesh mesh; private Vector3[] vertices; private Vector2[] uv0, uv1; private Vector4[] uvBounds; private Color32[] colors;
     private Color32[] tintColors; private MeshRenderer meshRenderer; private EveTimeScale clock; private PNCameraFacingTarget facing;
     private float flash, fade = 1f; private bool dirty = true; private float feetY;
+    // Clone trial: projected caster triangles, restricted to major overlapping paper parts.
+    private const int MaxPaperCasters=128;
+    private readonly Vector4[] casterA=new Vector4[MaxPaperCasters],casterB=new Vector4[MaxPaperCasters],casterC=new Vector4[MaxPaperCasters],casterBounds=new Vector4[MaxPaperCasters],casterMeta=new Vector4[MaxPaperCasters];
+    private MaterialPropertyBlock paperBlock;private int[] paperIndices;private Vector2[] paperLayer;
+    // Caster plan, computed once at Bind: which drawables cast and with how many strips (see BuildCasterPlan). Over the cap it coarsens bent parts, then drops the smallest parts.
+    private int[] casterDrawable, casterStride; private PNVisualAtlas atlasInUse; private bool shadowOn, poseDirty, inView = true; private int settingsVersion = -1;
+    private static readonly HashSet<string> casterWarned = new HashSet<string>();
+    private Vector3[] restVertices; private Vector2[] restUv; private PNVisualShadeSet shade; private bool shadeOn;      // rest pose snapshot (only for an appearance with casters) and the pre-baked shade tiles
+    public bool ShadeActive => shadeOn;
+    public int ShadeTiles => shade?.Tiles ?? 0;
+    public int CasterTriangles { get; private set; }
+    public bool CasterCoarsened { get; private set; }
+    public int CastersDropped { get; private set; }
+    // The player and bosses; the PNPaperShadowMode.KeyActors setting gives the overlap shadow to these only. PNVisualBody sets it for a player; bosses set it when they get a visual.
+    public bool KeyActor { get; set; }
+    public bool ShadowActive => shadowOn;
+    public bool InView => inView;
     private readonly float[] rowX = new float[PNVisualLimits.MaxSegments + 1], rowY = new float[PNVisualLimits.MaxSegments + 1], rowNx = new float[PNVisualLimits.MaxSegments + 1], rowNy = new float[PNVisualLimits.MaxSegments + 1];
 
-    public PNVisualAnimator Animator => animator;
+    // Reading the animator evaluates a pose that was only advanced while the actor was out of view, so sockets and bones are never stale.
+    public PNVisualAnimator Animator { get { EnsurePose(); return animator; } }
+    private void EnsurePose() { if (poseDirty && animator != null) { animator.Evaluate(); poseDirty = false; } }
     public PNVisualAppearanceDefinition Appearance => appearance;
     public int QuadCount => drawables == null ? 0 : drawables.Length;
     public Mesh Mesh => mesh;
@@ -95,13 +234,14 @@ public sealed class PNVisualActor : MonoBehaviour
         tintColors = new Color32[6];
         for (int i = 0; i < tintColors.Length; i++) tintColors[i] = new Color32(255, 255, 255, 255);
         foreach (var pair in appearance.Colors) { int t = TintIndex(pair.Key); if (t > 0) tintColors[t] = ToColor32(pair.Value); }
-        BuildMesh(atlas);
+        BuildMesh(atlas); atlasInUse = atlas; BuildCasterPlan(); ApplyShadowMode();
         feetY = feetLocal.y;
         var facingTarget = GetComponent<PNCameraFacingTarget>(); if (facingTarget == null) facingTarget = gameObject.AddComponent<PNCameraFacingTarget>();
         facingTarget.FootOffset = 0f; facingTarget.FootAnchor = feetLocal; facing = facingTarget;
         clock = GetComponentInParent<EveTimeScale>();
         PNVisualSystem.Register(this);
         animator.Evaluate(); WriteMesh();
+        if (casterDrawable != null && casterDrawable.Length > 0) { restVertices = (Vector3[])vertices.Clone(); restUv = (Vector2[])uv0.Clone(); ApplyShadowMode(); }     // the rest pose: the pre-baked shadow is computed from it
     }
 
     private static int TintIndex(string name)
@@ -144,7 +284,7 @@ public sealed class PNVisualActor : MonoBehaviour
     {
         int n = drawables.Length; int vertexCount = n == 0 ? 0 : drawables[n - 1].VertexStart + (drawables[n - 1].Segments == 1 ? 4 : 2 * (drawables[n - 1].Segments + 1));
         mesh = new Mesh { name = "PN Visual Actor", hideFlags = HideFlags.HideAndDontSave }; mesh.MarkDynamic();
-        vertices = new Vector3[vertexCount]; uv0 = new Vector2[vertexCount]; uv1 = new Vector2[vertexCount]; colors = new Color32[vertexCount];
+        vertices = new Vector3[vertexCount]; uv0 = new Vector2[vertexCount]; uv1 = new Vector2[vertexCount]; uvBounds = new Vector4[vertexCount]; colors = new Color32[vertexCount];
         int triangleCount = 0; for (int i = 0; i < n; i++) triangleCount += drawables[i].Segments * 6;
         var tris = new int[triangleCount]; int t = 0;
         for (int i = 0; i < n; i++)
@@ -159,11 +299,12 @@ public sealed class PNVisualActor : MonoBehaviour
                 else { tris[t++] = a1; tris[t++] = b1; tris[t++] = b0; tris[t++] = a1; tris[t++] = b0; tris[t++] = a0; }
             }
         }
+        paperIndices=tris;paperLayer=new Vector2[vertexCount];paperBlock=new MaterialPropertyBlock();
         mesh.vertices = vertices; mesh.triangles = tris; mesh.uv = uv0; mesh.colors32 = colors;
         mesh.bounds = new Bounds(new Vector3(0f, CapsuleHeight * .5f, 0f), new Vector3(CapsuleHeight * 2f, CapsuleHeight * 2.5f, .1f));   // fixed: no per-frame bounds work
         var filter = GetComponent<MeshFilter>(); if (filter == null) filter = gameObject.AddComponent<MeshFilter>(); filter.sharedMesh = mesh;
         meshRenderer = GetComponent<MeshRenderer>(); if (meshRenderer == null) meshRenderer = gameObject.AddComponent<MeshRenderer>();
-        meshRenderer.sharedMaterial = PNVisualRuntime.MaterialFor(atlas);
+        meshRenderer.sharedMaterial = PNVisualRuntime.MaterialFor(atlas, true);
         meshRenderer.shadowCastingMode = ShadowCastingMode.Off; meshRenderer.receiveShadows = false;
         meshRenderer.lightProbeUsage = LightProbeUsage.Off; meshRenderer.reflectionProbeUsage = ReflectionProbeUsage.Off; meshRenderer.motionVectorGenerationMode = MotionVectorGenerationMode.ForceNoMotion;
     }
@@ -183,6 +324,7 @@ public sealed class PNVisualActor : MonoBehaviour
     {
         position = default; if (animator == null) return false;
         int i = rig.SocketIndex(id); if (i < 0) return false;
+        EnsurePose();
         position = new Vector3(animator.SocketPosition[i * 2], animator.SocketPosition[i * 2 + 1], 0f); return true;
     }
     public bool TryGetSocketWorld(string id, out Vector3 position)
@@ -195,8 +337,90 @@ public sealed class PNVisualActor : MonoBehaviour
     public void Tick(float dt, bool writeMesh = true)
     {
         if (animator == null) return;
-        animator.Advance(dt); animator.Evaluate();
-        if (writeMesh) WriteMesh();
+        if (settingsVersion != PNVisualPaperSettings.Version) ApplyShadowMode();
+        animator.Advance(dt);                                  // time and blends always advance, so motions keep their meaning while the actor is out of view
+        if (writeMesh) { animator.Evaluate(); poseDirty = false; WriteMesh(); }
+        else poseDirty = true;                                 // evaluated on demand (EnsurePose) or on re-entry
+    }
+
+    // The overlap-shadow setting applied to this actor: shadow on = the shared material plus a casters block; off = the twin material, no block (batchable).
+    private void ApplyShadowMode()
+    {
+        settingsVersion = PNVisualPaperSettings.Version; var mode = PNVisualPaperSettings.Mode;
+        bool dynamicShadow = PNVisualPaperSettings.Wants(mode, KeyActor) && CasterTriangles > 0;
+        bool bakedWanted = mode == PNPaperShadowMode.Baked && CasterTriangles > 0;
+        if (bakedWanted && shade == null && restVertices != null && atlasInUse != null && atlasInUse.Baked) shade = BuildShade();
+        shadeOn = bakedWanted && shade != null && shade.Tiles > 0; shadowOn = dynamicShadow;
+        if (meshRenderer == null || atlasInUse == null) return;
+        var material = PNVisualRuntime.MaterialFor(atlasInUse, dynamicShadow, shadeOn ? shade.Texture : null);
+        if (!ReferenceEquals(meshRenderer.sharedMaterial, material)) meshRenderer.sharedMaterial = material;
+        if (!dynamicShadow) meshRenderer.SetPropertyBlock(null);
+        else if (casterDrawable != null) WritePaperCasters();       // switched on mid-life: the block was cleared, so write it now instead of waiting for the next mesh write
+        dirty = true;
+        if (writtenOnce) { EnsurePose(); WriteMesh(); }               // the pre-baked tiles change the uv of the receiving parts
+    }
+    private bool writtenOnce => vertices != null && restVertices != null;
+
+    // Once per appearance + build (cached): the overlap shadow of the rest pose, computed on the GPU into copies of the receiving parts.
+    private PNVisualShadeSet BuildShade()
+    {
+        string key = appearance.Id + "|" + build.Id;
+        if (PNVisualRuntime.TryGetShade(key, out var cached)) return cached;
+        PNVisualShade.Affine AffineOf(int di)
+        {
+            var d = drawables[di]; int v = d.VertexStart; int ia = v, ib = v + 1, ic = d.Segments == 1 ? v + 3 : v + 2 * d.Segments;
+            return PNVisualShade.Affine.From(restUv[ia], restUv[ib], restUv[ic], restVertices[ia], restVertices[ib], restVertices[ic]);
+        }
+        void Extent(int di, out Rect uvRect, out Vector2 lo, out Vector2 hi)
+        {
+            var d = drawables[di]; int count = d.Segments == 1 ? 4 : 2 * (d.Segments + 1); lo = new Vector2(float.MaxValue, float.MaxValue); hi = new Vector2(float.MinValue, float.MinValue);
+            Vector2 uvLo = lo, uvHi = hi;
+            for (int k = 0; k < count; k++)
+            {
+                var p = restVertices[d.VertexStart + k]; var u = restUv[d.VertexStart + k];
+                lo = Vector2.Min(lo, p); hi = Vector2.Max(hi, p); uvLo = Vector2.Min(uvLo, u); uvHi = Vector2.Max(uvHi, u);
+            }
+            uvRect = Rect.MinMaxRect(uvLo.x, uvLo.y, uvHi.x, uvHi.y);
+        }
+        var casters = new List<(int index, PNVisualShade.Caster caster, Vector2 lo, Vector2 hi)>();
+        foreach (var ci in casterDrawable)
+        {
+            Extent(ci, out var rect, out var lo, out var hi); var affine = AffineOf(ci); if (!affine.Valid) continue;
+            casters.Add((ci, new PNVisualShade.Caster { UvToLocal = affine, Bounds = rect }, lo, hi));
+        }
+        var receivers = new List<PNVisualShade.Receiver>();
+        for (int i = 0; i < drawables.Length; i++)
+        {
+            Extent(i, out var outer, out var lo, out var hi); var affine = AffineOf(i); if (!affine.Valid) continue;
+            var receiver = new PNVisualShade.Receiver { Drawable = i, Outer = outer, UvToLocal = affine };
+            foreach (var c in casters)
+                if (c.index != i && drawables[c.index].Layer > drawables[i].Layer && c.lo.x < hi.x && c.hi.x > lo.x && c.lo.y < hi.y && c.hi.y > lo.y) receiver.Casters.Add(c.caster);
+            if (receiver.Casters.Count > 0) receivers.Add(receiver);
+        }
+        var shared = PNVisualRuntime.MaterialFor(atlasInUse, true);
+        var offset = shared.GetVector("_OverlapOffset");
+        var set = PNVisualShade.Bake(atlasInUse.Texture, drawables.Length, receivers, shared.GetFloat("_OverlapShadow"), new Vector2(offset.x, offset.y), shared.GetFloat("_OverlapSoftness"));
+        PNVisualRuntime.StoreShade(key, set); return set;
+    }
+
+    // Loading-cover preload: compute this appearance + build's pre-baked shade tiles now (cached), if it has casters and the atlas is baked.
+    public void PreloadShade() { if (shade == null && restVertices != null && atlasInUse != null && atlasInUse.Baked && CasterTriangles > 0) shade = BuildShade(); }
+    // Call after changing KeyActor (the setting may now include or exclude this actor).
+    public void RefreshShadowMode() => ApplyShadowMode();
+
+    // World bounds of the puppet: what the view test uses (not only the pivot).
+    public bool TryGetWorldBounds(out Bounds bounds)
+    {
+        bounds = default; if (meshRenderer == null) return false;
+        bounds = meshRenderer.bounds;
+        return true;
+    }
+    // Hysteresis view test against a precomputed view-projection matrix; the actor turns on inside the margin and off only ExitExtra further out.
+    public bool UpdateInView(in Matrix4x4 viewProjection)
+    {
+        if (!TryGetWorldBounds(out var b)) return inView = true;
+        inView = PNVisualSystem.Overlaps(viewProjection, b, PNVisualPaperSettings.ViewMargin + (inView ? PNVisualPaperSettings.ExitExtra : 0f));
+        return inView;
     }
     public float ClockDelta() => clock != null ? clock.DeltaTime : Time.deltaTime;
 
@@ -218,9 +442,21 @@ public sealed class PNVisualActor : MonoBehaviour
                 float ax = d.AtX * sx, ay = d.AtY * sy;
                 ta = ba * sx; tb = bb * sx; tc = bc * sy; td = bd * sy; ttx = ba * ax + bc * ay + btx; tty = bb * ax + bd * ay + bty;
             }
-            Rect uv = d.Uv; Vector2Int size = d.Size;
-            if (d.Slot >= 0 && d.Variants != null) { var name = a.SlotVariant[d.Slot]; if (name.Length > 0 && d.Variants.TryGetValue(name, out var variant)) { uv = variant.Key; size = variant.Value; } }
-            float x0 = -d.Part.PivotX, y0 = -d.Part.PivotY, x1 = size.x - d.Part.PivotX, y1 = size.y - d.Part.PivotY;
+            Rect uv = d.Uv; Vector2Int size = d.Size; bool variantUsed = false;
+            if (d.Slot >= 0 && d.Variants != null) { var name = a.SlotVariant[d.Slot]; if (name.Length > 0 && d.Variants.TryGetValue(name, out var variant)) { uv = variant.Key; size = variant.Value; variantUsed = true; } }
+            bool shaded = shadeOn && !variantUsed && shade.Uv[i].width > 0f;       // this part is drawn from its pre-baked shaded copy
+            Rect sourceUv;
+            if (shaded)
+            {
+                uv = shade.Uv[i]; float kx = size.x / (size.x + 2f * PaperPadding), ky = size.y / (size.y + 2f * PaperPadding);
+                sourceUv = new Rect(uv.x + uv.width * (1f - kx) * .5f, uv.y + uv.height * (1f - ky) * .5f, uv.width * kx, uv.height * ky);
+            }
+            else
+            {
+                sourceUv = uv; float padU = uv.width * PaperPadding / size.x, padV = uv.height * PaperPadding / size.y;
+                uv = Rect.MinMaxRect(uv.xMin - padU, uv.yMin - padV, uv.xMax + padU, uv.yMax + padV);
+            }
+            float x0 = -d.Part.PivotX - PaperPadding, y0 = -d.Part.PivotY - PaperPadding, x1 = size.x - d.Part.PivotX + PaperPadding, y1 = size.y - d.Part.PivotY + PaperPadding;
             int v = d.VertexStart, count;
             if (d.Segments == 1)
             {
@@ -239,21 +475,97 @@ public sealed class PNVisualActor : MonoBehaviour
                 PNVisualBend.Rows(d.Segments, length, pivotAlong, d.AxisX, bend, sway, rowX, rowY, rowNx, rowNy);
                 for (int k = 0; k <= d.Segments; k++)
                 {
-                    float t = (float)k / d.Segments, lx = rowX[k] + rowNx[k] * lowAcross, ly = rowY[k] + rowNy[k] * lowAcross, hx = rowX[k] + rowNx[k] * highAcross, hy = rowY[k] + rowNy[k] * highAcross;
+                    float endPad = k == 0 ? -PaperPadding : k == d.Segments ? PaperPadding : 0f;
+                    float cx = rowX[k] + (d.AxisX ? rowNy[k] : -rowNy[k]) * endPad;
+                    float cy = rowY[k] + (d.AxisX ? -rowNx[k] : rowNx[k]) * endPad;
+                    float t = (float)k / d.Segments, lx = cx + rowNx[k] * lowAcross, ly = cy + rowNy[k] * lowAcross, hx = cx + rowNx[k] * highAcross, hy = cy + rowNy[k] * highAcross;
                     int row = v + 2 * k;
                     vertices[row] = new Vector3(ta * lx + tc * ly + ttx, tb * lx + td * ly + tty, 0f);
                     vertices[row + 1] = new Vector3(ta * hx + tc * hy + ttx, tb * hx + td * hy + tty, 0f);
-                    if (d.AxisX) { float u = uv.x + t * uv.width; uv0[row] = new Vector2(u, uv.yMax); uv0[row + 1] = new Vector2(u, uv.y); }
-                    else { float w = uv.yMax - t * uv.height; uv0[row] = new Vector2(uv.x, w); uv0[row + 1] = new Vector2(uv.xMax, w); }
+                    if (d.AxisX) { float u = sourceUv.x + t * sourceUv.width + endPad * sourceUv.width / size.x; uv0[row] = new Vector2(u, uv.yMax); uv0[row + 1] = new Vector2(u, uv.y); }
+                    else { float w = sourceUv.yMax - t * sourceUv.height - endPad * sourceUv.height / size.y; uv0[row] = new Vector2(uv.x, w); uv0[row + 1] = new Vector2(uv.xMax, w); }
                 }
             }
             var tint = tintColors[(int)d.Tint]; float alpha = d.Slot >= 0 ? a.SlotAlpha[d.Slot] : 1f; if (d.Blush) alpha *= appearance.BlushAlpha;
             var color = new Color32(tint.r, tint.g, tint.b, (byte)Mathf.Clamp(Mathf.RoundToInt(tint.a * alpha), 0, 255));
             var effect = new Vector2(flash, fade);
-            for (int k = 0; k < count; k++) { colors[v + k] = color; uv1[v + k] = effect; }
+            var bounds = atlasInUse != null && atlasInUse.Baked ? new Vector4(uv.xMin, uv.yMin, uv.xMax, uv.yMax) : new Vector4(sourceUv.xMin, sourceUv.yMin, sourceUv.xMax, sourceUv.yMax);   // baked: the border with the baked marks is readable
+            for (int k = 0; k < count; k++) { colors[v + k] = color; uv1[v + k] = effect; uvBounds[v + k] = bounds; paperLayer[v+k]=new Vector2(d.Layer,shaded?1f:0f); }
         }
-        mesh.SetVertices(vertices); mesh.SetUVs(0, uv0); mesh.SetUVs(1, uv1); mesh.SetColors(colors);
+        mesh.SetVertices(vertices); mesh.SetUVs(0, uv0); mesh.SetUVs(1, uv1); mesh.SetUVs(2, uvBounds); mesh.SetColors(colors);
+        mesh.SetUVs(3,paperLayer); if (shadowOn) WritePaperCasters();
         dirty = false;
+    }
+
+    // Casting parts (the large overlapping ones; names are the Starweaver's slots for now, a data flag later).
+    private bool Casts(int i)
+    {
+        string slot = drawables[i].Slot >= 0 ? rig.Slots[drawables[i].Slot].Id : "";
+        return slot == "hat" || slot == "hatBack" || slot == "mask" || slot == "cloakL" || slot == "cloakR" || slot == "cloakBack" || slot == "collar";
+    }
+    private static int Strips(int segments, int stride) => segments == 1 ? 1 : (segments + stride - 1) / stride;
+
+    // Once per appearance, never per frame. Within MaxPaperCasters triangles every strip casts (exactly the old behaviour). Over it, never an error:
+    // first bent parts cast with coarser strips (stride 2, 4, ... strips per caster quad), then the smallest parts (by art area, then layer, then order) stop casting.
+    private void BuildCasterPlan()
+    {
+        var all = new List<int>(); for (int i = 0; i < drawables.Length; i++) if (Casts(i)) all.Add(i);
+        var segs = new int[all.Count]; var area = new long[all.Count]; var layers = new int[all.Count];
+        for (int k = 0; k < all.Count; k++) { var d = drawables[all[k]]; segs[k] = d.Segments; area[k] = (long)d.Size.x * d.Size.y; layers[k] = d.Layer; }
+        var keep = PlanCasters(segs, area, layers, MaxPaperCasters, out int stride, out int fullTriangles);
+        CasterCoarsened = stride > 1; var kept = new List<int>(); for (int k = 0; k < all.Count; k++) if (keep[k]) kept.Add(all[k]);
+        CastersDropped = all.Count - kept.Count;
+        casterDrawable = kept.ToArray(); casterStride = new int[casterDrawable.Length]; CasterTriangles = 0;
+        for (int k = 0; k < casterDrawable.Length; k++) { casterStride[k] = stride; CasterTriangles += Strips(drawables[casterDrawable[k]].Segments, stride) * 2; }
+        if ((CasterCoarsened || CastersDropped > 0) && casterWarned.Add(appearance.Id.ToString()))
+            Debug.LogWarning("Paper shadow of '" + appearance.Id + "' exceeds " + MaxPaperCasters + " caster triangles (" + fullTriangles + "): " + (CasterCoarsened ? "bent parts use coarser strips (x" + stride + ")" : "") + (CastersDropped > 0 ? ", " + CastersDropped + " smallest part(s) do not cast" : "") + ".");
+    }
+
+    // Pure plan: one entry per casting part (its strip count, art area, layer). Returns which parts keep casting; `stride` = strips of a bent part merged into one caster quad.
+    // Order of reduction: coarsen bent parts (stride 2, 4, ...), then drop the smallest parts (largest area kept; ties: higher layer kept, then earlier order). Deterministic.
+    public static bool[] PlanCasters(int[] segments, long[] area, int[] layer, int cap, out int stride, out int fullTriangles)
+    {
+        int n = segments.Length; var keep = new bool[n]; for (int i = 0; i < n; i++) keep[i] = true;
+        int Total(int s) { int t = 0; for (int i = 0; i < n; i++) if (keep[i]) t += Strips(segments[i], s) * 2; return t; }
+        fullTriangles = Total(1); stride = 1; int maxSeg = 1; for (int i = 0; i < n; i++) maxSeg = Mathf.Max(maxSeg, segments[i]);
+        while (Total(stride) > cap && stride < maxSeg) stride *= 2;
+        if (Total(stride) > cap)
+        {
+            var order = new List<int>(); for (int i = 0; i < n; i++) order.Add(i);
+            order.Sort((x, y) => { int c = area[y].CompareTo(area[x]); if (c != 0) return c; c = layer[y].CompareTo(layer[x]); return c != 0 ? c : x.CompareTo(y); });   // best first
+            for (int k = order.Count - 1; k >= 0 && Total(stride) > cap; k--) keep[order[k]] = false;
+        }
+        return keep;
+    }
+
+    private void AddCaster(ref int count, int a, int b, int c, int layer)
+    {
+        casterA[count]=new Vector4(vertices[a].x,vertices[a].y,uv0[a].x,uv0[a].y);
+        casterB[count]=new Vector4(vertices[b].x,vertices[b].y,uv0[b].x,uv0[b].y);
+        casterC[count]=new Vector4(vertices[c].x,vertices[c].y,uv0[c].x,uv0[c].y);
+        casterBounds[count]=uvBounds[a];casterMeta[count]=new Vector4(layer,colors[a].a/255f,0,0);count++;
+    }
+
+    private void WritePaperCasters()
+    {
+        int count=0;
+        for(int k=0;k<casterDrawable.Length;k++)
+        {
+            ref var d=ref drawables[casterDrawable[k]]; int v=d.VertexStart;
+            if(d.Segments==1){AddCaster(ref count,v,v+1,v+2,d.Layer);AddCaster(ref count,v,v+2,v+3,d.Layer);continue;}
+            int stride=casterStride[k];
+            for(int r0=0;r0<d.Segments;r0+=stride)
+            {
+                int r1=Mathf.Min(d.Segments,r0+stride),a0=v+2*r0,b0=a0+1,a1=v+2*r1,b1=a1+1;
+                if(d.AxisX){AddCaster(ref count,b0,b1,a1,d.Layer);AddCaster(ref count,b0,a1,a0,d.Layer);}
+                else{AddCaster(ref count,a1,b1,b0,d.Layer);AddCaster(ref count,a1,b0,a0,d.Layer);}
+            }
+        }
+        meshRenderer.GetPropertyBlock(paperBlock);
+        paperBlock.SetFloat("_PaperCasterCount",count);
+        paperBlock.SetVectorArray("_PaperCasterA",casterA);paperBlock.SetVectorArray("_PaperCasterB",casterB);paperBlock.SetVectorArray("_PaperCasterC",casterC);
+        paperBlock.SetVectorArray("_PaperCasterBounds",casterBounds);paperBlock.SetVectorArray("_PaperCasterMeta",casterMeta);
+        meshRenderer.SetPropertyBlock(paperBlock);
     }
 
     private void OnDestroy()
@@ -286,13 +598,32 @@ public static class PNVisualSystem
     public static int Prune() { int before = actors.Count; actors.RemoveAll(x => x == null); return before - actors.Count; }
     public static void Tick()
     {
+        // One view-projection per frame; each actor tests its own bounds (puppet + strings) against the view plus a margin, with hysteresis.
+        // No camera (nothing to test against): fall back to the renderer's own visibility flag.
+        var camera = PNCameraFacing.ResolveCamera(null, Application.isPlaying); bool haveView = camera != null;
+        Matrix4x4 viewProjection = haveView ? camera.projectionMatrix * camera.worldToCameraMatrix : default;
         for (int i = actors.Count - 1; i >= 0; i--)
         {
             if (i >= actors.Count) continue; var actor = actors[i];
             if (actor == null) { actors.RemoveAt(i); continue; }
-            try { actor.Tick(actor.ClockDelta(), actor.Visible); }
+            try { actor.Tick(actor.ClockDelta(), haveView ? actor.UpdateInView(viewProjection) : actor.Visible); }
             catch (Exception error) { Debug.LogException(error); }
         }
+    }
+    // True when the box intersects the view enlarged by `margin` (a fraction of the view on each side). Clip-space outcode test: false only when all 8 corners are outside one plane.
+    public static bool Overlaps(in Matrix4x4 vp, in Bounds b, float margin)
+    {
+        float limit = 1f + 2f * margin; var c = b.center; var e = b.extents;
+        int outL = 0, outR = 0, outB = 0, outT = 0, outN = 0, outF = 0;
+        for (int k = 0; k < 8; k++)
+        {
+            float x = c.x + ((k & 1) == 0 ? -e.x : e.x), y = c.y + ((k & 2) == 0 ? -e.y : e.y), z = c.z + ((k & 4) == 0 ? -e.z : e.z);
+            float cx = vp.m00 * x + vp.m01 * y + vp.m02 * z + vp.m03, cy = vp.m10 * x + vp.m11 * y + vp.m12 * z + vp.m13;
+            float cz = vp.m20 * x + vp.m21 * y + vp.m22 * z + vp.m23, cw = vp.m30 * x + vp.m31 * y + vp.m32 * z + vp.m33;
+            if (cx < -limit * cw) outL++; if (cx > limit * cw) outR++; if (cy < -limit * cw) outB++; if (cy > limit * cw) outT++;
+            if (cz < -cw) outN++; if (cz > cw) outF++;
+        }
+        return outL < 8 && outR < 8 && outB < 8 && outT < 8 && outN < 8 && outF < 8;
     }
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)] private static void Reset() { actors.Clear(); runner = null; }
     private sealed class PNVisualRunner : MonoBehaviour { private void Update() => PNVisualSystem.Tick(); }
