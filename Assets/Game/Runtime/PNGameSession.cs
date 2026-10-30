@@ -42,7 +42,8 @@ public sealed class PNGameSession : MonoBehaviour
         if(!PNCameraDirector.LegacyRequested)service.CameraDirector=PNCameraDirector.Attach(runtime.gameObject,session,service.Worlds,service.Local,service.Presentation);
         var physics=runtime.GetComponent<PNWorldPhysicsLoop>()??runtime.gameObject.AddComponent<PNWorldPhysicsLoop>();physics.Bind(session);
         // One delegate: it must release every world-scoped service, so combine them here instead of assigning separately.
-        service.Worlds.BeforeUnload=world=>{runtime.GetComponent<PNAreaManager>()?.ReleaseWorld(world);runtime.GetComponent<PNProjectileManager>()?.ReleaseWorld(world);};
+        var areas=runtime.GetComponent<PNAreaManager>();var projectiles=runtime.GetComponent<PNProjectileManager>();
+        service.Worlds.BeforeUnload=world=>{if(areas!=null)areas.ReleaseWorld(world);if(projectiles!=null)projectiles.ReleaseWorld(world);};
         service.Factory=new PNEntityFactory(session,service.Worlds){Scheduler=service.Scheduler};
         session.RegisterCleanup(service.Factory.Dispose,afterEntities:true);
         PNEntityHosts.Set(session,new PNLocalEntityHost(session,service.Factory,service.Scheduler));session.RegisterCleanup(()=>{PNEntityHosts.Remove(session);PNSummons.Reset();});

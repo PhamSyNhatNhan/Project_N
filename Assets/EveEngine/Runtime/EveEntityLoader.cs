@@ -58,7 +58,14 @@ namespace EveEngine
         protected virtual void OnDestroy()
         {
             OnDisable();
-            try { Unload(); } catch (Exception ex) { Debug.LogException(ex, this); }
+            try
+            {
+                Unload();
+                // Destruction bypasses the factory's normal pool-return identity reset.
+                // Release membership only after successful module cleanup.
+                GetComponent<EveEntityIdentity>()?.ResetIdentity();
+            }
+            catch (Exception ex) { Debug.LogException(ex, this); }
         }
 
         public virtual void Load(EveRegistryHub registry)

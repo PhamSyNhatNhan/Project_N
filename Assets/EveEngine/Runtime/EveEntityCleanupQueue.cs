@@ -53,5 +53,22 @@ namespace EveEngine
         { if (instance != null) return; var root = new GameObject("Eve cleanup pump"); DontDestroyOnLoad(root); instance = root.AddComponent<EveEntityCleanupPump>(); }
         private void Update() => EveRegistrySession.PumpCleanup();
         private void OnDestroy() { if (instance == this) instance = null; }
+#if UNITY_EDITOR
+        [UnityEditor.InitializeOnLoadMethod]
+        private static void RegisterEditorPump()
+        {
+            UnityEditor.EditorApplication.update -= PumpStoppedEditor;
+            UnityEditor.EditorApplication.update += PumpStoppedEditor;
+        }
+        private static void PumpStoppedEditor()
+        {
+            // Play's pump is destroyed on Stop; queued work still owns its resources.
+            // Never automatically retry a failed/quarantined cleanup.
+            if (UnityEditor.EditorApplication.isPlayingOrWillChangePlaymode ||
+                EveRegistrySession.State != EveSessionState.Stopping || EveRegistrySession.LastError != null) return;
+            try { EveRegistrySession.PumpCleanup(); }
+            catch (Exception error) { Debug.LogException(error); }
+        }
+#endif
     }
 }

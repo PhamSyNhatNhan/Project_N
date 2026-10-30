@@ -282,7 +282,9 @@ public static class PNVisualEditorChecks
             Require(actor.QuadCount == 11 + 0 && actor.Mesh.vertexCount == 9 * 4 + 2 * 2 * 15, "the humanoid head and face are hidden: 9 plain quads + 2 bendable cloak strips (" + actor.QuadCount + " quads, " + actor.Mesh.vertexCount + " vertices)"); checks++;
             foreach (var step in new (string name, string state, float time, bool restart)[] { ("rest", "idle", 0f, false), ("hover", "idle", 1.2f, false), ("fly", "walk", 1.0f, false), ("fly_fast", "run", 1.0f, false),
                 ("hurt", "hurt", .15f, true), ("dead_fall", "dead", .3f, true), ("dead_floor", "dead", 2.2f, false), ("stun_hit", "stun", .3f, true), ("stun_fall", "stun", .6f, false), ("stun_daze", "stun", 3f, false),
-                ("recover_0", "recover", .05f, true), ("recover_mid", "recover", .45f, false), ("recover_end", "recover", .9f, false) })
+                ("recover_0", "recover", .05f, true), ("recover_mid", "recover", .45f, false), ("recover_end", "recover", .9f, false),
+                ("sweep_cock", "star_sweep", .38f, true), ("sweep_hit1", "star_sweep", .1f, false), ("sweep_ready", "star_sweep", .2f, false), ("sweep_hit2", "star_sweep", .1f, false), ("sweep_end", "star_sweep", .5f, false),
+                ("point_wind", "star_point", 1.0f, true), ("point_tremble", "star_point", .9f, false), ("point_lunge", "star_point", .3f, false), ("point_end", "star_point", 1.2f, false) })
             {
                 if (step.state == "hurt") { actor.Play("idle", true); actor.Tick(.5f); }
                 actor.Play(step.state, step.restart); float t = 0f; while (t < step.time - 1e-4f) { float dt = Mathf.Min(.02f, step.time - t); actor.Tick(dt); t += dt; }
@@ -303,6 +305,56 @@ public static class PNVisualEditorChecks
         }
         Require(PNVisualSystem.Count == 0, "no puppet left registered"); checks++;
         return "PASS " + checks + " Visual Starkeeper checks (frames in " + outputDirectory + ")";
+    }
+
+    // The Starkeeper's golden spear on the real prefab: idle on both sides, the sweep and point poses, on both renderers, pause, 0 allocation. Frames in outputDirectory.
+    public static string RunStarkeeperWeapon(string outputDirectory = "G:/ProjectN_Camera/StarkeeperWeapon")
+    {
+        if (EditorApplication.isPlaying) throw new InvalidOperationException("Stop Play Mode first.");
+        PNVisualSystem.Prune();
+        int checks = 0; Stage stage = null; GameObject instance = null;
+        string baseDirectory = Path.GetFullPath(Path.Combine(Application.dataPath, "StreamingAssets", "BaseContent"));
+        PNVisualPacks.Clear(); PNVisualPacks.Set("project_n", baseDirectory);
+        var hub = new EveContentBootstrap().Build(new EveIContentModule[] { new PNContentModule(), new PNGameplayContentModule() },
+            new[] { new EveContentDocument("visual", File.ReadAllText(Path.Combine(baseDirectory, "visual", "humanoid.json")), "project_n"), new EveContentDocument("starkeeper", File.ReadAllText(Path.Combine(baseDirectory, "visual", "starkeeper.json")), "project_n"), new EveContentDocument("strings", File.ReadAllText(Path.Combine(baseDirectory, "visual", "strings.json")), "project_n") });
+        try
+        {
+            stage = new Stage(); stage.Camera.orthographicSize = .45f; stage.Camera.transform.position = new Vector3(.05f, .3f, -5f);
+            var prefab = Resources.Load<PNEntityPrefabCatalog>(PNEntityPrefabCatalog.ResourcePath).Find("starkeeper");
+            instance = UnityEngine.Object.Instantiate(prefab); SceneManager.MoveGameObjectToScene(instance, stage.Scene);
+            var body = instance.GetComponent<PNVisualBody>(); var presentation = instance.GetComponent<PNStarkeeperPresentation>();
+            Require(presentation != null && presentation.HasWeapon, "the prefab carries the presentation with its spear"); checks++;
+            var character = new EveCharacterDefinition(EveId.Parse("project_n:starkeeper"), new List<EveInitialStat>(), null, "", Newtonsoft.Json.Linq.JObject.Parse("{'body':{'visual':'project_n:starkeeper','build':'normal'}}"));
+            Require(body.Begin(character, hub), "the Starkeeper puppet begins"); checks++;
+            var facing = body.Actor.GetComponent<PNCameraFacingTarget>(); facing.ViewCamera = stage.Camera; facing.Align();
+            var right = Vector3.right;
+            void Frame(string name, Action prepare)
+            {
+                body.Actor.Tick(.02f); prepare(); stage.Capture(outputDirectory + "/" + name + ".png");
+                Require(stage.Painted() > 9000, name + ": paints a body and a spear (" + stage.Painted() + " px)"); checks++;
+            }
+            for (int i = 0; i < 40; i++) body.Actor.Tick(.05f);
+            Frame("idle_right", () => presentation.TickWeapon(0));
+            Frame("idle_left", () => { body.Actor.SetFacingLeft(true); presentation.TickWeapon(0); });
+            body.Actor.SetFacingLeft(false);
+            presentation.BeginSweep(.4f, .35f, right);
+            foreach (var (name, age) in new[] { ("sweep_cock", .35f), ("sweep_hit1", .46f), ("sweep_between", .62f), ("sweep_hit2", .84f), ("sweep_end", 1.2f) })
+                Frame(name, () => { presentation.SetAge(age); presentation.TickWeapon(0); });
+            presentation.EndPose();
+            presentation.BeginPoint(2f, .25f, right);
+            foreach (var (name, age) in new[] { ("point_wind", 1.2f), ("point_tremble", 1.95f), ("point_lunge", 2.2f) })
+                Frame(name, () => { presentation.SetAge(age); presentation.TickWeapon(0); });
+            presentation.EndPose(); presentation.TickWeapon(0);
+            var held = presentation.TipPosition; presentation.TickWeapon(0); Require((presentation.TipPosition - held).sqrMagnitude < 1e-10f, "a stopped clock holds the spear still"); checks++;
+            var cameraData = stage.Camera.GetComponent<UnityEngine.Rendering.Universal.UniversalAdditionalCameraData>(); if (cameraData == null) cameraData = stage.Camera.gameObject.AddComponent<UnityEngine.Rendering.Universal.UniversalAdditionalCameraData>();
+            cameraData.SetRenderer(1); stage.Capture(outputDirectory + "/renderer3d.png"); Require(stage.Painted() > 9000, "the 3D renderer draws the spear too"); checks++; cameraData.SetRenderer(0);
+            presentation.TickWeapon(.016f); long gc0 = GC.GetAllocatedBytesForCurrentThread(); for (int i = 0; i < 600; i++) presentation.TickWeapon(.016f);
+            Require((GC.GetAllocatedBytesForCurrentThread() - gc0) / 600 <= 0, "ticking the spear allocates nothing"); checks++;
+            body.Clear();
+        }
+        finally { if (instance != null) UnityEngine.Object.DestroyImmediate(instance); stage?.Dispose(); PNVisualRuntime.Release(); PNVisualPacks.Clear(); }
+        Require(PNVisualSystem.Count == 0, "no puppet left registered"); checks++;
+        return "PASS " + checks + " Starkeeper weapon checks (frames in " + outputDirectory + ")";
     }
 
     // Bendable parts: a made-up fox with a body block and a long tapering tail (a PNG written here, a pack folder of its own) is bent by motions; the frames show the tail curling

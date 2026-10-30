@@ -29,6 +29,7 @@ public sealed class PNAgentTrajectorySettings
     public bool CanCrit { get; private set; }
     public PNSkillValues Values { get; private set; }
     private PNAgentTrajectorySettings() { }
+    internal void OverrideDistance(float distance) { if (Kind == PNTrajectoryKind.OrbitSegment || float.IsNaN(distance) || float.IsInfinity(distance) || distance < 0 || distance > 100) throw new ArgumentOutOfRangeException(nameof(distance)); Distance = distance; }
     public static PNAgentTrajectorySettings Parse(JToken data, EveRegistryHub registry, bool contact)
     {
         if (!(data is JObject obj)) throw new FormatException("Trajectory payload required.");
@@ -90,6 +91,10 @@ public class PNAgentTrajectoryAction : PNSkillAction, IPNSkillMotionAction, IPNS
     private RaycastHit[] sweptHits = new RaycastHit[32];
     private static readonly IComparer<RaycastHit> SweepOrder = Comparer<RaycastHit>.Create((x, y) => x.distance.CompareTo(y.distance));
     protected virtual bool Contact => false;
+    // Subclass seams (default: exactly the old behaviour). MotionPayload names the part of the registered Perform payload that holds the trajectory schema;
+    // MotionDistance may shorten the configured distance once the start and the optional position anchor are known (a lunge toward a marked point).
+    protected virtual JToken MotionPayload(PNSkillActionContext value) => value.Data.Action.Perform;
+    protected virtual float MotionDistance(float configured, Vector3 origin, Vector3 anchor) => configured;
     public PNMotionOutcome Outcome { get; private set; }
     public bool CleanupPending => scanning;
     public override bool HasAuxiliaryTimeline => true;
@@ -103,12 +108,13 @@ public class PNAgentTrajectoryAction : PNSkillAction, IPNSkillMotionAction, IPNS
     public override void Start(PNSkillActionContext value)
     {
         if (context != null || disposed || value == null || !value.Direction.HasValue || cancelOwner == null) throw new InvalidOperationException("Invalid trajectory Start or missing motion owner.");
-        settings = PNAgentTrajectorySettings.Parse(value.Data.Action.Perform, value.Registry, Contact);
+        settings = PNAgentTrajectorySettings.Parse(MotionPayload(value), value.Registry, Contact);
         if (!value.Skill.Controls.IsAllowed(settings.Permission)) throw new InvalidOperationException("Motion permission denied.");
         direction = value.Direction.Value; direction.y = 0;
         if (direction.sqrMagnitude < .000001f) throw new ArgumentException("Planar direction required."); direction.Normalize(); side = new Vector3(-direction.z, 0, direction.x);
         var move = value.Skill.GetComponent<PNMove>(); if (move == null) throw new InvalidOperationException("Motion body required.");
         origin = move.Body.position; anchor = value.Position ?? origin;
+        if (settings.Kind != PNTrajectoryKind.OrbitSegment) settings.OverrideDistance(MotionDistance(settings.Distance, origin, anchor));
         if (settings.Kind == PNTrajectoryKind.OrbitSegment && (value.Position == null || Mathf.Abs(PNAgentGeometry.CenterDistance(origin, anchor) - settings.Radius) > .1f)) throw new ArgumentException("Orbit requires a snapshot anchor at the configured radius.");
         context = value; context.BeginAction(); caster = value.Skill.GetComponent<PNStat>();
         movementLock = CreateOperation(context, EveId.Parse("base:lock_movement")); movementLock.Execute(context, null);

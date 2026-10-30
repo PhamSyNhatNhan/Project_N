@@ -315,3 +315,24 @@ register resources with the Ready context or retain a staging owner for partial 
 Do not use a ContentReady listener as a mandatory load gate: listener failures are logged
 and do not prevent other listeners or publication. Do not start unobserved async work
 inside this hook and treat it as completed readiness.
+
+## Editor Stop cleanup (2026-10-31)
+
+Editor Stop destroys Play Mode objects before the budgeted entity queue necessarily
+finishes. `EveEntityCleanupPump` continues pending, nonfailed session cleanup on
+Editor updates after leaving Play. It does not run alongside the Play pump, force
+session state, discard pending ownership, or explicitly retry quarantined/failed
+cleanup. A retained `LastError` still requires repair and explicit retry.
+
+Successful `EveEntityLoader.OnDestroy` unload also resets the identity: destroyed
+entities bypass normal factory return, which normally releases their world membership.
+If unload fails, the identity reset is not performed. World-unload callbacks must not
+query components on a destroyed runtime; Project_N captures its manager references
+when binding the session and checks Unity object validity before calling them.
+
+Native opt-in check: while a disposable Play fixture has loaded actors, call
+`EveEditorStopCleanupChecks.Watch(outputPath)` and then stop Play normally. The check
+only observes Editor updates; it never pumps or retries cleanup. It requires Stopped,
+no error, zero entities/services/residents, and all captured worlds disposed with
+zero leases/resources. Reports are bounded by a 10-second timeout. This is Editor
+Stop evidence, not Player shutdown or domain-reload-disabled acceptance.
