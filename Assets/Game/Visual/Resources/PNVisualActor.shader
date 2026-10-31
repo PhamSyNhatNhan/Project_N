@@ -267,5 +267,20 @@ Shader "PN/VisualActor"
             #pragma multi_compile_local_fragment _ PN_BAKED
             ENDHLSL
         }
+        Pass
+        {
+            Name "LoricaSnapshot"
+            Tags { "LightMode"="PNLoricaSnapshot" }
+            Blend SrcAlpha OneMinusSrcAlpha, One OneMinusSrcAlpha
+            ZWrite Off
+            ZTest Always
+            Cull Off
+            HLSLPROGRAM
+            #pragma vertex vert
+            #pragma fragment frag
+            #pragma target 3.5
+            #pragma multi_compile_local_fragment _ PN_BAKED
+            ENDHLSL
+        }
     }
 }

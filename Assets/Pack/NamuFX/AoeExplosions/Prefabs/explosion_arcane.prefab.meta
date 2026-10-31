@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: 68ab15740c6327b4aad459c4312b4545
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 242246
+  packageName: AOE Explosions Pack 1
+  packageVersion: 1.0.1
+  assetPath: Assets/NamuFX/AoeExplosions/Prefabs/explosion_arcane.prefab
+  uploadId: 584377

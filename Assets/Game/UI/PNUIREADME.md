@@ -1,3 +1,7 @@
+## Current: shared Lorica Mirror presentation (2026-11-01)
+
+World Lorica shatter is owned by `PNLoricaPresentation`, ensured during entity configuration (and for authored rig/legacy world-view paths). HUD `PresentLorica` only updates the overlay; it does not emit shatter, so hiding a bar/menu does not gate the world effect. One positive-to-zero transition emits once; first baseline at zero emits nothing. Mirror is the default. Sprite input retains the old Play wrapper; rig input captures its current appearance into an owned transparent RT. Runner releases it on completion/destroy; world registration handles unload/Stop. Original sprite/actor/atlas assets remain borrowed. Mirror particle UV2 contains pane coordinates packed in TEXCOORD0.zw; do not reconstruct UV from the already transformed particle position. Particle meshes respect Unity's four-mesh renderer limit.
+
 ## Current: PC action HUD (2026-10-26)
 
 Desktop Settings can enable the five display-only action channels (default off),

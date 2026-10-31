@@ -83,8 +83,11 @@ public sealed class PNVisualStringState
     {
         InUse = true; Socket = spec.Socket; to = from = Current = PNVisualStringParams.From(spec); Blend = 1f; blendTime = blendDuration = 0f; Seed = seed; SetPhase(phase, 1f);
     }
-    public void Release() { InUse = false; Phase = PNVisualStringPhase.Hidden; PhaseTime = 0f; }
-    private void SetPhase(PNVisualStringPhase phase, float duration) { Phase = phase; PhaseTime = 0f; PhaseDuration = duration > 0f ? duration : 1e-4f; }
+    private bool drivenLowering;
+    public void SyncLowering(float progress)
+    { if(float.IsNaN(progress)||float.IsInfinity(progress)||progress<0||progress>1)throw new ArgumentOutOfRangeException(nameof(progress));if(!InUse)return;SetPhase(PNVisualStringPhase.Lowering,1f);drivenLowering=true;PhaseTime=progress; }
+    public void Release() { drivenLowering=false;InUse = false; Phase = PNVisualStringPhase.Hidden; PhaseTime = 0f; }
+    private void SetPhase(PNVisualStringPhase phase, float duration) { drivenLowering=false;Phase = phase; PhaseTime = 0f; PhaseDuration = duration > 0f ? duration : 1e-4f; }
     // Retargets towards a new spec; `seconds` 0 jumps. The socket changes at once.
     public void Retarget(PNVisualStringSpec spec, float seconds)
     {
@@ -105,8 +108,8 @@ public sealed class PNVisualStringState
     public void Advance(float dt)
     {
         if (!InUse || dt <= 0f) return;
-        PhaseTime += dt;
-        if (Phase == PNVisualStringPhase.Lowering && PhaseTime >= PhaseDuration) SetPhase(PNVisualStringPhase.Attached, 1f);
+        if(!drivenLowering)PhaseTime += dt;
+        if (!drivenLowering && Phase == PNVisualStringPhase.Lowering && PhaseTime >= PhaseDuration) SetPhase(PNVisualStringPhase.Attached, 1f);
         else if (Phase == PNVisualStringPhase.Cut && PhaseTime >= PhaseDuration) SetPhase(PNVisualStringPhase.Hidden, 1f);
         if (Blend < 1f)
         {

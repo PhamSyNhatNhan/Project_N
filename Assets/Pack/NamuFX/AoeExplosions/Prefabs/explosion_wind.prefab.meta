@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: a8bc258c45b0510429169d22354a0e14
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 242246
+  packageName: AOE Explosions Pack 1
+  packageVersion: 1.0.1
+  assetPath: Assets/NamuFX/AoeExplosions/Prefabs/explosion_wind.prefab
+  uploadId: 584377

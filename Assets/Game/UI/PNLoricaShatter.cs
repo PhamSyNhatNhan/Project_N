@@ -16,13 +16,14 @@ using UnityEngine.SceneManagement;
 // VI: Hiệu ứng khi lorica vỡ: mảnh sinh từ sơ đồ Voronoi của tấm kính tròn (mảnh nhỏ gần tâm, mảnh nêm dài ra rìa), shader kính trong có phản chiếu, bụi kính.
 public static class PNLoricaShatter
 {
-    // Two looks of the same pipeline: Glass (default, the user's final choice 2026-10-21) = clear pane; Mirror = silvered shards that reflect the broken enemy's own sprite, kept selectable.
+    // Two looks of one pipeline: Mirror is the user's default (2026-11-01); Glass is retained as a compatible fallback.
     public enum LookKind { Glass, Mirror }
-    public static LookKind Look = LookKind.Glass;
+    public static LookKind Look = LookKind.Mirror;
     public static int MaxActive = 8;            // simultaneous breaks drawn; a further break is skipped (presentation only)
     private static int active;
+    public static int ActiveCount=>active;
     private static Material shardMaterial, mirrorMaterial, dustMaterial, glintMaterial; private static Mesh[][] groups; private static Texture2D environment; private static MaterialPropertyBlock block;
-    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)] private static void ResetStatics() { shardMaterial = mirrorMaterial = dustMaterial = glintMaterial = null; groups = null; environment = null; block = null; active = 0; Look = LookKind.Glass; MaxActive = 8; }
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)] private static void ResetStatics() { shardMaterial = mirrorMaterial = dustMaterial = glintMaterial = null; groups = null; environment = null; block = null; active = 0; Look = LookKind.Mirror; MaxActive = 8; }
     private static Material Make(string shaderName, string name)
     {
         var shader = Shader.Find(shaderName); if (shader == null) throw new System.InvalidOperationException("Missing shader " + shaderName);
@@ -109,7 +110,7 @@ public static class PNLoricaShatter
             for (int k = 0; k < polygon.Count; k++) { var a = polygon[k]; var b = polygon[(k + 1) % polygon.Count]; area += (a.x * b.y - b.x * a.y) * .5f; centroid += polygon[k]; }
             if (area < .0006f) continue; centroid /= polygon.Count;
             var vertices = new Vector3[polygon.Count + 1]; var uvs = new Vector2[polygon.Count + 1]; var normals = new Vector3[polygon.Count + 1]; var triangles = new int[polygon.Count * 3]; var centres = new Vector2[polygon.Count + 1];
-            for (int k = 0; k < centres.Length; k++) centres[k] = centroid;      // the shard's place in the pane, so the mirror look can show the sprite part it covered
+            for (int k = 0; k < centres.Length; k++) centres[k] = centroid + new Vector2(vertices[k].x,vertices[k].y);      // original pane coordinates travel with the shard through the particle UV2 stream
             vertices[0] = Vector3.zero; uvs[0] = new Vector2(1, 0); normals[0] = Vector3.forward;
             for (int k = 0; k < polygon.Count; k++)
             {
@@ -132,33 +133,71 @@ public static class PNLoricaShatter
 
     // `center` and `size` describe the enemy's body in world space; `clock` (optional) is its time scale. `sortingLayerId`/`sortingOrder` put the effect in front
     // of the enemy's sprite and `toward` moves it a little toward the camera.
+    public static void PlayInWorld(EveWorldContext world,Scene scene,Vector3 center,Vector3 size,EveTimeScale clock,int layer,int order,Vector3 toward,Sprite sprite,bool flipX)
+    {
+        Rect rect=sprite!=null?sprite.textureRect:default;
+        if(sprite!=null)rect=new Rect(rect.x/sprite.texture.width,rect.y/sprite.texture.height,rect.width/sprite.texture.width,rect.height/sprite.texture.height);
+        PlayCore(scene,center,size,clock,layer,order,toward,sprite!=null?sprite.texture:null,rect,flipX,null,Quaternion.identity,world);
+    }
     public static void Play(Scene scene, Vector3 center, Vector3 size, EveTimeScale clock, int sortingLayerId, int sortingOrder, Vector3 toward, Sprite sprite = null, bool flipX = false)
     {
-        if (active >= MaxActive) return;
-        Prepare(); active++;
-        var root = new GameObject("Lorica shatter"); if (scene.IsValid() && scene.isLoaded) SceneManager.MoveGameObjectToScene(root, scene);
-        root.transform.position = center + toward;
-        float body = Mathf.Clamp(Mathf.Max(size.x, size.y) * .5f, .15f, .8f);       // radius of the pane the shards come from
-        bool mirror = Look == LookKind.Mirror;
-        var systems = new List<ParticleSystem>
+        Rect rect=sprite!=null?sprite.textureRect:default;
+        if(sprite!=null)rect=new Rect(rect.x/sprite.texture.width,rect.y/sprite.texture.height,rect.width/sprite.texture.width,rect.height/sprite.texture.height);
+        PlayCore(scene,center,size,clock,sortingLayerId,sortingOrder,toward,sprite!=null?sprite.texture:null,rect,flipX,null,Quaternion.identity);
+    }
+    public static void PlayRig(Scene scene,PNVisualActor actor,EveTimeScale clock,Camera camera)
+    {
+        if(active>=MaxActive || actor==null || camera==null)return;
+        PNVisualReflectionCapture snapshot=null;
+        try
         {
-            Shards(root.transform, mirror, "Small shards", groups[0], 22, 0f, body, 1.5f, 1.9f, 2.6f, 5.2f, .6f, 1.05f, sortingLayerId, sortingOrder),
-            Shards(root.transform, mirror, "Medium shards", groups[1], 12, .025f, body, 1.4f, 1.8f, 1.7f, 3.5f, .85f, 1.3f, sortingLayerId, sortingOrder),
-            Shards(root.transform, mirror, "Large shards", groups[2], 6, .05f, body, 1.3f, 1.7f, .9f, 2.1f, 1.05f, 1.55f, sortingLayerId, sortingOrder),
-            Dust(root.transform, body, sortingLayerId, sortingOrder),
-            Glints(root.transform, body, sortingLayerId, sortingOrder)
-        };
-        if (mirror && sprite != null && sprite.texture != null)
-        {
-            // Pane radius 1 = `body` world units; the sprite is `size` wide, so pane units map to sprite uv by body/size (x negative = mirrored image).
-            var texture = sprite.texture; var rect = sprite.textureRect; if (block == null) block = new MaterialPropertyBlock();
-            block.Clear(); block.SetTexture("_SpriteTex", texture);
-            block.SetVector("_Rect", new Vector4(rect.x / texture.width, rect.y / texture.height, rect.width / texture.width, rect.height / texture.height));
-            block.SetVector("_Map", new Vector4(body / Mathf.Max(.01f, size.x) * (flipX ? 1f : -1f), body / Mathf.Max(.01f, size.y), 0f, 0f));
-            for (int i = 0; i < 3; i++) systems[i].GetComponent<ParticleSystemRenderer>().SetPropertyBlock(block);
+            snapshot=PNVisualReflectionCapture.Capture(actor,camera);
+            if(snapshot==null)return;
+            PlayCore(scene,snapshot.Center,snapshot.Size,clock,actor.Renderer.sortingLayerID,actor.Renderer.sortingOrder+5,-camera.transform.forward*.03f,
+                snapshot.Texture,new Rect(0,0,1,1),false,snapshot,camera.transform.rotation,actor.GetComponentInParent<EveEntityIdentity>()?.World);
+            snapshot=null; // ownership transferred, including a cap rejection
         }
-        root.AddComponent<Runner>().Begin(systems.ToArray(), clock);
-        foreach (var system in systems) system.Play(true);
+        catch(System.Exception error)
+        {
+            Debug.LogWarning("Lorica rig reflection failed, using glass: "+error.Message,actor);
+            snapshot?.Dispose();snapshot=null;
+            PlayCore(scene,actor.transform.position+Vector3.up*actor.CapsuleHeight*.5f,new Vector3(actor.CapsuleHeight,actor.CapsuleHeight,0),clock,0,5,-camera.transform.forward*.03f,null,default,false,null,camera.transform.rotation);
+        }
+        finally{snapshot?.Dispose();}
+    }
+    private static void PlayCore(Scene scene,Vector3 center,Vector3 size,EveTimeScale clock,int sortingLayerId,int sortingOrder,Vector3 toward,
+        Texture texture,Rect rect,bool flipX,PNVisualReflectionCapture snapshot,Quaternion rotation,EveWorldContext world=null)
+    {
+        if(active>=MaxActive){snapshot?.Dispose();return;}
+        GameObject root=null;
+        try
+        {
+            Prepare();root=new GameObject("Lorica shatter");if(scene.IsValid()&&scene.isLoaded)SceneManager.MoveGameObjectToScene(root,scene);
+            root.transform.SetPositionAndRotation(center+toward,rotation);PNWorldPresentationRegistration.Register(world,root);
+            float body=Mathf.Clamp(Mathf.Max(size.x,size.y)*.5f,.15f,.8f);bool mirror=Look==LookKind.Mirror && texture!=null;
+            var systems=new List<ParticleSystem>
+            {
+                Shards(root.transform,mirror,"Small shards",groups[0],22,0f,body,1.5f,1.9f,2.6f,5.2f,.6f,1.05f,sortingLayerId,sortingOrder),
+                Shards(root.transform,mirror,"Medium shards",groups[1],12,.025f,body,1.4f,1.8f,1.7f,3.5f,.85f,1.3f,sortingLayerId,sortingOrder),
+                Shards(root.transform,mirror,"Large shards",groups[2],6,.05f,body,1.3f,1.7f,.9f,2.1f,1.05f,1.55f,sortingLayerId,sortingOrder),
+                Dust(root.transform,body,sortingLayerId,sortingOrder),Glints(root.transform,body,sortingLayerId,sortingOrder)
+            };
+            if(mirror && texture!=null)
+            {
+                if(block==null)block=new MaterialPropertyBlock();block.Clear();block.SetTexture("_SpriteTex",texture);
+                block.SetVector("_Rect",new Vector4(rect.x,rect.y,rect.width,rect.height));
+                block.SetFloat("_ReflectionPremultiplied",snapshot!=null?1:0);
+                block.SetVector("_Map",new Vector4(body/Mathf.Max(.01f,size.x)*(flipX?1f:-1f),body/Mathf.Max(.01f,size.y),0,0));
+                for(int i=0;i<3;i++)systems[i].GetComponent<ParticleSystemRenderer>().SetPropertyBlock(block);
+            }
+            root.AddComponent<Runner>().Begin(systems.ToArray(),clock,snapshot);active++;
+            foreach(var system in systems)system.Play(true);
+        }
+        catch
+        {
+            if(root!=null){if(Application.isPlaying)UnityEngine.Object.Destroy(root);else UnityEngine.Object.DestroyImmediate(root);}
+            snapshot?.Dispose();throw;
+        }
     }
     private static ParticleSystem Shards(Transform parent, bool mirror, string name, Mesh[] meshes, int count, float delay, float body, float minScale, float maxScale, float minSpeed, float maxSpeed, float minLife, float maxLife, int layer, int order)
     {
@@ -179,7 +218,8 @@ public static class PNLoricaShatter
         gradient.SetKeys(new[] { new GradientColorKey(Color.white, 0), new GradientColorKey(Color.white, 1) }, new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(1f, .65f), new GradientAlphaKey(0f, 1f) });
         color.color = gradient;
         var shrink = system.sizeOverLifetime; shrink.enabled = true; shrink.size = new ParticleSystem.MinMaxCurve(1f, new AnimationCurve(new Keyframe(0, 1), new Keyframe(.7f, 1), new Keyframe(1f, .5f)));
-        var renderer = system.GetComponent<ParticleSystemRenderer>(); renderer.renderMode = ParticleSystemRenderMode.Mesh; renderer.SetMeshes(meshes); renderer.sharedMaterial = mirror ? mirrorMaterial : shardMaterial;
+        var renderer = system.GetComponent<ParticleSystemRenderer>(); renderer.renderMode = ParticleSystemRenderMode.Mesh;
+        var variants=new Mesh[Mathf.Min(4,meshes.Length)];for(int i=0;i<variants.Length;i++)variants[i]=meshes[i*(meshes.Length-1)/Mathf.Max(1,variants.Length-1)];renderer.SetMeshes(variants); renderer.sharedMaterial = mirror ? mirrorMaterial : shardMaterial;
         // The mirror look needs the shard's pane position (mesh uv2): a particle renderer passes it only as a custom vertex stream.
         var streams = new List<ParticleSystemVertexStream>(); renderer.GetActiveVertexStreams(streams);
         if (!streams.Contains(ParticleSystemVertexStream.UV2)) { streams.Add(ParticleSystemVertexStream.UV2); renderer.SetActiveVertexStreams(streams); }
@@ -223,13 +263,16 @@ public static class PNLoricaShatter
         system.Simulate(0, true, true, false);
         return system;
     }
+    [ExecuteAlways]
     private sealed class Runner : MonoBehaviour
     {
         private ParticleSystem[] systems; private EveTimeScale clock; private float age, effectAge;
-        private void OnDestroy() { if (active > 0) active--; }
-        public void Begin(ParticleSystem[] value, EveTimeScale scale) { systems = value; clock = scale; }
+        private PNVisualReflectionCapture snapshot;private bool counted;
+        private void OnDestroy() { snapshot?.Dispose();snapshot=null;if(counted && active>0)active--;counted=false; }
+        public void Begin(ParticleSystem[] value, EveTimeScale scale,PNVisualReflectionCapture image) { systems = value; clock = scale;snapshot=image;counted=true; }
         private void Update()
         {
+            if(!Application.isPlaying)return;
             age += Time.unscaledDeltaTime; float scale = clock != null ? Mathf.Max(0f, clock.Scale) : 1f; effectAge += Time.unscaledDeltaTime * scale;
             bool alive = false;
             foreach (var system in systems) { if (system == null) continue; var main = system.main; main.simulationSpeed = scale; if (system.IsAlive(true)) alive = true; }

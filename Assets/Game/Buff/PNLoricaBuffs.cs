@@ -18,7 +18,7 @@ public static class PNLoricaBuffContent
         var registry = hub.Buffs();
         var neutral = new[] { EveId.Parse("project_n:neutral") };
         registry.Register(new PNBuffDefinition(PNContentIds.LoricaBreak, PNContentIds.LoricaBreak, data => new PNLoricaBreakBehavior(data),
-            JObject.Parse("{'duration':7,'clock':'Entity','permissionIds':['base:move','base:jump','base:skill_all','base:motion_voluntary'],'interrupt':true}"),
+            JObject.Parse("{'duration':7,'clock':'Entity','permissionIds':['base:move','base:jump','base:skill_all','base:motion_voluntary','project_n:face_control','project_n:face_skill'],'interrupt':true}"),
             neutral, canDispel: false, iconPath: "PNBuffIcons/PNLoricaBreak", glow: BreakGlow,
             validate: (data, content) => PNBuffBuiltinSettings.Validate("buff_control_template", data, content), validateInput: ValidateInput,
             validateReferences: (data, context) => PNBuffPayloadReferences.Template("buff_control_template", data, context)).WithCountdown(PNBuffCountdown.BottomRight));

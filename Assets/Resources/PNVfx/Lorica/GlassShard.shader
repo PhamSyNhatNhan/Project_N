@@ -13,6 +13,7 @@ Shader "Project_N/VFX/GlassShard"
     Properties
     {
         _EnvTex ("Environment (equirectangular)", 2D) = "gray" {}
+        _ReflectionPremultiplied ("Reflection premultiplied", Float) = 0
         _Mirror ("Mirror amount", Range(0, 1)) = 0
         _SpriteTex ("Reflected sprite", 2D) = "black" {}
         _Rect ("Sprite uv rect (x, y, w, h)", Vector) = (0, 0, 1, 1)
@@ -32,15 +33,15 @@ Shader "Project_N/VFX/GlassShard"
             #pragma vertex vert
             #pragma fragment frag
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
-            struct Attributes { float4 positionOS:POSITION; float3 normalOS:NORMAL; float2 uv:TEXCOORD0; float2 centre:TEXCOORD1; float4 color:COLOR; };
+            struct Attributes { float4 positionOS:POSITION; float3 normalOS:NORMAL; float4 uv:TEXCOORD0; float4 color:COLOR; };
             struct Varyings { float4 positionCS:SV_POSITION; float2 uv:TEXCOORD0; float4 color:COLOR; float3 normalWS:TEXCOORD1; float3 positionWS:TEXCOORD2; float2 pane:TEXCOORD3; };
             TEXTURE2D(_EnvTex); SAMPLER(sampler_EnvTex);
             TEXTURE2D(_SpriteTex); SAMPLER(sampler_SpriteTex);
-            float _Mirror; float4 _Rect; float4 _Map;
+            float _Mirror; float _ReflectionPremultiplied; float4 _Rect; float4 _Map;
             Varyings vert(Attributes v)
             {
                 Varyings o; o.positionWS = TransformObjectToWorld(v.positionOS.xyz); o.positionCS = TransformWorldToHClip(o.positionWS);
-                o.normalWS = TransformObjectToWorldNormal(v.normalOS); o.uv = v.uv; o.color = v.color; o.pane = v.centre + v.positionOS.xy; return o;
+                o.normalWS = TransformObjectToWorldNormal(v.normalOS); o.uv = v.uv.xy; o.color = v.color; o.pane = v.uv.zw; return o;
             }
             half3 Env(float3 refl, float seed)
             {
@@ -67,6 +68,7 @@ Shader "Project_N/VFX/GlassShard"
                 float2 s = float2(0.5, 0.5) + i.pane * _Map.xy;
                 float inside = step(0.0, s.x) * step(s.x, 1.0) * step(0.0, s.y) * step(s.y, 1.0);
                 half4 sprite = SAMPLE_TEXTURE2D_LOD(_SpriteTex, sampler_SpriteTex, _Rect.xy + saturate(s) * _Rect.zw, 0);
+                if(_ReflectionPremultiplied>.5)sprite.rgb=sprite.a>.001?sprite.rgb/sprite.a:half3(0,0,0);
                 float cover = saturate(sprite.a * inside * _Mirror);
                 half3 mirrored = lerp(mirrorEnv, sprite.rgb * lerp(0.7, 1.25, facet) + env * 0.12, cover * 0.92);
                 half3 reflected = lerp(env, mirrored, _Mirror);

@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: 605e6e0bf210f704e9a187b54444fcbb
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 242246
+  packageName: AOE Explosions Pack 1
+  packageVersion: 1.0.1
+  assetPath: Assets/NamuFX/AoeExplosions/Prefabs/explosion_prism.prefab
+  uploadId: 584377

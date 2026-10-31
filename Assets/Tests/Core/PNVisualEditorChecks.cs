@@ -578,8 +578,8 @@ public static class PNVisualEditorChecks
             Run(.8f); Require(set.State(0).Phase == PNVisualStringPhase.Hidden && set.State(1).Phase == PNVisualStringPhase.Hidden, "both strings end cut and hidden"); checks++;
             instance.transform.position += new Vector3(.5f, 0f, 0f); Run(.2f); Require(actor.Animator.BaseState == "stun", "a broken puppet does not walk"); checks++;
             broken = false; Run(.2f);
-            Require(!body.LoricaBroken && body.PullingUp && set.State(0).Phase == PNVisualStringPhase.Lowering, "when the break ends the strings are lowered again"); checks++;
-            Run(1.2f); Require(!body.PullingUp && set.State(0).Phase == PNVisualStringPhase.Attached && actor.Animator.BaseState == "recover", "and they pull the puppet up with the recover motion (state " + actor.Animator.BaseState + ")"); checks++;
+            Require(!body.LoricaBroken && !body.PullingUp && set.State(0).Phase == PNVisualStringPhase.Attached, "when the break ends the strings are attached immediately"); checks++;
+            Run(.2f); Require(!body.PullingUp && set.State(0).Phase == PNVisualStringPhase.Attached && actor.Animator.BaseState == "recover", "recover starts without a post-break lowering delay (state " + actor.Animator.BaseState + ")"); checks++;
             Run(1.0f); Require(actor.Animator.BaseState == "idle", "then the idle"); checks++;
             // an action (a cast) holds the locomotion states until it ends or the Lorica breaks
             Require(body.PlayAction("cast_weave", .95f) && actor.Animator.BaseState == "cast_weave" && body.Holding, "a cast plays its motion"); checks++;

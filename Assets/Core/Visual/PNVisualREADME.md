@@ -1,3 +1,11 @@
+## Current: Lorica deadline and mirror snapshots (2026-11-01)
+
+`PNVisualBody` now reads fractional Buff timing each Feed. Strings lower during the final .8 Buff-clock seconds, attach when the Buff actually ends and recover immediately; no extra .8s after break. Short breaks shorten lowering; reapply can retract it, early removal attaches immediately, time stop holds progress. `PNVisualStringState.SyncLowering(progress)` / Set.SyncLowering use external absolute [0,1] progress, refuse invalid values and avoid automatic double Advance. Cut/entrance/ordinary Lower remain automatic. Hurt does not override an ongoing break stun; body hold timers follow actor clock. Facing uses only the Buff permissions, with no actor/recover lock per user decision.
+
+`PNVisualReflectionCapture.Capture(actor,camera)` draws the current pose mesh/material/property block into an owned transparent GPU RT through the capture-only `LoricaSnapshot` pass (same baked/raw ink/shadow fragment). It computes body art bounds from current visible vertices, not culling bounds with StringReach. Strings, ground shadow, weapons outside the rig and VFX are absent. The snapshot is frozen and owns its RT; borrowed actor mesh/material/atlas are not destroyed. The two normal renderer passes are unchanged. Shared `PNLoricaPresentation` triggers Mirror VFX on real positive-to-zero Lorica transitions independently of HUD visibility; initial zero baseline does not replay a historical break.
+
+Native checks: `PNLoricaRigPresentationChecks.Run(output)`, `RunIntegration(output)`; report/evidence: Docs/LoricaRigImplementationReport.md. Native Editor evidence does not establish Player/AI/LAN/mobile or performance.
+
 # Visual (rig puppet), RulesVersion 106
 
 EN: Players and humanoid enemies are drawn as a **rig puppet**: a skeleton of parts (head, chest, hips, thighs, shins, face) driven by data. Everything is JSON + PNG interpreted by code at run time: no Animator, no AnimationClip, no bone GameObjects, no atlas baked in the Editor, so a mod ships only JSON and PNG. Design record and decisions: `Docs/VisualPlan.md`. Authoring tools: `ArtSource/VisualDemo` (the humanoid demo and the PNG/SVG pipeline) and `ArtSource/RigTool` (general editor, exports the JSON below).

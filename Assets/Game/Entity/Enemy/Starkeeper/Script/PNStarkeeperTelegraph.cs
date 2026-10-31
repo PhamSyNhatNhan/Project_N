@@ -4,10 +4,9 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-// Cast-owned floor markers of the Starkeeper: a sector for the sweep, a star with a line to it for the star point. Every value is driven by the phase the Action passes in
-// (no clock of its own); the meshes, materials and the root are created per cast and destroyed by Dispose. Uses the already warmed PN/StarweaverEffects shader (mode 0:
-// vertex colour x tint x opacity, alpha blended), so no new shader or variant.
-public sealed class PNStarkeeperTelegraph : IDisposable
+// Cast-owned floor markers: constellation boundary for sweep one only; star/line for Star Point.
+// Phase and position come from the Action. Both use the already warmed project shader.
+public sealed class PNStarkeeperTelegraph : IDisposable, IPNCameraFacing
 {
     private readonly GameObject root;
     private readonly List<Mesh> meshes = new List<Mesh>();
@@ -15,6 +14,7 @@ public sealed class PNStarkeeperTelegraph : IDisposable
     private readonly Material fill, rim;
     private readonly bool star;
     private float shown = 1f;
+    private Camera preview; private Mesh nodeMesh; private Vector3[] nodeCenters, nodeVertices; private float[] nodeSizes;
     private static readonly Color Gold = new Color(1f, .78f, .25f, 1f);
 
     private PNStarkeeperTelegraph(string name, Vector3 position, Quaternion rotation, Scene scene, bool star)
@@ -46,17 +46,51 @@ public sealed class PNStarkeeperTelegraph : IDisposable
     }
 
     // A sector of `angle` degrees and `radius` metres in front of `origin`, centred on `direction`.
-    public static PNStarkeeperTelegraph Sector(Vector3 origin, Vector3 direction, float radius, float angle, Scene scene)
+    public static PNStarkeeperTelegraph Sector(Vector3 origin, Vector3 direction, float radius, float angle, Scene scene, Camera preview = null)
     {
         direction.y = 0; if (direction.sqrMagnitude < 1e-6f) direction = Vector3.forward;
         var t = new PNStarkeeperTelegraph("Starkeeper sweep", origin, Quaternion.LookRotation(direction.normalized, Vector3.up), scene, false);
         try
         {
-            const int n = 28; var v = new List<Vector3> { Vector3.zero }; var tri = new List<int>(); var rimV = new List<Vector3>(); var rimT = new List<int>();
-            for (int i = 0; i <= n; i++) { float a = (-angle * .5f + angle * i / n) * Mathf.Deg2Rad; var p = new Vector3(Mathf.Sin(a) * radius, 0, Mathf.Cos(a) * radius); v.Add(p); if (i > 0) { tri.Add(0); tri.Add(i); tri.Add(i + 1); } }
-            for (int i = 0; i <= n; i++) { float a = (-angle * .5f + angle * i / n) * Mathf.Deg2Rad; var d = new Vector3(Mathf.Sin(a), 0, Mathf.Cos(a)); rimV.Add(d * radius); rimV.Add(d * (radius - .06f)); if (i > 0) { int k = i * 2; rimT.AddRange(new[] { k - 2, k, k + 1, k - 2, k + 1, k - 1 }); } }
-            t.Draw("Sector fill", Build("Sector fill", v, tri), t.fill); t.Draw("Sector rim", Build("Sector rim", rimV, rimT), t.rim);
-            t.Apply(0f);
+            t.preview = preview;
+            // Compact luminous round nodes at the slash height; no floor-star stamps.
+            t.fill.SetColor("_Tint", new Color(1f,.70f,.22f,1)); t.fill.SetFloat("_Mode",15); t.fill.SetFloat("_DstBlend",1);
+            t.rim.SetColor("_Tint",new Color(.86f,.53f,.16f,1)); t.rim.SetFloat("_Mode",16); t.rim.SetFloat("_DstBlend",1);
+            var nodes = new List<Vector3>();
+            var angles = new[] { -.42f,-.24f,-.05f,.23f,.42f };
+            var distances = new[] { .95f,.91f,.97f,.9f,.95f };
+            var sizes = new[] { .15f,.104f,.164f,.092f,.132f };
+            for(int i=0;i<angles.Length;i++)
+            {
+                float a=angle*angles[i]*Mathf.Deg2Rad;
+                nodes.Add(new Vector3(Mathf.Sin(a),0,Mathf.Cos(a))*radius*distances[i] + Vector3.up*.275f);
+            }
+            var starV = new List<Vector3>(); var starT = new List<int>(); var uv = new List<Vector2>();
+            for(int nodeIndex=0;nodeIndex<nodes.Count;nodeIndex++)
+            {
+                var node=nodes[nodeIndex]; int k = starV.Count; float size = sizes[nodeIndex];
+                starV.Add(node + new Vector3(-size,0,-size)); starV.Add(node + new Vector3(size,0,-size));
+                starV.Add(node + new Vector3(size,0,size)); starV.Add(node + new Vector3(-size,0,size));
+                uv.AddRange(new[] { Vector2.zero, Vector2.right, Vector2.one, Vector2.up });
+                starT.AddRange(new[] { k,k+1,k+2,k,k+2,k+3 });
+            }
+            var stars = Build("Constellation stars", starV, starT); stars.SetUVs(0,uv);
+            t.nodeMesh=stars; t.nodeCenters=nodes.ToArray(); t.nodeSizes=sizes; t.nodeVertices=new Vector3[starV.Count];
+            t.Draw("Constellation stars", stars, t.fill);
+            var lineV = new List<Vector3>(); var lineT = new List<int>();
+            void Link(Vector3 from, Vector3 to)
+            {
+                var side = Vector3.Cross(Vector3.up, (to-from).normalized) * .012f; int k = lineV.Count;
+                lineV.Add(from-side); lineV.Add(from+side); lineV.Add(to+side); lineV.Add(to-side);
+                lineT.AddRange(new[] { k,k+1,k+2,k,k+2,k+3 });
+            }
+            for(int i=0;i<nodes.Count-1;i++) Link(nodes[i],nodes[i+1]);
+            var links=Build("Constellation boundary",lineV,lineT);
+            var linkUv=new List<Vector2>();
+            for(int i=0;i<nodes.Count-1;i++) linkUv.AddRange(new[]{Vector2.zero,Vector2.up,Vector2.one,Vector2.right});
+            links.SetUVs(0,linkUv); t.Draw("Constellation boundary",links,t.rim);
+            t.Apply(0f); t.Align();
+            if(Application.isPlaying) PNCameraFacingSystem.Register(t);
         }
         catch { t.Dispose(); throw; }
         return t;
@@ -85,22 +119,32 @@ public sealed class PNStarkeeperTelegraph : IDisposable
     // phase 0..1 over the windup: fades in, then blinks faster toward the end (the star point's warning of the lunge).
     public void SetPhase(float phase)
     {
-        phase = Mathf.Clamp01(phase); Apply(phase);
+        phase = Mathf.Clamp01(phase); Apply(phase); if(!star) Align();
     }
     private void Apply(float phase)
     {
+        if(!star) { fill.SetFloat("_Reveal",phase); rim.SetFloat("_Reveal",phase); }
         float baseAlpha = .16f + .26f * phase, blink = star ? Mathf.Max(0f, Mathf.Sin(phase * phase * 70f)) * .45f * phase : 0f;
-        fill.SetFloat("_Opacity", (baseAlpha + blink) * shown); rim.SetFloat("_Opacity", Mathf.Clamp01(.5f + .5f * phase + blink) * shown);
+        fill.SetFloat("_Opacity", (star ? baseAlpha + blink : .6f + .4f * phase) * shown); rim.SetFloat("_Opacity", Mathf.Clamp01(.5f + .5f * phase + blink) * shown);
+    }
+    public void SetOrigin(Vector3 origin) { if (root != null) root.transform.position = origin + Vector3.up * .025f; }
+    public bool Align()
+    {
+        if(root==null || nodeMesh==null) return false;
+        var camera=PNCameraFacing.ResolveCamera(preview,Application.isPlaying); if(camera==null)return false;
+        var right=root.transform.InverseTransformVector(camera.transform.right);
+        var up=root.transform.InverseTransformVector(camera.transform.up);
+        for(int i=0;i<nodeCenters.Length;i++) for(int j=0;j<4;j++)
+        {
+            float x=j==0||j==3?-1:1,y=j<2?-1:1;
+            nodeVertices[i*4+j]=nodeCenters[i]+(right*x+up*y)*nodeSizes[i];
+        }
+        nodeMesh.vertices=nodeVertices;nodeMesh.RecalculateBounds();return true;
     }
     public void Hide() { shown = 0f; Apply(0f); }
-    // The sweep's second sector: re-aimed, shown only for the short moment before the second sweep.
-    public void Show(Vector3 direction)
-    {
-        direction.y = 0; if (direction.sqrMagnitude > 1e-6f && root != null) root.transform.rotation = Quaternion.LookRotation(direction.normalized, Vector3.up);
-        shown = 1f; Apply(.8f);
-    }
     public void Dispose()
     {
+        PNCameraFacingSystem.Unregister(this);
         if (root != null) { root.SetActive(false); Destroy(root); }
         foreach (var m in meshes) Destroy(m); foreach (var m in materials) Destroy(m); meshes.Clear(); materials.Clear();
     }

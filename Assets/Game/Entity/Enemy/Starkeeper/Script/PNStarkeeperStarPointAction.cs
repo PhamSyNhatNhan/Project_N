@@ -4,13 +4,13 @@ using EveEngine;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
 
-// Diem sao: a star is marked on the floor at the target's place and stays there; the Starkeeper stands still while it blinks (windup), then lunges along the line to the star
+// Diem sao: a thrown gold spear marks the clamped destination; the Starkeeper stands still while it blinks (windup), then lunges along the line to the star
 // (the shared contact-motion trajectory: stops at a wall, one hit per target along the swept path), then stands for the recovery. The lunge schema is the "motion" part of the
 // registered payload; the distance is clamped to the marked point by MotionDistance. Nothing here keeps a number of its own.
 public sealed class PNStarkeeperStarPointAction : PNAgentContactMotionAction
 {
-    private float age, windup, recovery, recoverAge, lunge; private bool lunging, motionDone, finished, disposed;
-    private PNStarkeeperTelegraph telegraph; private PNStarkeeperPresentation presentation; private PNVisualBody body;
+    private float age, windup, recovery, recoverAge, lunge; private bool lunging, motionDone, disposed;
+    private PNStarkeeperPointVisual visual; private PNStarkeeperPresentation presentation; private PNVisualBody body;
     protected override JToken MotionPayload(PNSkillActionContext value) => value.Data.Action.Perform["motion"];
     protected override float MotionDistance(float configured, Vector3 origin, Vector3 anchor) { var d = anchor - origin; d.y = 0; return Mathf.Min(configured, d.magnitude); }
     public override void Start(PNSkillActionContext c)
@@ -26,7 +26,9 @@ public sealed class PNStarkeeperStarPointAction : PNAgentContactMotionAction
             body = c.Skill.GetComponent<PNVisualBody>(); body?.PlayAction("star_point", windup + lunge + recovery);
             var origin = c.Skill.transform.position; var direction = c.Position.Value - origin; direction.y = 0;
             presentation = c.Skill.GetComponent<PNStarkeeperPresentation>(); presentation?.BeginPoint(windup, lunge, direction.sqrMagnitude > 1e-6f ? direction.normalized : c.Direction.Value);
-            telegraph = PNStarkeeperTelegraph.Point(origin, c.Position.Value, p["markRadius"].Value<float>(), c.Skill.gameObject.scene);
+            float distance=Mathf.Min(p["motion"]["distance"].Value<float>(),direction.magnitude);
+            var anchor=origin+(direction.sqrMagnitude>1e-6f?direction.normalized*distance:Vector3.zero);
+            visual=PNStarkeeperPointVisual.Create(c.Skill.transform,presentation,anchor,p["markRadius"].Value<float>(),windup);
         }
         catch { Dispose(); throw; }
     }
@@ -35,15 +37,22 @@ public sealed class PNStarkeeperStarPointAction : PNAgentContactMotionAction
         if (disposed) return true;
         if (Outcome != PNMotionOutcome.Running && !lunging) return true;          // the floor check failed at Start: no lunge, end the cast
         age += dt; presentation?.SetAge(age);
-        if (age < windup) { telegraph?.SetPhase(age / windup); return false; }
-        if (!lunging) { lunging = true; telegraph?.Hide(); }
-        if (!motionDone) { motionDone = base.AdvanceAuxiliary(dt); return false; }
+        if (age < windup) { visual?.SetTime(age,false); return false; }
+        if (!lunging) lunging = true;
+        if (!motionDone)
+        {
+            motionDone=base.AdvanceAuxiliary(dt);
+            visual?.SetTime(age,!motionDone);
+            if(motionDone) visual?.Finish(Outcome==PNMotionOutcome.Completed);
+            return false;
+        }
+        visual?.SetTime(age,false);
         recoverAge += dt;
         return recoverAge >= recovery;
     }
     public override void Dispose()
     {
-        if (!disposed) { disposed = true; telegraph?.Dispose(); telegraph = null; presentation?.EndPose(); presentation = null; body?.EndAction(); body = null; }
+        if (!disposed) { disposed = true; if(Outcome==PNMotionOutcome.Cancelled) visual?.CancelFade(); else visual?.Dispose(); visual = null; presentation?.EndPose(); presentation = null; body?.EndAction(); body = null; }
         base.Dispose();
     }
 }

@@ -52,14 +52,18 @@ public static class PNLoricaEditorChecks
             }
             checks++;
             Check(!controls.IsAllowed(PNControlIds.Move) && !controls.IsAllowed(PNControlIds.Jump) && !controls.IsAllowed(PNControlIds.VoluntaryMotion) && !controls.IsAllowed(PNControlIds.SkillAll), "the break denies moving, jumping, voluntary motion and every skill (skill_all) on the real Control state");
+            Check(!controls.IsAllowed(PNControlIds.FaceControl) && !controls.IsAllowed(PNControlIds.FaceSkill), "break locks both face permissions");
+            Check(manager.TryReadPresentationTiming(PNContentIds.LoricaBreak,out var timing) && timing.Present && Math.Abs(timing.Remaining.Value-7)<.001,"exact break timing on local replica");
             Check(skill.Interrupts == 1, "the break interrupts the running cast exactly once");
 
             // The break lasts 7 entity seconds: at half speed it needs 14 game seconds.
             clock.AddTimedModifier(EveId.Parse("test:slow"), EveTimeModifierKind.Scale, -.5f, 600f);
             Check(Math.Abs(clock.Scale - .5f) < 1e-4f, "the enemy clock runs at half speed");
-            manager.Advance(7.1); Check(buffs.Snapshot().Any(x => x.Id == PNContentIds.LoricaBreak) && stat.LoricaCurrent == 0, "a slowed enemy stays broken beyond 7 game seconds (entity clock)");
+            manager.Advance(.2);
+            Check(manager.TryReadPresentationTiming(PNContentIds.LoricaBreak,out timing) && Math.Abs(timing.Remaining.Value-6.9)<.001,"fractional Buff-clock timing at half speed");
+            manager.Advance(6.9); Check(buffs.Snapshot().Any(x => x.Id == PNContentIds.LoricaBreak) && stat.LoricaCurrent == 0, "a slowed enemy stays broken beyond 7 game seconds (entity clock)");
             manager.Advance(7.0);
-            Check(!buffs.Snapshot().Any(x => x.Id == PNContentIds.LoricaBreak) && stat.LoricaCurrent == 100 && controls.IsAllowed(PNControlIds.Move) && controls.IsAllowed(PNControlIds.SkillAll), "after 14 game seconds the break ends: lorica refilled, movement and skills allowed again");
+            Check(!buffs.Snapshot().Any(x => x.Id == PNContentIds.LoricaBreak) && controls.IsAllowed(PNControlIds.FaceControl) && controls.IsAllowed(PNControlIds.FaceSkill) && stat.LoricaCurrent == 100 && controls.IsAllowed(PNControlIds.Move) && controls.IsAllowed(PNControlIds.SkillAll), "after 14 game seconds the break ends: lorica refilled, movement and skills allowed again");
             Check(buffs.Snapshot().Any(x => x.Id == PNContentIds.LoricaRecovery) && stat.IsLoricaLocked, "the recovery lock starts");
             var held = Hit(100); Check(held.LoricaBroke == false && stat.LoricaCurrent == 100 && Math.Abs(held.AppliedDamage - 40) < 1e-6, "during recovery a hit shares but lorica holds");
             manager.Advance(9.9); Check(stat.IsLoricaLocked, "the recovery also follows the entity clock (5 entity seconds at half speed)");

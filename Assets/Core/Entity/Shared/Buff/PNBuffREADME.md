@@ -1,3 +1,7 @@
+## Current: fractional presentation timing (RulesVersion108, 2026-11-01)
+
+`PNBuffManager.TryReadPresentationTiming(EveId, out PNBuffTimingView)` is a read-only, nonallocating lookup over the existing local replica state on both authority and clients. A false return means the source is not ready; a ready view with `Present=false` means no matching Buff. The view carries `InstanceId`, nullable `Remaining`, `Suspended`, `Rate`, `Clock`. Remaining is projected from Expiration/VisualTime at the manager presentation timestamp, not rounded UI Numbers. Presence stays true until actual removal, even at projected zero. For multiple matching instances the longest/unknown remaining wins; unknown expiry remains null. `TryReadTiming` validates its evaluated timestamp. No new wire fields or countdown slot semantics. This API does not advance/end/reapply Buffs or capture replication state.
+
 ## World execution and owned cleanup (Rules79 / Mod API6)
 
 World pause and actor holds stop authoritative Buff advance without disabling the

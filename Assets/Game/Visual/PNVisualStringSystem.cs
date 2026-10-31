@@ -87,6 +87,7 @@ public sealed class PNVisualStringSet
     }
     public void SetAllColors(EveId color, float blendSeconds = 0f) { for (int i = 0; i < Max; i++) if (states[i].InUse) SetColor(i, color, blendSeconds); }
     public void CutAll() { for (int i = 0; i < Max; i++){if(states[i].InUse&&states[i].Phase!=PNVisualStringPhase.Cut&&states[i].Phase!=PNVisualStringPhase.Hidden)effects[i].Burst(3);states[i].Cut();} }
+    public void SyncLowering(float progress) { for(int i=0;i<Max;i++)states[i].SyncLowering(progress); }
     public void LowerAll(float seconds) { for (int i = 0; i < Max; i++){effects[i].Reset();states[i].Lower(seconds);} }
     public void ShowAll() { for (int i = 0; i < Max; i++){effects[i].Reset();states[i].Show();} }
     public void HideAll() { for (int i = 0; i < Max; i++){states[i].Hide();effects[i].Reset();} }

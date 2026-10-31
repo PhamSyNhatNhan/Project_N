@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 24e97c6aa1ebd3e4dab81e8a55576dcc
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 2100000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 242246
+  packageName: AOE Explosions Pack 1
+  packageVersion: 1.0.1
+  assetPath: Assets/NamuFX/_CommonAssets/Materials/Flare/Flare.mat
+  uploadId: 584377

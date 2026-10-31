@@ -25,6 +25,10 @@ public sealed partial class PNBuffManager : MonoBehaviour, EveIEntityLoadStep, E
     public PNBuffPublisher Publisher { get; private set; }
     public PNIBuffPresentationSource Presentation => IsReady ? StablePresentation() : null;
     public PNBuffReplica Replica => replica;
+    public bool TryReadPresentationTiming(EveId id,out PNBuffTimingView view)
+    {
+        view=default;return IsReady && replica!=null && replica.TryReadTiming(id,AuthoritativePresentationTime?.Invoke() ?? presentationTime,out view);
+    }
     public Func<double> AuthoritativePresentationTime { get; set; }
     public bool RenderPresentation { get; set; } = true;
     public PNBuffCollection Buffs => IsReady ? collection : throw new InvalidOperationException("Buff manager is not loaded.");

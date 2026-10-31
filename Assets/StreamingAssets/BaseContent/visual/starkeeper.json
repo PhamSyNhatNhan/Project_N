@@ -58,7 +58,7 @@
        "layer": 32
       }
      ],
-     "sockets": []
+     "sockets": [{"id": "head_back", "bone": "hood", "at": [-200, -250]}]
     }
    ],
    "visualParts": [
@@ -16989,6 +16989,10 @@
       {
        "style": "project_n:puppet_main",
        "socket": "head_top"
+      },
+      {
+        "style": "project_n:puppet_drape",
+        "socket": "head_back"
       }
      ]
     }

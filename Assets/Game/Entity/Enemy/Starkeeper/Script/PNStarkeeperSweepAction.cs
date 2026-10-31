@@ -19,6 +19,7 @@ public sealed class PNStarkeeperSweepAction : PNSkillAction, IPNSkillMotionActio
     private PNStat caster; private PNCombatSourceSnapshot source; private bool canCrit, reaimed, ended; private readonly bool[] swept = new bool[2];
     private Vector3 first, second; private PNStarkeeperPresentation presentation; private PNVisualBody body; private PNStarkeeperTelegraph telegraph;
     private readonly List<PNStat> hits = new List<PNStat>();
+    private PNStarkeeperSweepVisual visual;
     public override bool HasAuxiliaryTimeline => true;
     public override void Start(PNSkillActionContext c)
     {
@@ -43,6 +44,7 @@ public sealed class PNStarkeeperSweepAction : PNSkillAction, IPNSkillMotionActio
             body = c.Skill.GetComponent<PNVisualBody>(); body?.PlayAction("star_sweep", windup + gap + recovery);
             presentation = c.Skill.GetComponent<PNStarkeeperPresentation>(); presentation?.BeginSweep(windup, gap, first);
             telegraph = PNStarkeeperTelegraph.Sector(c.Skill.transform.position, first, radius, angle, c.Skill.gameObject.scene);
+            visual = PNStarkeeperSweepVisual.Create(c.Skill.transform, presentation, windup, gap, radius, angle, first);
         }
         catch { Dispose(); throw; }
     }
@@ -51,6 +53,7 @@ public sealed class PNStarkeeperSweepAction : PNSkillAction, IPNSkillMotionActio
     private void Sweep(int index, Vector3 direction)
     {
         swept[index] = true;
+        visual?.Emit(index, context.Skill.transform.position, direction);
         if (!EveRegistrySession.Context.HasAuthority) return;
         var tags = context.Data.Action.PerformTags.ToArray();
         var pose = EveHitboxPose.Planar(context.Skill.transform.position + Vector3.up * .3f, direction);
@@ -58,7 +61,9 @@ public sealed class PNStarkeeperSweepAction : PNSkillAction, IPNSkillMotionActio
         foreach (var target in hits.ToArray())
         {
             if (ended) break;
-            context.ReceiveHit(target, target.transform.position, caster.CreateDamage(raw[index], canCrit, iframe[index], tags), raw[index], source, index);
+            var hitPosition = target.transform.position;
+            context.ReceiveHit(target, hitPosition, caster.CreateDamage(raw[index], canCrit, iframe[index], tags), raw[index], source, index);
+            if (!ended) visual?.Hit(hitPosition);
             if (!ended && target.IsReady) casts[index].CommitHit(target, age);
         }
     }
@@ -105,12 +110,13 @@ public sealed class PNStarkeeperSweepAction : PNSkillAction, IPNSkillMotionActio
     {
         if (ended) return true;
         age += dt;
+        visual?.SetTime(age);
         telegraph?.SetPhase(Mathf.Clamp01(age / windup)); presentation?.SetAge(age);
-        if (!swept[0]) Step(0, windup);
+        if (!swept[0]) { Step(0, windup); telegraph?.SetOrigin(context.Skill.transform.position); }
         if (!swept[0] && age >= windup) { Sweep(0, first); telegraph?.Hide(); }
         if (!reaimed && age >= windup + reaimAt)
         {
-            reaimed = true; second = Reaim(); presentation?.SetAim(second); telegraph?.Show(second);
+            reaimed = true; second = Reaim(); presentation?.SetAim(second);
             var actor = body != null ? body.Actor : null; var camera = PNViewCamera.Current;
             if (actor != null) actor.SetFacingLeft(Vector3.Dot(second, camera != null ? camera.transform.right : Vector3.right) < 0);
         }
@@ -125,6 +131,7 @@ public sealed class PNStarkeeperSweepAction : PNSkillAction, IPNSkillMotionActio
         if (ended) return; ended = true;
         foreach (var cast in casts) cast?.Dispose();
         motor?.Dispose(); motor = null;
+        visual?.Dispose(); visual = null;
         telegraph?.Dispose(); telegraph = null; presentation?.EndPose(); presentation = null; body?.EndAction(); body = null; context = null;
     }
 }

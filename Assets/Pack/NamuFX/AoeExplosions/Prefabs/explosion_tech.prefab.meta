@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: adbd8c256c2022843b90b64265fc5c63
+PrefabImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 242246
+  packageName: AOE Explosions Pack 1
+  packageVersion: 1.0.1
+  assetPath: Assets/NamuFX/AoeExplosions/Prefabs/explosion_tech.prefab
+  uploadId: 584377

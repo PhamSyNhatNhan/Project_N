@@ -11,6 +11,14 @@ public interface PNIBuffPresentationSource
     IReadOnlyList<PNBuffPresentationSnapshot> PresentationSnapshot();
 }
 
+// Read-only presentation timing; Presence is independent of projected remaining reaching zero.
+public readonly struct PNBuffTimingView
+{
+    public readonly bool Present, Suspended; public readonly long InstanceId; public readonly double? Remaining; public readonly double Rate; public readonly PNBuffClock Clock;
+    public PNBuffTimingView(bool present,long instance,double? remaining,bool suspended,double rate,PNBuffClock clock)
+    {Present=present;InstanceId=instance;Remaining=remaining;Suspended=suspended;Rate=rate;Clock=clock;}
+}
+
 public enum PNBuffWireKind { Added, Updated, Removed, Snapshot, Opened, Closed }
 [Flags] internal enum PNBuffDiagnosticReason { Stacks = 1, Numbers = 2, Rate = 4, Clock = 8, Expiration = 16, VisualTime = 32, DynamicData = 64, PayloadVersion = 128, Profile = 256, Suspended = 512, GuaranteedCue = 1024 }
 public enum PNBuffReplicaStatus { AwaitingSnapshot, Live, Resyncing, Failed, Closed }
@@ -230,6 +238,20 @@ public sealed partial class PNBuffReplica : PNIBuffPresentationSource, IDisposab
     public event Action<PNBuffCue> CuePresented {add{observers.Cue+=value;}remove{observers.Cue-=value;}}
     public int PresenterCount => presenters.Count(x => x.Value.Value != null);
     public void RejectSession(PNBuffReplicationError code, string reason) => Dispatch(() => Fail(code, reason));
+    // No array snapshots, allocation, mutation or UI-second rounding on the render path.
+    public bool TryReadTiming(EveId id,double evaluatedNow,out PNBuffTimingView view)
+    {
+        PNBuffCollection.Seconds(evaluatedNow,true);view=default;if(Status!=PNBuffReplicaStatus.Live && Status!=PNBuffReplicaStatus.Resyncing)return false;
+        PNBuffWireState selected=null;double? remaining=0;
+        foreach(var state in states.Values)
+        {
+            if(state.BuffId!=id)continue;
+            double? next=state.Expiration.HasValue?Math.Max(0,state.Expiration.Value-state.VisualTime(evaluatedNow)):(double?)null;
+            if(selected==null || remaining.HasValue && (!next.HasValue || next.Value>remaining.Value)) {selected=state;remaining=next;}
+        }
+        if(selected!=null)view=new PNBuffTimingView(true,selected.InstanceId,remaining,selected.Suspended,selected.Rate,selected.Clock);
+        return true;
+    }
     public IReadOnlyList<PNBuffWireState> Snapshot() => Array.AsReadOnly(states.Values.OrderBy(x => x.InstanceId).ToArray());
     private sealed class PresenterSlot
     {

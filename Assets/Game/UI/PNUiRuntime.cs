@@ -394,7 +394,6 @@ public sealed class PNUiRuntime : MonoBehaviour
         // Enemies draw their Buff row in a second document above the health ring, so a Buff appearing or disappearing never changes the document that holds the bar.
         private readonly GameObject buffObj; private readonly UIDocument buffDocument; private readonly VisualElement buffRoot;
         private readonly PNLoricaOverlay lorica;
-        private float previousLorica=-1f;
         private readonly Dictionary<EveId,AbilityCard> cards=new Dictionary<EveId,AbilityCard>();
         private bool initialSnapshot=true;
         public WorldView(PNUiRuntime owner, PNStat stat)
@@ -409,6 +408,7 @@ public sealed class PNUiRuntime : MonoBehaviour
             // UIDocument creates an interaction collider; combat labels never participate in physics/input.
             var collider=obj.GetComponent<BoxCollider>(); if(collider!=null) { collider.isTrigger=true; collider.enabled=false; }
             characterSprite=stat.GetComponentInChildren<SpriteRenderer>();
+            if(stat is PNEnemyStat && stat.GetComponent<PNLoricaPresentation>()==null)PNLoricaPresentation.Ensure(stat.gameObject);
             if(PNEntityRoles.IsPlayer(stat))
             {
                 root.Q("world-root").AddToClassList("player-world");
@@ -442,14 +442,11 @@ public sealed class PNUiRuntime : MonoBehaviour
                 root.Q("world-root").style.paddingBottom=RingGlowMargin; root.Q("enemy-hp-ring").Insert(0,new PNHudGlow(false,new Color(1f,.84f,.84f)));
             }
         }
-        // Lorica overlay on the health bar and the glass-shatter effect on the frame lorica goes from above 0 to 0 (the break).
+        // Lorica overlay only; the world effect is owned by PNLoricaPresentation, independent of HUD visibility.
         private void PresentLorica(PNEnemyStat enemy,Camera camera)
         {
             bool has=PNLoricaView.TryRead(enemy,out var ratio,out var recovery);
             lorica.Present(has,ratio,recovery,Time.unscaledTime);
-            if(has && previousLorica>0f && ratio<=0f && characterSprite!=null && characterSprite.enabled)
-            { var bounds=characterSprite.bounds; PNLoricaShatter.Play(stat.gameObject.scene,bounds.center,bounds.size,stat.GetComponent<EveTimeScale>(),characterSprite.sortingLayerID,characterSprite.sortingOrder+5,camera!=null?-camera.transform.forward*.3f:Vector3.zero,characterSprite.sprite,characterSprite.flipX); }
-            previousLorica=has?ratio:-1f;
         }
         public void Refresh(Camera camera)
         {
