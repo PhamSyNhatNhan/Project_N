@@ -13,6 +13,8 @@ public sealed class PNVisualAnimator
     {
         public PNVisualMotionDefinition Motion; public int[] TrackBone, TrackKind; public PNVisualCurve[] TrackCurve; public bool[] InMask;
         public int[] SlotIndex; public PNVisualSlotTrack[] SlotTracks;
+        public int[] DeformSlot, DeformPoint, DeformAxis; public PNVisualCurve[] DeformCurve;        // lattice deformation tracks: slot, control point (row * 6 + column), 0 = x / 1 = y, curve
+        public int[] IkIndex; public PNVisualCurve[] IkCurve;        // the motion's own mix curves: which constraint of the rig, and the 0..1 curve
     }
 
     private readonly PNVisualResolvedRig rig;
@@ -27,6 +29,8 @@ public sealed class PNVisualAnimator
     private readonly float[] groupX, groupY;                 // build group scale of every bone
     private readonly float[] world;                          // per bone px affine, y down: A B C D TX TY
     private readonly int blinkSlots;
+    private readonly PNVisualIkConstraint[] ikCons; private readonly int[] ikFirst, ikSecond, ikTarget;                            // IK constraints (R2): bone indices, -1 = no second bone
+    private readonly PNVisualDynamicsEntry[] dynEntries; private readonly int[] dynOfBone; private readonly PNVisualSpring[] springs;     // spring chains (R1): one state per entry, the entry of each bone or -1
 
     // ---- outputs (read after Evaluate) ----
     public int SlotCount => slots;
@@ -38,6 +42,10 @@ public sealed class PNVisualAnimator
     public float[] SlotAlpha { get; }
     public string[] SlotVariant { get; }      // "" = the part's default image
     public float[] SocketPosition { get; }    // 2 floats per socket: metres (y up), mirrored when facing left
+    // R3: the lattice offsets of every slot, DeformStride floats per slot (6 x 6 control points, x then y, art px of the picture); null when no motion of the motion set deforms anything.
+    public const int DeformStride = PNVisualLimits.MaxLattice * PNVisualLimits.MaxLattice * 2;
+    public float[] SlotDeform { get; }
+    private readonly float[] defTarget, defFrom, defShown;
 
     // ---- inputs ----
     public bool FacingLeft { get; set; }
@@ -66,6 +74,14 @@ public sealed class PNVisualAnimator
         for (int i = 0; i < bones; i++) build.Scale(rig.Bones[i].ScaleGroup, out groupX[i], out groupY[i]);
         BoneAffine = new float[bones * 6]; BoneScale = new float[bones * 2]; BoneBend = new float[bones * 2]; SlotAffine = new float[slots * 6]; SlotAlpha = new float[slots]; SlotVariant = new string[slots]; SocketPosition = new float[sockets * 2];
         for (int i = 0; i < slots; i++) { SlotAlpha[i] = 1f; SlotVariant[i] = ""; if (rig.Slots[i].Blink) blinkSlots++; }
+        var entries = rig.Dynamics; dynEntries = new PNVisualDynamicsEntry[entries.Count]; springs = new PNVisualSpring[entries.Count]; dynOfBone = new int[bones];
+        for (int i = 0; i < bones; i++) dynOfBone[i] = -1;
+        for (int k = 0; k < entries.Count; k++) { dynEntries[k] = entries[k]; dynOfBone[rig.BoneIndex(entries[k].Bone)] = k; }
+        bool anyDeform = false;
+        foreach (var stateId in set.States.Values) { var m = motions(stateId); if (m != null && m.Deform.Count > 0) { anyDeform = true; break; } }
+        if (anyDeform) { SlotDeform = new float[slots * DeformStride]; defTarget = new float[SlotDeform.Length]; defFrom = new float[SlotDeform.Length]; defShown = new float[SlotDeform.Length]; }
+        var ik = rig.Ik; ikCons = new PNVisualIkConstraint[ik.Count]; ikFirst = new int[ik.Count]; ikSecond = new int[ik.Count]; ikTarget = new int[ik.Count];
+        for (int k = 0; k < ik.Count; k++) { ikCons[k] = ik[k]; ikFirst[k] = rig.BoneIndex(ik[k].Bones[0]); ikSecond[k] = ik[k].Bones.Count > 1 ? rig.BoneIndex(ik[k].Bones[1]) : -1; ikTarget[k] = rig.BoneIndex(ik[k].Target); }
         exprSx = new float[slots]; exprSy = new float[slots]; exprOx = new float[slots]; exprOy = new float[slots]; exprRot = new float[slots]; exprVariant = new string[slots];
         SetExpression(null);
     }
@@ -81,12 +97,23 @@ public sealed class PNVisualAnimator
         var c = Compile(motion);
         if (motion.Channel == PNVisualChannel.Overlay) { overlay = c; overlayTime = 0f; OverlayState = state; return true; }
         if (baseMotion == c && !restart) return true;
-        if (motion.BlendIn > 0f && baseMotion != null) { Array.Copy(baseShown, baseFrom, baseShown.Length); blending = true; blendTime = 0f; blendDuration = motion.BlendIn; } else blending = false;
+        if (motion.BlendIn > 0f && baseMotion != null) { Array.Copy(baseShown, baseFrom, baseShown.Length); if (defShown != null) Array.Copy(defShown, defFrom, defShown.Length); blending = true; blendTime = 0f; blendDuration = motion.BlendIn; } else blending = false;
         // "current" keys start from the pose being shown at this instant
         Array.Copy(baseShown, current, baseShown.Length);
         baseMotion = c; BaseState = state; BaseTime = 0f; phase = 0f;
         return true;
     }
+
+    // The puppet's own movement in the world (metres, y up; the actor feeds the change of position since the last tick, in the puppet's plane): what a spring chain is left behind by.
+    // Unmirrored px (y down) inside; the sign of x follows the facing so a puppet that runs to the left trails its cloth to the right.
+    public void FeedBodyMotion(float dxMetres, float dyMetres)
+    {
+        if (float.IsNaN(dxMetres) || float.IsInfinity(dxMetres) || float.IsNaN(dyMetres) || float.IsInfinity(dyMetres)) return;
+        float ppm = 1f / metersPerPixel; bodyDx += (FacingLeft ? -dxMetres : dxMetres) * ppm; bodyDy += -dyMetres * ppm;
+    }
+    // A teleport or a long gap: forget the motion in flight and restart every spring from its animated pose.
+    public void ResetDynamics() { bodyDx = bodyDy = 0f; pendingDt = 0f; dynamicsReset = true; }
+    private float bodyDx, bodyDy, pendingDt; private bool dynamicsReset;
 
     public void StopOverlay() { overlay = null; OverlayState = ""; }
     public void SetPhase(float value) { phase = value < 0f ? 0f : value > 1f ? 1f : value; }
@@ -106,7 +133,7 @@ public sealed class PNVisualAnimator
     public void Advance(float dt)
     {
         if (float.IsNaN(dt) || float.IsInfinity(dt) || dt <= 0f) return;
-        blinkClock += dt; breatheClock += dt;
+        blinkClock += dt; breatheClock += dt; pendingDt += dt;
         if (baseMotion != null)
         {
             var m = baseMotion.Motion;
@@ -140,13 +167,19 @@ public sealed class PNVisualAnimator
             weight = weight < 0f ? 0f : weight > 1f ? 1f : weight;
             EvalOverlay(overlay, overlayTime, v, weight);
         }
+        if (SlotDeform != null) EvalDeform(weight);
         bool modifiers = baseMotion == null || !baseMotion.Motion.NoModifiers;
         if (modifiers && set.BreatheBone.Length > 0 && set.BreatheAmp > 0f)
         {
             int b = rig.BoneIndex(set.BreatheBone);
             if (b >= 0) v[b * Kinds + 2] += set.BreatheAmp * (float)Math.Sin(breatheClock * 2.0 * Math.PI / set.BreathePeriod);
         }
-        // 3. scales, then the bone chain (child offset uses the parent's draw scale, never an accumulated one)
+        // 2b. inverse kinematics: turn the bones of each constraint so the tip reaches its goal (the rotations in `v` are adjusted, the chain below is solved as usual)
+        if (ikCons.Length > 0) SolveIk(v);
+        // 3. scales, then the bone chain (child offset uses the parent's draw scale, never an accumulated one). A bone with a spring chain is solved the moment its animated pose is known, so its
+        //    children see it already turned.
+        float dynDt = pendingDt, dynBodyX = bodyDx, dynBodyY = bodyDy; bool dynReset = dynamicsReset; float dynWeight = baseMotion != null ? baseMotion.Motion.DynamicsWeight : 1f;
+        if (dynEntries.Length > 0) { pendingDt = 0f; bodyDx = bodyDy = 0f; dynamicsReset = false; }
         for (int i = 0; i < bones; i++)
         {
             var bone = rig.Bones[i];
@@ -157,15 +190,19 @@ public sealed class PNVisualAnimator
             float lx = bone.X + v[i * Kinds + 1], ly = bone.Y + v[i * Kinds + 2];
             if (p >= 0) { lx = bone.X * scaleX[p] + v[i * Kinds + 1]; ly = bone.Y * scaleY[p] + v[i * Kinds + 2]; }
             else { lx = bone.X * scaleX[i] + v[i * Kinds + 1]; ly = bone.Y * scaleY[i] + v[i * Kinds + 2]; }
-            double rad = v[i * Kinds] * Math.PI / 180.0; float cos = (float)Math.Cos(rad), sin = (float)Math.Sin(rad);
-            // local = T(lx, ly) * R(rot): x' = cos x - sin y + lx ; y' = sin x + cos y + ly
-            float a = cos, b2 = sin, c = -sin, d = cos;
-            if (p < 0) { world[i * 6] = a; world[i * 6 + 1] = b2; world[i * 6 + 2] = c; world[i * 6 + 3] = d; world[i * 6 + 4] = lx; world[i * 6 + 5] = ly; }
-            else
+            float rot = v[i * Kinds];
+            ComputeWorld(i, p, lx, ly, rot);
+            int k = dynOfBone[i];
+            if (k >= 0)
             {
-                int o = p * 6; float pa = world[o], pb = world[o + 1], pc = world[o + 2], pd = world[o + 3], ptx = world[o + 4], pty = world[o + 5];
-                world[i * 6] = pa * a + pc * b2; world[i * 6 + 1] = pb * a + pd * b2; world[i * 6 + 2] = pa * c + pc * d; world[i * 6 + 3] = pb * c + pd * d;
-                world[i * 6 + 4] = pa * lx + pc * ly + ptx; world[i * 6 + 5] = pb * lx + pd * ly + pty;
+                var e = dynEntries[k]; int o = i * 6; float tipX = e.TipX * scaleX[i], tipY = e.TipY * scaleY[i];
+                float px = world[o + 4], py = world[o + 5], tx = world[o] * tipX + world[o + 2] * tipY + px, ty = world[o + 1] * tipX + world[o + 3] * tipY + py;
+                float theta = PNVisualDynamics.Advance(ref springs[k], e, px, py, tx, ty, dynDt, dynBodyX, dynBodyY, dynReset) * dynWeight;
+                if (theta != 0f)
+                {
+                    if (e.Channel == PNVisualDynamicsChannel.Rot) ComputeWorld(i, p, lx, ly, rot + theta);
+                    else BoneBend[i * 2] += 2f * theta;                       // the chord of a curve leaves the tangent by half its total turn
+                }
             }
             Output(world, i * 6, BoneAffine, i * 6);
         }
@@ -198,6 +235,67 @@ public sealed class PNVisualAnimator
     }
     private readonly float[] slotTmp = new float[6];
 
+    // The lattice offsets of every slot: the base motion's points (absolute, blended from the lattice being shown like the bones), plus the overlay's, weighted.
+    private void EvalDeform(float overlayWeight)
+    {
+        Array.Clear(defTarget, 0, defTarget.Length);
+        if (baseMotion != null) for (int i = 0; i < baseMotion.DeformCurve.Length; i++) defTarget[baseMotion.DeformSlot[i] * DeformStride + baseMotion.DeformPoint[i] * 2 + baseMotion.DeformAxis[i]] = Sample(baseMotion.DeformCurve[i], BaseTime, 0f);
+        if (blending && blendDuration > 0f)
+        {
+            float k = blendTime / blendDuration; k = k <= 0f ? 0f : k >= 1f ? 1f : k * k * (3f - 2f * k);
+            for (int i = 0; i < defShown.Length; i++) defShown[i] = defFrom[i] + (defTarget[i] - defFrom[i]) * k;
+        }
+        else Array.Copy(defTarget, defShown, defShown.Length);
+        Array.Copy(defShown, SlotDeform, defShown.Length);
+        if (overlay != null && overlayWeight > 0f)
+            for (int i = 0; i < overlay.DeformCurve.Length; i++) SlotDeform[overlay.DeformSlot[i] * DeformStride + overlay.DeformPoint[i] * 2 + overlay.DeformAxis[i]] += Sample(overlay.DeformCurve[i], overlayTime, 0f) * overlayWeight;
+    }
+
+    // The pose with the animation only (no IK, no springs): scales and world affines of every bone from the rotations and offsets in v.
+    private void PreWorld(float[] v)
+    {
+        for (int i = 0; i < bones; i++)
+        {
+            var bone = rig.Bones[i]; int p = rig.ParentIndex[i];
+            scaleX[i] = bone.Scale * groupX[i] * v[i * Kinds + 3]; scaleY[i] = bone.Scale * groupY[i] * v[i * Kinds + 4];
+            float lx = p >= 0 ? bone.X * scaleX[p] + v[i * Kinds + 1] : bone.X * scaleX[i] + v[i * Kinds + 1], ly = p >= 0 ? bone.Y * scaleY[p] + v[i * Kinds + 2] : bone.Y * scaleY[i] + v[i * Kinds + 2];
+            ComputeWorld(i, p, lx, ly, v[i * Kinds]);
+        }
+    }
+
+    private void SolveIk(float[] v)
+    {
+        PreWorld(v);
+        for (int c = 0; c < ikCons.Length; c++)
+        {
+            float mix = ikCons[c].Mix;
+            if (baseMotion != null) for (int k = 0; k < baseMotion.IkIndex.Length; k++) if (baseMotion.IkIndex[k] == c) { float m = Sample(baseMotion.IkCurve[k], BaseTime, 1f); mix = m < 0f ? 0f : m > 1f ? 1f : m; }
+            if (mix <= 0f) continue;
+            int a = ikFirst[c], b = ikSecond[c], g = ikTarget[c], last = b >= 0 ? b : a, o = last * 6;
+            float tipX = ikCons[c].TipX * scaleX[last], tipY = ikCons[c].TipY * scaleY[last];
+            float tx = world[o] * tipX + world[o + 2] * tipY + world[o + 4], ty = world[o + 1] * tipX + world[o + 3] * tipY + world[o + 5];
+            float gx = world[g * 6 + 4], gy = world[g * 6 + 5], ax = world[a * 6 + 4], ay = world[a * 6 + 5];
+            if (b >= 0)
+            {
+                if (!PNVisualIk.TwoBone(ax, ay, world[b * 6 + 4], world[b * 6 + 5], tx, ty, gx, gy, ikCons[c].BendPositive, out float turnA, out float turnB)) continue;
+                v[a * Kinds] += turnA * mix; v[b * Kinds] += turnB * mix;
+            }
+            else v[a * Kinds] += PNVisualIk.OneBone(ax, ay, tx, ty, gx, gy) * mix;
+            if (c + 1 < ikCons.Length) PreWorld(v);                  // the next constraint sees this one's result
+        }
+    }
+
+    // local = T(lx, ly) * R(rot): x' = cos x - sin y + lx ; y' = sin x + cos y + ly ; world = parent world * local
+    private void ComputeWorld(int i, int p, float lx, float ly, float rotDegrees)
+    {
+        double rad = rotDegrees * Math.PI / 180.0; float cos = (float)Math.Cos(rad), sin = (float)Math.Sin(rad);
+        float a = cos, b2 = sin, c = -sin, d = cos;
+        if (p < 0) { world[i * 6] = a; world[i * 6 + 1] = b2; world[i * 6 + 2] = c; world[i * 6 + 3] = d; world[i * 6 + 4] = lx; world[i * 6 + 5] = ly; return; }
+        int o = p * 6; float pa = world[o], pb = world[o + 1], pc = world[o + 2], pd = world[o + 3], ptx = world[o + 4], pty = world[o + 5];
+        world[i * 6] = pa * a + pc * b2; world[i * 6 + 1] = pb * a + pd * b2; world[i * 6 + 2] = pa * c + pc * d; world[i * 6 + 3] = pb * c + pd * d;
+        world[i * 6 + 4] = pa * lx + pc * ly + ptx; world[i * 6 + 5] = pb * lx + pd * ly + pty;
+    }
+
     private bool expressionBlink() => expression == null || expression.Blink;
 
     // Triangular blink: closes over the first half of BlinkDuration and opens over the second, once every BlinkEvery seconds (at the end of each period).
@@ -229,6 +327,17 @@ public sealed class PNVisualAnimator
         var si = new List<int>(); var st = new List<PNVisualSlotTrack>();
         foreach (var track in motion.SlotTracks) { int s = rig.SlotIndex(track.Slot); if (s < 0) continue; si.Add(s); st.Add(track); }
         c.SlotIndex = si.ToArray(); c.SlotTracks = st.ToArray();
+        var ds = new List<int>(); var dp = new List<int>(); var da = new List<int>(); var dc = new List<PNVisualCurve>();
+        foreach (var track in motion.Deform)
+        {
+            int slot = rig.SlotIndex(track.Slot); if (slot < 0) continue;
+            if (track.X != null) { ds.Add(slot); dp.Add(track.Row * PNVisualLimits.MaxLattice + track.Col); da.Add(0); dc.Add(track.X); }
+            if (track.Y != null) { ds.Add(slot); dp.Add(track.Row * PNVisualLimits.MaxLattice + track.Col); da.Add(1); dc.Add(track.Y); }
+        }
+        c.DeformSlot = ds.ToArray(); c.DeformPoint = dp.ToArray(); c.DeformAxis = da.ToArray(); c.DeformCurve = dc.ToArray();
+        var ii = new List<int>(); var ic = new List<PNVisualCurve>();
+        foreach (var mix in motion.IkMix) { int k = rig.IkIndex(mix.Id); if (k < 0) continue; ii.Add(k); ic.Add(mix.Curve); }
+        c.IkIndex = ii.ToArray(); c.IkCurve = ic.ToArray();
         compiled.Add(motion, c); return c;
     }
 
@@ -263,6 +372,28 @@ public sealed class PNVisualAnimator
         }
     }
 
+    // One bezier segment (docs/VisualCurveHandlesPlan.md 2.3): control points (cx1, a + dy1) and (cx2, b + dy2) between (0, a) and (1, b) in segment time. The time curve x(u) is solved for u = k with
+    // Newton from u = k, at most six steps, keeping a bracket and bisecting when a step leaves it or the slope vanishes; the value is then y(u). The algorithm is part of the content contract (the editor
+    // ports it line by line): changing it changes every authored motion, so it counts as a format change.
+    public static float Bezier(float[] handles, int o, float a, float b, float k)
+    {
+        if (k <= 0f) return a; if (k >= 1f) return b;
+        float cx1 = handles[o], cx2 = handles[o + 2], p1 = a + handles[o + 1], p2 = b + handles[o + 3];
+        float ca = 3f * cx1 - 3f * cx2 + 1f, cb = 3f * cx2 - 6f * cx1, cc = 3f * cx1;           // x(u) = ((ca u + cb) u + cc) u
+        float u = k, lowU = 0f, highU = 1f;
+        for (int i = 0; i < 6; i++)
+        {
+            float x = ((ca * u + cb) * u + cc) * u - k;
+            if (x < 1e-6f && x > -1e-6f) break;
+            if (x > 0f) highU = u; else lowU = u;
+            float slope = (3f * ca * u + 2f * cb) * u + cc;
+            float next = (slope > 1e-6f || slope < -1e-6f) ? u - x / slope : -1f;
+            u = next > lowU && next < highU ? next : (lowU + highU) * .5f;
+        }
+        float w = 1f - u;
+        return w * w * w * a + 3f * w * w * u * p1 + 3f * w * u * u * p2 + u * u * u * b;
+    }
+
     public static float Sample(PNVisualCurve curve, float time, float current)
     {
         if (curve.IsWave)
@@ -276,6 +407,7 @@ public sealed class PNVisualAnimator
         if (time >= t[n - 1]) return v[n - 1];
         int hi = 1; while (hi < n - 1 && t[hi] < time) hi++;
         int lo = hi - 1; float a = lo == 0 ? first : v[lo], b = v[hi], k = (time - t[lo]) / (t[hi] - t[lo]);
+        if (curve.HasHandle != null && curve.HasHandle[lo]) return Bezier(curve.Handles, lo * 4, a, b, k);
         switch (curve.Ease)
         {
             case PNVisualEase.Step: return a;

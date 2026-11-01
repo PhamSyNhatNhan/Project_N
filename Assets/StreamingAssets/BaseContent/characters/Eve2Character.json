@@ -16,8 +16,8 @@
       "stats": [
         {
           "statId": "base:health",
-          "base": 100,
-          "initialCurrent": 40
+          "base": 100000,
+          "initialCurrent": 100000
         },
         {
           "statId": "base:attack_power",

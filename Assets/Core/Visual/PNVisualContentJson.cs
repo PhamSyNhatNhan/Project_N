@@ -97,7 +97,7 @@ public sealed partial class PNBuffContentBatch
     // ---- parsers ----
     private PNVisualRigDefinition ParseRig(JObject obj, EveContentExtensionDocument document)
     {
-        Fields(obj, "id", "pixelsPerMeter", "facing", "capsule", "extends", "bones", "slots", "sockets");
+        Fields(obj, "id", "pixelsPerMeter", "facing", "capsule", "extends", "bones", "slots", "sockets", "drawBounds", "dynamics", "ik");
         var id = Owned(String(obj, "id"), document);
         if (obj["facing"] != null && String(obj, "facing") != "right") throw new FormatException("rig facing must be right: every asset faces right and left is a mirror.");
         var capsule = Object(obj["capsule"]); Fields(capsule, "height", "radius");
@@ -118,18 +118,57 @@ public sealed partial class PNBuffContentBatch
             var s = Object(token); Fields(s, "id", "bone", "at"); var at = Pair(s["at"], "socket at");
             return new PNVisualSocket(String(s, "id"), String(s, "bone"), at[0], at[1]);
         }).ToArray();
-        var rig = new PNVisualRigDefinition(id, Float(obj, "pixelsPerMeter"), Float(capsule, "height"), Float(capsule, "radius"), extends, bones, slots, sockets);
+        float drawWidth = 0f, drawHeight = 0f, drawBottom = 0f;
+        if (obj["drawBounds"] != null) { var db = Object(obj["drawBounds"]); Fields(db, "width", "height", "bottom"); drawWidth = Float(db, "width"); drawHeight = Float(db, "height"); drawBottom = Float(db, "bottom", 0f); }
+        var dynamics = Array(obj["dynamics"]).Select(token =>
+        {
+            var d = Object(token); Fields(d, "bone", "channel", "tip", "stiffness", "damping", "gravity", "inertia", "limit"); var tip = Pair(d["tip"], "dynamics tip");
+            return new PNVisualDynamicsEntry(String(d, "bone"), EnumOf(d, "channel", PNVisualDynamicsChannel.Rot), tip[0], tip[1], Float(d, "stiffness", 60f), Float(d, "damping", 6f), Float(d, "gravity", 0f), Float(d, "inertia", 1f), Float(d, "limit", 90f));
+        }).ToArray();
+        var ik = Array(obj["ik"]).Select(token =>
+        {
+            var c = Object(token); Fields(c, "id", "bones", "tip", "target", "bend", "mix"); var tip = Pair(c["tip"], "ik tip");
+            string bend = c["bend"] == null ? "positive" : String(c, "bend"); if (bend != "positive" && bend != "negative") throw new FormatException("ik bend must be positive or negative.");
+            return new PNVisualIkConstraint(String(c, "id"), Names(c["bones"]), tip[0], tip[1], String(c, "target"), bend == "positive", Float(c, "mix", 1f));
+        }).ToArray();
+        var rig = new PNVisualRigDefinition(id, Float(obj, "pixelsPerMeter"), Float(capsule, "height"), Float(capsule, "radius"), extends, bones, slots, sockets, drawWidth, drawHeight, drawBottom, dynamics, ik);
         checks.Add(() => rig.Resolve(FindRig));
         return rig;
     }
 
     private PNVisualPartDefinition ParsePart(JObject obj, EveContentExtensionDocument document)
     {
-        Fields(obj, "id", "image", "pivot", "tint", "variants", "segments", "axis");
+        Fields(obj, "id", "image", "pivot", "tint", "variants", "segments", "axis", "grid", "lattice", "skin");
         var id = Owned(String(obj, "id"), document); var pivot = Pair(obj["pivot"], "part pivot");
         var variants = new Dictionary<string, string>();
         if (obj["variants"] != null) foreach (var p in Object(obj["variants"]).Properties()) variants.Add(p.Name, p.Value.Type == JTokenType.String ? p.Value.Value<string>() : throw new FormatException("variant image path required."));
-        return new PNVisualPartDefinition(id, String(obj, "image"), pivot[0], pivot[1], EnumOf(obj, "tint", PNVisualTint.None), variants, Integer(obj, "segments", 1), EnumOf(obj, "axis", PNVisualBendAxis.Y));
+        int gridCols = 0, gridRows = 0, latticeCols = 0, latticeRows = 0;
+        if (obj["grid"] != null) { var g = Object(obj["grid"]); Fields(g, "cols", "rows"); gridCols = Integer(g, "cols"); gridRows = Integer(g, "rows"); }
+        if (obj["lattice"] != null) { var l = Object(obj["lattice"]); Fields(l, "cols", "rows"); latticeCols = Integer(l, "cols"); latticeRows = Integer(l, "rows"); }
+        PNVisualSkin skin = null;
+        if (obj["skin"] != null)
+        {
+            var sk = Object(obj["skin"]); Fields(sk, "bones", "weights", "falloff"); var bones = Names(sk["bones"]).ToArray();
+            bool auto = sk["weights"] == null || (sk["weights"].Type == JTokenType.String && sk["weights"].Value<string>() == "auto");
+            int[] influence = null; float[] weight = null;
+            if (!auto)
+            {
+                if (!(sk["weights"] is JArray vertices)) throw new FormatException("skin weights must be \"auto\" or a list with one entry per vertex.");
+                if (vertices.Count > PNVisualLimits.MaxGridVertices) throw new FormatException("skin lists too many vertices.");
+                influence = new int[vertices.Count * PNVisualSkin.PerVertex]; weight = new float[influence.Length];
+                for (int v = 0; v < vertices.Count; v++)
+                {
+                    if (!(vertices[v] is JArray pairs) || pairs.Count < 1 || pairs.Count > PNVisualSkin.PerVertex) throw new FormatException("a skinned vertex lists one to four [bone index, weight] pairs.");
+                    for (int k = 0; k < pairs.Count; k++)
+                    {
+                        if (!(pairs[k] is JArray pair) || pair.Count != 2 || pair[0].Type != JTokenType.Integer) throw new FormatException("a skin influence is [bone index, weight].");
+                        influence[v * PNVisualSkin.PerVertex + k] = pair[0].Value<int>(); weight[v * PNVisualSkin.PerVertex + k] = Num(pair[1], "skin weight");
+                    }
+                }
+            }
+            skin = new PNVisualSkin(bones, auto, Float(sk, "falloff", 2f), influence, weight);
+        }
+        return new PNVisualPartDefinition(id, String(obj, "image"), pivot[0], pivot[1], EnumOf(obj, "tint", PNVisualTint.None), variants, Integer(obj, "segments", 1), EnumOf(obj, "axis", PNVisualBendAxis.Y), gridCols, gridRows, latticeCols, latticeRows, skin);
     }
 
     private PNVisualBuildDefinition ParseBuild(JObject obj, EveContentExtensionDocument document)
@@ -151,9 +190,10 @@ public sealed partial class PNBuffContentBatch
         }
         Fields(obj, "keys", "ease");
         var keys = Array(obj["keys"]).ToArray(); var times = new float[keys.Length]; var values = new float[keys.Length]; bool current = false;
+        float[] handles = null; bool[] hasHandle = null;
         for (int i = 0; i < keys.Length; i++)
         {
-            if (!(keys[i] is JArray pair) || pair.Count != 2) throw new FormatException(what + " keys must be [time, value].");
+            if (!(keys[i] is JArray pair) || pair.Count < 2 || pair.Count > 3) throw new FormatException(what + " keys must be [time, value] or [time, value, [cx1, dy1, cx2, dy2]].");
             times[i] = Num(pair[0], what + " key time");
             if (pair[1].Type == JTokenType.String)
             {
@@ -161,13 +201,20 @@ public sealed partial class PNBuffContentBatch
                 current = true; values[i] = 0f;
             }
             else values[i] = Num(pair[1], what + " key value");
+            if (pair.Count == 3)
+            {
+                if (!(pair[2] is JArray h) || h.Count != 4) throw new FormatException(what + " key handle must be [cx1, dy1, cx2, dy2].");
+                if (handles == null) { handles = new float[keys.Length * 4]; hasHandle = new bool[keys.Length]; }
+                for (int k = 0; k < 4; k++) handles[i * 4 + k] = Num(h[k], what + " key handle");
+                hasHandle[i] = true;
+            }
         }
-        return new PNVisualCurve(times, values, EnumOf(obj, "ease", PNVisualEase.Linear), current);
+        return new PNVisualCurve(times, values, EnumOf(obj, "ease", PNVisualEase.Linear), current, handles, hasHandle);
     }
 
     private PNVisualMotionDefinition ParseMotion(JObject obj, EveContentExtensionDocument document)
     {
-        Fields(obj, "id", "rig", "kind", "clock", "duration", "loop", "blendIn", "blendOut", "channel", "mask", "noModifiers", "speedScale", "tracks", "slotTracks", "events", "frames", "fps");
+        Fields(obj, "id", "rig", "kind", "clock", "duration", "loop", "blendIn", "blendOut", "channel", "mask", "noModifiers", "speedScale", "tracks", "slotTracks", "events", "frames", "fps", "dynamics", "ik", "deform");
         var id = Owned(String(obj, "id"), document); var rigId = EveId.Parse(String(obj, "rig")); Reference(rigId, document, hub.Get<PNVisualRigDefinition>());
         var channel = EnumOf(obj, "channel", PNVisualChannel.Base);
         var tracks = new List<PNVisualTrack>();
@@ -190,15 +237,28 @@ public sealed partial class PNBuffContentBatch
                 foreach (var pair in Array(s["variants"])) { if (!(pair is JArray a) || a.Count != 2 || a[1].Type != JTokenType.String) throw new FormatException("slot track variants must be [time, \"name\"]."); times.Add(Num(a[0], "slot track time")); names.Add(a[1].Value<string>()); }
                 slotTracks.Add(new PNVisualSlotTrack(slot.Name, times.ToArray(), names.ToArray(), s["alpha"] == null ? null : ParseCurve(s["alpha"], id + " " + slot.Name + ".alpha"), s["sy"] == null ? null : ParseCurve(s["sy"], id + " " + slot.Name + ".sy")));
             }
+        var deform = new List<PNVisualDeformTrack>();
+        if (obj["deform"] != null)
+            foreach (var slot in Object(obj["deform"]).Properties())
+                foreach (var point in Object(slot.Value).Properties())
+                {
+                    var parts = point.Name.Split('_'); if (parts.Length != 2 || !int.TryParse(parts[0], out int col) || !int.TryParse(parts[1], out int row)) throw new FormatException("a deform point is named <column>_<row>: " + point.Name);
+                    var set = Object(point.Value); Fields(set, "x", "y");
+                    deform.Add(new PNVisualDeformTrack(slot.Name, col, row, set["x"] == null ? null : ParseCurve(set["x"], id + " " + slot.Name + "." + point.Name + ".x"), set["y"] == null ? null : ParseCurve(set["y"], id + " " + slot.Name + "." + point.Name + ".y")));
+                }
+        var ikMix = new List<PNVisualIkMix>();
+        if (obj["ik"] != null) foreach (var c in Object(obj["ik"]).Properties()) ikMix.Add(new PNVisualIkMix(c.Name, ParseCurve(c.Value, id + " ik " + c.Name)));
         var events = Array(obj["events"]).Select(token => { var e = Object(token); Fields(e, "at", "name"); return new PNVisualEvent(Float(e, "at"), String(e, "name")); }).ToArray();
         var motion = new PNVisualMotionDefinition(id, rigId, EnumOf(obj, "kind", PNVisualMotionKind.Pose), EnumOf(obj, "clock", PNVisualClock.Time), Float(obj, "duration"), Flag(obj, "loop", false),
             Float(obj, "blendIn", .1f), Float(obj, "blendOut", channel == PNVisualChannel.Overlay ? .1f : 0f), channel, Flag(obj, "noModifiers", false), Float(obj, "speedScale", 1f),
-            Names(obj["mask"]), tracks, slotTracks, events, Names(obj["frames"]), Float(obj, "fps", 0f));
+            Names(obj["mask"]), tracks, slotTracks, events, Names(obj["frames"]), Float(obj, "fps", 0f), Float(obj, "dynamics", 1f), ikMix, deform);
         checks.Add(() =>
         {
             var rig = RigOf(rigId, document, "motion " + id);
             foreach (var track in motion.Tracks) if (rig.BoneIndex(track.Bone) < 0) throw new FormatException("motion " + id + " track uses unknown bone " + track.Bone);
             foreach (var bone in motion.Mask) if (rig.BoneIndex(bone) < 0) throw new FormatException("motion " + id + " mask uses unknown bone " + bone);
+            foreach (var track in motion.Deform) if (rig.SlotIndex(track.Slot) < 0) throw new FormatException("motion " + id + " deforms unknown slot " + track.Slot);
+            foreach (var mix in motion.IkMix) if (rig.IkIndex(mix.Id) < 0) throw new FormatException("motion " + id + " mixes unknown ik " + mix.Id);
             foreach (var st in motion.SlotTracks) if (rig.SlotIndex(st.Slot) < 0) throw new FormatException("motion " + id + " slot track uses unknown slot " + st.Slot);
         });
         return motion;
@@ -277,7 +337,15 @@ public sealed partial class PNBuffContentBatch
             Require(visualBuilds, appearance.Build, document, "appearance " + id);
             if (appearance.Expression.IsValid) { var e = Require(visualExpressions, appearance.Expression, document, "appearance " + id); if (e.Rig != rigId) throw new FormatException("appearance " + id + " uses an expression of another rig."); }
             foreach (var pair in appearance.Slots) { if (rig.SlotIndex(pair.Key) < 0) throw new FormatException("appearance " + id + " fills unknown slot " + pair.Key); Require(visualParts, pair.Value, document, "appearance " + id + " slot " + pair.Key); }
-            foreach (var f in appearance.Free) { if (rig.BoneIndex(f.Bone) < 0) throw new FormatException("appearance " + id + " free part uses unknown bone " + f.Bone); Require(visualParts, f.Part, document, "appearance " + id + " free part"); }
+            foreach (var f in appearance.Free) { if (rig.BoneIndex(f.Bone) < 0) throw new FormatException("appearance " + id + " free part uses unknown bone " + f.Bone); var fp = Require(visualParts, f.Part, document, "appearance " + id + " free part"); if (fp.HasGrid) throw new FormatException("appearance " + id + " free part " + f.Part + " is a grid part: a grid part needs a slot."); }
+            foreach (var pair in appearance.Slots)
+            {
+                var part = Require(visualParts, pair.Value, document, "appearance " + id + " slot " + pair.Key);
+                if (part.Skin != null) foreach (var skinBone in part.Skin.Bones) if (rig.BoneIndex(skinBone) < 0) throw new FormatException("appearance " + id + " skin of " + pair.Value + " uses unknown bone " + skinBone);
+                foreach (var state in set.States.Values)
+                    foreach (var track in Require(visualMotions, state, document, "appearance " + id + " state").Deform)
+                        if (track.Slot == pair.Key && (part.LatticeCols <= track.Col || part.LatticeRows <= track.Row)) throw new FormatException("appearance " + id + " deforms point " + track.Col + "_" + track.Row + " of slot " + pair.Key + " but its part has no such lattice point.");
+            }
             foreach (var slot in appearance.Hide) if (rig.SlotIndex(slot) < 0) throw new FormatException("appearance " + id + " hides unknown slot " + slot);
             foreach (var pair in appearance.SocketOverrides) if (rig.SocketIndex(pair.Key) < 0) throw new FormatException("appearance " + id + " overrides unknown socket " + pair.Key);
             CheckStringEntries(appearance, rig);

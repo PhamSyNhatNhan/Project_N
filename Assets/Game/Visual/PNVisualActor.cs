@@ -296,7 +296,11 @@ public sealed class PNVisualActor : MonoBehaviour
         public Rect Uv; public Vector2Int Size; public PNVisualTint Tint; public bool Blush;
         public Dictionary<string, KeyValuePair<Rect, Vector2Int>> Variants;
         public int Segments, BendBone, VertexStart; public bool AxisX;   // Segments 1 = a plain quad; otherwise the strips of PNVisualBend driven by the bone's bend/sway
+        public int Kind, VertexCount;                                    // Kind: 0 quad, 1 strips, 2 grid with a lattice, 3 skinned grid; VertexCount = the size of this drawable's block of vertices (the one place that formula lives)
+        public int GridCols, GridRows, LatCols, LatRows; public int[] GridOrder; public SkinData Skin;   // grid kinds: cells, lattice points, where each logical vertex sits in the block (the 4 corners come first, in quad order), the skinning
     }
+    // Skinning of one gridded part, made once at Bind from the rest pose: per vertex up to four bones, the vertex in each bone's own frame, and the rest scale of each bone.
+    private sealed class SkinData { public int[] Bones; public float[] RestSx, RestSy, Qx, Qy, Weight; public int[] Bone; }
     private PNVisualAnimator animator; private PNVisualResolvedRig rig; private PNVisualAppearanceDefinition appearance; private PNVisualBuildDefinition build;
     // Transparent geometry gutter gives the paper edge/shadow room outside the source image.
     // UV2 bounds stop offset samples from reading a neighbour in the shared atlas.
@@ -349,12 +353,13 @@ public sealed class PNVisualActor : MonoBehaviour
         if (animator == null || hubUsed == null || drawables == null) return;
         var next = PNVisualRuntime.AtlasFor(hubUsed, WantsRaw);
         if (ReferenceEquals(next, atlasInUse) && epochUsed == PNVisualRuntime.Epoch) return;
-        var oldUv = new Rect[drawables.Length]; for (int i = 0; i < oldUv.Length; i++) oldUv[i] = drawables[i].Uv;
+        var oldUv = new Rect[drawables.Length]; for (int i = 0; i < oldUv.Length; i++) oldUv[i] = drawables[i].Uv; var oldDrawables = drawables;
         BuildDrawables(hubUsed, next);
+        for (int i = 0; i < drawables.Length && i < oldDrawables.Length; i++) drawables[i].Skin = oldDrawables[i].Skin;
         if (restUv != null)           // same art, same tile geometry in both flavours: the rest-pose uv moves with its rect
             for (int i = 0; i < drawables.Length && i < oldUv.Length; i++)
             {
-                var o = oldUv[i]; var n = drawables[i].Uv; int count = drawables[i].Segments == 1 ? 4 : 2 * (drawables[i].Segments + 1);
+                var o = oldUv[i]; var n = drawables[i].Uv; int count = drawables[i].VertexCount;
                 for (int k = 0; k < count; k++)
                 {
                     var u = restUv[drawables[i].VertexStart + k];
@@ -407,8 +412,74 @@ public sealed class PNVisualActor : MonoBehaviour
         clock = GetComponentInParent<EveTimeScale>();
         if (appearance.Strings.Count > 0) strings = new PNVisualStringSet(hub, appearance.Id.ToString(), appearance.Strings);
         PNVisualSystem.Register(this);
-        animator.Evaluate(); WriteMesh();
+        animator.Evaluate(); PrepareSkins(rigDef); WriteMesh(); FitBounds(rigDef);
         if (casterDrawable != null && casterDrawable.Length > 0) { restVertices = (Vector3[])vertices.Clone(); restUv = (Vector2[])uv0.Clone(); ApplyShadowMode(); }     // the rest pose: the pre-baked shadow is computed from it
+    }
+
+    // Skinning, once, from the rest pose (the animator has just evaluated with no motion): for every vertex of a skinned grid the weights (auto: from the distance to each bone's segment, or the part's
+    // own), and the vertex in the frame of each bone it follows. Per frame a vertex is then the weighted sum of those points carried by the bones' current affines (see WriteMesh).
+    private void PrepareSkins(PNVisualRigDefinition def)
+    {
+        float ppm = def.PixelsPerMeter;
+        for (int di = 0; di < drawables.Length; di++)
+        {
+            ref var d = ref drawables[di]; if (d.Kind != 3) continue;
+            var skin = d.Part.Skin; int cols = d.GridCols, rows = d.GridRows, n = d.VertexCount, nb = skin.Bones.Count;
+            var data = new SkinData { Bones = new int[nb], RestSx = new float[nb], RestSy = new float[nb], Qx = new float[n * 4], Qy = new float[n * 4], Weight = new float[n * 4], Bone = new int[n * 4] };
+            for (int b = 0; b < nb; b++) { data.Bones[b] = rig.BoneIndex(skin.Bones[b]); data.RestSx[b] = animator.BoneScale[data.Bones[b] * 2]; data.RestSy[b] = animator.BoneScale[data.Bones[b] * 2 + 1]; }
+            int so = d.Slot * 6; float ta = animator.SlotAffine[so], tb = animator.SlotAffine[so + 1], tc = animator.SlotAffine[so + 2], td = animator.SlotAffine[so + 3], ttx = animator.SlotAffine[so + 4], tty = animator.SlotAffine[so + 5];
+            float x0 = -d.Part.PivotX - PaperPadding, y0 = -d.Part.PivotY - PaperPadding, x1 = d.Size.x - d.Part.PivotX + PaperPadding, y1 = d.Size.y - d.Part.PivotY + PaperPadding;
+            var jointX = new float[nb]; var jointY = new float[nb]; var endX = new float[nb]; var endY = new float[nb]; var candidateWeight = new float[nb];
+            for (int b = 0; b < nb; b++)
+            {
+                int bi = data.Bones[b], o = bi * 6; jointX[b] = animator.BoneAffine[o + 4]; jointY[b] = animator.BoneAffine[o + 5]; endX[b] = jointX[b]; endY[b] = jointY[b];
+                for (int c = 0; c < rig.Bones.Count; c++) if (rig.ParentIndex[c] == bi) { endX[b] = animator.BoneAffine[c * 6 + 4]; endY[b] = animator.BoneAffine[c * 6 + 5]; break; }       // the first child's joint is the far end of the bone
+            }
+            for (int j = 0; j <= rows; j++)
+                for (int i = 0; i <= cols; i++)
+                {
+                    int vertex = (rows - j) * (cols + 1) + i; float fx = (float)i / cols, fy = (float)j / rows, lx = x0 + (x1 - x0) * fx, ly = y1 + (y0 - y1) * fy;
+                    float px = ta * lx + tc * ly + ttx, py = tb * lx + td * ly + tty;                     // the vertex at rest, metres
+                    if (skin.Auto)
+                    {
+                        for (int b = 0; b < nb; b++)
+                        {
+                            float sx = endX[b] - jointX[b], sy = endY[b] - jointY[b], len2 = sx * sx + sy * sy, t = len2 > 1e-12f ? Mathf.Clamp01(((px - jointX[b]) * sx + (py - jointY[b]) * sy) / len2) : 0f;
+                            float dx = px - (jointX[b] + sx * t), dy = py - (jointY[b] + sy * t), dist = Mathf.Sqrt(dx * dx + dy * dy) * ppm;     // px of the rig
+                            candidateWeight[b] = 1f / Mathf.Pow(dist + 1f, skin.Falloff);
+                        }
+                        for (int k = 0; k < 4; k++)                                                      // the four strongest bones, strongest first
+                        {
+                            int best = -1; float bestWeight = 0f; for (int b = 0; b < nb; b++) if (candidateWeight[b] > bestWeight) { bestWeight = candidateWeight[b]; best = b; }
+                            if (best < 0) break; data.Bone[vertex * 4 + k] = best; data.Weight[vertex * 4 + k] = bestWeight; candidateWeight[best] = 0f;
+                        }
+                    }
+                    else for (int k = 0; k < 4; k++) { data.Bone[vertex * 4 + k] = skin.Influence[vertex * 4 + k]; data.Weight[vertex * 4 + k] = skin.Weight[vertex * 4 + k]; }
+                    float sum = 0f; for (int k = 0; k < 4; k++) sum += data.Weight[vertex * 4 + k];
+                    for (int k = 0; k < 4; k++)
+                    {
+                        float w = sum > 0f ? data.Weight[vertex * 4 + k] / sum : 0f; data.Weight[vertex * 4 + k] = w; if (w <= 0f) continue;
+                        int o = data.Bones[data.Bone[vertex * 4 + k]] * 6; float a = animator.BoneAffine[o], b2 = animator.BoneAffine[o + 1], c2 = animator.BoneAffine[o + 2], d2 = animator.BoneAffine[o + 3], det = a * d2 - b2 * c2, X = px - animator.BoneAffine[o + 4], Y = py - animator.BoneAffine[o + 5];
+                        data.Qx[vertex * 4 + k] = Mathf.Abs(det) > 1e-18f ? (d2 * X - c2 * Y) / det : 0f; data.Qy[vertex * 4 + k] = Mathf.Abs(det) > 1e-18f ? (-b2 * X + a * Y) / det : 0f;
+                    }
+                }
+            d.Skin = data;
+        }
+    }
+
+    // The drawing box (what the view test and culling read). It starts as the old capsule box and is only ever ENLARGED: to the rig's own `drawBounds` when it has one, otherwise to the rest-pose
+    // extent of every vertex (x1.5 plus a margin, for parts that swing or orbit away from the rest pose). A humanoid keeps (at least) its old box; nothing here runs per frame.
+    private void FitBounds(PNVisualRigDefinition def)
+    {
+        var box = mesh.bounds;
+        if (def.DrawWidth > 0f && def.DrawHeight > 0f) box.Encapsulate(new Bounds(new Vector3(0f, def.DrawHeight * .5f - def.DrawBottom, 0f), new Vector3(def.DrawWidth, def.DrawHeight, .1f)));
+        else if (vertices.Length > 0)
+        {
+            var lo = vertices[0]; var hi = lo;
+            for (int i = 1; i < vertices.Length; i++) { lo = Vector3.Min(lo, vertices[i]); hi = Vector3.Max(hi, vertices[i]); }
+            box.Encapsulate(new Bounds((lo + hi) * .5f, (hi - lo) * 1.5f + new Vector3(.2f, .2f, .1f)));
+        }
+        mesh.bounds = box;
     }
 
     private static int TintIndex(string name)
@@ -424,6 +495,12 @@ public sealed class PNVisualActor : MonoBehaviour
         {
             if (!atlas.TryGet(part.Id.Namespace, part.Image, out var uv, out var size)) throw new InvalidOperationException("Visual image is not in the atlas: " + part.Image);
             var d = new Drawable { Part = part, Namespace = part.Id.Namespace, Uv = uv, Size = size, Tint = part.Tint, Segments = part.Segments, AxisX = part.Axis == PNVisualBendAxis.X, BendBone = -1 };
+            if (part.HasGrid)
+            {
+                d.Kind = part.Skin != null ? 3 : 2; d.GridCols = part.GridCols; d.GridRows = part.GridRows; d.LatCols = part.LatticeCols; d.LatRows = part.LatticeRows;
+                d.VertexCount = (d.GridCols + 1) * (d.GridRows + 1); d.GridOrder = GridOrderOf(d.GridCols, d.GridRows);
+            }
+            else { d.Kind = d.Segments == 1 ? 0 : 1; d.VertexCount = d.Kind == 0 ? 4 : 2 * (d.Segments + 1); }
             if (part.Variants.Count > 0)
             {
                 d.Variants = new Dictionary<string, KeyValuePair<Rect, Vector2Int>>(StringComparer.Ordinal);
@@ -444,19 +521,46 @@ public sealed class PNVisualActor : MonoBehaviour
         // stable sort by layer: the vertex order IS the draw order, so no sorting group is needed
         drawables = list.Select((d, i) => new { d, i }).OrderBy(x => x.d.Layer).ThenBy(x => x.i).Select(x => x.d).ToArray();
         int vertexCount = 0;
-        for (int i = 0; i < drawables.Length; i++) { drawables[i].VertexStart = vertexCount; vertexCount += drawables[i].Segments == 1 ? 4 : 2 * (drawables[i].Segments + 1); }
+        int gridVertices = 0;
+        for (int i = 0; i < drawables.Length; i++) { drawables[i].VertexStart = vertexCount; vertexCount += drawables[i].VertexCount; if (drawables[i].Kind >= 2) gridVertices += drawables[i].VertexCount; }
+        if (gridVertices > PNVisualLimits.MaxSkinVerticesPerActor) throw new InvalidOperationException("Appearance " + appearance.Id + " has " + gridVertices + " grid vertices; the limit is " + PNVisualLimits.MaxSkinVerticesPerActor + ".");
+    }
+
+    // The place of every logical vertex (i from the left, j from the bottom) in a grid block: the four corners first in the order of a plain quad (bottom left, bottom right, top right, top left),
+    // so the code that reads the first vertices of a block (the overlap shadow) still finds the rectangle; the others follow row by row.
+    private static int[] GridOrderOf(int cols, int rows)
+    {
+        var order = new int[(cols + 1) * (rows + 1)]; int next = 4;
+        for (int j = 0; j <= rows; j++)
+            for (int i = 0; i <= cols; i++)
+            {
+                bool left = i == 0, right = i == cols, bottom = j == 0, top = j == rows;
+                order[j * (cols + 1) + i] = left && bottom ? 0 : right && bottom ? 1 : right && top ? 2 : left && top ? 3 : next++;
+            }
+        return order;
     }
 
     private void BuildMesh(PNVisualAtlas atlas)
     {
-        int n = drawables.Length; int vertexCount = n == 0 ? 0 : drawables[n - 1].VertexStart + (drawables[n - 1].Segments == 1 ? 4 : 2 * (drawables[n - 1].Segments + 1));
+        int n = drawables.Length; int vertexCount = n == 0 ? 0 : drawables[n - 1].VertexStart + drawables[n - 1].VertexCount;
         mesh = new Mesh { name = "PN Visual Actor", hideFlags = HideFlags.HideAndDontSave }; mesh.MarkDynamic();
         vertices = new Vector3[vertexCount]; uv0 = new Vector2[vertexCount]; uv1 = new Vector2[vertexCount]; uvBounds = new Vector4[vertexCount]; colors = new Color32[vertexCount];
-        int triangleCount = 0; for (int i = 0; i < n; i++) triangleCount += drawables[i].Segments * 6;
+        int triangleCount = 0; for (int i = 0; i < n; i++) triangleCount += drawables[i].Kind >= 2 ? drawables[i].GridCols * drawables[i].GridRows * 6 : drawables[i].Segments * 6;
         var tris = new int[triangleCount]; int t = 0;
         for (int i = 0; i < n; i++)
         {
             int v = drawables[i].VertexStart;
+            if (drawables[i].Kind >= 2)
+            {
+                int cols = drawables[i].GridCols, rows = drawables[i].GridRows; var order = drawables[i].GridOrder;
+                for (int j = 0; j < rows; j++)
+                    for (int c = 0; c < cols; c++)
+                    {
+                        int bl = v + order[j * (cols + 1) + c], br = v + order[j * (cols + 1) + c + 1], tr = v + order[(j + 1) * (cols + 1) + c + 1], tl = v + order[(j + 1) * (cols + 1) + c];
+                        tris[t++] = bl; tris[t++] = br; tris[t++] = tr; tris[t++] = bl; tris[t++] = tr; tris[t++] = tl;
+                    }
+                continue;
+            }
             if (drawables[i].Segments == 1) { tris[t++] = v; tris[t++] = v + 1; tris[t++] = v + 2; tris[t++] = v; tris[t++] = v + 2; tris[t++] = v + 3; continue; }
             // strips: row k holds (A, B) at v + 2k, v + 2k + 1; A is the low side across the axis, B the high side; the order matches the plain quad's winding
             for (int k = 0; k < drawables[i].Segments; k++)
@@ -504,12 +608,27 @@ public sealed class PNVisualActor : MonoBehaviour
     public void Tick(float dt, bool writeMesh = true)
     {
         if (animator == null) return;
+        if (dt > 0f) FeedBodyMotion();                          // Tick(0) (a snapshot of the current mesh) must change nothing
         if (settingsVersion != PNVisualPaperSettings.Version) ApplyShadowMode();
         strings?.FeedPosition(transform.position,dt);
         strings?.Advance(dt);                                  // the strings lower and fall away on the same clock
         animator.Advance(dt);                                  // time and blends always advance, so motions keep their meaning while the actor is out of view
         if (writeMesh) { animator.Evaluate(); poseDirty = false; WriteMesh(); }
         else poseDirty = true;                                 // evaluated on demand (EnsurePose) or on re-entry
+    }
+
+    // The movement of the object since the last tick, in this puppet's plane, for the bones that trail behind (spring chains). A jump of more than 3 m in one tick is a teleport.
+    private Vector3 lastPosition; private bool lastPositionKnown;
+    private void FeedBodyMotion()
+    {
+        var position = transform.position;
+        if (lastPositionKnown)
+        {
+            var delta = position - lastPosition;
+            if (delta.sqrMagnitude > 9f) animator.ResetDynamics();
+            else { var local = transform.InverseTransformDirection(delta); animator.FeedBodyMotion(local.x, local.y); }
+        }
+        lastPosition = position; lastPositionKnown = true;
     }
 
     // The overlap-shadow setting applied to this actor: shadow on = the shared material plus a casters block; off = the twin material, no block (batchable).
@@ -542,7 +661,7 @@ public sealed class PNVisualActor : MonoBehaviour
         }
         void Extent(int di, out Rect uvRect, out Vector2 lo, out Vector2 hi)
         {
-            var d = drawables[di]; int count = d.Segments == 1 ? 4 : 2 * (d.Segments + 1); lo = new Vector2(float.MaxValue, float.MaxValue); hi = new Vector2(float.MinValue, float.MinValue);
+            var d = drawables[di]; int count = d.VertexCount; lo = new Vector2(float.MaxValue, float.MaxValue); hi = new Vector2(float.MinValue, float.MinValue);
             Vector2 uvLo = lo, uvHi = hi;
             for (int k = 0; k < count; k++)
             {
@@ -629,7 +748,7 @@ public sealed class PNVisualActor : MonoBehaviour
             }
             float x0 = -d.Part.PivotX - PaperPadding, y0 = -d.Part.PivotY - PaperPadding, x1 = size.x - d.Part.PivotX + PaperPadding, y1 = size.y - d.Part.PivotY + PaperPadding;
             int v = d.VertexStart, count;
-            if (d.Segments == 1)
+            if (d.Kind == 0)
             {
                 count = 4;
                 vertices[v] = new Vector3(ta * x0 + tc * y1 + ttx, tb * x0 + td * y1 + tty, 0f);
@@ -638,7 +757,7 @@ public sealed class PNVisualActor : MonoBehaviour
                 vertices[v + 3] = new Vector3(ta * x0 + tc * y0 + ttx, tb * x0 + td * y0 + tty, 0f);
                 uv0[v] = new Vector2(uv.x, uv.y); uv0[v + 1] = new Vector2(uv.xMax, uv.y); uv0[v + 2] = new Vector2(uv.xMax, uv.yMax); uv0[v + 3] = new Vector2(uv.x, uv.yMax);
             }
-            else
+            else if (d.Kind == 1)
             {
                 count = 2 * (d.Segments + 1);
                 float bend = d.BendBone >= 0 ? a.BoneBend[d.BendBone * 2] : 0f, sway = d.BendBone >= 0 ? a.BoneBend[d.BendBone * 2 + 1] : 0f;
@@ -656,6 +775,43 @@ public sealed class PNVisualActor : MonoBehaviour
                     if (d.AxisX) { float u = sourceUv.x + t * sourceUv.width + endPad * sourceUv.width / size.x; uv0[row] = new Vector2(u, uv.yMax); uv0[row + 1] = new Vector2(u, uv.y); }
                     else { float w = sourceUv.yMax - t * sourceUv.height - endPad * sourceUv.height / size.y; uv0[row] = new Vector2(uv.x, w); uv0[row + 1] = new Vector2(uv.xMax, w); }
                 }
+            }
+            else
+            {
+                count = d.VertexCount; int cols = d.GridCols, rows = d.GridRows; var order = d.GridOrder;
+                var deform = d.Kind == 2 && d.Slot >= 0 ? a.SlotDeform : null; int deformBase = d.Slot * PNVisualAnimator.DeformStride; var skin = d.Kind == 3 ? d.Skin : null;
+                for (int j = 0; j <= rows; j++)
+                    for (int i2 = 0; i2 <= cols; i2++)
+                    {
+                        float fx = (float)i2 / cols, fy = (float)j / rows, x = x0 + (x1 - x0) * fx, y = y1 + (y0 - y1) * fy;       // j counts from the bottom (y is down in the picture)
+                        int vi = v + order[j * (cols + 1) + i2]; float px, py;
+                        if (skin != null)
+                        {
+                            int vertex = (rows - j) * (cols + 1) + i2; float sx = 0f, sy = 0f;
+                            for (int k = 0; k < PNVisualSkin.PerVertex; k++)
+                            {
+                                float w = skin.Weight[vertex * PNVisualSkin.PerVertex + k]; if (w <= 0f) continue;
+                                int b = skin.Bone[vertex * PNVisualSkin.PerVertex + k], bi = skin.Bones[b], o = bi * 6;
+                                float qx = skin.Qx[vertex * PNVisualSkin.PerVertex + k] * (a.BoneScale[bi * 2] / skin.RestSx[b]), qy = skin.Qy[vertex * PNVisualSkin.PerVertex + k] * (a.BoneScale[bi * 2 + 1] / skin.RestSy[b]);
+                                sx += w * (a.BoneAffine[o] * qx + a.BoneAffine[o + 2] * qy + a.BoneAffine[o + 4]); sy += w * (a.BoneAffine[o + 1] * qx + a.BoneAffine[o + 3] * qy + a.BoneAffine[o + 5]);
+                            }
+                            vertices[vi] = new Vector3(sx, sy, 0f);
+                        }
+                        else
+                        {
+                            float lx = x, ly = y;
+                            if (deform != null && d.LatCols > 0)
+                            {
+                                float gx = Mathf.Clamp01((x + d.Part.PivotX) / size.x) * (d.LatCols - 1), gy = Mathf.Clamp01((y + d.Part.PivotY) / size.y) * (d.LatRows - 1);
+                                int c0 = Mathf.Min((int)gx, d.LatCols - 2), r0 = Mathf.Min((int)gy, d.LatRows - 2); float tx2 = gx - c0, ty2 = gy - r0;
+                                int p00 = deformBase + (r0 * PNVisualLimits.MaxLattice + c0) * 2, p10 = p00 + 2, p01 = p00 + PNVisualLimits.MaxLattice * 2, p11 = p01 + 2;
+                                lx += Mathf.Lerp(Mathf.Lerp(deform[p00], deform[p10], tx2), Mathf.Lerp(deform[p01], deform[p11], tx2), ty2);
+                                ly += Mathf.Lerp(Mathf.Lerp(deform[p00 + 1], deform[p10 + 1], tx2), Mathf.Lerp(deform[p01 + 1], deform[p11 + 1], tx2), ty2);
+                            }
+                            px = ta * lx + tc * ly + ttx; py = tb * lx + td * ly + tty; vertices[vi] = new Vector3(px, py, 0f);
+                        }
+                        uv0[vi] = new Vector2(uv.x + uv.width * fx, uv.y + uv.height * fy);
+                    }
             }
             var tint = tintColors[(int)d.Tint]; float alpha = d.Slot >= 0 ? a.SlotAlpha[d.Slot] : 1f; if (d.Blush) alpha *= appearance.BlushAlpha;
             var color = new Color32(tint.r, tint.g, tint.b, (byte)Mathf.Clamp(Mathf.RoundToInt(tint.a * alpha), 0, 255));

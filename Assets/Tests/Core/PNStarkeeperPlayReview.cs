@@ -20,7 +20,7 @@ public sealed class PNStarkeeperTitlePress : MonoBehaviour
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void Boot()
     {
-        if (!Environment.GetCommandLineArgs().Any(x => x.StartsWith("-pn-menu-play-starkeeper", StringComparison.Ordinal))) return;
+        if (!Environment.GetCommandLineArgs().Any(x => x.StartsWith("-pn-menu-play-starkeeper", StringComparison.Ordinal) || x.StartsWith("-pn-menu-play-creature", StringComparison.Ordinal))) return;
         var go = new GameObject("Starkeeper title press"); DontDestroyOnLoad(go); go.AddComponent<PNStarkeeperTitlePress>();
     }
     private IEnumerator Start()

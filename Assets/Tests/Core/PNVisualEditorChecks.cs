@@ -12,7 +12,7 @@ using UnityEngine.SceneManagement;
 //     the shader is supported, the picture really shows the body (pixels are checked, frames are saved for a human to look at), builds change the capsule, facing mirrors, no
 //     per-frame managed allocation, cleanup leaves nothing registered. Frames go to `outputDirectory` (default G:/ProjectN_Camera/VisualP3, the F drive is nearly full).
 // VI: Kiem tra native bo ve Visual trong preview scene: noi dung nap that, atlas, mot mesh moi actor, shader, anh that, build, huong, khong cap phat, don dep.
-public static class PNVisualEditorChecks
+public static partial class PNVisualEditorChecks
 {
     private static void Require(bool condition, string message) { if (!condition) throw new Exception("Visual check failed: " + message); }
 

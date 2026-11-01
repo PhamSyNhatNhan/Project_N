@@ -1,0 +1,1057 @@
+{
+ "schemaVersion": 1,
+ "extensions": {
+  "project_n": {
+   "visualRigs": [
+    {
+     "id": "project_n:creature_test",
+     "pixelsPerMeter": 1630,
+     "facing": "right",
+     "capsule": {
+      "height": 0.35,
+      "radius": 0.12
+     },
+     "bones": [
+      {
+       "id": "root",
+       "at": [
+        0,
+        0
+       ]
+      },
+      {
+       "id": "body",
+       "parent": "root",
+       "at": [
+        0,
+        -250
+       ]
+      },
+      {
+       "id": "tail",
+       "parent": "body",
+       "at": [
+        -170,
+        30
+       ]
+      },
+      {
+       "id": "orbit",
+       "parent": "body",
+       "at": [
+        0,
+        0
+       ]
+      },
+      {
+       "id": "orbitA",
+       "parent": "orbit",
+       "at": [
+        270,
+        0
+       ]
+      },
+      {
+       "id": "orbitB",
+       "parent": "orbit",
+       "at": [
+        -270,
+        0
+       ]
+      },
+      {
+       "id": "flag",
+       "parent": "body",
+       "at": [
+        -60,
+        -170
+       ]
+      },
+      {
+       "id": "rib1",
+       "parent": "body",
+       "at": [
+        0,
+        100
+       ]
+      },
+      {
+       "id": "rib2",
+       "parent": "rib1",
+       "at": [
+        0,
+        140
+       ]
+      },
+      {
+       "id": "rib3",
+       "parent": "rib2",
+       "at": [
+        0,
+        140
+       ]
+      },
+      {
+       "id": "armU",
+       "parent": "body",
+       "at": [
+        150,
+        0
+       ]
+      },
+      {
+       "id": "armL",
+       "parent": "armU",
+       "at": [
+        110,
+        0
+       ]
+      },
+      {
+       "id": "reach",
+       "parent": "root",
+       "at": [
+        280,
+        -330
+       ]
+      }
+     ],
+     "slots": [
+      {
+       "id": "tail",
+       "bone": "tail",
+       "layer": -10
+      },
+      {
+       "id": "body",
+       "bone": "body",
+       "layer": 10
+      },
+      {
+       "id": "starA",
+       "bone": "orbitA",
+       "layer": 20
+      },
+      {
+       "id": "starB",
+       "bone": "orbitB",
+       "layer": -20
+      },
+      {
+       "id": "flag",
+       "bone": "flag",
+       "layer": -15
+      },
+      {
+       "id": "ribbon",
+       "bone": "rib1",
+       "layer": -8
+      },
+      {
+       "id": "armU",
+       "bone": "armU",
+       "layer": 12
+      },
+      {
+       "id": "armL",
+       "bone": "armL",
+       "layer": 13
+      }
+     ],
+     "dynamics": [
+      {
+       "bone": "tail",
+       "channel": "bend",
+       "tip": [
+        -300,
+        0
+       ],
+       "stiffness": 40,
+       "damping": 5,
+       "gravity": 200,
+       "inertia": 1,
+       "limit": 60
+      },
+      {
+       "bone": "rib1",
+       "tip": [
+        0,
+        140
+       ],
+       "stiffness": 45,
+       "damping": 5,
+       "gravity": 0,
+       "inertia": 1,
+       "limit": 50
+      },
+      {
+       "bone": "rib2",
+       "tip": [
+        0,
+        140
+       ],
+       "stiffness": 45,
+       "damping": 5,
+       "gravity": 0,
+       "inertia": 1,
+       "limit": 50
+      },
+      {
+       "bone": "rib3",
+       "tip": [
+        0,
+        140
+       ],
+       "stiffness": 45,
+       "damping": 5,
+       "gravity": 0,
+       "inertia": 1,
+       "limit": 50
+      }
+     ],
+     "ik": [
+      {
+       "id": "feeler",
+       "bones": [
+        "armU",
+        "armL"
+       ],
+       "tip": [
+        110,
+        0
+       ],
+       "target": "reach",
+       "bend": "positive",
+       "mix": 1
+      }
+     ],
+     "sockets": [
+      {
+       "id": "head_top",
+       "bone": "body",
+       "at": [
+        0,
+        -150
+       ]
+      },
+      {
+       "id": "feet",
+       "bone": "root",
+       "at": [
+        0,
+        0
+       ]
+      }
+     ]
+    }
+   ],
+   "visualParts": [
+    {
+     "id": "project_n:creature_test_body",
+     "image": "visual/creature_test/body.png",
+     "pivot": [
+      200,
+      150
+     ],
+     "tint": "none"
+    },
+    {
+     "id": "project_n:creature_test_tail",
+     "image": "visual/creature_test/tail.png",
+     "pivot": [
+      434,
+      45
+     ],
+     "tint": "none",
+     "segments": 12,
+     "axis": "x"
+    },
+    {
+     "id": "project_n:creature_test_star",
+     "image": "visual/creature_test/star.png",
+     "pivot": [
+      60,
+      60
+     ],
+     "tint": "none"
+    },
+    {
+     "id": "project_n:creature_test_flag",
+     "image": "visual/creature_test/flag.png",
+     "pivot": [
+      150,
+      120
+     ],
+     "tint": "none",
+     "grid": {
+      "cols": 8,
+      "rows": 6
+     },
+     "lattice": {
+      "cols": 3,
+      "rows": 3
+     }
+    },
+    {
+     "id": "project_n:creature_test_ribbon",
+     "image": "visual/creature_test/ribbon.png",
+     "pivot": [
+      60,
+      0
+     ],
+     "tint": "none",
+     "grid": {
+      "cols": 3,
+      "rows": 10
+     },
+     "skin": {
+      "bones": [
+       "rib1",
+       "rib2",
+       "rib3"
+      ],
+      "weights": "auto",
+      "falloff": 2
+     }
+    },
+    {
+     "id": "project_n:creature_test_limb",
+     "image": "visual/creature_test/limb.png",
+     "pivot": [
+      28,
+      28
+     ],
+     "tint": "none"
+    }
+   ],
+   "visualMotions": [
+    {
+     "id": "project_n:creature_test_idle",
+     "rig": "project_n:creature_test",
+     "kind": "pose",
+     "clock": "time",
+     "duration": 3.0,
+     "loop": true,
+     "blendIn": 0.1,
+     "tracks": {
+      "body": {
+       "y": {
+        "wave": {
+         "amp": 8,
+         "freq": 0.3333333333333333,
+         "phase": 0.0,
+         "offset": 0.0
+        }
+       }
+      },
+      "tail": {
+       "bend": {
+        "wave": {
+         "amp": 25,
+         "freq": 0.3333333333333333,
+         "phase": 0.0,
+         "offset": 0.0
+        }
+       }
+      },
+      "orbit": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          0
+         ],
+         [
+          3.0,
+          360
+         ]
+        ]
+       }
+      },
+      "reach": {
+       "x": {
+        "wave": {
+         "amp": 30,
+         "freq": 0.3333333333333333,
+         "phase": 0.0,
+         "offset": 0.0
+        }
+       },
+       "y": {
+        "wave": {
+         "amp": 20,
+         "freq": 0.3333333333333333,
+         "phase": 1.57,
+         "offset": 0.0
+        }
+       }
+      }
+     },
+     "deform": {
+      "flag": {
+       "1_1": {
+        "x": {
+         "wave": {
+          "amp": 26.0,
+          "freq": 0.3333333333333333,
+          "phase": 0.0,
+          "offset": 0.0
+         }
+        },
+        "y": {
+         "wave": {
+          "amp": 14.0,
+          "freq": 0.3333333333333333,
+          "phase": 0.6,
+          "offset": 0.0
+         }
+        }
+       },
+       "2_1": {
+        "x": {
+         "wave": {
+          "amp": -22.0,
+          "freq": 0.3333333333333333,
+          "phase": 1.2,
+          "offset": 0.0
+         }
+        },
+        "y": {
+         "wave": {
+          "amp": 12.0,
+          "freq": 0.3333333333333333,
+          "phase": 1.8,
+          "offset": 0.0
+         }
+        }
+       },
+       "1_0": {
+        "x": {
+         "wave": {
+          "amp": 10.0,
+          "freq": 0.3333333333333333,
+          "phase": 0.3,
+          "offset": 0.0
+         }
+        }
+       },
+       "2_2": {
+        "y": {
+         "wave": {
+          "amp": -18.0,
+          "freq": 0.3333333333333333,
+          "phase": 0.9,
+          "offset": 0.0
+         }
+        }
+       }
+      }
+     }
+    },
+    {
+     "id": "project_n:creature_test_walk",
+     "rig": "project_n:creature_test",
+     "kind": "pose",
+     "clock": "time",
+     "duration": 1.5,
+     "loop": true,
+     "blendIn": 0.1,
+     "tracks": {
+      "body": {
+       "y": {
+        "wave": {
+         "amp": 10,
+         "freq": 0.6666666666666666,
+         "phase": 0.0,
+         "offset": 0.0
+        }
+       },
+       "rot": {
+        "wave": {
+         "amp": 3,
+         "freq": 0.6666666666666666,
+         "phase": 0.0,
+         "offset": 0.0
+        }
+       }
+      },
+      "tail": {
+       "bend": {
+        "wave": {
+         "amp": 35,
+         "freq": 0.6666666666666666,
+         "phase": 0.0,
+         "offset": 0.0
+        }
+       }
+      },
+      "orbit": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          0
+         ],
+         [
+          1.5,
+          360
+         ]
+        ]
+       }
+      },
+      "reach": {
+       "x": {
+        "wave": {
+         "amp": 30,
+         "freq": 0.6666666666666666,
+         "phase": 0.0,
+         "offset": 0.0
+        }
+       },
+       "y": {
+        "wave": {
+         "amp": 20,
+         "freq": 0.6666666666666666,
+         "phase": 1.57,
+         "offset": 0.0
+        }
+       }
+      }
+     },
+     "deform": {
+      "flag": {
+       "1_1": {
+        "x": {
+         "wave": {
+          "amp": 33.800000000000004,
+          "freq": 0.6666666666666666,
+          "phase": 0.0,
+          "offset": 0.0
+         }
+        },
+        "y": {
+         "wave": {
+          "amp": 18.2,
+          "freq": 0.6666666666666666,
+          "phase": 0.6,
+          "offset": 0.0
+         }
+        }
+       },
+       "2_1": {
+        "x": {
+         "wave": {
+          "amp": -28.6,
+          "freq": 0.6666666666666666,
+          "phase": 1.2,
+          "offset": 0.0
+         }
+        },
+        "y": {
+         "wave": {
+          "amp": 15.600000000000001,
+          "freq": 0.6666666666666666,
+          "phase": 1.8,
+          "offset": 0.0
+         }
+        }
+       },
+       "1_0": {
+        "x": {
+         "wave": {
+          "amp": 13.0,
+          "freq": 0.6666666666666666,
+          "phase": 0.3,
+          "offset": 0.0
+         }
+        }
+       },
+       "2_2": {
+        "y": {
+         "wave": {
+          "amp": -23.400000000000002,
+          "freq": 0.6666666666666666,
+          "phase": 0.9,
+          "offset": 0.0
+         }
+        }
+       }
+      }
+     }
+    },
+    {
+     "id": "project_n:creature_test_run",
+     "rig": "project_n:creature_test",
+     "kind": "pose",
+     "clock": "time",
+     "duration": 1.0,
+     "loop": true,
+     "blendIn": 0.1,
+     "tracks": {
+      "body": {
+       "y": {
+        "wave": {
+         "amp": 12,
+         "freq": 1.0,
+         "phase": 0.0,
+         "offset": 0.0
+        }
+       },
+       "rot": {
+        "keys": [
+         [
+          0,
+          8
+         ],
+         [
+          1,
+          8
+         ]
+        ]
+       }
+      },
+      "tail": {
+       "bend": {
+        "wave": {
+         "amp": 45,
+         "freq": 1.0,
+         "phase": 0.0,
+         "offset": 0.0
+        }
+       }
+      },
+      "orbit": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          0
+         ],
+         [
+          1.0,
+          360
+         ]
+        ]
+       }
+      },
+      "reach": {
+       "x": {
+        "wave": {
+         "amp": 30,
+         "freq": 1.0,
+         "phase": 0.0,
+         "offset": 0.0
+        }
+       },
+       "y": {
+        "wave": {
+         "amp": 20,
+         "freq": 1.0,
+         "phase": 1.57,
+         "offset": 0.0
+        }
+       }
+      }
+     },
+     "deform": {
+      "flag": {
+       "1_1": {
+        "x": {
+         "wave": {
+          "amp": 46.800000000000004,
+          "freq": 1.0,
+          "phase": 0.0,
+          "offset": 0.0
+         }
+        },
+        "y": {
+         "wave": {
+          "amp": 25.2,
+          "freq": 1.0,
+          "phase": 0.6,
+          "offset": 0.0
+         }
+        }
+       },
+       "2_1": {
+        "x": {
+         "wave": {
+          "amp": -39.6,
+          "freq": 1.0,
+          "phase": 1.2,
+          "offset": 0.0
+         }
+        },
+        "y": {
+         "wave": {
+          "amp": 21.6,
+          "freq": 1.0,
+          "phase": 1.8,
+          "offset": 0.0
+         }
+        }
+       },
+       "1_0": {
+        "x": {
+         "wave": {
+          "amp": 18.0,
+          "freq": 1.0,
+          "phase": 0.3,
+          "offset": 0.0
+         }
+        }
+       },
+       "2_2": {
+        "y": {
+         "wave": {
+          "amp": -32.4,
+          "freq": 1.0,
+          "phase": 0.9,
+          "offset": 0.0
+         }
+        }
+       }
+      }
+     }
+    },
+    {
+     "id": "project_n:creature_test_hurt",
+     "rig": "project_n:creature_test",
+     "kind": "pose",
+     "clock": "time",
+     "duration": 0.4,
+     "loop": false,
+     "blendIn": 0,
+     "tracks": {
+      "body": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          0
+         ],
+         [
+          0.1,
+          -14
+         ],
+         [
+          0.4,
+          0
+         ]
+        ],
+        "ease": "smooth"
+       }
+      },
+      "tail": {
+       "bend": {
+        "keys": [
+         [
+          0,
+          0
+         ],
+         [
+          0.1,
+          40
+         ],
+         [
+          0.4,
+          0
+         ]
+        ],
+        "ease": "smooth"
+       }
+      }
+     },
+     "channel": "overlay",
+     "mask": [
+      "body",
+      "tail"
+     ],
+     "blendOut": 0.15
+    },
+    {
+     "id": "project_n:creature_test_dead",
+     "rig": "project_n:creature_test",
+     "kind": "pose",
+     "clock": "time",
+     "duration": 1.2,
+     "loop": false,
+     "blendIn": 0,
+     "tracks": {
+      "body": {
+       "y": {
+        "keys": [
+         [
+          0,
+          0
+         ],
+         [
+          0.4,
+          80
+         ],
+         [
+          1.2,
+          100
+         ]
+        ],
+        "ease": "smooth"
+       },
+       "rot": {
+        "keys": [
+         [
+          0,
+          0
+         ],
+         [
+          0.5,
+          -70
+         ],
+         [
+          1.2,
+          -80
+         ]
+        ],
+        "ease": "smooth"
+       }
+      },
+      "tail": {
+       "bend": {
+        "keys": [
+         [
+          0,
+          0
+         ],
+         [
+          1.0,
+          80
+         ]
+        ],
+        "ease": "smooth"
+       }
+      },
+      "orbit": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          0
+         ],
+         [
+          1.2,
+          90
+         ]
+        ],
+        "ease": "smooth"
+       }
+      }
+     }
+    },
+    {
+     "id": "project_n:creature_test_stun",
+     "rig": "project_n:creature_test",
+     "kind": "pose",
+     "clock": "time",
+     "duration": 2.0,
+     "loop": true,
+     "blendIn": 0.1,
+     "tracks": {
+      "body": {
+       "y": {
+        "keys": [
+         [
+          0,
+          60
+         ],
+         [
+          2,
+          60
+         ]
+        ]
+       },
+       "rot": {
+        "keys": [
+         [
+          0,
+          -10
+         ],
+         [
+          1,
+          -6
+         ],
+         [
+          2,
+          -10
+         ]
+        ],
+        "ease": "smooth"
+       }
+      },
+      "tail": {
+       "bend": {
+        "keys": [
+         [
+          0,
+          50
+         ],
+         [
+          2,
+          50
+         ]
+        ]
+       }
+      },
+      "orbit": {
+       "rot": {
+        "wave": {
+         "amp": 15,
+         "freq": 0.5,
+         "phase": 0.0,
+         "offset": 0.0
+        }
+       }
+      }
+     }
+    },
+    {
+     "id": "project_n:creature_test_recover",
+     "rig": "project_n:creature_test",
+     "kind": "pose",
+     "clock": "time",
+     "duration": 0.5,
+     "loop": false,
+     "blendIn": 0,
+     "tracks": {
+      "body": {
+       "y": {
+        "keys": [
+         [
+          0,
+          60
+         ],
+         [
+          0.5,
+          0
+         ]
+        ],
+        "ease": "smooth"
+       },
+       "rot": {
+        "keys": [
+         [
+          0,
+          -10
+         ],
+         [
+          0.5,
+          0
+         ]
+        ],
+        "ease": "smooth"
+       }
+      }
+     }
+    },
+    {
+     "id": "project_n:creature_test_bounce",
+     "rig": "project_n:creature_test",
+     "kind": "pose",
+     "clock": "time",
+     "duration": 1.0,
+     "loop": false,
+     "blendIn": 0,
+     "tracks": {
+      "body": {
+       "y": {
+        "keys": [
+         [
+          0,
+          0,
+          [
+           0.2,
+           0,
+           0.5,
+           80
+          ]
+         ],
+         [
+          0.5,
+          120,
+          [
+           0.3,
+           -40,
+           0.7,
+           0
+          ]
+         ],
+         [
+          1.0,
+          100
+         ]
+        ]
+       }
+      },
+      "tail": {
+       "bend": {
+        "keys": [
+         [
+          0,
+          0,
+          [
+           0.4,
+           0,
+           0.6,
+           30
+          ]
+         ],
+         [
+          0.6,
+          40
+         ],
+         [
+          1.0,
+          0
+         ]
+        ],
+        "ease": "smooth"
+       }
+      }
+     }
+    }
+   ],
+   "visualMotionSets": [
+    {
+     "id": "project_n:creature_test_default",
+     "rig": "project_n:creature_test",
+     "states": {
+      "idle": "project_n:creature_test_idle",
+      "walk": "project_n:creature_test_walk",
+      "run": "project_n:creature_test_run",
+      "hurt": "project_n:creature_test_hurt",
+      "dead": "project_n:creature_test_dead",
+      "stun": "project_n:creature_test_stun",
+      "recover": "project_n:creature_test_recover",
+      "bounce": "project_n:creature_test_bounce"
+     }
+    }
+   ],
+   "visualAppearances": [
+    {
+     "id": "project_n:creature_test",
+     "rig": "project_n:creature_test",
+     "motionSet": "project_n:creature_test_default",
+     "build": "project_n:build_normal",
+     "slots": {
+      "body": "project_n:creature_test_body",
+      "tail": "project_n:creature_test_tail",
+      "starA": "project_n:creature_test_star",
+      "starB": "project_n:creature_test_star",
+      "flag": "project_n:creature_test_flag",
+      "ribbon": "project_n:creature_test_ribbon",
+      "armU": "project_n:creature_test_limb",
+      "armL": "project_n:creature_test_limb"
+     }
+    }
+   ]
+  }
+ }
+}

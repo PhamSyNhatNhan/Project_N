@@ -14,11 +14,12 @@ public enum PNVisualChannel { Base, Overlay }
 public enum PNVisualEase { Linear, Smooth, Step }
 public enum PNVisualTrackKind { Rot, X, Y, Sx, Sy, Bend, Sway }
 public enum PNVisualBendAxis { Y, X }
+public enum PNVisualDynamicsChannel { Rot, Bend }
 
 public static class PNVisualLimits
 {
-    public const int MaxBones = 64, MaxSlots = 64, MaxSockets = 32, MaxKeys = 256, MaxTracks = 64, MaxEvents = 32, MaxFrames = 256, MaxVariants = 16, MaxFree = 32, MaxMask = 64, MaxSegments = 16, TrackKinds = 7;
-    public const float MinPixelsPerMeter = 10f, MaxPixelsPerMeter = 10000f, MaxCoordinate = 100000f, MaxAngle = 1080f, MaxScale = 8f, MaxDuration = 600f, MaxBlend = .5f, MaxFrequency = 20f, MaxBendAngle = 360f;
+    public const int MaxGridCells = 16, MaxGridVertices = 289, MinLattice = 2, MaxLattice = 6, MaxSkinBones = 8, MaxSkinVerticesPerActor = 4096, MaxDeform = 64, MaxIk = 8, MaxDynamics = 32, MaxBones = 64, MaxSlots = 64, MaxSockets = 32, MaxKeys = 256, MaxTracks = 64, MaxEvents = 32, MaxFrames = 256, MaxVariants = 16, MaxFree = 32, MaxMask = 64, MaxSegments = 16, TrackKinds = 7;
+    public const float MinPixelsPerMeter = 10f, MaxPixelsPerMeter = 10000f, MaxCoordinate = 100000f, MaxAngle = 1080f, MaxScale = 8f, MaxDuration = 600f, MaxBlend = .5f, MaxFrequency = 20f, MaxBendAngle = 360f, MaxSpringStiffness = 2000f, MaxSpringDamping = 50f, MaxSpringGravity = 5000f, MaxSpringInertia = 4f, MaxSpringLimit = 180f, MaxSpringTip = 2000f;
     public const int MaxLayer = 1000;
     public static bool Finite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
     public static float Coordinate(float value, string what)
@@ -45,6 +46,84 @@ public static class PNVisualLimits
             throw new FormatException(what + " image path must be a relative .png path without '..': " + value);
         return value;
     }
+}
+
+// A spring chain link: the end of the bone (`tip`, in the bone's frame, art px) trails the bone's animated pose like a mass on a spring and the bone turns (Rot) or its bendable part curves (Bend)
+// by the angle between the animated direction and the trailing one. Simulated by PNVisualAnimator in unmirrored art px with a fixed step; presentation only.
+public sealed class PNVisualDynamicsEntry
+{
+    public string Bone { get; } public PNVisualDynamicsChannel Channel { get; } public float TipX { get; } public float TipY { get; }
+    public float Stiffness { get; } public float Damping { get; } public float Gravity { get; } public float Inertia { get; } public float Limit { get; }
+    public PNVisualDynamicsEntry(string bone, PNVisualDynamicsChannel channel, float tipX, float tipY, float stiffness, float damping, float gravity, float inertia, float limit)
+    {
+        Bone = PNVisualLimits.Name(bone, "dynamics bone");
+        if (!Enum.IsDefined(typeof(PNVisualDynamicsChannel), channel)) throw new FormatException("dynamics channel is unknown.");
+        Channel = channel; TipX = PNVisualLimits.Coordinate(tipX, "dynamics tip x"); TipY = PNVisualLimits.Coordinate(tipY, "dynamics tip y");
+        float length = (float)Math.Sqrt(TipX * TipX + TipY * TipY);
+        if (length < 1f || length > PNVisualLimits.MaxSpringTip) throw new FormatException("dynamics tip of " + bone + " must be 1.." + PNVisualLimits.MaxSpringTip + " px from the joint.");
+        Stiffness = PNVisualLimits.InRange(stiffness, 0f, PNVisualLimits.MaxSpringStiffness, "dynamics stiffness"); Damping = PNVisualLimits.InRange(damping, 0f, PNVisualLimits.MaxSpringDamping, "dynamics damping");
+        Gravity = PNVisualLimits.InRange(gravity, -PNVisualLimits.MaxSpringGravity, PNVisualLimits.MaxSpringGravity, "dynamics gravity"); Inertia = PNVisualLimits.InRange(inertia, 0f, PNVisualLimits.MaxSpringInertia, "dynamics inertia");
+        Limit = PNVisualLimits.InRange(limit, 0f, PNVisualLimits.MaxSpringLimit, "dynamics limit");
+    }
+}
+
+// An inverse kinematics constraint: one or two bones are turned so the tip of the last one (`tip`, in its frame, art px) reaches the goal, the position of the bone `target`. `mix` 0..1 is how far the
+// solution is applied (a motion may change it over time, see PNVisualIkMix). Solved by PNVisualAnimator before the spring chains; see PNVisualIk.
+public sealed class PNVisualIkConstraint
+{
+    public string Id { get; } public IReadOnlyList<string> Bones { get; } public float TipX { get; } public float TipY { get; } public string Target { get; } public bool BendPositive { get; } public float Mix { get; }
+    public PNVisualIkConstraint(string id, IEnumerable<string> bones, float tipX, float tipY, string target, bool bendPositive, float mix)
+    {
+        Id = PNVisualLimits.Name(id, "ik id"); var list = new List<string>(); foreach (var b in bones ?? throw new ArgumentNullException(nameof(bones))) list.Add(PNVisualLimits.Name(b, "ik bone"));
+        if (list.Count < 1 || list.Count > 2) throw new FormatException("ik " + id + " needs one or two bones.");
+        if (list.Count == 2 && list[0] == list[1]) throw new FormatException("ik " + id + " repeats a bone.");
+        Bones = list; TipX = PNVisualLimits.Coordinate(tipX, "ik tip x"); TipY = PNVisualLimits.Coordinate(tipY, "ik tip y");
+        if (TipX * TipX + TipY * TipY < 1f) throw new FormatException("ik " + id + " tip must be at least 1 px from the joint.");
+        Target = PNVisualLimits.Name(target, "ik target"); BendPositive = bendPositive; Mix = PNVisualLimits.InRange(mix, 0f, 1f, "ik mix");
+    }
+}
+
+// A motion's own mix curve (0..1) for one constraint of the rig: the constraint is blended in and out over time.
+public sealed class PNVisualIkMix
+{
+    public string Id { get; } public PNVisualCurve Curve { get; }
+    public PNVisualIkMix(string id, PNVisualCurve curve)
+    {
+        Id = PNVisualLimits.Name(id, "ik mix id"); Curve = curve ?? throw new ArgumentNullException(nameof(curve));
+        if (curve.StartsFromCurrent) throw new FormatException("an ik mix curve cannot start from the current pose.");
+        if (!curve.IsWave) for (int i = 0; i < curve.Values.Length; i++) PNVisualLimits.InRange(curve.Values[i], 0f, 1f, "ik mix key");
+    }
+}
+
+// Skin weights of a gridded part (R4): every vertex of the grid follows up to four bones of the rig. `Bones` names the bones (the part does not know the rig; the appearance checks they exist).
+// Auto = the weights are computed when the puppet is bound, from the distance of each vertex to each bone in the rest pose (`Falloff`: how fast a bone's pull dies out). Explicit weights come
+// as four (bone index, weight) pairs per vertex, vertices in the order of the picture (left to right, top row first), each vertex summing to 1 (+-0.01).
+public sealed class PNVisualSkin
+{
+    public IReadOnlyList<string> Bones { get; } public bool Auto { get; } public float Falloff { get; } public int[] Influence { get; } public float[] Weight { get; }
+    public const int PerVertex = 4;
+    public PNVisualSkin(IEnumerable<string> bones, bool auto, float falloff, int[] influence, float[] weight)
+    {
+        var list = new List<string>(); foreach (var b in bones ?? throw new ArgumentNullException(nameof(bones))) { var name = PNVisualLimits.Name(b, "skin bone"); if (list.Contains(name)) throw new FormatException("skin repeats bone " + name + "."); list.Add(name); }
+        if (list.Count < 1 || list.Count > PNVisualLimits.MaxSkinBones) throw new FormatException("skin needs 1.." + PNVisualLimits.MaxSkinBones + " bones.");
+        Bones = list; Auto = auto; Falloff = PNVisualLimits.InRange(falloff, 1f, 8f, "skin falloff");
+        if (auto) return;
+        if (influence == null || weight == null || influence.Length != weight.Length || influence.Length == 0 || influence.Length % PerVertex != 0) throw new FormatException("skin weights need four influences per vertex.");
+        for (int v = 0; v < influence.Length / PerVertex; v++)
+        {
+            float sum = 0f;
+            for (int k = 0; k < PerVertex; k++)
+            {
+                int i = v * PerVertex + k; float w = weight[i];
+                if (!PNVisualLimits.Finite(w) || w < 0f || w > 1f) throw new FormatException("a skin weight must be 0..1.");
+                if (w > 0f && (influence[i] < 0 || influence[i] >= list.Count)) throw new FormatException("a skin weight names a bone that is not in the skin.");
+                sum += w;
+            }
+            if (Math.Abs(sum - 1f) > .01f) throw new FormatException("the skin weights of a vertex must add up to 1 (+-0.01).");
+        }
+        Influence = influence; Weight = weight;
+    }
+    public int VertexCount => Influence == null ? 0 : Influence.Length / PerVertex;
 }
 
 public sealed class PNVisualBone
@@ -83,9 +162,17 @@ public sealed class PNVisualRigDefinition : EveIIdentified
 {
     public EveId Id { get; } public float PixelsPerMeter { get; } public float CapsuleHeight { get; } public float CapsuleRadius { get; }
     public EveId? Extends { get; }
+    // Optional drawing box in metres for a rig whose parts reach far outside its capsule (a boss, orbiting pieces): width, height and the part below the feet. 0 = computed from the rest pose.
+    public float DrawWidth { get; } public float DrawHeight { get; } public float DrawBottom { get; }
+    public IReadOnlyList<PNVisualDynamicsEntry> Dynamics { get; } public IReadOnlyList<PNVisualIkConstraint> Ik { get; }
     public IReadOnlyList<PNVisualBone> Bones { get; } public IReadOnlyList<PNVisualSlot> Slots { get; } public IReadOnlyList<PNVisualSocket> Sockets { get; }
-    public PNVisualRigDefinition(EveId id, float pixelsPerMeter, float capsuleHeight, float capsuleRadius, EveId? extends, IEnumerable<PNVisualBone> bones, IEnumerable<PNVisualSlot> slots, IEnumerable<PNVisualSocket> sockets)
+    public PNVisualRigDefinition(EveId id, float pixelsPerMeter, float capsuleHeight, float capsuleRadius, EveId? extends, IEnumerable<PNVisualBone> bones, IEnumerable<PNVisualSlot> slots, IEnumerable<PNVisualSocket> sockets,
+        float drawWidth = 0f, float drawHeight = 0f, float drawBottom = 0f, IEnumerable<PNVisualDynamicsEntry> dynamics = null, IEnumerable<PNVisualIkConstraint> ik = null)
     {
+        Ik = (ik ?? Enumerable.Empty<PNVisualIkConstraint>()).ToArray(); if (Ik.Count > PNVisualLimits.MaxIk) throw new FormatException("rig " + id + " has too many ik constraints.");
+        Dynamics = (dynamics ?? Enumerable.Empty<PNVisualDynamicsEntry>()).ToArray();
+        if (Dynamics.Count > PNVisualLimits.MaxDynamics) throw new FormatException("rig " + id + " has too many dynamics entries.");
+        DrawWidth = DrawBox(drawWidth, "drawBounds width"); DrawHeight = DrawBox(drawHeight, "drawBounds height"); DrawBottom = DrawBox(drawBottom, "drawBounds bottom");
         if (!id.IsValid) throw new FormatException("rig needs a valid id.");
         Id = id; PixelsPerMeter = PNVisualLimits.InRange(pixelsPerMeter, PNVisualLimits.MinPixelsPerMeter, PNVisualLimits.MaxPixelsPerMeter, "pixelsPerMeter");
         CapsuleHeight = PNVisualLimits.InRange(capsuleHeight, .01f, 100f, "capsule height"); CapsuleRadius = PNVisualLimits.InRange(capsuleRadius, .01f, 100f, "capsule radius");
@@ -94,6 +181,8 @@ public sealed class PNVisualRigDefinition : EveIIdentified
         if (Bones.Count > PNVisualLimits.MaxBones || Slots.Count > PNVisualLimits.MaxSlots || Sockets.Count > PNVisualLimits.MaxSockets) throw new FormatException("rig " + id + " has too many bones, slots or sockets.");
         if (Extends == null && Bones.Count == 0) throw new FormatException("rig " + id + " needs at least one bone.");
     }
+
+    private static float DrawBox(float value, string what) => value == 0f ? 0f : PNVisualLimits.InRange(value, .01f, 100f, what);
 
     // The rig with its base rig's bones/slots/sockets first; bones are returned parents-before-children. Throws on a cycle, a missing parent, a duplicate id or an unknown bone in a slot/socket.
     public PNVisualResolvedRig Resolve(Func<EveId, PNVisualRigDefinition> lookup)
@@ -106,8 +195,10 @@ public sealed class PNVisualRigDefinition : EveIIdentified
             if (chain.Count > 8) throw new FormatException("rig " + Id + " extends more than 8 levels.");
             current = current.Extends.HasValue ? lookup(current.Extends.Value) ?? throw new FormatException("rig " + current.Id + " extends unknown rig " + current.Extends.Value) : null;
         }
-        var bones = new List<PNVisualBone>(); var slots = new List<PNVisualSlot>(); var sockets = new List<PNVisualSocket>();
-        foreach (var rig in chain) { bones.AddRange(rig.Bones); slots.AddRange(rig.Slots); sockets.AddRange(rig.Sockets); }
+        var bones = new List<PNVisualBone>(); var slots = new List<PNVisualSlot>(); var sockets = new List<PNVisualSocket>(); var dynamics = new List<PNVisualDynamicsEntry>(); var ik = new List<PNVisualIkConstraint>();
+        foreach (var rig in chain) { bones.AddRange(rig.Bones); slots.AddRange(rig.Slots); sockets.AddRange(rig.Sockets); dynamics.AddRange(rig.Dynamics); ik.AddRange(rig.Ik); }
+        if (ik.Count > PNVisualLimits.MaxIk) throw new FormatException("rig " + Id + " resolves to too many ik constraints.");
+        if (dynamics.Count > PNVisualLimits.MaxDynamics) throw new FormatException("rig " + Id + " resolves to too many dynamics entries.");
         if (bones.Count > PNVisualLimits.MaxBones || slots.Count > PNVisualLimits.MaxSlots || sockets.Count > PNVisualLimits.MaxSockets) throw new FormatException("rig " + Id + " resolves to too many bones, slots or sockets.");
         var byId = new Dictionary<string, PNVisualBone>();
         foreach (var bone in bones) if (!byId.ContainsKey(bone.Id)) byId.Add(bone.Id, bone); else throw new FormatException("rig " + Id + " repeats bone " + bone.Id + ".");
@@ -128,7 +219,19 @@ public sealed class PNVisualRigDefinition : EveIIdentified
         foreach (var slot in slots) { if (!byId.ContainsKey(slot.Bone)) throw new FormatException("rig " + Id + " slot " + slot.Id + " uses unknown bone " + slot.Bone + "."); if (!slotIds.Add(slot.Id)) throw new FormatException("rig " + Id + " repeats slot " + slot.Id + "."); }
         var socketIds = new HashSet<string>();
         foreach (var socket in sockets) { if (!byId.ContainsKey(socket.Bone)) throw new FormatException("rig " + Id + " socket " + socket.Id + " uses unknown bone " + socket.Bone + "."); if (!socketIds.Add(socket.Id)) throw new FormatException("rig " + Id + " repeats socket " + socket.Id + "."); }
-        return new PNVisualResolvedRig(this, order, slots, sockets);
+        var dynamicBones = new HashSet<string>();
+        foreach (var entry in dynamics) { if (!byId.ContainsKey(entry.Bone)) throw new FormatException("rig " + Id + " dynamics uses unknown bone " + entry.Bone + "."); if (!dynamicBones.Add(entry.Bone)) throw new FormatException("rig " + Id + " has two dynamics entries on bone " + entry.Bone + "."); }
+        var ikIds = new HashSet<string>();
+        foreach (var c in ik)
+        {
+            if (!ikIds.Add(c.Id)) throw new FormatException("rig " + Id + " repeats ik " + c.Id + ".");
+            foreach (var b in c.Bones) if (!byId.ContainsKey(b)) throw new FormatException("rig " + Id + " ik " + c.Id + " uses unknown bone " + b + ".");
+            if (!byId.ContainsKey(c.Target)) throw new FormatException("rig " + Id + " ik " + c.Id + " uses unknown target " + c.Target + ".");
+            if (c.Bones.Count == 2 && byId[c.Bones[1]].Parent != c.Bones[0]) throw new FormatException("rig " + Id + " ik " + c.Id + ": the second bone must be a child of the first.");
+            // the goal may not move with the chain it drives: the target is neither in the chain nor below its first bone
+            for (string up = c.Target; up.Length > 0; up = byId[up].Parent) if (up == c.Bones[0]) throw new FormatException("rig " + Id + " ik " + c.Id + ": the target is part of, or below, the chain.");
+        }
+        return new PNVisualResolvedRig(this, order, slots, sockets, dynamics, ik);
     }
 }
 
@@ -137,17 +240,19 @@ public sealed class PNVisualResolvedRig
 {
     public PNVisualRigDefinition Definition { get; }
     public IReadOnlyList<PNVisualBone> Bones { get; } public IReadOnlyList<PNVisualSlot> Slots { get; } public IReadOnlyList<PNVisualSocket> Sockets { get; }
+    public IReadOnlyList<PNVisualDynamicsEntry> Dynamics { get; } public IReadOnlyList<PNVisualIkConstraint> Ik { get; }
     public int[] ParentIndex { get; }
     private readonly Dictionary<string, int> boneIndex = new Dictionary<string, int>(), slotIndex = new Dictionary<string, int>(), socketIndex = new Dictionary<string, int>();
-    public PNVisualResolvedRig(PNVisualRigDefinition definition, IReadOnlyList<PNVisualBone> bones, IReadOnlyList<PNVisualSlot> slots, IReadOnlyList<PNVisualSocket> sockets)
+    public PNVisualResolvedRig(PNVisualRigDefinition definition, IReadOnlyList<PNVisualBone> bones, IReadOnlyList<PNVisualSlot> slots, IReadOnlyList<PNVisualSocket> sockets, IReadOnlyList<PNVisualDynamicsEntry> dynamics = null, IReadOnlyList<PNVisualIkConstraint> ik = null)
     {
-        Definition = definition; Bones = bones; Slots = slots; Sockets = sockets; ParentIndex = new int[bones.Count];
+        Definition = definition; Bones = bones; Slots = slots; Sockets = sockets; Dynamics = dynamics ?? new PNVisualDynamicsEntry[0]; Ik = ik ?? new PNVisualIkConstraint[0]; ParentIndex = new int[bones.Count];
         for (int i = 0; i < bones.Count; i++) boneIndex[bones[i].Id] = i;
         for (int i = 0; i < bones.Count; i++) ParentIndex[i] = bones[i].Parent.Length == 0 ? -1 : boneIndex[bones[i].Parent];
         for (int i = 0; i < slots.Count; i++) slotIndex[slots[i].Id] = i;
         for (int i = 0; i < sockets.Count; i++) socketIndex[sockets[i].Id] = i;
     }
     public int BoneIndex(string id) => boneIndex.TryGetValue(id, out var i) ? i : -1;
+    public int IkIndex(string id) { for (int i = 0; i < Ik.Count; i++) if (Ik[i].Id == id) return i; return -1; }
     public int SlotIndex(string id) => slotIndex.TryGetValue(id, out var i) ? i : -1;
     public int SocketIndex(string id) => socketIndex.TryGetValue(id, out var i) ? i : -1;
 }
@@ -158,8 +263,29 @@ public sealed class PNVisualPartDefinition : EveIIdentified
     public IReadOnlyDictionary<string, string> Variants { get; }
     // Bendable part: the image is drawn as `Segments` strips along `Axis` (the pivot is where the bend starts); 1 = a plain rigid quad. See PNVisualBend.
     public int Segments { get; } public PNVisualBendAxis Axis { get; }
-    public PNVisualPartDefinition(EveId id, string image, float pivotX, float pivotY, PNVisualTint tint, IDictionary<string, string> variants, int segments = 1, PNVisualBendAxis axis = PNVisualBendAxis.Y)
+    // R3/R4: a gridded part is drawn as GridCols x GridRows cells (0 = no grid); the lattice (LatticeCols x LatticeRows control points, 0 = none) is moved by the motions' deform tracks; Skin ties the grid to bones.
+    public int GridCols { get; } public int GridRows { get; } public int LatticeCols { get; } public int LatticeRows { get; } public PNVisualSkin Skin { get; }
+    public bool HasGrid => GridCols > 0;
+    public PNVisualPartDefinition(EveId id, string image, float pivotX, float pivotY, PNVisualTint tint, IDictionary<string, string> variants, int segments = 1, PNVisualBendAxis axis = PNVisualBendAxis.Y,
+        int gridCols = 0, int gridRows = 0, int latticeCols = 0, int latticeRows = 0, PNVisualSkin skin = null)
     {
+        if (gridCols != 0 || gridRows != 0)
+        {
+            if (gridCols < 1 || gridCols > PNVisualLimits.MaxGridCells || gridRows < 1 || gridRows > PNVisualLimits.MaxGridCells) throw new FormatException("part " + id + " grid must be 1.." + PNVisualLimits.MaxGridCells + " cells each way.");
+            if (segments != 1) throw new FormatException("part " + id + " cannot be both a bendable part and a grid.");
+        }
+        if (latticeCols != 0 || latticeRows != 0)
+        {
+            if (gridCols == 0) throw new FormatException("part " + id + " lattice needs a grid.");
+            if (latticeCols < PNVisualLimits.MinLattice || latticeCols > PNVisualLimits.MaxLattice || latticeRows < PNVisualLimits.MinLattice || latticeRows > PNVisualLimits.MaxLattice) throw new FormatException("part " + id + " lattice must be " + PNVisualLimits.MinLattice + ".." + PNVisualLimits.MaxLattice + " points each way.");
+        }
+        if (skin != null)
+        {
+            if (gridCols == 0) throw new FormatException("part " + id + " skin needs a grid.");
+            if (latticeCols != 0) throw new FormatException("part " + id + " cannot have both a lattice and a skin.");
+            if (!skin.Auto && skin.VertexCount != (gridCols + 1) * (gridRows + 1)) throw new FormatException("part " + id + " skin has " + skin.VertexCount + " weighted vertices, the grid has " + (gridCols + 1) * (gridRows + 1) + ".");
+        }
+        GridCols = gridCols; GridRows = gridRows; LatticeCols = latticeCols; LatticeRows = latticeRows; Skin = skin;
         if (segments < 1 || segments > PNVisualLimits.MaxSegments) throw new FormatException("part " + id + " segments must be 1.." + PNVisualLimits.MaxSegments + ".");
         if (!Enum.IsDefined(typeof(PNVisualBendAxis), axis)) throw new FormatException("part bend axis is unknown.");
         Segments = segments; Axis = axis;
@@ -205,7 +331,11 @@ public sealed class PNVisualCurve
 {
     public float[] Times { get; } public float[] Values { get; } public PNVisualEase Ease { get; } public bool StartsFromCurrent { get; }
     public bool IsWave { get; } public float Amp { get; } public float Freq { get; } public float Phase { get; } public float Offset { get; } public bool Abs { get; }
-    public PNVisualCurve(float[] times, float[] values, PNVisualEase ease, bool startsFromCurrent)
+    // Bezier handles of the segment that STARTS at key i (docs/VisualCurveHandlesPlan.md): Handles[4 i ..] = cx1, dy1, cx2, dy2 with cx a fraction (0..1) of the segment's length in time and dy the value
+    // offset of each control point from the key it belongs to (dy1 from key i, dy2 from key i + 1). null when no key has a handle: such a curve is sampled exactly as before. HasHandle[i] says which keys carry one.
+    public float[] Handles { get; } public bool[] HasHandle { get; }
+    public PNVisualCurve(float[] times, float[] values, PNVisualEase ease, bool startsFromCurrent) : this(times, values, ease, startsFromCurrent, null, null) { }
+    public PNVisualCurve(float[] times, float[] values, PNVisualEase ease, bool startsFromCurrent, float[] handles, bool[] hasHandle)
     {
         if (times == null || values == null || times.Length != values.Length || times.Length == 0 || times.Length > PNVisualLimits.MaxKeys) throw new FormatException("curve needs 1.." + PNVisualLimits.MaxKeys + " keys.");
         for (int i = 0; i < times.Length; i++)
@@ -215,6 +345,21 @@ public sealed class PNVisualCurve
             if (!(startsFromCurrent && i == 0)) PNVisualLimits.Coordinate(values[i], "key value");
         }
         if (!Enum.IsDefined(typeof(PNVisualEase), ease)) throw new FormatException("unknown ease.");
+        if (handles != null || hasHandle != null)
+        {
+            if (handles == null || hasHandle == null || hasHandle.Length != times.Length || handles.Length != times.Length * 4) throw new FormatException("curve handles do not match the keys.");
+            bool any = false;
+            for (int i = 0; i < times.Length; i++)
+            {
+                if (!hasHandle[i]) continue;
+                any = true;
+                if (i == times.Length - 1) throw new FormatException("the last key has no segment after it, so it cannot carry a handle.");
+                float cx1 = handles[i * 4], cx2 = handles[i * 4 + 2];
+                if (!PNVisualLimits.Finite(cx1) || !PNVisualLimits.Finite(cx2) || cx1 < 0f || cx1 > 1f || cx2 < 0f || cx2 > 1f) throw new FormatException("a handle's time (cx) must be 0..1 of the segment.");
+                PNVisualLimits.Coordinate(handles[i * 4 + 1], "handle dy"); PNVisualLimits.Coordinate(handles[i * 4 + 3], "handle dy");
+            }
+            if (any) { Handles = handles; HasHandle = hasHandle; }
+        }
         Times = times; Values = values; Ease = ease; StartsFromCurrent = startsFromCurrent;
     }
     public PNVisualCurve(float amp, float freq, float phase, float offset, bool abs)
@@ -240,6 +385,20 @@ public sealed class PNVisualTrack
             else for (int i = 0; i < curve.Values.Length; i++) if (!(curve.StartsFromCurrent && i == 0)) peak = Math.Max(peak, Math.Abs(curve.Values[i]));
             if (peak > PNVisualLimits.MaxBendAngle) throw new FormatException("bone " + bone + " " + kind + " must stay within +-" + PNVisualLimits.MaxBendAngle + " degrees.");
         }
+    }
+}
+
+// The move of one lattice control point of a slot's part over time (R3): column and row count from the top left of the picture, offsets in art px of the picture before the bone's scale.
+public sealed class PNVisualDeformTrack
+{
+    public string Slot { get; } public int Col { get; } public int Row { get; } public PNVisualCurve X { get; } public PNVisualCurve Y { get; }
+    public PNVisualDeformTrack(string slot, int col, int row, PNVisualCurve x, PNVisualCurve y)
+    {
+        Slot = PNVisualLimits.Name(slot, "deform slot");
+        if (col < 0 || col >= PNVisualLimits.MaxLattice || row < 0 || row >= PNVisualLimits.MaxLattice) throw new FormatException("deform point must be 0.." + (PNVisualLimits.MaxLattice - 1) + " each way.");
+        if (x == null && y == null) throw new FormatException("a deform point needs an x or a y curve.");
+        foreach (var c in new[] { x, y }) if (c != null && c.StartsFromCurrent) throw new FormatException("a deform curve cannot start from the current pose.");
+        Col = col; Row = row; X = x; Y = y;
     }
 }
 
@@ -271,9 +430,15 @@ public sealed class PNVisualMotionDefinition : EveIIdentified
     public float BlendIn { get; } public float BlendOut { get; } public PNVisualChannel Channel { get; } public bool NoModifiers { get; } public float SpeedScale { get; }
     public IReadOnlyList<string> Mask { get; } public IReadOnlyList<PNVisualTrack> Tracks { get; } public IReadOnlyList<PNVisualSlotTrack> SlotTracks { get; } public IReadOnlyList<PNVisualEvent> Events { get; }
     public IReadOnlyList<string> Frames { get; } public float Fps { get; }
+    // 0..1: how much of the rig's spring chains this motion lets act (1 = all). A motion that must hit exact hand-keyed poses can ask for less.
+    public float DynamicsWeight { get; }
+    public IReadOnlyList<PNVisualIkMix> IkMix { get; } public IReadOnlyList<PNVisualDeformTrack> Deform { get; }
     public PNVisualMotionDefinition(EveId id, EveId rig, PNVisualMotionKind kind, PNVisualClock clock, float duration, bool loop, float blendIn, float blendOut, PNVisualChannel channel, bool noModifiers, float speedScale,
-        IEnumerable<string> mask, IEnumerable<PNVisualTrack> tracks, IEnumerable<PNVisualSlotTrack> slotTracks, IEnumerable<PNVisualEvent> events, IEnumerable<string> frames, float fps)
+        IEnumerable<string> mask, IEnumerable<PNVisualTrack> tracks, IEnumerable<PNVisualSlotTrack> slotTracks, IEnumerable<PNVisualEvent> events, IEnumerable<string> frames, float fps, float dynamicsWeight = 1f, IEnumerable<PNVisualIkMix> ikMix = null, IEnumerable<PNVisualDeformTrack> deform = null)
     {
+        Deform = (deform ?? Enumerable.Empty<PNVisualDeformTrack>()).ToArray(); if (Deform.Count > PNVisualLimits.MaxDeform) throw new FormatException("motion has too many deform tracks.");
+        IkMix = (ikMix ?? Enumerable.Empty<PNVisualIkMix>()).ToArray();
+        DynamicsWeight = PNVisualLimits.InRange(dynamicsWeight, 0f, 1f, "motion dynamics");
         if (!id.IsValid || !rig.IsValid) throw new FormatException("motion needs a valid id and rig.");
         if (!Enum.IsDefined(typeof(PNVisualMotionKind), kind) || !Enum.IsDefined(typeof(PNVisualClock), clock) || !Enum.IsDefined(typeof(PNVisualChannel), channel)) throw new FormatException("motion kind, clock or channel is unknown.");
         Id = id; Rig = rig; Kind = kind; Clock = clock; Loop = loop; NoModifiers = noModifiers; Channel = channel;
