@@ -1,0 +1,2312 @@
+{
+ "schemaVersion": 1,
+ "extensions": {
+  "project_n": {
+   "visualRigs": [
+    {
+     "id": "project_n:starforger",
+     "pixelsPerMeter": 1630,
+     "facing": "right",
+     "capsule": {
+      "height": 0.4,
+      "radius": 0.11
+     },
+     "extends": "project_n:humanoid",
+     "bones": [],
+     "slots": [
+      {
+       "id": "hatBack",
+       "bone": "head",
+       "layer": -60
+      },
+      {
+       "id": "top",
+       "bone": "chest",
+       "layer": 35,
+       "at": [
+        -14,
+        0
+       ]
+      },
+      {
+       "id": "mask",
+       "bone": "head",
+       "layer": 44
+      },
+      {
+       "id": "hat",
+       "bone": "head",
+       "layer": 46
+      }
+     ],
+     "sockets": [
+      {
+       "id": "hat_crown",
+       "bone": "head",
+       "at": [
+        62,
+        -541
+       ]
+      },
+      {
+       "id": "hat_rear_tip",
+       "bone": "head",
+       "at": [
+        -480,
+        0
+       ]
+      }
+     ]
+    }
+   ],
+   "visualParts": [
+    {
+     "id": "project_n:starforger_hatback",
+     "image": "visual/starforger/hatback.png",
+     "pivot": [
+      491,
+      395
+     ],
+     "tint": "none"
+    },
+    {
+     "id": "project_n:starforger_top",
+     "image": "visual/starforger/top.png",
+     "pivot": [
+      180,
+      151
+     ],
+     "tint": "none"
+    },
+    {
+     "id": "project_n:starforger_mask",
+     "image": "visual/starforger/mask.png",
+     "pivot": [
+      184,
+      315
+     ],
+     "tint": "none"
+    },
+    {
+     "id": "project_n:starforger_hat",
+     "image": "visual/starforger/hat.png",
+     "pivot": [
+      491,
+      551
+     ],
+     "tint": "none"
+    },
+    {
+     "id": "project_n:starforger_shoe",
+     "image": "visual/starforger/shoe.png",
+     "pivot": [
+      44,
+      0
+     ],
+     "tint": "none"
+    }
+   ],
+   "visualMotions": [
+    {
+     "id": "project_n:starforger_idle",
+     "rig": "project_n:starforger",
+     "kind": "pose",
+     "clock": "time",
+     "duration": 3.1416,
+     "loop": true,
+     "blendIn": 0.15,
+     "tracks": {
+      "hips": {
+       "y": {
+        "keys": [
+         [
+          0,
+          0,
+          [
+           0.5,
+           5.46,
+           0.5,
+           -5.4611
+          ]
+         ],
+         [
+          3.1416,
+          0
+         ]
+        ]
+       }
+      },
+      "chest": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          -0.5841,
+          [
+           0.6,
+           6.121,
+           0.5,
+           -3.7673
+          ]
+         ],
+         [
+          3.1416,
+          -0.5841
+         ]
+        ]
+       }
+      },
+      "head": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          -0.94,
+          [
+           0.7,
+           5.3404,
+           0.5,
+           -1.2782
+          ]
+         ],
+         [
+          3.1416,
+          -0.94
+         ]
+        ]
+       }
+      }
+     }
+    },
+    {
+     "id": "project_n:starforger_walk",
+     "rig": "project_n:starforger",
+     "kind": "pose",
+     "clock": "time",
+     "duration": 1.2566,
+     "loop": true,
+     "blendIn": 0.1,
+     "tracks": {
+      "hips": {
+       "y": {
+        "keys": [
+         [
+          0,
+          0,
+          [
+           0.5,
+           -9.5637,
+           0.6,
+           -6.304
+          ]
+         ],
+         [
+          0.6333,
+          -0.1504,
+          [
+           0.4,
+           -7.8544,
+           0.6,
+           -7.8745
+          ]
+         ],
+         [
+          1.2566,
+          0
+         ]
+        ]
+       }
+      },
+      "chest": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          0,
+          [
+           0.5,
+           13.6298,
+           0.5,
+           -13.6292
+          ]
+         ],
+         [
+          1.2566,
+          0
+         ]
+        ]
+       }
+      },
+      "head": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          0,
+          [
+           0.5,
+           -10.2224,
+           0.5,
+           10.2219
+          ]
+         ],
+         [
+          1.2566,
+          0
+         ]
+        ]
+       }
+      },
+      "thighN": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          0,
+          [
+           0.3,
+           15.6522,
+           0.6,
+           7.1174
+          ]
+         ],
+         [
+          0.3828,
+          26.2766,
+          [
+           0.3,
+           -4.365,
+           0.6,
+           17.7991
+          ]
+         ],
+         [
+          0.7531,
+          -16.3032,
+          [
+           0.4,
+           -24.6426,
+           0.7,
+           -21.7421
+          ]
+         ],
+         [
+          1.2566,
+          0
+         ]
+        ]
+       }
+      },
+      "shinN": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          0
+         ],
+         [
+          0.3,
+          0,
+          [
+           0.8,
+           6.4617,
+           0.2,
+           -10.1362
+          ]
+         ],
+         [
+          0.3667,
+          10.3813,
+          [
+           0.4,
+           43.8725,
+           0.6,
+           45.9931
+          ]
+         ],
+         [
+          0.9333,
+          1.8283,
+          [
+           0.1,
+           -2.6169,
+           0.1,
+           0.1658
+          ]
+         ],
+         [
+          1.2566,
+          0
+         ]
+        ]
+       }
+      },
+      "thighF": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          0,
+          [
+           0.3,
+           -15.6522,
+           0.6,
+           -7.1174
+          ]
+         ],
+         [
+          0.3828,
+          -26.2766,
+          [
+           0.3,
+           4.365,
+           0.6,
+           -17.7991
+          ]
+         ],
+         [
+          0.7531,
+          16.3032,
+          [
+           0.4,
+           24.6426,
+           0.7,
+           21.7421
+          ]
+         ],
+         [
+          1.2566,
+          0
+         ]
+        ]
+       }
+      },
+      "shinF": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          40,
+          [
+           0.4,
+           -0.7294,
+           0.7,
+           17.4626
+          ]
+         ],
+         [
+          0.3,
+          2.8295
+         ],
+         [
+          0.3333,
+          0
+         ],
+         [
+          0.9333,
+          0,
+          [
+           0.2,
+           6.9562,
+           0.5,
+           -1.6228
+          ]
+         ],
+         [
+          1.2566,
+          40
+         ]
+        ]
+       }
+      }
+     },
+     "events": [
+      {
+       "at": 0,
+       "name": "step"
+      },
+      {
+       "at": 0.6283,
+       "name": "step"
+      }
+     ]
+    },
+    {
+     "id": "project_n:starforger_run",
+     "rig": "project_n:starforger",
+     "kind": "pose",
+     "clock": "time",
+     "duration": 0.6981,
+     "loop": true,
+     "blendIn": 0.12,
+     "tracks": {
+      "hips": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          7
+         ]
+        ],
+        "ease": "linear"
+       },
+       "y": {
+        "keys": [
+         [
+          0,
+          -4,
+          [
+           0.5,
+           -23.9991,
+           0.7,
+           -12.0475
+          ]
+         ],
+         [
+          0.35,
+          -4.1177,
+          [
+           0.4,
+           -18.4606,
+           0.6,
+           -18.4819
+          ]
+         ],
+         [
+          0.6981,
+          -4
+         ]
+        ]
+       }
+      },
+      "chest": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          5,
+          [
+           0.5,
+           10.2066,
+           0.5,
+           -10.2059
+          ]
+         ],
+         [
+          0.6981,
+          5
+         ]
+        ]
+       }
+      },
+      "head": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          -5,
+          [
+           0.5,
+           -6.8044,
+           0.5,
+           6.8039
+          ]
+         ],
+         [
+          0.6981,
+          -5
+         ]
+        ]
+       }
+      },
+      "thighN": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          0,
+          [
+           0.3,
+           25.5388,
+           0.6,
+           11.5275
+          ]
+         ],
+         [
+          0.2119,
+          43.1496,
+          [
+           0.3,
+           -6.807,
+           0.6,
+           29.266
+          ]
+         ],
+         [
+          0.4155,
+          -25.7439,
+          [
+           0.4,
+           -41.7844,
+           0.7,
+           -36.1523
+          ]
+         ],
+         [
+          0.6981,
+          0
+         ]
+        ]
+       }
+      },
+      "shinN": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          0
+         ],
+         [
+          0.175,
+          0.3153
+         ],
+         [
+          0.2119,
+          24.5923,
+          [
+           0.2,
+           19.1829,
+           0.6,
+           6.2869
+          ]
+         ],
+         [
+          0.3615,
+          74.063,
+          [
+           0.4,
+           -2.8926,
+           0.8,
+           17.7206
+          ]
+         ],
+         [
+          0.5,
+          15.8097
+         ],
+         [
+          0.525,
+          0
+         ],
+         [
+          0.6981,
+          0
+         ]
+        ]
+       }
+      },
+      "thighF": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          0,
+          [
+           0.3,
+           -25.5388,
+           0.6,
+           -11.5275
+          ]
+         ],
+         [
+          0.2119,
+          -43.1496,
+          [
+           0.3,
+           6.807,
+           0.6,
+           -29.266
+          ]
+         ],
+         [
+          0.4155,
+          25.7439,
+          [
+           0.4,
+           41.7844,
+           0.7,
+           36.1523
+          ]
+         ],
+         [
+          0.6981,
+          0
+         ]
+        ]
+       }
+      },
+      "shinF": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          75,
+          [
+           0.4,
+           -1.5666,
+           0.7,
+           33.816
+          ]
+         ],
+         [
+          0.175,
+          0,
+          [
+           0.9,
+           0.1869,
+           0.9,
+           -1.5717
+          ]
+         ],
+         [
+          0.525,
+          0.9458,
+          [
+           0.3,
+           34.0797,
+           0.6,
+           -1.7062
+          ]
+         ],
+         [
+          0.6981,
+          75
+         ]
+        ]
+       }
+      }
+     },
+     "events": [
+      {
+       "at": 0,
+       "name": "step"
+      },
+      {
+       "at": 0.3491,
+       "name": "step"
+      }
+     ]
+    },
+    {
+     "id": "project_n:starforger_hurt",
+     "rig": "project_n:starforger",
+     "kind": "pose",
+     "clock": "time",
+     "duration": 1.2,
+     "loop": false,
+     "blendIn": 0,
+     "tracks": {
+      "hips": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          -6,
+          [
+           0.2,
+           7.3288,
+           0.6,
+           -0.4699
+          ]
+         ],
+         [
+          1.2,
+          0
+         ]
+        ]
+       },
+       "x": {
+        "keys": [
+         [
+          0,
+          -10,
+          [
+           0.8,
+           5.3137,
+           0.2,
+           3.102
+          ]
+         ],
+         [
+          0.08,
+          -8.6168
+         ],
+         [
+          0.12,
+          -4.9752,
+          [
+           0.8,
+           3.5458,
+           0.3,
+           -5.3446
+          ]
+         ],
+         [
+          0.24,
+          -2.477
+         ],
+         [
+          0.32,
+          -2.5937
+         ],
+         [
+          0.36,
+          -1.2495,
+          [
+           0.1,
+           -0.2059,
+           0.2,
+           0.1043
+          ]
+         ],
+         [
+          1.2,
+          0
+         ]
+        ]
+       },
+       "y": {
+        "keys": [
+         [
+          0,
+          6,
+          [
+           0.2,
+           -7.3288,
+           0.6,
+           0.4699
+          ]
+         ],
+         [
+          1.2,
+          0
+         ]
+        ]
+       }
+      },
+      "chest": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          -22,
+          [
+           0.2,
+           26.8725,
+           0.6,
+           -1.7232
+          ]
+         ],
+         [
+          1.2,
+          0
+         ]
+        ]
+       }
+      },
+      "head": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          -16,
+          [
+           0.2,
+           19.5436,
+           0.6,
+           -1.2532
+          ]
+         ],
+         [
+          1.2,
+          0
+         ]
+        ]
+       }
+      },
+      "thighN": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          -18,
+          [
+           0.2,
+           21.9866,
+           0.6,
+           -1.4099
+          ]
+         ],
+         [
+          1.2,
+          0
+         ]
+        ]
+       }
+      },
+      "shinN": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          20,
+          [
+           0.2,
+           -24.4295,
+           0.6,
+           1.5665
+          ]
+         ],
+         [
+          1.2,
+          0
+         ]
+        ]
+       }
+      },
+      "thighF": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          14,
+          [
+           0.2,
+           -17.1006,
+           0.6,
+           1.0965
+          ]
+         ],
+         [
+          1.2,
+          0
+         ]
+        ]
+       }
+      },
+      "shinF": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          30,
+          [
+           0.2,
+           -36.6443,
+           0.6,
+           2.3498
+          ]
+         ],
+         [
+          1.2,
+          0
+         ]
+        ]
+       }
+      }
+     },
+     "channel": "overlay",
+     "mask": [
+      "hips",
+      "chest",
+      "head",
+      "thighN",
+      "shinN",
+      "thighF",
+      "shinF"
+     ],
+     "blendOut": 0.2
+    },
+    {
+     "id": "project_n:starforger_dead",
+     "rig": "project_n:starforger",
+     "kind": "pose",
+     "clock": "time",
+     "duration": 2.5,
+     "loop": false,
+     "blendIn": 0,
+     "tracks": {
+      "hips": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          0,
+          [
+           0.1,
+           -3.6749,
+           0.4,
+           17.9724
+          ]
+         ],
+         [
+          0.15,
+          -35.3889,
+          [
+           0.1,
+           -2.4903,
+           0.4,
+           11.5695
+          ]
+         ],
+         [
+          0.3,
+          -59.1111
+         ],
+         [
+          0.3833,
+          -68.0044
+         ],
+         [
+          0.475,
+          -75.0628,
+          [
+           0.1,
+           -12.3637,
+           0.1,
+           0.6954
+          ]
+         ],
+         [
+          2.5,
+          -84
+         ]
+        ]
+       },
+       "x": {
+        "keys": [
+         [
+          0,
+          0,
+          [
+           0.1,
+           -1.3126,
+           0.4,
+           6.4188
+          ]
+         ],
+         [
+          0.15,
+          -12.6389
+         ],
+         [
+          0.3,
+          -21.1111,
+          [
+           0.1,
+           -11.6283,
+           0.2,
+           0.3916
+          ]
+         ],
+         [
+          2.5,
+          -30
+         ]
+        ]
+       },
+       "y": {
+        "keys": [
+         [
+          0,
+          0,
+          [
+           0.6,
+           16.1115,
+           0.6,
+           -5.683
+          ]
+         ],
+         [
+          1,
+          11.6225
+         ],
+         [
+          1.2,
+          9.5678
+         ],
+         [
+          2.5,
+          9.9999
+         ]
+        ]
+       }
+      },
+      "chest": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          0,
+          [
+           0.2,
+           -8.9271,
+           0.3,
+           0.7753
+          ]
+         ],
+         [
+          2.5,
+          -6
+         ]
+        ]
+       }
+      },
+      "head": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          0,
+          [
+           0.2,
+           -11.9027,
+           0.3,
+           1.0338
+          ]
+         ],
+         [
+          2.5,
+          -8
+         ]
+        ]
+       }
+      },
+      "thighN": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          0,
+          [
+           0.1,
+           1.5312,
+           0.4,
+           -7.4885
+          ]
+         ],
+         [
+          0.15,
+          14.7454
+         ],
+         [
+          0.3,
+          24.6296
+         ],
+         [
+          0.3833,
+          28.3351,
+          [
+           0.1,
+           9.3266,
+           0.2,
+           -0.554
+          ]
+         ],
+         [
+          2.5,
+          35
+         ]
+        ]
+       }
+      },
+      "shinN": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          0,
+          [
+           0.1,
+           2.1874,
+           0.4,
+           -10.6978
+          ]
+         ],
+         [
+          0.15,
+          21.0648,
+          [
+           0.1,
+           1.4823,
+           0.4,
+           -6.8866
+          ]
+         ],
+         [
+          0.3,
+          35.1852
+         ],
+         [
+          0.3833,
+          40.4788,
+          [
+           0.1,
+           13.3236,
+           0.2,
+           -0.7914
+          ]
+         ],
+         [
+          2.5,
+          50
+         ]
+        ]
+       }
+      },
+      "thighF": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          0,
+          [
+           0.1,
+           1.3126,
+           0.4,
+           -6.4188
+          ]
+         ],
+         [
+          0.15,
+          12.6389
+         ],
+         [
+          0.3,
+          21.1111,
+          [
+           0.1,
+           11.6283,
+           0.2,
+           -0.3916
+          ]
+         ],
+         [
+          2.5,
+          30
+         ]
+        ]
+       }
+      },
+      "shinF": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          0,
+          [
+           0.1,
+           2.6249,
+           0.4,
+           -12.8374
+          ]
+         ],
+         [
+          0.15,
+          25.2778,
+          [
+           0.1,
+           1.7787,
+           0.4,
+           -8.264
+          ]
+         ],
+         [
+          0.3,
+          42.2222
+         ],
+         [
+          0.3833,
+          48.5745,
+          [
+           0.1,
+           15.9884,
+           0.2,
+           -0.9497
+          ]
+         ],
+         [
+          2.5,
+          60
+         ]
+        ]
+       }
+      }
+     },
+     "noModifiers": true
+    },
+    {
+     "id": "project_n:starforger_stun",
+     "rig": "project_n:starforger",
+     "kind": "pose",
+     "clock": "time",
+     "duration": 2,
+     "loop": true,
+     "blendIn": 0.1,
+     "tracks": {
+      "hips": {
+       "y": {
+        "keys": [
+         [
+          0,
+          0,
+          [
+           0.8,
+           4.2943,
+           0.2,
+           4.2943
+          ]
+         ],
+         [
+          2,
+          0
+         ]
+        ]
+       },
+       "rot": {
+        "keys": [
+         [
+          0,
+          -5,
+          [
+           0.8,
+           4.2943,
+           0.2,
+           4.2943
+          ]
+         ],
+         [
+          2,
+          -5
+         ]
+        ]
+       }
+      },
+      "chest": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          -8,
+          [
+           0.8,
+           7.1572,
+           0.2,
+           7.1572
+          ]
+         ],
+         [
+          2,
+          -8
+         ]
+        ]
+       }
+      },
+      "head": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          12
+         ],
+         [
+          1,
+          4
+         ],
+         [
+          2,
+          12
+         ]
+        ],
+        "ease": "smooth"
+       }
+      },
+      "thighN": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          6
+         ],
+         [
+          2,
+          6
+         ]
+        ],
+        "ease": "smooth"
+       }
+      },
+      "thighF": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          -4
+         ],
+         [
+          2,
+          -4
+         ]
+        ],
+        "ease": "smooth"
+       }
+      }
+     }
+    },
+    {
+     "id": "project_n:starforger_recover",
+     "rig": "project_n:starforger",
+     "kind": "pose",
+     "clock": "time",
+     "duration": 0.5,
+     "loop": false,
+     "blendIn": 0,
+     "tracks": {
+      "hips": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          "current"
+         ],
+         [
+          0.5,
+          0
+         ]
+        ],
+        "ease": "smooth"
+       },
+       "y": {
+        "keys": [
+         [
+          0,
+          "current"
+         ],
+         [
+          0.5,
+          0
+         ]
+        ],
+        "ease": "smooth"
+       }
+      },
+      "chest": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          "current"
+         ],
+         [
+          0.5,
+          0
+         ]
+        ],
+        "ease": "smooth"
+       }
+      },
+      "head": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          "current"
+         ],
+         [
+          0.5,
+          0
+         ]
+        ],
+        "ease": "smooth"
+       }
+      },
+      "thighN": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          "current"
+         ],
+         [
+          0.5,
+          0
+         ]
+        ],
+        "ease": "smooth"
+       }
+      },
+      "thighF": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          "current"
+         ],
+         [
+          0.5,
+          0
+         ]
+        ],
+        "ease": "smooth"
+       }
+      }
+     }
+    },
+    {
+     "id": "project_n:starforger_crouch",
+     "rig": "project_n:starforger",
+     "kind": "pose",
+     "clock": "phase",
+     "duration": 1,
+     "loop": false,
+     "blendIn": 0,
+     "channel": "base",
+     "tracks": {
+      "hips": {
+       "y": {
+        "keys": [
+         [
+          0,
+          "current"
+         ],
+         [
+          0.45,
+          18
+         ],
+         [
+          1,
+          32
+         ]
+        ],
+        "ease": "smooth"
+       },
+       "rot": {
+        "keys": [
+         [
+          0,
+          "current"
+         ],
+         [
+          1,
+          -5
+         ]
+        ],
+        "ease": "smooth"
+       }
+      },
+      "chest": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          "current"
+         ],
+         [
+          1,
+          -14
+         ]
+        ],
+        "ease": "smooth"
+       }
+      },
+      "head": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          "current"
+         ],
+         [
+          1,
+          -3
+         ]
+        ],
+        "ease": "smooth"
+       }
+      },
+      "thighN": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          "current"
+         ],
+         [
+          1,
+          22
+         ]
+        ],
+        "ease": "smooth"
+       }
+      },
+      "shinN": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          "current"
+         ],
+         [
+          1,
+          -30
+         ]
+        ],
+        "ease": "smooth"
+       }
+      },
+      "thighF": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          "current"
+         ],
+         [
+          1,
+          -16
+         ]
+        ],
+        "ease": "smooth"
+       }
+      },
+      "shinF": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          "current"
+         ],
+         [
+          1,
+          22
+         ]
+        ],
+        "ease": "smooth"
+       }
+      }
+     }
+    },
+    {
+     "id": "project_n:starforger_air",
+     "rig": "project_n:starforger",
+     "kind": "pose",
+     "clock": "phase",
+     "duration": 1,
+     "loop": false,
+     "blendIn": 0,
+     "channel": "base",
+     "tracks": {
+      "hips": {
+       "y": {
+        "keys": [
+         [
+          0,
+          "current"
+         ],
+         [
+          0.2,
+          -8
+         ],
+         [
+          0.7,
+          -8
+         ],
+         [
+          1,
+          8
+         ]
+        ],
+        "ease": "smooth"
+       },
+       "rot": {
+        "keys": [
+         [
+          0,
+          "current"
+         ],
+         [
+          0.25,
+          -4
+         ],
+         [
+          0.75,
+          -4
+         ],
+         [
+          1,
+          7
+         ]
+        ],
+        "ease": "smooth"
+       }
+      },
+      "chest": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          "current"
+         ],
+         [
+          0.25,
+          -10
+         ],
+         [
+          0.7,
+          -8
+         ],
+         [
+          1,
+          18
+         ]
+        ],
+        "ease": "smooth"
+       }
+      },
+      "head": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          "current"
+         ],
+         [
+          0.3,
+          -6
+         ],
+         [
+          0.75,
+          -3
+         ],
+         [
+          1,
+          8
+         ]
+        ],
+        "ease": "smooth"
+       }
+      },
+      "thighN": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          "current"
+         ],
+         [
+          0.25,
+          30
+         ],
+         [
+          0.7,
+          30
+         ],
+         [
+          1,
+          12
+         ]
+        ],
+        "ease": "smooth"
+       }
+      },
+      "shinN": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          "current"
+         ],
+         [
+          0.25,
+          -55
+         ],
+         [
+          0.7,
+          -50
+         ],
+         [
+          1,
+          -18
+         ]
+        ],
+        "ease": "smooth"
+       }
+      },
+      "thighF": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          "current"
+         ],
+         [
+          0.25,
+          -23
+         ],
+         [
+          0.7,
+          -23
+         ],
+         [
+          1,
+          -10
+         ]
+        ],
+        "ease": "smooth"
+       }
+      },
+      "shinF": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          "current"
+         ],
+         [
+          0.25,
+          40
+         ],
+         [
+          0.7,
+          36
+         ],
+         [
+          1,
+          14
+         ]
+        ],
+        "ease": "smooth"
+       }
+      }
+     }
+    },
+    {
+     "id": "project_n:starforger_slam",
+     "rig": "project_n:starforger",
+     "kind": "pose",
+     "clock": "phase",
+     "duration": 1,
+     "loop": false,
+     "blendIn": 0,
+     "channel": "base",
+     "tracks": {
+      "hips": {
+       "y": {
+        "keys": [
+         [
+          0,
+          "current"
+         ],
+         [
+          0.06,
+          38
+         ],
+         [
+          0.25,
+          38
+         ],
+         [
+          0.7,
+          9.5
+         ],
+         [
+          1,
+          0
+         ]
+        ],
+        "ease": "smooth"
+       },
+       "rot": {
+        "keys": [
+         [
+          0,
+          "current"
+         ],
+         [
+          0.06,
+          8
+         ],
+         [
+          0.25,
+          8
+         ],
+         [
+          0.7,
+          2
+         ],
+         [
+          1,
+          0
+         ]
+        ],
+        "ease": "smooth"
+       }
+      },
+      "chest": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          "current"
+         ],
+         [
+          0.06,
+          20
+         ],
+         [
+          0.25,
+          20
+         ],
+         [
+          0.7,
+          5
+         ],
+         [
+          1,
+          0
+         ]
+        ],
+        "ease": "smooth"
+       }
+      },
+      "head": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          "current"
+         ],
+         [
+          0.06,
+          9
+         ],
+         [
+          0.25,
+          9
+         ],
+         [
+          0.7,
+          2.25
+         ],
+         [
+          1,
+          0
+         ]
+        ],
+        "ease": "smooth"
+       }
+      },
+      "thighN": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          "current"
+         ],
+         [
+          0.06,
+          16
+         ],
+         [
+          0.25,
+          16
+         ],
+         [
+          0.7,
+          4
+         ],
+         [
+          1,
+          0
+         ]
+        ],
+        "ease": "smooth"
+       }
+      },
+      "shinN": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          "current"
+         ],
+         [
+          0.06,
+          -22
+         ],
+         [
+          0.25,
+          -22
+         ],
+         [
+          0.7,
+          -5.5
+         ],
+         [
+          1,
+          0
+         ]
+        ],
+        "ease": "smooth"
+       }
+      },
+      "thighF": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          "current"
+         ],
+         [
+          0.06,
+          -12
+         ],
+         [
+          0.25,
+          -12
+         ],
+         [
+          0.7,
+          -3
+         ],
+         [
+          1,
+          0
+         ]
+        ],
+        "ease": "smooth"
+       }
+      },
+      "shinF": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          "current"
+         ],
+         [
+          0.06,
+          16
+         ],
+         [
+          0.25,
+          16
+         ],
+         [
+          0.7,
+          4
+         ],
+         [
+          1,
+          0
+         ]
+        ],
+        "ease": "smooth"
+       }
+      }
+     }
+    },
+    {
+     "id": "project_n:starforger_cast_star",
+     "rig": "project_n:starforger",
+     "kind": "pose",
+     "clock": "phase",
+     "duration": 1,
+     "loop": false,
+     "blendIn": 0,
+     "channel": "base",
+     "tracks": {
+      "hips": {
+       "y": {
+        "keys": [
+         [
+          0,
+          "current"
+         ],
+         [
+          0.35,
+          3
+         ],
+         [
+          0.64,
+          1
+         ],
+         [
+          0.8,
+          7
+         ],
+         [
+          0.85,
+          7
+         ],
+         [
+          1,
+          0
+         ]
+        ],
+        "ease": "smooth"
+       },
+       "rot": {
+        "keys": [
+         [
+          0,
+          "current"
+         ],
+         [
+          0.5,
+          -3
+         ],
+         [
+          0.8,
+          4
+         ],
+         [
+          0.85,
+          4
+         ],
+         [
+          1,
+          0
+         ]
+        ],
+        "ease": "smooth"
+       }
+      },
+      "chest": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          "current"
+         ],
+         [
+          0.5,
+          -6
+         ],
+         [
+          0.64,
+          -6
+         ],
+         [
+          0.8,
+          8
+         ],
+         [
+          0.85,
+          8
+         ],
+         [
+          1,
+          0
+         ]
+        ],
+        "ease": "smooth"
+       }
+      },
+      "head": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          "current"
+         ],
+         [
+          0.5,
+          -2
+         ],
+         [
+          0.8,
+          3
+         ],
+         [
+          0.85,
+          3
+         ],
+         [
+          1,
+          0
+         ]
+        ],
+        "ease": "smooth"
+       }
+      },
+      "thighN": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          "current"
+         ],
+         [
+          0.64,
+          5
+         ],
+         [
+          0.8,
+          10
+         ],
+         [
+          1,
+          0
+         ]
+        ],
+        "ease": "smooth"
+       }
+      },
+      "shinN": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          "current"
+         ],
+         [
+          0.64,
+          -7
+         ],
+         [
+          0.8,
+          -13
+         ],
+         [
+          1,
+          0
+         ]
+        ],
+        "ease": "smooth"
+       }
+      },
+      "thighF": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          "current"
+         ],
+         [
+          0.64,
+          -4
+         ],
+         [
+          0.8,
+          -7
+         ],
+         [
+          1,
+          0
+         ]
+        ],
+        "ease": "smooth"
+       }
+      },
+      "shinF": {
+       "rot": {
+        "keys": [
+         [
+          0,
+          "current"
+         ],
+         [
+          0.64,
+          6
+         ],
+         [
+          0.8,
+          10
+         ],
+         [
+          1,
+          0
+         ]
+        ],
+        "ease": "smooth"
+       }
+      }
+     }
+    }
+   ],
+   "visualMotionSets": [
+    {
+     "id": "project_n:starforger_default",
+     "rig": "project_n:starforger",
+     "states": {
+      "idle": "project_n:starforger_idle",
+      "walk": "project_n:starforger_walk",
+      "run": "project_n:starforger_run",
+      "hurt": "project_n:starforger_hurt",
+      "dead": "project_n:starforger_dead",
+      "stun": "project_n:starforger_stun",
+      "recover": "project_n:starforger_recover",
+      "crouch": "project_n:starforger_crouch",
+      "air": "project_n:starforger_air",
+      "slam": "project_n:starforger_slam",
+      "cast_star": "project_n:starforger_cast_star"
+     }
+    }
+   ],
+   "visualAppearances": [
+    {
+     "id": "project_n:starforger",
+     "rig": "project_n:starforger",
+     "motionSet": "project_n:starforger_default",
+     "build": "project_n:build_tall",
+     "slots": {
+      "hips": "project_n:humanoid_hips",
+      "chest": "project_n:humanoid_chest",
+      "thighN": "project_n:humanoid_thigh",
+      "thighF": "project_n:humanoid_thigh",
+      "shinN": "project_n:humanoid_shin",
+      "shinF": "project_n:humanoid_shin",
+      "hatBack": "project_n:starforger_hatback",
+      "top": "project_n:starforger_top",
+      "mask": "project_n:starforger_mask",
+      "hat": "project_n:starforger_hat"
+     },
+     "free": [
+      {
+       "part": "project_n:starforger_shoe",
+       "bone": "shinN",
+       "at": [
+        0,
+        3
+       ],
+       "layer": 23
+      },
+      {
+       "part": "project_n:starforger_shoe",
+       "bone": "shinF",
+       "at": [
+        0,
+        3
+       ],
+       "layer": -17
+      }
+     ],
+     "colors": {
+      "skin": "#533e4c"
+     },
+     "strings": [
+      {
+       "style": "project_n:puppet_main",
+       "socket": "hat_crown"
+      },
+      {
+       "style": "project_n:puppet_drape",
+       "socket": "hat_rear_tip"
+      }
+     ]
+    }
+   ]
+  }
+ }
+}

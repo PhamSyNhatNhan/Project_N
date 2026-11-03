@@ -125,6 +125,9 @@ public sealed class PNMenuPlayReview : MonoBehaviour
             Log("run: role=" + EveRegistrySession.Context.Role + " timeScale=" + Time.timeScale + " players=" + EveRegistrySession.Context.Entities.Snapshot().Count(x => PNEntityRoles.IsPlayer(x)));
             if (Arg("-pn-menu-play-pet") != null) yield return PetCase(Fail, () => failed);
             if (Arg("-pn-menu-play-starkeeper") != null) yield return PNStarkeeperPlayReview.Case(output, Fail, () => failed);
+            if (Arg("-pn-menu-play-starchanter") != null) yield return PNStarchanterPlayReview.Case(output, Fail, () => failed);
+            if (Arg("-pn-menu-play-starreaper") != null) yield return PNStarreaperPlayReview.Case(output, Fail, () => failed);
+            if (Arg("-pn-menu-play-starforger") != null) yield return PNStarforgerPlayReview.Case(output, Fail, () => failed);
             if (Arg("-pn-menu-play-creature") != null) yield return PNCreaturePlayReview.Case(output, Fail, () => failed);
             yield break;
         }

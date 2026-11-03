@@ -261,3 +261,10 @@ refresh, 0.1 s, and on every `Acquire`, so a query outside the tick sees a chang
   critical / `AbsorbDamage`: `calculated = (damage.Amount > 0 && iframeBefore <= 0) ? 1 : 0`. A hit inside iframe removes 0 and the iframe is still refreshed as usual; damage over time
   and area ticks go through the same path and count; `ReceiveHeal` returns `PNHealStatus.Blocked`. The popup shows `1`; the health bar is the normal one.
 - `body.healthBar: "hidden"` (`PNStat.HealthBar`) hides the world health bar.
+
+## BeforeDamage (RulesVersion 112)
+
+`PNStat.BeforeDamage` (`Action<PNDamageGate>`) is raised for each damaging hit (`Amount > 0`) on a living receiver, right after the optional-Health check and before the iframe is read. A subscriber that
+blocks the hit calls `gate.Block()`: `ReceiveDamage` then returns an `ignored` result and applies nothing (no HP, Lorica, iframe, popup or `DamageReceived`). Subscribers run in subscription order and stop at
+the first block, so only one of them spends anything (check `gate.Blocked` first when you spend a resource). A faulty subscriber is logged and counts as not blocking. A subscriber (a Buff) unsubscribes in its own
+cleanup; the event is also cleared with the other combat listeners. Damage over time goes through the same path. First user: the `block_hits` Buff (`Assets/Game/Buff/PNSupportBuffs.cs`).

@@ -24057,6 +24057,14 @@
      "motionSet": "project_n:starweaver_default",
      "build": "project_n:build_short",
      "expression": "project_n:starweaver_face",
+     "hide": [
+      "head",
+      "eyeN",
+      "eyeF",
+      "mouth",
+      "blushN",
+      "blushF"
+     ],
      "colors": {
       "skin": "#ffeddb",
       "eye": "#ffffff",

@@ -1,6 +1,6 @@
 // NOTE: two passes, because the project has two renderers and a camera picks one (see PNVisualActor.shader): the URP 2D Renderer draws `Universal2D`, the Hall's 3D renderer `UniversalForward`.
 // The strings of EVERY puppet are one mesh drawn with this one material: a camera-facing ribbon per string. Drawn BEFORE the puppets (queue Transparent-1) so the strings run behind them. Per vertex: colour = core (rgb) and alpha; uv0 = (across 0..1, along 0..1, width m, knot);
-// uv1 = halo rgb + how much of the top fades; uv2 = knot rgb. The line is a bright core with a soft halo, a glow where it is tied, and it fades out towards the top of the view.
+// uv1 = soft edge tint + top fade; uv2 = knot rgb. Matte ivory ribbon shares the existing top fade and tied glow.
 Shader "PN/VisualStrings"
 {
     Properties { }
@@ -39,10 +39,11 @@ Shader "PN/VisualStrings"
             }
             float d = abs(input.uv0.x * 2 - 1);                                          // 0 on the centre line, 1 on the edge
             float along = input.uv0.y;
-            half core = smoothstep(.62, .30, d);
-            half halo = smoothstep(1.0, .20, d) * .55;
-            half3 rgb = lerp(input.uv1.rgb, input.color.rgb, core);
-            half alpha = max(core, halo) * input.color.a;
+            // A plain matte line: no glass rim or reflected highlight.
+            half body = 1 - smoothstep(.30, .98, d);
+            half halo = body * .10;
+            half3 rgb = lerp(input.uv1.rgb, input.color.rgb, body);
+            half alpha = body * input.color.a;
             half fade = 1 - smoothstep(1 - input.uv1.w, 1, along);                       // fades out towards the top
             // A broad, short-lived hit ripple, not a travelling star/bead.
             float wave=exp(-pow((along-input.uv3.x)/.07,2))*input.uv3.y;
@@ -50,7 +51,7 @@ Shader "PN/VisualStrings"
             alpha=saturate(alpha+wave*halo*.5*input.color.a)*fade;
             half knot = input.uv0.w * smoothstep(.07, 0, along) * (1 - d * .5);          // a small glow where the string is tied
             rgb = lerp(rgb, input.uv2.rgb, saturate(knot));
-            alpha = max(alpha, saturate(knot) * .9);
+            alpha = max(alpha, saturate(knot) * .65);
             return half4(rgb, alpha);
         }
         ENDHLSL

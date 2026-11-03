@@ -18,7 +18,8 @@ public static class PNDummyEditorChecks
             throw new InvalidOperationException("Stop Play Mode and the session before dummy checks.");
         var scene = SceneManager.GetActiveScene();
         bool dirty = scene.isDirty;
-        var original = scene.GetRootGameObjects().SelectMany(root => root.GetComponentsInChildren<DummyStat>(true)).Single();
+        var original = scene.GetRootGameObjects().SelectMany(root => root.GetComponentsInChildren<DummyStat>(true)).SingleOrDefault();
+        if (original == null) return "SKIP: the scene has no Dummy (it was removed from ErMode on 2026-11-02 at the user's request: the Starchanter counts every entity on its layer as an ally)";
         var visual = original.transform.Find("Visual");
         var shadow = original.transform.Find("Dummy Ground Shadow");
         if (original.GetComponent<SpriteRenderer>() != null || visual == null ||

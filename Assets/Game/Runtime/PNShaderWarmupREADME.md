@@ -1,3 +1,5 @@
+Update2026-11-03: private `PN/StarreaperPierce` added to existing registered warm-up names (`base:shader_starreaperpierce`);21 entries including the visual keyword variants. Both Universal2D/UniversalForward passes compiled and rendered natively. Focused PNShaderWarmupTests passed; GPU Pump was not rerun in this revision.
+
 # Shader warm-up (compile GPU programs under the transition cover)
 
 Docs: `Docs/ShaderWarmupPlan.md` (plan and decisions). Code: `Core/Rendering/PNShaderWarmupDefinition.cs` (registered data), `Game/Runtime/PNShaderWarmup.cs`
@@ -50,3 +52,5 @@ them ahead of time. DX11 has no PSOs, so there the recording is skipped (the var
 - Native `PNShaderWarmupEditorChecks` (14, includes the installed recording and the merge tool): shaders exist, spread over frames, once per generation, new generation restarts, scene scan of a real URP Lit material with keywords, no duplicate queue.
 - Player (Windows, DX12, GTX 1650 Ti): `Review.exe ... -pn-lorica-visual-review -pn-lorica-shatter-stress [-pn-lorica-shatter-warm]` (first break worst frame 60-65 ms without, 17-20 ms with) and the Flow Player (`CameraFlowBuild`) whose log shows `Shader warm-up done: ... 11 frames, 0.267 s of work` and `Transition hide ... shader warm-up done=True`.
 - Not measured: a cold driver cache (not cleared by decision), mod bundle shaders (only fixtures), Android/Vulkan, low-end or integrated GPUs on DX12.
+
+2026-11-03: `PN/StarreaperWeapon` is the private opaque normal-lit solid bow shader (UniversalForward + Universal2D), registered in `PNShaderWarmupContent.Names` with `base:shader_starreaperweapon`. Focused registration checks passed; this does not claim a fresh GPU Pump run.

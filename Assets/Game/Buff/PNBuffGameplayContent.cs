@@ -55,6 +55,7 @@ public static class PNBuffGameplayContent
         PNTimeScaleBuffContent.Register(hub);
         EveBurstBuffContent.Register(hub);
         PNLoricaBuffContent.Register(hub);
+        PNSupportBuffContent.Register(hub);
         foreach (var definition in registry.Snapshot().Values.Where(x => x.Id.Namespace == "project_n"))
             registry.RegisterBase(new EveId("base", definition.Id.Path), definition.Id, "project_n", compatible: (original, replacement) => true);
     }

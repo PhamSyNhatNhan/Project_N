@@ -640,3 +640,14 @@ automatically refreshed on grant/revoke and behavior lifecycle; Buff/mod authors
 do not manage a cache. Canonical combat tags and private source wrappers may be
 reused, without memoizing damage packets, RNG or hit outcomes. Tick schedule and
 callback ordering are unchanged.
+
+## Support Buffs: block_hits and speed_boost (RulesVersion 112)
+
+Registered in `Assets/Game/Buff/PNSupportBuffs.cs` with base aliases and art (`Resources/PNBuffIcons/PNBlockHits`, `PNSpeedBoost`, white glyphs like the others; glow `#f2d98a` and `#6fdc8c`).
+
+- `project_n:block_hits` - payload `{duration 5.5, clock Entity, hits 2}`; apply input `{duration, hits}` overrides. Subscribes to `PNStat.BeforeDamage` and blocks the next `hits` damaging hits on its owner (damage over time
+  included, each hit counts 1). One instance per target: applying again resets hits and time. The last hit is spent immediately; the Buff ends on the next clock step with `PNBuffEndReason.StacksDepleted` (a skill
+  that must react to "the guard broke" reads that reason); time running out ends it with `Expired`; dispel, death and unload unsubscribe it through `OnCleanup`. Shows the hits left top right and the seconds bottom right.
+- `project_n:speed_boost` - the stat template (`PNBuffStatBehavior`) with `{duration 5, clock Entity, statId base:move_speed, value 0.2}`, multiple instances (up to 8): every application is a new instance and the modifiers add.
+
+Neither is applied by any content yet (the Starchanter skills that use them are not made).

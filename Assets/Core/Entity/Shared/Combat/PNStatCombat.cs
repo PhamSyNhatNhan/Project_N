@@ -32,6 +32,13 @@ public partial class PNStat
 
     public event Action<PNDamageResult> DamageReceived;
     public event Action<PNDamageResult> Died;
+    // EN: Raised for each damaging hit on a living receiver, before the iframe is read. A subscriber (a Buff) that blocks the hit calls gate.Block(): the hit then applies nothing (no HP, Lorica,
+    //     iframe, popup or event) and the attacker gets an ignored result. Subscribers run in subscription order and stop at the first block, so only one of them spends anything. A subscriber
+    //     unsubscribes in its own cleanup; a faulty one is logged and counts as not blocking.
+    // VI: Phát ra mỗi nhát gây sát thương lên người nhận còn sống, trước khi đọc iframe. Subscriber (Buff) chặn đòn gọi gate.Block(): nhát đó không áp dụng gì (HP, Lorica, iframe, popup, sự kiện) và bên
+    //     đánh nhận kết quả ignored. Chạy theo thứ tự đăng ký, dừng ở lần chặn đầu tiên; subscriber tự hủy đăng ký khi dọn dẹp.
+    public event Action<PNDamageGate> BeforeDamage;
+    private readonly PNDamageGate damageGate = new PNDamageGate();
     // Damageable <=> the character declares a health resource. Without one the entity is never dead and ReceiveDamage applies nothing.
     public bool HasHealth { get; private set; }
     // "hits": every damaging hit outside iframe removes exactly 1 of the declared maximum Health (set from the character's body block).
@@ -106,6 +113,8 @@ public partial class PNStat
         if (damage == null) throw new ArgumentNullException(nameof(damage));
         if (damage.SessionId != SessionId) throw new ArgumentException("Damage belongs to another session.", nameof(damage));
         if (!HasHealth) return new PNDamageResult(damage, EntityId, 0d, 0d, 0d, ignored: true);
+        if (BeforeDamage != null && damage.Amount > 0d && GetCurrent(PNContentIds.Health) > 0d && BlockedByListener(damage))
+            return new PNDamageResult(damage, EntityId, 0d, 0d, 0d, ignored: true);
         var damageType = stats.ResolveDamageType(damage.Tags);
         double iframeBefore = IFrameRemaining;
         double duration = damage.IFrameDuration ?? DefaultIFrameDuration;
@@ -172,6 +181,24 @@ public partial class PNStat
 
     // EN: Observers run after the HP commit; observer failure must not invite a duplicate damage retry.
     // VI: Observer chạy sau khi ghi HP; lỗi observer không được gây thử lại damage trùng.
+    private bool BlockedByListener(PNDamage damage)
+    {
+        using (EveHotPathMetrics.Measure("combat.before-damage"))
+        {
+            damageGate.Begin(damage);
+            try
+            {
+                foreach (Action<PNDamageGate> listener in BeforeDamage.GetInvocationList())
+                {
+                    if (damageGate.Blocked) break;
+                    try { listener(damageGate); } catch (Exception error) { Debug.LogException(error, this); }
+                }
+                return damageGate.Blocked;
+            }
+            finally { damageGate.End(); }
+        }
+    }
+
     private void NotifyCombat(Action<PNDamageResult> listeners, PNDamageResult result)
     {
         using (EveHotPathMetrics.Measure("combat.notify"))
@@ -187,6 +214,7 @@ public partial class PNStat
         capturedCombatSet = null; capturedCombatSource = null;
         combatAbilities?.Dispose(); combatAbilities = null; iframeState = null;
         DamageReceived = null;
+        BeforeDamage = null;
         Died = null;
         HealReceived = null;
     }

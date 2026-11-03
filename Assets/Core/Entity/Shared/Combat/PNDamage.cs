@@ -133,6 +133,16 @@ public struct PNDamageAbsorption
     public bool LoricaBroke;
 }
 
+// The hit offered to PNStat.BeforeDamage subscribers. Reused per receiver: read it inside the callback only.
+public sealed class PNDamageGate
+{
+    public PNDamage Damage { get; private set; }
+    public bool Blocked { get; private set; }
+    public void Block() => Blocked = true;
+    internal void Begin(PNDamage damage) { Damage = damage; Blocked = false; }
+    internal void End() { Damage = null; Blocked = false; }
+}
+
 public sealed class PNDamageResult
 {
     public PNDamage Damage { get; }

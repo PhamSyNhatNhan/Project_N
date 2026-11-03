@@ -23,3 +23,9 @@ MonoBehaviour:
     Prefab: {fileID: 3510511558005995391, guid: d491d243a6cfcd0479d3e168b089b4f0, type: 3}
   - Key: project_n:starkeeper
     Prefab: {fileID: 5560690630874277120, guid: 156fcd21bbf0e944c9c42a0cf13329e8, type: 3}
+  - Key: project_n:starchanter
+    Prefab: {fileID: 3510511558005995391, guid: 9180e70b999c24b418452dcf60ce1e0d, type: 3}
+  - Key: project_n:starforger
+    Prefab: {fileID: 3510511558005995391, guid: c4f5a6c0e75488740aa4c7c5309fdd57, type: 3}
+  - Key: project_n:starreaper
+    Prefab: {fileID: 3510511558005995391, guid: d39c1ee90efdb3f469885deeb8357b91, type: 3}
