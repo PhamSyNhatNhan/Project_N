@@ -100,6 +100,13 @@ public sealed class PNMenuPlayReview : MonoBehaviour
         yield return Shot("setup");
         int start = kind == "solo" ? 0 : kind == "host" ? 1 : 2;
         ((PNSetupScreen)flow.Current).Choose(start);
+        // Alone or hosting, the map comes first (always shown). Pass -pn-run-save-dir=<folder> so a run saved on this machine does not put the Continue screen here instead.
+        if (kind != "join")
+        {
+            yield return Until("map screen shown", () => flow.Current is PNRunMapScreen && !flow.IsBusy, 10, Fail); if (failed) yield break;
+            yield return Shot("map");
+            ((PNRunMapScreen)flow.Current).Choose(0);
+        }
         if (kind == "join")
         {
             yield return Until("room screen shown", () => flow.Current is PNRoomScreen && !flow.IsBusy, 10, Fail); if (failed) yield break;

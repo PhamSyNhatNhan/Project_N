@@ -18,6 +18,9 @@ internal sealed class PNModeMenu : IDisposable
     private readonly Button toggle, action;
     private readonly Label toastLabel;
     private string peerSignature = "", shownMessage;
+    // A continued run with seats nobody holds: the first press of Start only warns, a second one (same missing seats, within ConfirmSeconds) starts.
+    private bool armed; private int armedMissing; private double armedAt;
+    internal const double ConfirmSeconds = 10;
     private double messageAt, lastCharacterSend;
     private bool disposed;
     private long noticeSequence=-1;
@@ -63,7 +66,13 @@ internal sealed class PNModeMenu : IDisposable
     private void OnAction()
     {
         var info = Driver?.Lobby; if (info == null) return;
-        if (PNGameFlow.IsHost) PNGameFlow.StartRun(); else Driver.SetReady(!info.LocalReady);
+        if (!PNGameFlow.IsHost) { Driver.SetReady(!info.LocalReady); return; }
+        int missing = PNGameFlow.MissingSeats().Count; double now = Time.realtimeSinceStartupAsDouble;
+        if (missing > 0 && !(armed && armedMissing == missing && now - armedAt < ConfirmSeconds))
+        {
+            armed = true; armedMissing = missing; armedAt = now; PNGameFlow.Warn("project_n:ui.seats_missing"); return;
+        }
+        armed = false; PNGameFlow.StartRun();
     }
 
     // Called every frame from PNUiRuntime.RefreshUI.
@@ -102,11 +111,14 @@ internal sealed class PNModeMenu : IDisposable
         if (!show) { peerSignature = ""; return; }
         bool host = PNGameFlow.IsHost;
         SendCharacter(info);
-        string signature = string.Join(";", info.Peers.Select(p => p.Owner + (p.Ready ? "r" : "w") + p.Character));
+        var missingSeats = PNGameFlow.MissingSeats();
+        string signature = string.Join(";", info.Peers.Select(p => p.Owner + (p.Ready ? "r" : "w") + p.Character)) + "|" + string.Join(",", missingSeats.Select(s => s.PlayerId));
         if (signature != peerSignature)
         {
             peerSignature = signature; team.Clear();
             int index = 0; foreach (var peer in info.Peers) team.Add(PeerRow(peer, index++));
+            // The seats of a saved run that nobody holds yet: the character, grey, "Chưa vào".
+            foreach (var seat in missingSeats) team.Add(PeerRow(new PNLobbyPeerInfo { Character = seat.Character.ToString() }, index++, empty: true));
         }
         string nextAction=host?"project_n:ui.start":info.LocalReady?"project_n:ui.unready":"project_n:ui.ready";
         if(actionKey!=nextAction){actionKey=nextAction;PNLocalizationUI.Bind(action,nextAction);}
@@ -132,11 +144,11 @@ internal sealed class PNModeMenu : IDisposable
     }
     // One party member as on the HUD: the character's avatar (a star until it has one) with the soft glow and the thin white ring just outside,
     // then the character name over "Sẵn sàng" / "Đang chờ" (the host never readies, it only waits).
-    private VisualElement PeerRow(PNLobbyPeerInfo peer, int index)
+    private VisualElement PeerRow(PNLobbyPeerInfo peer, int index, bool empty = false)
     {
         var row = new VisualElement { pickingMode = PickingMode.Ignore }; row.AddToClassList("pn-lobby-row");
         var host = new VisualElement { pickingMode = PickingMode.Ignore }; host.AddToClassList("pn-lobby-avatar-host");
-        var tint = PlayerTints[index % PlayerTints.Length];
+        var tint = empty ? new Color(.72f, .72f, .72f, 1f) : PlayerTints[index % PlayerTints.Length];
         host.Add(new PNHudGlow(true, tint));
         var ring = new VisualElement { pickingMode = PickingMode.Ignore }; ring.AddToClassList("pn-lobby-avatar-ring"); host.Add(ring);
         var avatar = new VisualElement { pickingMode = PickingMode.Ignore }; avatar.AddToClassList("pn-lobby-avatar"); host.Add(avatar);
@@ -161,9 +173,10 @@ internal sealed class PNModeMenu : IDisposable
         var text = new VisualElement { pickingMode = PickingMode.Ignore }; text.AddToClassList("pn-lobby-text");
         var top = new Label(name) { pickingMode = PickingMode.Ignore }; top.AddToClassList("pn-lobby-name");
         if(!string.IsNullOrEmpty(peer.Character))PNLocalizationUI.Content(top,peer.Character,"character","name",name);else PNLocalizationUI.Bind(top,"project_n:ui.no_character");
-        var bottom = new Label(!peer.Host && peer.Ready ? "Sẵn sàng" : "Đang chờ") { pickingMode = PickingMode.Ignore }; bottom.AddToClassList("pn-lobby-status");
-        PNLocalizationUI.Bind(bottom,!peer.Host&&peer.Ready?"project_n:ui.ready":"project_n:ui.waiting");
+        var bottom = new Label(empty ? "Chưa vào" : !peer.Host && peer.Ready ? "Sẵn sàng" : "Đang chờ") { pickingMode = PickingMode.Ignore }; bottom.AddToClassList("pn-lobby-status");
+        PNLocalizationUI.Bind(bottom, empty ? "project_n:ui.seat_empty" : !peer.Host && peer.Ready ? "project_n:ui.ready" : "project_n:ui.waiting");
         text.Add(top); text.Add(bottom); row.Add(host); row.Add(text);
+        if (empty) { row.AddToClassList("pn-lobby-row-empty"); row.style.opacity = .62f; return row; }
         row.Add(ReadyMark(!peer.Host && peer.Ready));
         return row;
     }

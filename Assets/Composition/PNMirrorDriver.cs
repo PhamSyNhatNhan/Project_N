@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using EveEngine;
 using Mirror;
 using kcp2k;
@@ -7,7 +8,7 @@ using ProjectN.Coop;
 using UnityEngine;
 namespace ProjectN.Composition
 {
-    public sealed class PNMirrorDriver : IPNNetworkSessionDriver, IPNRoomSessionDriver, IPNLobbyDriver
+    public sealed class PNMirrorDriver : IPNNetworkSessionDriver, IPNRoomSessionDriver, IPNLobbyDriver, IPNPlayerDirectory
     {
         private PNNetworkManager manager;
         private bool releaseScheduled;
@@ -47,6 +48,10 @@ namespace ProjectN.Composition
                 manager.onlineScene="";manager.offlineScene="";manager.dontDestroyOnLoad=true;
                 manager.maxConnections=profile.MaximumClients+1;manager.networkAddress=config.Address;
                 manager.Runtime=runtime;manager.Profile=profile;manager.ModeId=config.ModeId;
+                // The person this machine is, the map the host chose and, for a continued run, the only persons who may join (Docs/RunSavePlan.md 5.10).
+                manager.LocalPlayerId=PNPlayerProfileService.PlayerId;
+                var next=PNGameFlow.NextRun;manager.RunId=(next!=null?next.Run:PNGameFlow.DefaultRun).ToString();
+                manager.ContinueSeats=next!=null&&next.IsContinue?next.Save.Seats.ToDictionary(x=>x.PlayerId,x=>x.Character.ToString()):null;
                 manager.StartPlayRuntime=role=>
                 {
                     runtime.BeginSession(role);
@@ -76,6 +81,10 @@ namespace ProjectN.Composition
         // IPNLobbyDriver: lobby state, admission lock and LAN discovery for the roguelite flow.
         public bool IsIdle=>manager==null&&!releaseScheduled;
         public string LastFailure=>manager?.LastFailure??lastFailure;
+        public string RunId=>manager?.RunId;
+        // IPNPlayerDirectory: who is who in the room (host side; a client knows only itself).
+        public string PlayerIdOf(long owner)=>manager?.PlayerIdOf(owner);
+        public long? OwnerOf(string playerId)=>manager?.OwnerOf(playerId);
         public PNLobbyInfo Lobby=>manager?.GetLobbyInfo();
         public void SetReady(bool ready)=>manager?.SetLobbyReady(ready);
         public void SetCharacter(string characterId)=>manager?.SetLobbyCharacter(characterId);

@@ -14,6 +14,7 @@ internal sealed class PNPauseMenu : IDisposable
     private readonly VisualElement frontStarSecond,backStarSecond;
     private readonly Button toggle, resume;
     private readonly Button leave;
+    private Button restart;   // "Play again": only inside a run that has a saved start of its room (alone)
     private readonly List<Part> parts=new List<Part>();
     private readonly Texture2D lightTexture, coreTexture;
     private readonly List<PNPlayerMove> moves=new List<PNPlayerMove>();
@@ -68,14 +69,14 @@ internal sealed class PNPauseMenu : IDisposable
         }
         card=new VisualElement { name="pause-card", pickingMode=PickingMode.Ignore }; card.AddToClassList("pause-card"); overlay.Add(card);
         resume=new Button(Close) { name="pause-continue", text="Tiếp tục" }; resume.AddToClassList("pause-choice"); resume.AddToClassList("pause-primary"); card.Add(resume);
-        foreach(var item in new[]{new[]{"pause-settings","Cài đặt"},new[]{"pause-leave","Rời phòng"}})
-        { var button=new Button { name=item[0], text=item[1] }; button.AddToClassList("pause-choice"); card.Add(button); PNLocalizationUI.Bind(button,item[0]=="pause-settings"?"project_n:ui.settings":"project_n:ui.leave");if(item[0]=="pause-settings")button.clicked+=OpenLanguages; if(item[0]=="pause-leave"){leave=button;button.clicked+=Leave;button.SetEnabled(false);} }
+        foreach(var item in new[]{new[]{"pause-settings","Cài đặt"},new[]{"pause-restart","Chơi lại"},new[]{"pause-leave","Rời phòng"}})
+        { var button=new Button { name=item[0], text=item[1] }; button.AddToClassList("pause-choice"); card.Add(button); PNLocalizationUI.Bind(button,item[0]=="pause-settings"?"project_n:ui.settings":item[0]=="pause-restart"?"project_n:run.restart":"project_n:ui.leave");if(item[0]=="pause-restart"){restart=button;button.clicked+=Restart;button.style.display=DisplayStyle.None;}if(item[0]=="pause-settings")button.clicked+=OpenLanguages; if(item[0]=="pause-leave"){leave=button;button.clicked+=Leave;button.SetEnabled(false);} }
         PNLocalizationUI.Bind(resume,"project_n:ui.resume");
         int choiceIndex=0;
         foreach(var button in card.Children())
         {
             var halo=new PNPauseDrawing(PNPauseDrawing.Shape.ButtonHalo);halo.AddToClassList("pause-button-halo");button.Insert(0,halo);
-            AddPart(button,3,.26f+choiceIndex*.07f,.56f,(2-choiceIndex)*.045f,Vector2.one);choiceIndex++;
+            AddPart(button,3,.26f+choiceIndex*.07f,.56f,Mathf.Max(0f,(2-choiceIndex)*.045f),Vector2.one);choiceIndex++;
         }
         overlay.style.display=DisplayStyle.None;
         menu=new InputAction("Local menu",InputActionType.Button);
@@ -84,6 +85,9 @@ internal sealed class PNPauseMenu : IDisposable
     }
     // Leaves the lobby/run for the Hall. Closing first keeps the menu animation and time scale consistent with a normal resume.
     private void Leave(){ if(!IsOpen||PNGameFlow.Busy)return; Close(); PNGameFlow.ReturnToHall(); }
+    // Play again: leave this play and continue the saved run, the start of the room the team is in (Docs/RunSavePlan.md Q11).
+    private void Restart(){ if(!IsOpen||PNGameFlow.Busy)return; Close(); PNGameFlow.RestartFromSave(out _); }
+    private void RefreshRestart(){ if(restart==null)return; restart.style.display=EveRegistrySession.IsReady&&PNGameFlow.Phase==PNFlowPhase.Run&&PNGameFlow.CanRestartFromSave()?DisplayStyle.Flex:DisplayStyle.None; }
     private PNSettingsView settingsView;
     private void OpenLanguages()
     {
@@ -105,6 +109,7 @@ internal sealed class PNPauseMenu : IDisposable
         if(EveRegistrySession.Context.Role==EveSessionRole.Offline)
         { previousTime=Time.timeScale; ownsTime=true; Time.timeScale=0; }
         overlay.style.display=DisplayStyle.Flex; toggle.style.display=DisplayStyle.None;
+        RefreshRestart();
         Animate(); resume.Focus();
     }
     public void Close()

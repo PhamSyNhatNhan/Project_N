@@ -6,14 +6,28 @@ public enum PNCharacterState { Owned, NotOwned, Forbidden }
 
 // EN: The machine's single player profile (Docs/ModeMenuPlan.md section 7): the last chosen character and a per-character state.
 //     It never holds definitions. Ids it does not know (a disabled mod) are kept and written back untouched.
-//     JSON: { "schemaVersion": 1, "lastCharacter": "project_n:eve", "characters": { "mod:vex": "owned" } }  (states: owned | not_owned | forbidden)
-// VI: Hồ sơ người chơi duy nhất của máy: nhân vật chọn lần trước và trạng thái từng nhân vật; id lạ được giữ nguyên.
+//     JSON: { "schemaVersion": 2, "playerId": "<32 hex>", "lastCharacter": "project_n:eve", "lastRun": "project_n:standard_run", "characters": { "mod:vex": "owned" } }  (states: owned | not_owned | forbidden)
+//     Schema 2 (Docs/RunSavePlan.md 5.1) adds `playerId` (the person's own id, made once) and `lastRun` (the map chosen last time); a schema 1 file is read as it is and written back as 2.
+// VI: Hồ sơ người chơi duy nhất của máy: nhân vật chọn lần trước, map chọn lần trước, mã người chơi và trạng thái từng nhân vật; id lạ được giữ nguyên.
 public sealed class PNPlayerProfile
 {
-    public const int SchemaVersion = 1, MaxBytes = 64 * 1024, MaxEntries = 512, MaxIdLength = 128;
+    public const int SchemaVersion = 2, MaxBytes = 64 * 1024, MaxEntries = 512, MaxIdLength = 128;
     private readonly Dictionary<string, PNCharacterState> states = new Dictionary<string, PNCharacterState>(StringComparer.Ordinal);
     public string LastCharacter { get; private set; } = "";
+    public string LastRun { get; private set; } = "";
+    // The person's id (PNPlayerId), empty until made. The service makes it on first use; a profile read from a schema 1 file has none yet.
+    public string PlayerId { get; private set; } = "";
     public int Count => states.Count;
+
+    public void SetPlayerId(string id) { PlayerId = PNPlayerId.Require(id); }
+    // Makes the id when there is none. Returns true when it was made now (the caller saves the profile).
+    public bool EnsurePlayerId() { if (PlayerId.Length > 0) return false; PlayerId = PNPlayerId.New(); return true; }
+
+    public void SetLastRun(string id)
+    {
+        if (!string.IsNullOrEmpty(id)) ValidateId(id);
+        LastRun = id ?? "";
+    }
 
     public static void ValidateId(string id)
     {
@@ -62,7 +76,9 @@ public sealed class PNPlayerProfile
         var characters = new JObject();
         var ids = new List<string>(states.Keys); ids.Sort(StringComparer.Ordinal);
         foreach (var id in ids) characters[id] = Name(states[id]);
-        var root = new JObject { ["schemaVersion"] = SchemaVersion, ["lastCharacter"] = LastCharacter, ["characters"] = characters };
+        var root = new JObject { ["schemaVersion"] = SchemaVersion };
+        if (PlayerId.Length > 0) root["playerId"] = PlayerId;
+        root["lastCharacter"] = LastCharacter; root["lastRun"] = LastRun; root["characters"] = characters;
         return root.ToString(Newtonsoft.Json.Formatting.Indented);
     }
 
@@ -78,6 +94,16 @@ public sealed class PNPlayerProfile
         if (version > SchemaVersion) { newer = true; return new PNPlayerProfile(); }
         if (version < 1) throw new FormatException("Profile schemaVersion is invalid.");
         var profile = new PNPlayerProfile();
+        if (root["playerId"] != null)
+        {
+            if (root["playerId"].Type != JTokenType.String) throw new FormatException("playerId must be a string.");
+            profile.SetPlayerId(root["playerId"].Value<string>());
+        }
+        if (root["lastRun"] != null)
+        {
+            if (root["lastRun"].Type != JTokenType.String) throw new FormatException("lastRun must be a string.");
+            profile.SetLastRun(root["lastRun"].Value<string>());
+        }
         if (root["lastCharacter"] != null)
         {
             if (root["lastCharacter"].Type != JTokenType.String) throw new FormatException("lastCharacter must be a string.");

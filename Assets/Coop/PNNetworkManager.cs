@@ -160,6 +160,14 @@ namespace ProjectN.Coop
         {if(notifiedTeardown||!IsTeardownComplete)return;notifiedTeardown=true;TeardownCompleted?.Invoke();TeardownCompleted=null;}
         public Func<bool> RequiredStateSettled=()=>true;
         public long AllocateOwner()=>checked(++nextOwner);
+        // ---- persons (Docs/RunSavePlan.md 5.10): the id of the person each connection stands for, the map the host chose, and who may join a run that is being continued ----
+        public string LocalPlayerId,RunId;
+        // A continued run (Docs/RunSavePlan.md stage 2): person -> the character of that person's seat; null for a new run. Only these persons may join and the lobby shows their seat's character.
+        public System.Collections.Generic.IDictionary<string,string> ContinueSeats;
+        public System.Collections.Generic.ICollection<string> ContinuePersons=>ContinueSeats?.Keys;
+        public System.Collections.Generic.ICollection<string> OnlinePersons()=>NetworkServer.connections.Values.Select(c=>(c.authenticationData as PNPeer)?.PlayerId).Where(x=>!string.IsNullOrEmpty(x)).ToList();
+        public string PlayerIdOf(long owner){foreach(var c in NetworkServer.connections.Values)if(c.authenticationData is PNPeer p&&p.Owner==owner)return p.PlayerId;return null;}
+        public long? OwnerOf(string playerId){if(string.IsNullOrEmpty(playerId))return null;foreach(var c in NetworkServer.connections.Values)if(c.authenticationData is PNPeer p&&p.PlayerId==playerId)return p.Owner;return null;}
         public void RouteIntent(NetworkConnectionToClient connection,Guid session,long entity,long generation,long sequence,string command,string payload,PNWorldBindingScope scope)
         {
             if(stopping||!IsPlaying||fatalSerialization||session!=PlaySession)return;

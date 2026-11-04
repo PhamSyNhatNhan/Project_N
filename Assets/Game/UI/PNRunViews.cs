@@ -45,7 +45,7 @@ internal sealed class PNRunHudView : IDisposable
         root.style.display = show ? DisplayStyle.Flex : DisplayStyle.None;
         if (!show) { shownCount = -1; return; }
         room.text = PNLocalization.Text(PNRoomInteractions.KindKey(snap.RoomKind));
-        wallet.text = snap.Money.ToString();
+        wallet.text = snap.Shards.ToString();
         int seconds = snap.Countdown;
         if (seconds != shownCount)
         {
@@ -86,7 +86,8 @@ internal sealed class PNRunEndView : IDisposable
         host.Add(root); root.style.display = DisplayStyle.None;
     }
 
-    private static void Leave() { if (!PNGameFlow.Busy) PNGameFlow.ReturnToHall(); }
+    // A summary of a saved run is shown in the Hall (no run in the session): the button only dismisses it. A finished run leaves for the Hall.
+    private static void Leave() { if (PNRunSummary.Pending != null) { PNRunSummary.Clear(); return; } if (!PNGameFlow.Busy) PNGameFlow.ReturnToHall(); }
 
     internal static string Clock(double seconds)
     {
@@ -96,8 +97,8 @@ internal sealed class PNRunEndView : IDisposable
     internal void Refresh()
     {
         if (disposed) return;
-        var snap = PNRunStateSyncs.Current();
-        bool show = snap.Ended && (snap.Result == "victory" || snap.Result == "defeat") && !owner.MenuOpen;
+        var snap = PNRunSummary.Pending ?? PNRunStateSyncs.Current();
+        bool show = snap.Ended && (snap.Result == "victory" || snap.Result == "defeat" || snap.Result == "retired") && !owner.MenuOpen;
         root.style.display = show ? DisplayStyle.Flex : DisplayStyle.None;
         if (!show) { signature = ""; return; }
         string key = PNLocalization.Revision + "|" + snap.Result + "|" + snap.Rooms + "|" + snap.Kills + "|" + snap.Earned + "|" + snap.Seconds + "|" + snap.Players.Length;
@@ -105,7 +106,7 @@ internal sealed class PNRunEndView : IDisposable
         bool first = signature.Length == 0; signature = key;
         bool win = snap.Result == "victory";
         root.EnableInClassList("pn-end-defeat", !win);
-        title.text = PNLocalization.Text(win ? "project_n:run.end.victory" : "project_n:run.end.defeat");
+        title.text = PNLocalization.Text(win ? "project_n:run.end.victory" : snap.Result == "retired" ? "project_n:run.end.retired" : "project_n:run.end.defeat");
         team.Clear();
         int index = 0;
         foreach (var player in snap.Players)
@@ -120,7 +121,7 @@ internal sealed class PNRunEndView : IDisposable
         AddRow("project_n:run.end.time", Clock(snap.Seconds));
         AddRow("project_n:run.end.rooms", snap.Rooms.ToString());
         AddRow("project_n:run.end.kills", snap.Kills.ToString());
-        AddRow("project_n:run.end.money", snap.Earned.ToString());
+        AddRow("project_n:run.end.shards", snap.Earned.ToString());
         button.text = PNLocalization.Text("project_n:run.end.hall");
         if (first) button.schedule.Execute(() => { if (!disposed) button.Focus(); }).ExecuteLater(50);
     }

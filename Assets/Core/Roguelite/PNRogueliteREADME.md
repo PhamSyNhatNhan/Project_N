@@ -9,9 +9,9 @@ VI: Dữ liệu và logic thuần của run. Chưa có bộ điều khiển run/
 
 | Key | Definition | Notes |
 |---|---|---|
-| `rogueliteRuns` | `PNRunDefinition` | `floors` (1-16 unique), `startMoney`, `reviveHealth` in (0,1], `victory` = `last_room_cleared`, optional `name` (localization key). |
+| `rogueliteRuns` | `PNRunDefinition` | `floors` (1-16 unique), `startShards`, `reviveHealth` in (0,1], `victory` = `last_room_cleared`, `name` (localization key, required unless `hidden`), optional `description` (localization key), `art` (Resources path), `hidden` (not offered on the map screen). |
 | `rogueliteFloors` | `PNFloorDefinition` | `steps` (1-32): `choices` 1-3 and `rooms` [{room, weight}] (distinct, `choices` <= rooms); optional `enemyBuffs` (<= 8 Buff ids). |
-| `rogueliteRooms` | `PNRoomDefinition` | `kind` combat/boss/rest/shop/event, `world` (a registered world = the map), `start` {mode interact/auto/none, `interactable` key, `countdown` 0-10 default 3, `delay` for auto 0-60}, `waves` (<= 16: `delay` 0-30, `spawns` [{character, entity default project_n:enemy, count 1-16, group}], <= 32 enemies), `clear` all_waves/none, `reward` {money}, `exits` (1-3 keys), `interactables` (<= 16 keys). |
+| `rogueliteRooms` | `PNRoomDefinition` | `kind` combat/boss/rest/shop/event, `world` (a registered world = the map), `start` {mode interact/auto/none, `interactable` key, `countdown` 0-10 default 3, `delay` for auto 0-60}, `waves` (<= 16: `delay` 0-30, `spawns` [{character, entity default project_n:enemy, count 1-16, group}], <= 32 enemies), `clear` all_waves/none, `reward` {shards}, `exits` (1-3 keys), `interactables` (<= 16 keys). |
 
 Combat and boss rooms start by interact or auto, have at least one wave and clear by `all_waves`; the other kinds start at once (`none`), have no waves and `clear: none`. A key is used once per room
 among the start switch, exits and interactables. Ids belong to the pack's namespace. A spawn must resolve to a prefab (the role's or the character's `body.prefab`). Whether a room's world is registered is checked by
@@ -21,7 +21,7 @@ among the start switch, exits and interactables. Ids belong to the pack's namesp
 
 `PNRunRandom` (SplitMix64, streams Layout/Spawn/Reward) · `PNRunState` (floor/step/room, options, team wallet, players with health ratio and dead flag, stats, result) · `PNRunPlanner`
 (first room, `PrepareExits` draws the gates by weight without repeats, `Choose` moves in) · `PNRoomFlow` (Entering - Waiting - Countdown - Combat - Cleared - Leaving, commands for the director).
-Checks: `Tests/EveEngine/PNRogueliteTests.cs`; native `PNSyncWorldChecks.Run()` loads the real content, `RunMap()` checks the sample map.
+**Saved run (2026-11-04, `Docs/RunSavePlan.md`):** `PNRunSave` (capture / JSON / parse / rebuild; `seed` and the three stream positions are decimal strings; a seat is a person, `PNPlayerId`, not a session owner) · `PNRunSaveStore` (one file `run.json`, temp file then replace, `.bak`, `.corrupt`, newer schema left untouched; `Delete` removes the backup too) · `PNRunRandom(seed, streams)` / `Streams()` · `PNRunState.Restore`. Result `Retired` = summed up from a save. Checks: `Tests/EveEngine/PNRunSaveTests.cs`. `PNSyncWorldChecks.Run()` loads the real content, `RunMap()` checks the sample map.
 
 ## Map
 

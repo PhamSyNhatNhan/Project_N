@@ -46,8 +46,14 @@ namespace ProjectN.Coop
             try{var playable=PNPlayableSettings.Parse(EveRegistrySession.Current.Characters.Get(parsed).Data);return playable!=null&&playable.HostAllows(PNForbiddenSwitch.Allowed);}
             catch(Exception e) when(e is KeyNotFoundException||e is FormatException){return false;}
         }
+        // A continued run: a person joins as the character of the seat that person holds (set at admission, before the actor spawns), and the pick is locked.
+        public void SeatLobbyCharacter(long owner,string person)
+        {
+            if(ContinueSeats!=null&&owner>0&&person!=null&&ContinueSeats.TryGetValue(person,out var seat)&&AcceptCharacter(seat))lobbyCharacter[owner]=seat;
+        }
         private void ReceiveLobbyCharacter(NetworkConnectionToClient conn,PNLobbyCharacterIntent intent)
         {
+            if(ContinueSeats!=null)return;
             if(stopping||!IsPlaying||RunStarted||!(conn.authenticationData is PNPeer peer)||peer.Owner<=0)return;
             if(AcceptCharacter(intent.Character))PickCharacter(peer.Owner,intent.Character);
         }
@@ -104,7 +110,7 @@ namespace ProjectN.Coop
         // Host: its own pick is stored directly; client: sent to the host, which validates it. Ignored without a room or once the run started.
         public void SetLobbyCharacter(string characterId)
         {
-            if(stopping||string.IsNullOrEmpty(characterId))return;
+            if(stopping||string.IsNullOrEmpty(characterId)||ContinueSeats!=null)return;
             if(NetworkServer.active){if(!RunStarted&&AcceptCharacter(characterId))PickCharacter(0,characterId);return;}
             if(NetworkClient.isConnected)NetworkClient.Send(new PNLobbyCharacterIntent{Character=characterId});
         }

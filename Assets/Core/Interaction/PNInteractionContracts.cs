@@ -3,7 +3,7 @@ using EveEngine;
 
 // EN: What a handler of an interactable sees and answers (Docs/InteractablePlan.md I2). CanUse is pure and runs on every machine to decide whether an entry is dimmed (a machine that
 //     lacks the data answers Usable: the authority checks again); Interact runs only on the authority, after the generic checks (the object exists and is available, the player is in range
-//     and alive, the permission, the uses left). The handler keeps no state of its own: what changes (a room started, a gate taken, money spent) belongs to the owner it calls.
+//     and alive, the permission, the uses left). The handler keeps no state of its own: what changes (a room started, a gate taken, shards spent) belongs to the owner it calls.
 // VI: Handler của vật tương tác thấy và trả lời gì. CanUse thuần, chạy mọi máy để làm mờ mục; Interact chỉ chạy ở authority sau các kiểm tra chung.
 public readonly struct PNInteractionAvailability
 {

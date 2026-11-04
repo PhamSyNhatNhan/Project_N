@@ -38,6 +38,28 @@ public static class PNPlayerProfileService
     public static bool CanPlay(string id, PNPlayableSettings playable) => Current.CanPlay(id, playable, AllowForbidden);
 
     public static void SetLastCharacter(string id) { Current.SetLastCharacter(id); Save(); }
+    public static string LastRun => Current.LastRun;
+    public static void SetLastRun(string id) { Current.SetLastRun(id); Save(); }
+
+    // EN: This person's id (Docs/RunSavePlan.md 5.1). Made and saved the first time it is asked for. `-pn-player-id=<32 hex>` overrides it for this process only and is never saved, so two
+    //     processes on one machine (a host and a client in a test) can be told apart.
+    // VI: Mã của người chơi này: tạo và lưu ở lần hỏi đầu tiên. `-pn-player-id=<32 hex>` chỉ ghi đè cho tiến trình này và không lưu.
+    public const string PlayerIdFlag = "-pn-player-id=";
+    public static string PlayerId
+    {
+        get
+        {
+            foreach (var argument in Environment.GetCommandLineArgs())
+            {
+                if (!argument.StartsWith(PlayerIdFlag, StringComparison.Ordinal)) continue;
+                string forced = argument.Substring(PlayerIdFlag.Length);
+                if (PNPlayerId.IsValid(forced)) return forced;
+                Debug.LogWarning(PlayerIdFlag + " needs " + PNPlayerId.Length + " lowercase hex characters; ignored.");
+            }
+            if (Current.EnsurePlayerId()) Save();
+            return Current.PlayerId;
+        }
+    }
     public static void SetState(string id, PNCharacterState state) { Current.SetState(id, state); Save(); }
 
     private static void Save()

@@ -48,10 +48,55 @@ internal sealed class PNMenuController
         if (start.Start == PNModeStart.Join)
         {
             var a = mode.Listing.AccentRgb;
-            Flow.Push(new PNRoomScreen(Driver, new Color(a[0] / 255f, a[1] / 255f, a[2] / 255f, 1f), address => Flow.Push(CharacterScreen(entry => Launch(mode, start.Start, address, entry)))));
+            Flow.Push(new PNRoomScreen(Driver, new Color(a[0] / 255f, a[1] / 255f, a[2] / 255f, 1f), address => Flow.Push(CharacterScreen(entry => Launch(mode, start.Start, address, entry, null)))));
             return;
         }
-        Flow.Push(CharacterScreen(entry => Launch(mode, start.Start, null, entry)));
+        if (mode.Id.ToString() == RogueliteMode) { BeginRoguelite(mode, start); return; }
+        Flow.Push(CharacterScreen(entry => Launch(mode, start.Start, null, entry, null)));
+    }
+
+    // ---- the roguelite: a saved run first, else the map (Docs/RunSavePlan.md 4, 5.8) ----
+    private const string RogueliteMode = "project_n:roguelite";
+    private static Color TintOf(PNListedMode mode) { var a = mode.Listing.AccentRgb; return new Color(a[0] / 255f, a[1] / 255f, a[2] / 255f, 1f); }
+
+    private void BeginRoguelite(PNListedMode mode, PNModeStartOption start)
+    {
+        var tint = TintOf(mode);
+        var load = PNRunSaveService.Peek();
+        if (load.Save != null)
+        {
+            var save = load.Save;
+            var problem = PNRunSaveService.Check(save, EveRegistrySession.Current);
+            Flow.Push(new PNResumeScreen(problem, tint, () => ContinueSaved(mode, start, save), () => SumUp(save)));
+            return;
+        }
+        ChooseMap(mode, start, tint);
+    }
+
+    private void ChooseMap(PNListedMode mode, PNModeStartOption start, Color tint)
+    {
+        var runs = EveRegistrySession.Current.RogueliteRuns().Snapshot().Values.Where(x => !x.Hidden).OrderBy(x => x.Id.ToString(), StringComparer.Ordinal).ToList();
+        if (runs.Count == 0) { Debug.LogWarning("There is no map to play."); return; }
+        Flow.Push(new PNRunMapScreen(runs, PNPlayerProfileService.LastRun, tint, run =>
+        {
+            PNPlayerProfileService.SetLastRun(run.Id.ToString());
+            Flow.Push(CharacterScreen(entry => Launch(mode, start.Start, null, entry, PNRunRequest.New(run.Id))));
+        }));
+    }
+
+    // Continue: the people are the saved seats, so there is no character to pick; the profile's last character is set to the seat's so the lobby shows it.
+    private void ContinueSaved(PNListedMode mode, PNModeStartOption start, PNRunSave save)
+    {
+        PNPlayerProfileService.SetLastCharacter(PNRunSaveService.SeatOf(save, PNPlayerProfileService.PlayerId).Character.ToString());
+        Launch(mode, start.Start, null, null, PNRunRequest.Continue(save));
+    }
+
+    // Sum up now: the saved run ends as it stands, its summary is shown (the end screen, in the Hall) and the slot is free.
+    private void SumUp(PNRunSave save)
+    {
+        PNRunSaveService.Delete();
+        Flow.Close();
+        PNRunSummary.ShowRetired(save);
     }
 
     private PNCharacterScreen CharacterScreen(Action<PNPlayableEntry> onContinue)
@@ -69,9 +114,10 @@ internal sealed class PNMenuController
         return lobby.Peers.Select(p => new KeyValuePair<string, string>(p.Label + (p.Local ? PNLocalization.Text("project_n:ui.you") : ""), PNLocalization.Text(string.IsNullOrEmpty(p.Character)?"project_n:ui.choosing":"project_n:ui.chosen"))).ToList();
     }
 
-    private void Launch(PNListedMode mode, PNModeStart start, string address, PNPlayableEntry entry)
+    private void Launch(PNListedMode mode, PNModeStart start, string address, PNPlayableEntry entry, PNRunRequest run)
     {
-        PNPlayerProfileService.SetLastCharacter(entry.Id);
+        if (entry != null) PNPlayerProfileService.SetLastCharacter(entry.Id);
+        PNGameFlow.NextRun = run;
         PNGameFlow.PrepareStart(mode.Id.ToString(), start == PNModeStart.Offline);
         var role = start == PNModeStart.Offline ? PNFlowMode.Offline : start == PNModeStart.Host ? PNFlowMode.Host : PNFlowMode.Join;
         var flow = Flow;

@@ -6,8 +6,9 @@
         {
           "id": "project_n:standard_run",
           "name": "project_n:run.standard.name",
+          "description": "project_n:run.standard.description",
           "floors": [ "project_n:floor_star_1" ],
-          "startMoney": 0,
+          "startShards": 0,
           "reviveHealth": 0.3,
           "victory": "last_room_cleared"
         }
@@ -41,7 +42,7 @@
             { "delay": 1.5, "spawns": [ { "character": "project_n:starkeeper", "count": 1, "group": "south" } ] }
           ],
           "clear": "all_waves",
-          "reward": { "money": 30 },
+          "reward": { "shards": 30 },
           "exits": [ "gate_a", "gate_b", "gate_c" ]
         },
         {
@@ -53,7 +54,7 @@
             { "delay": 0, "spawns": [ { "character": "project_n:starreaper", "count": 1, "group": "north" }, { "character": "project_n:starchanter", "count": 1, "group": "south" } ] }
           ],
           "clear": "all_waves",
-          "reward": { "money": 30 },
+          "reward": { "shards": 30 },
           "exits": [ "gate_a", "gate_b", "gate_c" ]
         },
         {

@@ -105,6 +105,8 @@ public static class PNMenuFlowEditorChecks
         try
         {
             PNPlayerProfileService.ResetStatics(); PNPlayerProfileService.Load(new PNProfileStore(folder));
+            // The menu never touches the real saved run: it reads and writes this folder.
+            var saveStore = new PNRunSaveStore(System.IO.Path.Combine(folder, "RunSave")); PNRunSaveService.Use(saveStore); PNRunSummary.Clear();
             runtime.EnsureContentLoaded(); runtime.BeginSession(EveSessionRole.Offline);
             PNUiRuntime.Attach(runtime); var ui = root.GetComponent<PNUiRuntime>(); EveRegistrySession.Context.RegisterCleanup(ui.Unbind);
             var flow = ui.MenuFlow;
@@ -127,14 +129,40 @@ public static class PNMenuFlowEditorChecks
             Run(1.2f); ((PNModeScreen)flow.Current).Pick(); Run(1.2f);
             Check(flow.Depth == 2 && flow.Current is PNSetupScreen setup && setup.Items.Count == 3, "picking a mode opens the setup screen with the mode's three starts");
             ((PNSetupScreen)flow.Current).Choose(0); Run(1.2f);
-            Check(flow.Depth == 3 && flow.Current is PNCharacterScreen && !flow.Current.UsesBackdrop, "starting alone opens the character screen, which draws its own background");
+            Check(flow.Depth == 3 && flow.Current is PNRunMapScreen map && map.Items.Count == 1 && map.UsesBackdrop && map.Root.Q<Button>("pn-map-project_n-standard_run") != null, "starting alone opens the map screen, even with a single map");
+            ((PNRunMapScreen)flow.Current).Choose(0); Run(1.2f);
+            Check(PNPlayerProfileService.LastRun == "project_n:standard_run", "choosing a map is remembered in the profile");
+            Check(flow.Depth == 4 && flow.Current is PNCharacterScreen && !flow.Current.UsesBackdrop, "then the character screen, which draws its own background");
             var character = (PNCharacterScreen)flow.Current;
             Check(character.SelectedIndex == 0 && character.Selected.Id == "project_n:eve" && character.Items.Count == 5, "the character screen lists Eve first and selects her");
             Check(character.Root.Q<Label>("pn-char-name").text == "Eve" && character.Root.Q("pn-char-stats").childCount == 6 && character.Root.Q<Button>("pn-char-continue").enabledSelf, "name, six stat rows and an enabled Continue button");
             Check(character.Root.Q("pn-char-track").childCount == 2, "two round buttons: Eve and Eve 2");
-            flow.RequestBack(); Run(1.2f); Check(flow.Depth == 2 && flow.Current is PNSetupScreen, "back from the character screen returns to setup");
+            flow.RequestBack(); Run(1.2f); Check(flow.Depth == 3 && flow.Current is PNRunMapScreen, "back from the character screen returns to the map screen");
+            flow.RequestBack(); Run(1.2f); Check(flow.Depth == 2 && flow.Current is PNSetupScreen, "back from the map screen returns to setup");
             flow.RequestBack(); Run(1.2f); Check(flow.Depth == 1 && flow.Current is PNModeScreen, "back from setup returns to the ring");
             flow.RequestBack(); Run(.8f); Check(!flow.IsOpen, "back on the ring closes the menu");
+
+            // ---- a saved run: Continue / Sum up first (Docs/RunSavePlan.md Q12) ----
+            var runDef = hub.RogueliteRuns().Get(EveId.Parse("project_n:standard_run"));
+            var planner = new PNRunPlanner(runDef, id => hub.RogueliteFloors().Get(id));
+            var begun = planner.Begin(Guid.NewGuid(), 7UL, new[] { new KeyValuePair<long, EveId>(0, EveId.Parse("project_n:eve")) }, owner => PNPlayerProfileService.PlayerId);
+            begun.Stats.AddKills(4); begun.Stats.AddTime(61); begun.Stats.AddCleared(PNRoomKind.Combat);
+            saveStore.Save(PNRunSave.Capture(begun, "project_n:1", "abcdef", "roguelite", DateTime.UtcNow));
+            Check(controller.OpenHall() && flow.IsOpen, "the Hall flow opens again"); Run(1.2f); ((PNModeScreen)flow.Current).Pick(); Run(1.2f); ((PNSetupScreen)flow.Current).Choose(0); Run(1.2f);
+            Check(flow.Depth == 3 && flow.Current is PNResumeScreen resume && resume.Items.Count == 2 && !resume.CanContinue && resume.Root.Q<Label>("pn-resume-error") != null, "with a saved run of another game version the menu offers Sum up and tells why it cannot continue");
+            ((PNResumeScreen)flow.Current).SumUp(); Run(1.2f);
+            Check(saveStore.Load().Status == PNRunSaveStatus.Missing && !flow.IsOpen, "summing up frees the slot and closes the menu");
+            var summary = PNRunSummary.Pending;
+            Check(summary != null && summary.Ended && summary.Result == "retired" && summary.Kills == 4 && summary.Seconds == 61 && summary.Rooms == 1 && summary.Players.Length == 1, "and the summary of the saved run is waiting for the end screen");
+            PNRunSummary.Clear(); Check(PNRunSummary.Pending == null, "the summary is cleared");
+            var okScreen = new PNResumeScreen(PNRunSaveProblem.None, Color.white, () => { }, () => { });
+            Check(okScreen.CanContinue && okScreen.Root.Q<Label>("pn-resume-error") == null && okScreen.Items.Count == 2, "a playable saved run can be continued and shows no error");
+            okScreen.Dispose();
+            Reject(() => new PNRunMapScreen(new List<PNRunDefinition>(), "", Color.white, r => { }), "a map screen needs at least one map");
+            var many = new List<PNRunDefinition>(); for (int i = 0; i < 8; i++) many.Add(new PNRunDefinition(EveId.Parse("test:map" + i), "test:map" + i + ".name", new[] { EveId.Parse("test:floor") }, 0, .3, PNRunVictory.LastRoomCleared));
+            PNRunDefinition chosenMap = null; var long_ = new PNRunMapScreen(many, "test:map5", Color.white, r => chosenMap = r);
+            long_.Choose(5); Check(long_.Items.Count == 8 && chosenMap != null && chosenMap.Id.ToString() == "test:map5" && long_.Root.Q<ScrollView>("pn-map-scroll") != null, "a long map list scrolls and a choice reports its map");
+            long_.Dispose();
 
             // ---- the lobby's character change ----
             Check(controller.OpenCharacterChange() && flow.Current is PNCharacterScreen && flow.Depth == 1, "the lobby opens straight on the character screen");
@@ -154,7 +182,7 @@ public static class PNMenuFlowEditorChecks
         }
         finally
         {
-            PNPlayerProfileService.ResetStatics();
+            PNPlayerProfileService.ResetStatics(); PNRunSaveService.ResetStatics(); PNRunSummary.Clear();
             if (EveRegistrySession.State == EveSessionState.Stopping) EveRegistrySession.RetryCleanup();
             runtime.UnloadContent(); root.GetComponent<PNUiRuntime>()?.Unbind(); UnityEngine.Object.DestroyImmediate(root); EditorSceneManager.ClosePreviewScene(scene);
             try { System.IO.Directory.Delete(folder, true); } catch (System.IO.IOException) { }

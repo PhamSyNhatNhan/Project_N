@@ -38,6 +38,7 @@ public sealed class PNUiRuntime : MonoBehaviour
     internal bool PauseOpen => pause!=null && pause.IsOpen;
     internal bool FlowOpen => menuFlow!=null && menuFlow.IsOpen;
     internal PNMenuFlow MenuFlow => menuFlow;
+    internal PNPauseMenu Pause => pause;   // reviews open the pause menu through this
     public void OpenMenu()=>pause?.Open();
     public void CloseMenu()=>pause?.Close();
     internal void ResetMobileInput(){mobile?.Reset();pcControls?.Reset();}

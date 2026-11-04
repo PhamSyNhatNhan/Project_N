@@ -21,6 +21,10 @@ draw the room - create its map world - wait for Ready - **replacement transfer**
 
 Every start goes lobby -> run. A solo start loads the lobby, waits for the player and starts by itself (`PNGameFlow.Launch`/`StartRun`); a host starts when the room is ready. `-pn-legacy-run` keeps the old solo start straight into the ErMode arena (the mob Player reviews use it); `-pn-run-seed=<n>` fixes the seed. Map worlds report the `Run` phase.
 
+## Map, save and continue (2026-11-04, `Docs/RunSavePlan.md`)
+
+Alone or hosting, the menu shows the maps first (`PNRunMapScreen`, run definitions that are not `hidden`, always shown; the last one is remembered in the profile), or, when a run is saved, `PNResumeScreen`: **Continue** (off with an error line when `PNRunSaveService.Check` finds the save unplayable now) or **Sum up now** (the end screen shows the save as `retired`, `PNRunSummary.Pending`, and the slot is freed). The menu sets `PNGameFlow.NextRun` (`PNRunRequest.New(run)` / `.Continue(save)`); `BeginRun` takes it (`Begin` or `PNRunDirector.Resume`). The run is saved by `PNRunSaveService.Write` on entering each room (before `Room.Enter`, so the clearing of a room without combat happens again after a continue), one slot in `persistentDataPath/RunSave/run.json` (`-pn-run-save-dir=<folder>` points a Player elsewhere). Victory, defeat and sum-up delete it; leaving to the Hall, `Failed` and a crash keep it. A continued run takes each player's health from the save for its first room change (`PNRunActorStateProvider` asks `HealthFromState`). Pause has **Play again** (`PNGameFlow.RestartFromSave`, alone or as the host: the clients go back to the Hall and join the new room). Players are found by `PNPlayerId` (`IPNPlayerDirectory`: the room driver, or the local profile). Coop continue (2026-11-04, stage 2): a host continues a save of several seats; only the persons of the save may join (`PNNetworkManager.ContinueSeats`), each takes their own seat, a seat nobody takes is left out, the host must hold a seat.
+
 ## End of run (E, 2026-11-04)
 
 All players dead -> `OnDefeat` -> 1.5 s -> `Defeat`; the last room's gate -> `Complete` -> `Victory`. `PNRunEndView` (`Assets/Game/UI/PNRunViews.cs`) shows the summary and one button to `PNGameFlow.ReturnToHall`; the director stops ticking the room once ended. Review: `PNRunFlowPlayReview.Scenario = "defeat"` / `"victory"`.
@@ -35,4 +39,4 @@ In-world labels over the gates (the list carries the kind), mobile touch and gam
 
 ## Checks
 
-Play Mode or Player: `PNRunFlowPlayReview` (`Assets/Tests/Core`; `PNRunFlowPlayReview.Begin(seed)` in Play Mode, flag `-pn-run-flow-review` in a Player; seed 1 = shop behind the first gate, 35 = rest room): walks to each object and uses it through the real command, checks the HUD data and writes frames. Native: `PNWorldTransferChecks.Run`, `PNSyncWorldChecks.Run/RunMap`.
+Play Mode or Player: `PNRunFlowPlayReview` (scenario `save`: saved on entry, leave, continue, same gates, a lost run deletes the save; a review writes to its own folder; `Assets/Tests/Core`; `PNRunFlowPlayReview.Begin(seed)` in Play Mode, flag `-pn-run-flow-review` in a Player; seed 1 = shop behind the first gate, 35 = rest room): walks to each object and uses it through the real command, checks the HUD data and writes frames. Native: `PNWorldTransferChecks.Run`, `PNSyncWorldChecks.Run/RunMap`.

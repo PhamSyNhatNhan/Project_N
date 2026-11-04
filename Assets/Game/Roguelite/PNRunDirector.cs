@@ -1,6 +1,7 @@
 #if UNITY_5_3_OR_NEWER
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using EveEngine;
 using UnityEngine;
@@ -31,6 +32,7 @@ public sealed class PNRunDirector : IDisposable
     private bool disposed;
     private float defeatTimer = -1f;
     private int shownCountdown;
+    private bool healthFromState;
 
     public PNRunPhase Phase { get; private set; }
     public PNRunDefinition Definition { get; private set; }
@@ -39,7 +41,7 @@ public sealed class PNRunDirector : IDisposable
     public string Error { get; private set; }
     public double ReviveHealth => Definition?.ReviveHealth ?? PNRunActorStateProvider.DefaultReviveRatio;
     public bool IsActive => Phase != PNRunPhase.None && Phase != PNRunPhase.Ended;
-    // Something a view shows changed: phase, room, cleared, money, result.
+    // Something a view shows changed: phase, room, cleared, shards, result.
     public event Action Changed;
 
     public PNRunDirector(PNGameSession game)
@@ -59,21 +61,66 @@ public sealed class PNRunDirector : IDisposable
         error = null;
         try
         {
-            if (disposed || !game.Session.IsActive || !game.Session.HasAuthority) throw new InvalidOperationException("Only an active authority plays a run.");
-            if (IsActive) throw new InvalidOperationException("A run is already being played.");
-            if (from == null || !from.CanExecute) throw new InvalidOperationException("The team's world is not ready.");
-            var hub = game.Session.Registry;
+            var hub = Prepare(from);
             Definition = hub.RogueliteRuns().Get(runId);
             planner = new PNRunPlanner(Definition, id => hub.RogueliteFloors().Get(id));
             var players = Players(from);
             if (players.Length == 0) throw new InvalidOperationException("There is no player to take into the run.");
             var team = players.ToDictionary(x => x.LoadContext.Identity.OwnerId, x => CharacterOf(x));
-            State = planner.Begin(Guid.NewGuid(), seed, team.Select(x => new KeyValuePair<long, EveId>(x.Key, x.Value)));
-            Room = null; Error = null; source = from;
+            var directory = PNPlayerDirectories.Current;
+            State = planner.Begin(Guid.NewGuid(), seed, team.Select(x => new KeyValuePair<long, EveId>(x.Key, x.Value)), directory.PlayerIdOf);
+            Room = null; Error = null; source = from; healthFromState = false;
             ChangeRoom(hub.RogueliteRooms().Get(State.Room));
             return true;
         }
         catch (Exception exception) { error = exception.Message; Phase = PNRunPhase.None; State = null; Definition = null; return false; }
+    }
+
+    // EN: Continue a saved run (Docs/RunSavePlan.md 5.6): the players in `from` (the lobby) take the seats of the people they are, and the team enters the room the run was saved at. The first
+    //     room change takes each player's health from the saved run, not from the lobby body (which is at full health). Returns false with the reason when it cannot.
+    public bool Resume(PNRunSave save, EveWorldContext from, out string error)
+    {
+        error = null;
+        try
+        {
+            if (save == null) throw new ArgumentNullException(nameof(save));
+            var hub = Prepare(from);
+            var problem = PNRunSaveService.Check(save, hub);
+            if (problem != PNRunSaveProblem.None) throw new InvalidOperationException("The saved run cannot be continued: " + problem + ".");
+            Definition = hub.RogueliteRuns().Get(save.Definition);
+            planner = new PNRunPlanner(Definition, id => hub.RogueliteFloors().Get(id));
+            var players = Players(from);
+            if (players.Length == 0) throw new InvalidOperationException("There is no player to take into the run.");
+            var directory = PNPlayerDirectories.Current;
+            var ownerOf = new Dictionary<string, long>();
+            foreach (var player in players) { long owner = player.LoadContext.Identity.OwnerId; string person = directory.PlayerIdOf(owner); if (!string.IsNullOrEmpty(person)) ownerOf[person] = owner; }
+            State = save.ToState(person => ownerOf.TryGetValue(person, out var owner) ? owner : (long?)null);
+            // The authority's own person must be in the run (owner 0): its body is in the lobby and is rebuilt as its seat.
+            if (!State.TryGetPlayer(0, out _)) throw new InvalidOperationException("The host holds no seat of the saved run.");
+            Room = null; Error = null; source = from; healthFromState = true;
+            ChangeRoom(hub.RogueliteRooms().Get(State.Room));
+            return true;
+        }
+        catch (Exception exception) { error = exception.Message; Phase = PNRunPhase.None; State = null; Definition = null; return false; }
+    }
+
+    private EveRegistryHub Prepare(EveWorldContext from)
+    {
+        if (disposed || !game.Session.IsActive || !game.Session.HasAuthority) throw new InvalidOperationException("Only an active authority plays a run.");
+        if (IsActive) throw new InvalidOperationException("A run is already being played.");
+        if (from == null || !from.CanExecute) throw new InvalidOperationException("The team's world is not ready.");
+        return game.Session.Registry;
+    }
+
+    // True while the next room change must take each player's health from the run record (a continued run, before its first room change). The run actor state provider asks.
+    internal bool HealthFromState => healthFromState;
+
+    // The run is saved on entering every room (never mid-room): a failure to write is only a warning, the run goes on.
+    private void SaveOnEntry()
+    {
+        try { PNRunSaveService.Write(State, PNGameBootstrap.Config.ModeId); }
+        catch (Exception e) when (e is IOException || e is InvalidOperationException || e is FormatException || e is UnauthorizedAccessException)
+        { Debug.LogWarning("The run was not saved: " + e.Message); }
     }
 
     // ---- gates ----
@@ -107,7 +154,7 @@ public sealed class PNRunDirector : IDisposable
     internal void OnRoomCleared()
     {
         State.Stats.AddCleared(Room.Definition.Kind);
-        if (Room.Definition.Reward.Money > 0) State.AddMoney(Room.Definition.Reward.Money, "room:" + Room.Definition.Id);
+        if (Room.Definition.Reward.Shards > 0) State.AddShards(Room.Definition.Reward.Shards, "room:" + Room.Definition.Id);
         planner.PrepareExits(State);
         Raise();
     }
@@ -119,6 +166,8 @@ public sealed class PNRunDirector : IDisposable
         if (Phase == PNRunPhase.Ended) return;
         Error = reason; if (reason != null) Debug.LogWarning("Run ended (" + result + "): " + reason);
         if (State != null && State.IsRunning) State.End(result);
+        // A run that is won, lost or summed up is over: its save goes. A run that failed (or never started) keeps it, so the team can try again.
+        if (result == PNRunResult.Victory || result == PNRunResult.Defeat || result == PNRunResult.Retired) PNRunSaveService.Delete();
         // A world made for a room change that did not complete is dropped; the team stays where it was.
         if (destination != null && destination != Room?.World) unloading.Add(destination);
         destination = null; nextRoom = null; receipt = null;
@@ -181,8 +230,9 @@ public sealed class PNRunDirector : IDisposable
         Room?.Dispose();
         Room = new PNRoomDirector(this, game, destination, nextRoom, SlotOf(destination));
         if (old != null && old != destination) unloading.Add(old);
-        destination = null; nextRoom = null; receipt = null;
-        Phase = PNRunPhase.Playing; Room.Enter(); Raise();
+        destination = null; nextRoom = null; receipt = null; healthFromState = false;
+        // Saved before the room starts: a continued run enters the room again, and the clearing of a room without combat (its count, its reward, the gates it draws) happens again with it.
+        Phase = PNRunPhase.Playing; SaveOnEntry(); Room.Enter(); Raise();
     }
 
     private string SlotOf(EveWorldContext world)

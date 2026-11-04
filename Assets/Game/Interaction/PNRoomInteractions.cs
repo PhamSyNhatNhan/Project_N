@@ -57,7 +57,7 @@ internal static class PNHealParams
     {
         var obj = PNBuffContentBatch.Object(value); PNBuffContentBatch.Fields(obj, "cost", "ratio");
         int cost = PNBuffContentBatch.Integer(obj, "cost");
-        if (cost < 0 || cost > PNRogueliteLimits.MaxMoney) throw new FormatException("shop_heal cost must be an integer in [0, " + PNRogueliteLimits.MaxMoney + "].");
+        if (cost < 0 || cost > PNRogueliteLimits.MaxShards) throw new FormatException("shop_heal cost must be an integer in [0, " + PNRogueliteLimits.MaxShards + "].");
         Ratio(obj);
     }
     private static void Ratio(JObject obj)
@@ -122,14 +122,14 @@ public sealed class PNShopHealHandler : IPNInteractionHandler
     {
         var run = PNRunDirector.Find(context.Session);
         if (run == null || run.State == null) return PNInteractionAvailability.Yes;
-        return run.State.Money >= context.Definition.Settings.Params.Value<int>("cost") ? PNInteractionAvailability.Yes : PNInteractionAvailability.Denied();
+        return run.State.Shards >= context.Definition.Settings.Params.Value<int>("cost") ? PNInteractionAvailability.Yes : PNInteractionAvailability.Denied();
     }
     public void Interact(PNInteractionContext context)
     {
         var run = PNRunDirector.Find(context.Session);
         if (run == null || run.State == null || !run.State.IsRunning) return;
         var settings = context.Definition.Settings;
-        if (!run.State.TrySpend(settings.Params.Value<int>("cost"), "shop_heal")) return;
+        if (!run.State.TrySpendShards(settings.Params.Value<int>("cost"), "shop_heal")) return;
         PNHealParams.HealTeam(context, settings.Params.Value<double>("ratio"));
         run.Raise();
     }

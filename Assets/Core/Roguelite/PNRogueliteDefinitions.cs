@@ -11,7 +11,7 @@ using Newtonsoft.Json.Linq;
 // VI: Ba định nghĩa của khung roguelite: run, tầng, phòng. Bất biến, đọc từ JSON; trường lạ bị từ chối, số phải hữu hạn trong giới hạn cứng.
 public static class PNRogueliteLimits
 {
-    public const int RunFloors = 16, FloorSteps = 32, StepChoices = 3, StepRooms = 16, RoomWaves = 16, WaveSpawns = 16, SpawnCount = 16, WaveEnemies = 32, RoomExits = 3, RoomInteractables = 16, FloorEnemyBuffs = 8, MaxMoney = 100000, MaxDefinitionsPerDocument = 1024, MaxText = 128;
+    public const int RunFloors = 16, FloorSteps = 32, StepChoices = 3, StepRooms = 16, RoomWaves = 16, WaveSpawns = 16, SpawnCount = 16, WaveEnemies = 32, RoomExits = 3, RoomInteractables = 16, FloorEnemyBuffs = 8, MaxShards = 100000, MaxDefinitionsPerDocument = 1024, MaxText = 128;
     public const double MaxCountdown = 10, MaxAutoDelay = 60, MaxWaveDelay = 30, MaxWeight = 1000, DefaultCountdown = 3;
     public static readonly EveId DefaultEntity = EveId.Parse("project_n:enemy");
 }
@@ -143,15 +143,15 @@ public sealed class PNRoomWave
 
 public sealed class PNRoomReward
 {
-    public int Money { get; }
-    public PNRoomReward(int money)
-    { if (money < 0 || money > PNRogueliteLimits.MaxMoney) throw new FormatException("reward money must be an integer in [0, " + PNRogueliteLimits.MaxMoney + "]."); Money = money; }
+    public int Shards { get; }
+    public PNRoomReward(int shards)
+    { if (shards < 0 || shards > PNRogueliteLimits.MaxShards) throw new FormatException("reward shards must be an integer in [0, " + PNRogueliteLimits.MaxShards + "]."); Shards = shards; }
     public static PNRoomReward Parse(JToken token)
     {
         if (token == null) return new PNRoomReward(0);
         var obj = PNBuffContentBatch.Object(token);
-        PNBuffContentBatch.Fields(obj, "money");
-        return new PNRoomReward(obj["money"] != null ? PNRogueliteParse.IntegerIn(obj, "money", 0, PNRogueliteLimits.MaxMoney) : 0);
+        PNBuffContentBatch.Fields(obj, "shards");
+        return new PNRoomReward(obj["shards"] != null ? PNRogueliteParse.IntegerIn(obj, "shards", 0, PNRogueliteLimits.MaxShards) : 0);
     }
 }
 
@@ -277,27 +277,38 @@ public sealed class PNRunDefinition : EveIIdentified
     public EveId Id { get; }
     public string Name { get; }
     public IReadOnlyList<EveId> Floors { get; }
-    public int StartMoney { get; }
+    public int StartShards { get; }
     public double ReviveHealth { get; }
     public PNRunVictory Victory { get; }
-    public PNRunDefinition(EveId id, string name, IEnumerable<EveId> floors, int startMoney, double reviveHealth, PNRunVictory victory)
+    // How the map is shown where it is chosen (Docs/RunSavePlan.md 5.2): `Art` is a Resources path like a playable character's art, `Description` a localization key; both may be empty.
+    // A hidden run is not offered on the map screen (an internal or test run); every other run needs a name.
+    public string Art { get; }
+    public string Description { get; }
+    public bool Hidden { get; }
+    public PNRunDefinition(EveId id, string name, IEnumerable<EveId> floors, int startShards, double reviveHealth, PNRunVictory victory, string art = "", string description = "", bool hidden = false)
     {
         if (!id.IsValid || id.ToString().Length > PNRogueliteLimits.MaxText) throw new FormatException("a run needs a valid id.");
         name = name ?? "";
         if (name.Length > PNRogueliteLimits.MaxText || name.Length > 0 && !EveId.TryParse(name, out _)) throw new FormatException("a run name is a namespaced localization key of at most " + PNRogueliteLimits.MaxText + " characters.");
         var list = (floors ?? throw new ArgumentNullException(nameof(floors))).ToList();
         if (list.Count < 1 || list.Count > PNRogueliteLimits.RunFloors || list.Any(x => !x.IsValid) || list.Distinct().Count() != list.Count) throw new FormatException("a run lists 1-" + PNRogueliteLimits.RunFloors + " unique floors.");
-        if (startMoney < 0 || startMoney > PNRogueliteLimits.MaxMoney) throw new FormatException("startMoney must be an integer in [0, " + PNRogueliteLimits.MaxMoney + "].");
+        if (startShards < 0 || startShards > PNRogueliteLimits.MaxShards) throw new FormatException("startShards must be an integer in [0, " + PNRogueliteLimits.MaxShards + "].");
         if (double.IsNaN(reviveHealth) || double.IsInfinity(reviveHealth) || reviveHealth <= 0 || reviveHealth > 1) throw new FormatException("reviveHealth must be above 0 and at most 1.");
         if (!System.Enum.IsDefined(typeof(PNRunVictory), victory)) throw new FormatException("run victory is unknown.");
-        Id = id; Name = name; Floors = list.AsReadOnly(); StartMoney = startMoney; ReviveHealth = reviveHealth; Victory = victory;
+        description = description ?? "";
+        if (description.Length > PNRogueliteLimits.MaxText || description.Length > 0 && !EveId.TryParse(description, out _)) throw new FormatException("a run description is a namespaced localization key of at most " + PNRogueliteLimits.MaxText + " characters.");
+        if (!hidden && name.Length == 0) throw new FormatException("a run that is not hidden needs a name (it is offered on the map screen).");
+        Id = id; Name = name; Floors = list.AsReadOnly(); StartShards = startShards; ReviveHealth = reviveHealth; Victory = victory;
+        Art = string.IsNullOrEmpty(art) ? "" : EveResourcePath.Validate(art); Description = description; Hidden = hidden;
     }
     public static PNRunDefinition Parse(JObject obj, EveId id)
     {
-        PNBuffContentBatch.Fields(obj, "id", "name", "floors", "startMoney", "reviveHealth", "victory");
-        foreach (var required in new[] { "floors", "startMoney", "reviveHealth", "victory" }) if (obj[required] == null) throw new FormatException("run " + required + " is required.");
+        PNBuffContentBatch.Fields(obj, "id", "name", "floors", "startShards", "reviveHealth", "victory", "art", "description", "hidden");
+        if (obj["hidden"] != null && obj["hidden"].Type != JTokenType.Boolean) throw new FormatException("run hidden must be true or false.");
+        foreach (var required in new[] { "floors", "startShards", "reviveHealth", "victory" }) if (obj[required] == null) throw new FormatException("run " + required + " is required.");
         return new PNRunDefinition(id, PNBuffContentBatch.OptionalString(obj, "name"), PNRogueliteParse.ArrayIn(obj, "floors", 1, PNRogueliteLimits.RunFloors).Select(x => PNRogueliteParse.Id(x, "run floor")),
-            PNRogueliteParse.IntegerIn(obj, "startMoney", 0, PNRogueliteLimits.MaxMoney), PNBuffContentBatch.Number(obj, "reviveHealth"),
-            PNRogueliteParse.Enum(obj, "victory", ("last_room_cleared", PNRunVictory.LastRoomCleared)));
+            PNRogueliteParse.IntegerIn(obj, "startShards", 0, PNRogueliteLimits.MaxShards), PNBuffContentBatch.Number(obj, "reviveHealth"),
+            PNRogueliteParse.Enum(obj, "victory", ("last_room_cleared", PNRunVictory.LastRoomCleared)),
+            PNBuffContentBatch.OptionalString(obj, "art"), PNBuffContentBatch.OptionalString(obj, "description"), obj["hidden"] != null && obj.Value<bool>("hidden"));
     }
 }

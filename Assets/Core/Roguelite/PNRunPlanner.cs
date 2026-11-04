@@ -26,10 +26,16 @@ public sealed class PNRunPlanner
         return floor.Steps[step];
     }
 
-    public PNRunState Begin(Guid runId, ulong seed, IEnumerable<KeyValuePair<long, EveId>> players)
+    // `playerIdOf` (optional) names the person behind each owner (PNPlayerId); a run that can be saved needs it for every player.
+    public PNRunState Begin(Guid runId, ulong seed, IEnumerable<KeyValuePair<long, EveId>> players, Func<long, string> playerIdOf = null)
     {
-        var state = new PNRunState(runId, run.Id, seed, run.StartMoney);
-        foreach (var player in players ?? throw new ArgumentNullException(nameof(players))) state.AddPlayer(player.Key, player.Value);
+        var state = new PNRunState(runId, run.Id, seed, run.StartShards);
+        foreach (var player in players ?? throw new ArgumentNullException(nameof(players)))
+        {
+            var added = state.AddPlayer(player.Key, player.Value);
+            string playerId = playerIdOf?.Invoke(player.Key);
+            if (!string.IsNullOrEmpty(playerId)) added.AssignPlayerId(playerId);
+        }
         if (state.Players.Count == 0) throw new ArgumentException("A run needs at least one player.", nameof(players));
         state.Floor = 0; state.Step = 0;
         // The run opens in one room: the first draw of step 0 of floor 0, whatever that step's choices say.

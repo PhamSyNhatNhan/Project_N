@@ -35,6 +35,8 @@ public interface IPNLobbyDriver
     // No room object, transport or pending teardown remains; a new room may be opened.
     bool IsIdle { get; }
     string LastFailure { get; }
+    // The map (run definition id) of the room: the host's choice, told to a client when it joins. Null when no room is open.
+    string RunId { get; }
     // Null when no room is open.
     PNLobbyInfo Lobby { get; }
     void SetReady(bool ready);

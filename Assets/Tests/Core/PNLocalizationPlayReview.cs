@@ -46,7 +46,7 @@ public sealed class PNLocalizationPlayReview : MonoBehaviour
         yield return Until(()=>PNLocalization.IsReady&&Title()!=null,"Title base localization ready");
         PNLocalization.Select("vi",false);var root=Title().rootVisualElement;
         Check(root.Q<Button>("pn-title-start").text=="Bắt đầu","Title vi binding");yield return Shot("01_title_vi");
-        Press(root,"pn-title-settings");yield return new WaitForSecondsRealtime(1.4f);Press(root,"pn-settings-language-trigger");yield return new WaitForSecondsRealtime(.3f);Press(root,"pn-settings-language-option-en");
+        Press(root,"pn-title-settings");yield return new WaitForSecondsRealtime(1.4f);Press(root,"pn-settings-language-trigger");yield return new WaitForSecondsRealtime(.3f);Press(root,"pn-settings-language-option-en");yield return new WaitForSecondsRealtime(.25f);Press(root,"pn-settings-save");yield return new WaitForSecondsRealtime(.5f);
         Check(PNLocalization.Selected=="en"&&root.Q<Button>("pn-title-start").text=="Start","language button updates attached Title");yield return Shot("02_languages_en");
         Press(root,"pn-menu-back");yield return new WaitForSecondsRealtime(1.2f);yield return Shot("03_title_en");
         string mods=Path.Combine(Application.persistentDataPath,"Mods"),pack=Path.Combine(mods,"localization_review"),loc=Path.Combine(pack,"Localization");Directory.CreateDirectory(loc);
@@ -71,14 +71,14 @@ public sealed class PNLocalizationPlayReview : MonoBehaviour
         PNLocalization.Select("fr",false);Check(PNLocalization.Text("loc_review:plural",new Dictionary<string,object>{{"count",0}})=="0 items","fallback uses source-language plural grammar");PNLocalization.Select("en",false);
         var ui=PNGameBootstrap.Runtime.GetComponent<PNUiRuntime>();ui.OpenMenu();yield return Shot("05_pause_en");
         Check(ui.HudRoot.Q<Button>("pause-continue").text=="Resume","pause English binding");
-        Press(ui.HudRoot,"pause-settings");yield return new WaitForSecondsRealtime(1.4f);Press(ui.HudRoot,"pn-settings-language-trigger");yield return new WaitForSecondsRealtime(.3f);Press(ui.HudRoot,"pn-settings-language-option-vi");
+        Press(ui.HudRoot,"pause-settings");yield return new WaitForSecondsRealtime(1.4f);Press(ui.HudRoot,"pn-settings-language-trigger");yield return new WaitForSecondsRealtime(.3f);Press(ui.HudRoot,"pn-settings-language-option-vi");yield return new WaitForSecondsRealtime(.25f);Press(ui.HudRoot,"pn-settings-save");yield return new WaitForSecondsRealtime(.5f);
         Check(Time.timeScale==0&&PNLocalization.Selected=="vi","switch while game paused");yield return Shot("06_pause_language_vi");
         Press(ui.HudRoot,"pn-menu-back");yield return new WaitForSecondsRealtime(1.2f);Check(ui.HudRoot.Q<Button>("pause-continue").text=="Tiếp tục","pause Vietnamese binding");yield return Shot("07_pause_vi");
         ui.CloseMenu();yield return new WaitForSecondsRealtime(1.2f);
         Check(Time.timeScale>0,"pause restores time");
         var controller=new PNMenuController(ui);Check(controller.OpenHall(),"open mode ring");yield return new WaitForSecondsRealtime(1.2f);yield return Shot("08_modes_vi");
         var flow=ui.MenuFlow;var mode=flow.Current as PNModeScreen;Check(mode!=null,"mode screen type");mode.Pick();yield return new WaitForSecondsRealtime(1.2f);
-        PNLocalization.Select("en",false);yield return Shot("09_setup_en");var setup=flow.Current as PNSetupScreen;Check(setup!=null,"setup screen type");setup.Choose(0);yield return new WaitForSecondsRealtime(1.2f);yield return Shot("10_character_en");
+        PNLocalization.Select("en",false);yield return Shot("09_setup_en");var setup=flow.Current as PNSetupScreen;Check(setup!=null,"setup screen type");setup.Choose(0);yield return new WaitForSecondsRealtime(1.2f);var maps=flow.Current as PNRunMapScreen;Check(maps!=null,"map screen type");yield return Shot("10_map_en");maps.Choose(0);yield return new WaitForSecondsRealtime(1.2f);yield return Shot("10_character_en");
         Check(ui.HudRoot.Q<Button>("pn-char-continue").text=="Continue","character continue English");
         PNLocalization.Select("vi",false);yield return Shot("11_character_vi");flow.Close();yield return new WaitForSecondsRealtime(1.2f);
         // Loaded content survives EndPlay, then a true unload drops mod/base generation resources safely.

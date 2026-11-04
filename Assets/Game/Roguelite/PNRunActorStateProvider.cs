@@ -19,6 +19,10 @@ public sealed class PNRunActorStateProvider : IPNWorldStateProvider
         var actor = context.Actor ?? throw new InvalidOperationException("Run state needs an actor.");
         var stat = actor.GetComponent<PNStat>() ?? throw new InvalidOperationException("Run state needs the actor's stat.");
         var owner = actor.LoadContext.Identity.OwnerId;
+        // A continued run's first move: the body in the lobby is at full health, the run record holds the health the person had when the run was saved.
+        var director = PNRunDirector.Find(context.Session);
+        if (director != null && director.HealthFromState && director.State.TryGetPlayer(owner, out var saved))
+            return new JObject { ["owner"] = owner, ["health"] = saved.HealthRatio, ["dead"] = saved.Dead };
         double ratio = 1d; bool dead = false;
         if (stat.HasHealth)
         {

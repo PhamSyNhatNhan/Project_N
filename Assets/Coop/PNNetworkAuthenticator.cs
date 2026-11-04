@@ -23,10 +23,12 @@ namespace ProjectN.Coop
         public uint ClearedChallenge;
         public bool SelectPlayer;
         public bool WantsRoomShell;
+        // The person behind this connection (PNPlayerId), checked at admission; the owner changes every session, this does not.
+        public string PlayerId;
     }
     public sealed class PNNetworkAuthenticator : NetworkAuthenticator
     {
-        public const int NetworkVersion=13;
+        public const int NetworkVersion=14;
         public PNNetworkManager Manager;
         private readonly Dictionary<NetworkConnectionToClient,double> pending=new Dictionary<NetworkConnectionToClient,double>();
         public static string PlatformGroup => Application.platform==RuntimePlatform.Android||Application.platform==RuntimePlatform.IPhonePlayer?"Mobile":"PC";
@@ -36,7 +38,7 @@ namespace ProjectN.Coop
         public override void OnStartClient()=>NetworkClient.RegisterHandler<PNAdmissionResponse>(ReceiveResponse,false);
         public override void OnStopClient()=>NetworkClient.UnregisterHandler<PNAdmissionResponse>();
         public override void OnClientAuthenticate()
-        {NetworkClient.Send(new PNAdmissionRequest {NetworkVersion=NetworkVersion,Platform=PlatformGroup,Mode=Manager.ModeId,Limits=Manager.Profile.ProtocolLimits,SelectPlayer=Manager.Profile.SelectPlayer,Content=PNContentFingerprint.From(Manager.Runtime.Content.Compatibility)});}
+        {NetworkClient.Send(new PNAdmissionRequest {NetworkVersion=NetworkVersion,Platform=PlatformGroup,Mode=Manager.ModeId,Limits=Manager.Profile.ProtocolLimits,SelectPlayer=Manager.Profile.SelectPlayer,Content=PNContentFingerprint.From(Manager.Runtime.Content.Compatibility),PlayerId=Manager.LocalPlayerId});}
         public void ReceiveRequest(NetworkConnectionToClient conn,PNAdmissionRequest request)
         {
             if(!pending.Remove(conn)||conn.isAuthenticated){conn.Disconnect();return;}
@@ -45,10 +47,11 @@ namespace ProjectN.Coop
                 bool local=conn is LocalConnectionToClient;
                 if(!local&&Manager.AdmissionClosed)throw new InvalidOperationException("Run đã bắt đầu: phòng đã đóng, không nhận thêm người chơi.");
                 if(request.Limits!=Manager.Profile.ProtocolLimits)throw new InvalidOperationException("Protocol limit profile mismatch.");
-                var content=PNAdmissionRules.Validate(request,Manager.Runtime.Content.Compatibility,PlatformGroup,null,NetworkServer.connections.Values.Count(x=>x.authenticationData is PNPeer p&&p.Owner>0),Manager.IsPlaying?Manager.Policy.MaximumClients:Manager.Profile.MaximumClients,local);
+                var content=PNAdmissionRules.Validate(request,Manager.Runtime.Content.Compatibility,PlatformGroup,null,NetworkServer.connections.Values.Count(x=>x.authenticationData is PNPeer p&&p.Owner>0),Manager.IsPlaying?Manager.Policy.MaximumClients:Manager.Profile.MaximumClients,local,Manager.OnlinePersons(),Manager.ContinuePersons);
                 long owner=local?0:Manager.AllocateOwner();
-                conn.authenticationData=new PNPeer {Owner=owner,Content=content,EndedRevision=Manager.IsPlaying?0:Manager.PlayRevision,LastTraffic=Time.realtimeSinceStartupAsDouble,SelectPlayer=request.SelectPlayer,Grace=new PNGraceWindow(Manager.Profile.GraceSeconds)};
-                conn.Send(new PNAdmissionResponse {Accepted=true,Limits=Manager.Profile.ProtocolLimits,Room=Manager.RoomId,Incarnation=Manager.RoomIncarnation,Owner=owner,Content=PNContentFingerprint.From(Manager.Runtime.Content.Compatibility)});
+                Manager.SeatLobbyCharacter(owner,request.PlayerId);
+                conn.authenticationData=new PNPeer {Owner=owner,PlayerId=request.PlayerId,Content=content,EndedRevision=Manager.IsPlaying?0:Manager.PlayRevision,LastTraffic=Time.realtimeSinceStartupAsDouble,SelectPlayer=request.SelectPlayer,Grace=new PNGraceWindow(Manager.Profile.GraceSeconds)};
+                conn.Send(new PNAdmissionResponse {Accepted=true,Limits=Manager.Profile.ProtocolLimits,Room=Manager.RoomId,Incarnation=Manager.RoomIncarnation,Owner=owner,Content=PNContentFingerprint.From(Manager.Runtime.Content.Compatibility),Run=Manager.RunId});
                 ServerAccept(conn);
             }
             catch(Exception error)
@@ -69,6 +72,8 @@ namespace ProjectN.Coop
             {
                 if(!response.Accepted)throw new InvalidOperationException(response.Reason??"Admission refused.");
                 if(response.Limits!=Manager.Profile.ProtocolLimits)throw new InvalidOperationException("Host protocol limit profile mismatch.");
+                // The map the host chose must be one this machine has (a missing mod is refused at the content check; this is the safety net).
+                if(!string.IsNullOrEmpty(response.Run)){if(!EveId.TryParse(response.Run,out var run)||!Manager.Runtime.Content.Registry.RogueliteRuns().TryGet(run,out _))throw new InvalidOperationException("Map của chủ phòng không có trên máy này: "+response.Run);Manager.RunId=response.Run;}
                 Manager.AdmitRoom(response.Room,response.Incarnation,response.Owner,response.Content.Read());
                 Manager.AdmittedAt=Time.realtimeSinceStartupAsDouble;ClientAccept();
             }

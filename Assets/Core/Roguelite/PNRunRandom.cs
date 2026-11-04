@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 // EN: The random numbers of one run (Docs/RogueliteFramePlan.md section 6): one seed, three streams. A draw from one stream never moves another, so adding a draw to the
 //     rewards later does not change which rooms a seed offers. The algorithm is fixed here (SplitMix64) and uses integer arithmetic only, so the same seed gives the same
@@ -17,6 +18,19 @@ public sealed class PNRunRandom
         Seed = seed;
         for (int i = 0; i < states.Length; i++) states[i] = Mix(unchecked(seed + (ulong)(i + 1) * Gamma));
     }
+
+    // EN: Continue a run that was saved: the seed plus the position of each stream (Streams() of the saved run). The next numbers are the ones the saved run would have drawn.
+    // VI: Tiếp tục run đã lưu: seed cùng vị trí từng luồng (Streams() của run đã lưu); các số kế tiếp đúng là số run đó sẽ rút.
+    public PNRunRandom(ulong seed, IReadOnlyList<ulong> streams)
+    {
+        if (streams == null || streams.Count != StreamCount) throw new ArgumentException("A run has " + StreamCount + " random streams.", nameof(streams));
+        Seed = seed;
+        for (int i = 0; i < StreamCount; i++) states[i] = streams[i];
+    }
+
+    public const int StreamCount = 3;
+    // The position of every stream, in PNRunStream order, for a saved run.
+    public ulong[] Streams() => (ulong[])states.Clone();
 
     private static ulong Mix(ulong value)
     {

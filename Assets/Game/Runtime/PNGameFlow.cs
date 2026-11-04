@@ -40,10 +40,13 @@ public sealed class PNGameFlow : MonoBehaviour
             return PNGameBootstrap.ModeId == "hall" ? PNFlowPhase.Hall : (PNGameBootstrap.IsRoomOpen ? PNFlowPhase.Lobby : PNFlowPhase.Run);
         }
     }
+    // The run the next start plays (Docs/RunSavePlan.md 5.8): set by the menu before StartMode, taken by BeginRun. Null = the standard run.
+    public static readonly EveId DefaultRun = EveId.Parse("project_n:standard_run");
+    public static PNRunRequest NextRun;
     public static bool IsHost => EveRegistrySession.IsReady && EveRegistrySession.Context.Role == EveSessionRole.Host;
     public static bool InRoom => PNGameBootstrap.IsRoomOpen;
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-    private static void Reset() { instance = null; loading = expectSession = starting = usingHandoff = false; coverHost = null; coverSettings = null; coverUntil = 0; message = null; messageKey=null; startErrorKey=null; NoticeSequence=0; messageLocaleRevision=-1; Changed = null; CurrentMode = PNFlowMode.Offline; }
+    private static void Reset() { instance = null; loading = expectSession = starting = usingHandoff = false; coverHost = null; coverSettings = null; coverUntil = 0; message = null; messageKey=null; startErrorKey=null; NoticeSequence=0; messageLocaleRevision=-1; Changed = null; CurrentMode = PNFlowMode.Offline; NextRun = null; }
     private static PNGameFlow Ensure()
     {
         if (instance != null) return instance;
@@ -77,6 +80,7 @@ public sealed class PNGameFlow : MonoBehaviour
     public static void StartMode(string modeId, PNFlowMode mode, string address = null)
     {
         if (Busy) return;
+        PNRunSummary.Clear();
         // Shipped modes keep their short selection name ("roguelite"), which rooms and the admission already compare; others use the full id.
         if (modeId.StartsWith("project_n:", StringComparison.Ordinal)) modeId = modeId.Substring("project_n:".Length);
         else if (modeId.StartsWith("base:", StringComparison.Ordinal)) modeId = modeId.Substring("base:".Length);
@@ -160,6 +164,40 @@ public sealed class PNGameFlow : MonoBehaviour
         if (usingHandoff) PNTransitionHandoffHost.Abandon();
         Raise();
     }
+
+    // EN: "Play again" from the pause menu (alone or as the host): leave this play and continue the saved run, which is the start of the room the team is in. A host closes its room, so the clients return to
+    //     the Hall and join the new room again. Returns false with a reason when there is nothing to continue.
+    public static bool CanRestartFromSave()
+    {
+        if (Busy || CurrentMode == PNFlowMode.Join || !EveRegistrySession.IsReady) return false;
+        var load = PNRunSaveService.Peek();
+        return load.Save != null && PNRunSaveService.Check(load.Save, EveRegistrySession.Current) == PNRunSaveProblem.None;
+    }
+    public static bool RestartFromSave(out string reason)
+    {
+        reason = null;
+        if (Busy || CurrentMode == PNFlowMode.Join || !EveRegistrySession.IsReady) { reason = "busy"; return false; }
+        var load = PNRunSaveService.Peek();
+        if (load.Save == null) { reason = "no saved run"; return false; }
+        var problem = PNRunSaveService.Check(load.Save, EveRegistrySession.Current);
+        if (problem != PNRunSaveProblem.None) { reason = "the saved run cannot be continued: " + problem; return false; }
+        PNPlayerProfileService.SetLastCharacter(PNRunSaveService.SeatOf(load.Save, PNPlayerProfileService.PlayerId).Character.ToString());
+        NextRun = PNRunRequest.Continue(load.Save);
+        StartMode("roguelite", CurrentMode);
+        return true;
+    }
+
+    // EN: A continued run, seen from the host's lobby: the seats of the save that nobody in the room holds. The lobby draws them grey and the Start button asks twice (a seat nobody takes is left out of
+    //     the run for good). Empty for a new run, for a client and alone.
+    public static System.Collections.Generic.IReadOnlyList<PNRunSaveSeat> MissingSeats()
+    {
+        var save = NextRun?.Save;
+        if (save == null || !IsHost || !PNGameBootstrap.IsRoomOpen) return System.Array.Empty<PNRunSaveSeat>();
+        var directory = PNPlayerDirectories.Current;
+        return save.Seats.Where(seat => directory.OwnerOf(seat.PlayerId) == null).ToList();
+    }
+    // A short notice (the toast) from a localization key.
+    public static void Warn(string key) => SayKey(key);
 
     public static bool CanStartRun(out string reason)
     {
@@ -279,7 +317,10 @@ public sealed class PNGameFlow : MonoBehaviour
             var game = PNGameBootstrap.Runtime.GetComponent<PNGameSession>();
             driver?.LockAdmissions(true);
             runs = game.Runs;
-            if (!runs.Begin(EveId.Parse("project_n:standard_run"), PNLocalWorldContext.Current.World, RunSeed(), out var reason)) failure = reason;
+            var request = NextRun; NextRun = null;
+            string reason;
+            bool begun = request != null && request.IsContinue ? runs.Resume(request.Save, PNLocalWorldContext.Current.World, out reason) : runs.Begin(request != null ? request.Run : DefaultRun, PNLocalWorldContext.Current.World, RunSeed(), out reason);
+            if (!begun) failure = reason;
         }
         catch (Exception error) { failure = error.Message; }
         double until = Time.realtimeSinceStartupAsDouble + RunTimeout;

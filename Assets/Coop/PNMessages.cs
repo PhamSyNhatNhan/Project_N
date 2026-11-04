@@ -27,9 +27,9 @@ namespace ProjectN.Coop
         }
     }
     public struct PNAdmissionRequest : NetworkMessage
-    { public int NetworkVersion; public string Platform,Mode,Limits; public bool SelectPlayer; public PNContentFingerprint Content; }
+    { public int NetworkVersion; public string Platform,Mode,Limits; public bool SelectPlayer; public PNContentFingerprint Content; public string PlayerId; }
     public struct PNAdmissionResponse : NetworkMessage
-    { public bool Accepted; public string Reason,Limits; public Guid Room; public ulong Incarnation; public long Owner; public PNContentFingerprint Content; }
+    { public bool Accepted; public string Reason,Limits; public Guid Room; public ulong Incarnation; public long Owner; public PNContentFingerprint Content; public string Run; }
     public struct PNPlayStatus : NetworkMessage
     { public Guid Room,Session; public ulong Incarnation,Revision; public bool Active; public string Mode; }
     public struct PNPlayReady : NetworkMessage

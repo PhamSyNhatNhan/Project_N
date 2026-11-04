@@ -18,13 +18,13 @@ namespace ProjectN.Coop.Tests
                 .GetMethod("InitReadWriters",System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Static).Invoke(null,null);
             int count=0;void Check(bool x,string s){if(!x)throw new Exception(s);count++;}
             var content=new PNContentFingerprint {Protocol=1,Rules="project_n:74",Hashes=new[]{new PNHash {Key="pack:fixture",Value=new string('a',64)}}};
-            var request=new PNAdmissionRequest {NetworkVersion=PNNetworkAuthenticator.NetworkVersion,Mode="roguelite",Platform="PC",Content=content};
+            var request=new PNAdmissionRequest {NetworkVersion=PNNetworkAuthenticator.NetworkVersion,Mode="roguelite",Platform="PC",Content=content,PlayerId="0123456789abcdef0123456789abcdef"};
             var writer=new NetworkWriter();writer.Write(request);var decoded=new NetworkReader(writer.ToArray()).Read<PNAdmissionRequest>();
-            Check(decoded.NetworkVersion==request.NetworkVersion&&decoded.Mode==request.Mode&&decoded.Platform==request.Platform,"request primitive fields");
+            Check(decoded.NetworkVersion==request.NetworkVersion&&decoded.Mode==request.Mode&&decoded.Platform==request.Platform&&decoded.PlayerId==request.PlayerId,"request primitive fields and person id");
             content.Read().Validate(decoded.Content.Read());Check(true,"content hash and rules roundtrip");
-            var response=new PNAdmissionResponse {Accepted=true,Room=Guid.NewGuid(),Incarnation=3,Owner=42,Content=content};
+            var response=new PNAdmissionResponse {Accepted=true,Room=Guid.NewGuid(),Incarnation=3,Owner=42,Content=content,Run="project_n:standard_run"};
             writer.Reset();writer.Write(response);var read=new NetworkReader(writer.ToArray()).Read<PNAdmissionResponse>();
-            Check(read.Accepted&&read.Room==response.Room&&read.Incarnation==3&&read.Owner==42,"admission Guid and owner");
+            Check(read.Accepted&&read.Room==response.Room&&read.Incarnation==3&&read.Owner==42&&read.Run==response.Run,"admission Guid, owner and map");
             var actor=new PNActorMetadata {World=Guid.NewGuid(),WorldIncarnation=2,MembershipRevision=3,ContentSlot="main",HostSession=Guid.NewGuid(),Entity=8,Generation=3,Owner=42,Character="project_n:eve",SceneKey="fixture:scene",EntityKey="fixture:entity"};
             writer.Reset();writer.Write(actor);var copy=new NetworkReader(writer.ToArray()).Read<PNActorMetadata>();
             Check(copy.HostSession==actor.HostSession&&copy.Entity==8&&copy.Generation==3&&copy.Owner==42&&copy.Character==actor.Character&&copy.SceneKey==actor.SceneKey&&copy.EntityKey==actor.EntityKey&&copy.World==actor.World&&copy.WorldIncarnation==2&&copy.MembershipRevision==3&&copy.ContentSlot=="main","actor metadata all fields");

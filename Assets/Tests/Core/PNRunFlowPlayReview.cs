@@ -91,8 +91,11 @@ public sealed class PNRunFlowPlayReview : MonoBehaviour
     private IEnumerator Start()
     {
         output = Environment.GetCommandLineArgs().FirstOrDefault(x => x.StartsWith("-pn-run-flow-output=", StringComparison.Ordinal))?.Substring("-pn-run-flow-output=".Length);
+        // A review never touches the real saved run: it writes to its own folder, removed at the end.
+        saveFolder = Path.Combine(Application.temporaryCachePath, "RunFlowSave_" + Guid.NewGuid().ToString("N"));
+        saveStore = new PNRunSaveStore(saveFolder); PNRunSaveService.Use(saveStore);
         yield return Until("the Hall is up", () => EveRegistrySession.IsReady && PNGameFlow.Phase == PNFlowPhase.Hall && !PNGameFlow.Busy, 90);
-        if (!failed)
+        if (!failed && Scenario != "ui")
         {
             PNGameFlow.StartRoguelite(PNFlowMode.Offline);
             yield return Until("the run is playing", () => EveRegistrySession.IsReady && Game != null && Game.Runs.Phase == PNRunPhase.Playing && Game.Runs.Room != null && !PNGameFlow.Busy, 90);
@@ -100,6 +103,8 @@ public sealed class PNRunFlowPlayReview : MonoBehaviour
         if (!failed && Scenario == "defeat") yield return Defeat();
         else if (!failed && Scenario == "victory") yield return Victory();
         else if (!failed && (Scenario == "gamepad" || Scenario == "touch")) yield return Devices(Scenario == "gamepad");
+        else if (!failed && Scenario == "save") yield return Saving();
+        else if (!failed && Scenario == "ui") yield return MenusDrawn();
         else if (!failed) yield return FirstRoom();
         if (!failed && Scenario == null) yield return SecondRoom();
         Finish();
@@ -148,7 +153,7 @@ public sealed class PNRunFlowPlayReview : MonoBehaviour
         yield return Until("room cleared", () => room.Flow.Phase == PNRoomPhase.Cleared, 20);
         yield return new WaitForSeconds(.3f);
         var exits = runs.Exits();
-        Check(!failed && runs.State.Money == 30 && runs.State.Stats.RoomsClearedTotal == 1 && runs.State.Stats.Kills == 3, "clearing pays 30, counts the room and 3 kills");
+        Check(!failed && runs.State.Shards == 30 && runs.State.Stats.RoomsClearedTotal == 1 && runs.State.Stats.Kills == 3, "clearing pays 30, counts the room and 3 kills");
         Check(exits.Count == 2 && exits[0] != exits[1], "two different gates were drawn");
         var gates = new[] { "gate_a", "gate_b", "gate_c" }.Select(k => Item(room, k)).ToArray();
         Check(gates[0].Available && gates[1].Available && !gates[2].Available && gates[0].LabelKey == PNRoomInteractions.KindKey(runs.KindOf(exits[0])) && gates[1].LabelKey == PNRoomInteractions.KindKey(runs.KindOf(exits[1])), "two gates open, each saying the kind of room behind it; the third stays closed");
@@ -156,6 +161,162 @@ public sealed class PNRunFlowPlayReview : MonoBehaviour
         scan.Refresh(Game, Player);
         Check(scan.Entries.Count == 1 && scan.Entries[0].Item == gates[0] && scan.Entries[0].Usable, "next to the first gate the list shows it");
         yield return Shot("gate_list");
+    }
+
+    // ---- the saved run (Docs/RunSavePlan.md S4/S5) ----
+    // Seed 1: first room (combat), clear it, hurt the player to half health, take a gate into the shop; the run is saved on entering each room; leave to the Hall (the save stays); continue it:
+    // the same room, the same wallet and stats, the same health ratio (not full), the same gates behind the room (the random streams carry on); a lost run deletes the save.
+    private string saveFolder;
+    private PNRunSaveStore saveStore;
+
+    // ---- the new menus, drawn (Docs/RunSavePlan.md S7): the map screen, the Continue / Sum up screen (playable and not), the summary of a summed-up run, the pause menu with Play again ----
+    private PNRunSave SavedRun(string rulesVersion)
+    {
+        var hub = EveRegistrySession.Current; var run = hub.RogueliteRuns().Get(EveId.Parse("project_n:standard_run"));
+        var planner = new PNRunPlanner(run, id => hub.RogueliteFloors().Get(id));
+        var state = planner.Begin(Guid.NewGuid(), 7UL, new[] { new KeyValuePair<long, EveId>(0, EveId.Parse("project_n:eve")) }, owner => PNPlayerProfileService.PlayerId);
+        state.Stats.AddKills(4); state.Stats.AddTime(95); state.Stats.AddCleared(PNRoomKind.Combat); state.AddShards(30, "room");
+        return PNRunSave.Capture(state, rulesVersion, PNRunSaveService.ContentHash(), "roguelite", DateTime.UtcNow);
+    }
+    private IEnumerator MenusDrawn()
+    {
+        PNUiRuntime ui = null;
+        yield return Until("the Hall UI is up", () => EveRegistrySession.IsReady && PNGameFlow.Phase == PNFlowPhase.Hall && !PNGameFlow.Busy && (ui = PNGameBootstrap.Runtime?.GetComponent<PNUiRuntime>()) != null && ui.MenuFlow != null, 90);
+        if (failed) yield break;
+        yield return Seconds(1f);
+        var flow = ui.MenuFlow; var controller = new PNMenuController(ui);
+
+        // ---- the map screen (no save) ----
+        Check(controller.OpenHall(), "the Hall menu opens");
+        yield return Until("the mode ring", () => flow.Current is PNModeScreen && !flow.IsBusy, 10);
+        ((PNModeScreen)flow.Current).Pick();
+        yield return Until("the setup screen", () => flow.Current is PNSetupScreen && !flow.IsBusy, 10);
+        ((PNSetupScreen)flow.Current).Choose(0);
+        yield return Until("the map screen", () => flow.Current is PNRunMapScreen && !flow.IsBusy, 10);
+        if (failed) yield break;
+        Check(flow.Current.Items.Count == 1, "with one map the map screen still shows it");
+        yield return Seconds(.8f); yield return Shot("map");
+        flow.RequestBack(); yield return Seconds(1.2f); flow.RequestBack(); yield return Seconds(1.2f); flow.RequestBack(); yield return Seconds(1f);
+        Check(!flow.IsOpen, "back closes the menu");
+
+        // ---- a saved run that can be continued ----
+        saveStore.Save(SavedRun(EveGameRuntime.CurrentRulesVersion));
+        controller.OpenHall(); yield return Until("the mode ring", () => flow.Current is PNModeScreen && !flow.IsBusy, 10);
+        ((PNModeScreen)flow.Current).Pick(); yield return Until("the setup screen", () => flow.Current is PNSetupScreen && !flow.IsBusy, 10);
+        ((PNSetupScreen)flow.Current).Choose(0); yield return Until("the resume screen", () => flow.Current is PNResumeScreen && !flow.IsBusy, 10);
+        if (failed) yield break;
+        Check(((PNResumeScreen)flow.Current).CanContinue, "a save made with this content can be continued");
+        yield return Seconds(.8f); yield return Shot("resume");
+        flow.RequestBack(); yield return Seconds(1.2f); flow.RequestBack(); yield return Seconds(1.2f); flow.RequestBack(); yield return Seconds(1f);
+
+        // ---- a saved run of another game version: Continue is off, the reason is told ----
+        saveStore.Save(SavedRun("project_n:1"));
+        controller.OpenHall(); yield return Until("the mode ring", () => flow.Current is PNModeScreen && !flow.IsBusy, 10);
+        ((PNModeScreen)flow.Current).Pick(); yield return Until("the setup screen", () => flow.Current is PNSetupScreen && !flow.IsBusy, 10);
+        ((PNSetupScreen)flow.Current).Choose(0); yield return Until("the resume screen", () => flow.Current is PNResumeScreen && !flow.IsBusy, 10);
+        if (failed) yield break;
+        Check(!((PNResumeScreen)flow.Current).CanContinue, "a save of another version cannot be continued");
+        yield return Seconds(.8f); yield return Shot("resume_error");
+
+        // ---- sum up: the end screen shows the run as stopped, then the button dismisses it ----
+        ((PNResumeScreen)flow.Current).SumUp();
+        yield return Until("the end screen", () => EndShown(), 10);
+        Check(EndShown() && saveStore.Load().Status == PNRunSaveStatus.Missing, "summing up shows the end screen and frees the slot");
+        yield return Seconds(.6f); yield return Shot("retired");
+        PNRunSummary.Clear(); yield return Seconds(.4f);
+        Check(!EndShown(), "the summary is dismissed");
+
+        // ---- Play again in the pause menu, inside a run that has a save ----
+        PNGameFlow.NextRun = null; PNGameFlow.StartRoguelite(PNFlowMode.Offline);
+        yield return Until("the run is playing", () => EveRegistrySession.IsReady && Game != null && Game.Runs.Phase == PNRunPhase.Playing && Game.Runs.Room != null && !PNGameFlow.Busy, 90);
+        if (failed) yield break;
+        ui = PNGameBootstrap.Runtime.GetComponent<PNUiRuntime>(); yield return Seconds(.6f);
+        ui.Pause.Open(); yield return Seconds(1.4f);
+        var restart = ui.HudRoot.Q<Button>("pause-restart");
+        Check(restart != null && restart.resolvedStyle.display == DisplayStyle.Flex, "the pause menu offers Play again inside a run that is saved");
+        yield return Shot("pause_restart");
+        ui.Pause.Close(); yield return Seconds(1f);
+    }
+    private IEnumerator Saving()
+    {
+        var runs = Game.Runs; string me = PNPlayerProfileService.PlayerId;
+        var first = PNRunSaveService.Peek();
+        Check(first.Status == PNRunSaveStatus.Loaded && first.Save.Room == runs.Room.Definition.Id && first.Save.Floor == 0 && first.Save.Step == 0 && first.Save.Options.Count == 0 && first.Save.Shards == 0, "entering the first room saves the run at its start");
+        Check(first.Save.Seats.Count == 1 && first.Save.Seats[0].PlayerId == me && first.Save.Seats[0].Health == 1 && !first.Save.Seats[0].Dead && first.Save.Seats[0].Character.ToString() == "project_n:eve", "one seat, this person, full health, the picked character");
+        var current = first.Save;
+        var stale = PNRunSave.Parse(current.ToJson().Replace(current.RulesVersion, "project_n:1"), out _);
+        var gone = PNRunSave.Parse(current.ToJson().Replace("\"definition\": \"project_n:standard_run\"", "\"definition\": \"project_n:gone\""), out _);
+        var nobody = PNRunSave.Parse(current.ToJson().Replace("\"character\": \"project_n:eve\"", "\"character\": \"project_n:nobody\""), out _);
+        var hub = EveRegistrySession.Current;
+        Check(PNRunSaveService.Check(current, hub) == PNRunSaveProblem.None && PNRunSaveService.Check(stale, hub) == PNRunSaveProblem.Version && PNRunSaveService.Check(gone, hub) == PNRunSaveProblem.Definition && PNRunSaveService.Check(nobody, hub) == PNRunSaveProblem.Character,
+            "a save is playable with the content now loaded; another rules version, a missing map and a missing character are told apart");
+
+        yield return ClearRoom(runs.Room);
+        if (failed) yield break;
+        var stat = Player.GetComponent<PNStat>(); var source = PNCombatSource.Capture(stat);
+        stat.ReceiveDamage(source.Snapshot.CreateDamage(stat.GetMax(PNContentIds.Health) / 2, false, 0, PNContentIds.True));
+        double ratio = stat.GetCurrent(PNContentIds.Health) / stat.GetMax(PNContentIds.Health);
+        var chosen = runs.Exits()[0]; var oldWorld = runs.Room.World; var gate = Item(runs.Room, "gate_a");
+        yield return WalkTo(gate); Game.Sync.Send(gate.Target, PNInteractable.Command);
+        yield return Until("the next room is playing", () => runs.Phase == PNRunPhase.Playing && runs.Room != null && runs.Room.World != oldWorld && !PNGameFlow.Busy, 60);
+        if (failed) yield break;
+        yield return Seconds(.4f);
+        var second = PNRunSaveService.Peek().Save;
+        Check(second != null && second.RunId == first.Save.RunId && second.Step == 1 && second.Room == chosen && second.Options.Count == 0 && second.Shards == 30 && second.Kills == 3 && second.Cleared[PNRoomKind.Combat] == 1,
+            "entering the second room saved it: the same run, one step on, the room behind the gate, the wallet and stats of the first room, no gates drawn yet");
+        Check(Math.Abs(second.Seats[0].Health - ratio) < .02, "and the health ratio the person carried (" + ratio.ToString("0.00") + ")");
+        var exits = runs.Room.Definition.HasCombat ? null : runs.Exits().ToArray();
+        Check(exits != null, "this seed puts a room without combat behind the first gate (its gates are drawn at once)");
+        if (failed) yield break;
+
+        // What the run holds with the second room entered (a room without combat is cleared at once, so it is already counted).
+        long shardsHeld = runs.State.Shards; long killsHeld = runs.State.Stats.Kills; int roomsHeld = runs.State.Stats.RoomsClearedTotal; int combatHeld = runs.State.Stats.RoomsCleared(PNRoomKind.Combat), otherHeld = roomsHeld - combatHeld;
+        // ---- leave: the save stays ----
+        PNGameFlow.ReturnToHall();
+        yield return Until("the Hall is up", () => EveRegistrySession.IsReady && PNGameFlow.Phase == PNFlowPhase.Hall && !PNGameFlow.Busy, 60);
+        if (failed) yield break;
+        var kept = PNRunSaveService.Peek();
+        Check(kept.Status == PNRunSaveStatus.Loaded && kept.Save.RunId == first.Save.RunId && kept.Save.Step == 1, "leaving to the Hall keeps the saved run");
+
+        // ---- continue ----
+        PNGameFlow.NextRun = PNRunRequest.Continue(kept.Save);
+        PNGameFlow.StartRoguelite(PNFlowMode.Offline);
+        yield return Until("the continued run is playing", () => EveRegistrySession.IsReady && Game != null && Game.Runs.Phase == PNRunPhase.Playing && Game.Runs.Room != null && !PNGameFlow.Busy, 90);
+        if (failed) yield break;
+        runs = Game.Runs; yield return Seconds(.6f);
+        Check(runs.State.RunId == first.Save.RunId && runs.Room.Definition.Id == chosen && runs.State.Step == 1 && runs.State.Floor == 0, "the continued run is the same run, in the room it was saved at");
+        Check(runs.State.Shards == shardsHeld && runs.State.Stats.Kills == killsHeld && runs.State.Stats.RoomsClearedTotal == roomsHeld && roomsHeld == 2 && runs.State.Stats.RoomsCleared(PNRoomKind.Combat) == combatHeld && otherHeld == 1, "with the wallet and stats the run held (30 shards, 3 kills, the combat room and this room, each counted once)");
+        var back = Player.GetComponent<PNStat>();
+        Check(Math.Abs(back.GetCurrent(PNContentIds.Health) / back.GetMax(PNContentIds.Health) - ratio) < .02 && back.CharacterDefinitionId == "project_n:eve", "the player has the saved health ratio, not the full health of the lobby body");
+        Check(runs.Room.Flow.Phase == PNRoomPhase.Cleared && runs.Exits().SequenceEqual(exits), "the room is cleared again at once and draws the same gates as before: the random streams carried on");
+        var again = PNRunSaveService.Peek().Save;
+        Check(again != null && again.Step == 1 && again.Room == chosen && again.RunId == first.Save.RunId, "the continued run is saved again on entering its room");
+
+        // ---- Play again (the pause menu's button): the same path as Continue, from inside the run ----
+        Check(PNGameFlow.CanRestartFromSave(), "Play again is offered inside a run with a playable save");
+        var before = runs;
+        Check(PNGameFlow.RestartFromSave(out var why), "Play again starts the saved run again (" + why + ")");
+        yield return Seconds(1.5f);
+        yield return Until("the run is playing again", () => EveRegistrySession.IsReady && Game != null && !ReferenceEquals(Game.Runs, before) && Game.Runs.Phase == PNRunPhase.Playing && Game.Runs.Room != null && !PNGameFlow.Busy, 90);
+        if (failed) yield break;
+        runs = Game.Runs; yield return Seconds(.6f);
+        Check(runs.State.RunId == first.Save.RunId && runs.Room.Definition.Id == chosen && runs.State.Step == 1 && runs.State.Shards == shardsHeld, "Play again is the same run, in the same room, with the same wallet");
+        var replayed = Player.GetComponent<PNStat>();
+        Check(Math.Abs(replayed.GetCurrent(PNContentIds.Health) / replayed.GetMax(PNContentIds.Health) - ratio) < .02, "and the same health ratio");
+
+        // ---- on to the last room, then a lost run deletes the save ----
+        var shopRoom = runs.Room; var shopWorld = shopRoom.World; var onward = Item(shopRoom, "gate_a");
+        yield return WalkTo(onward); Game.Sync.Send(onward.Target, PNInteractable.Command);
+        yield return Until("the last room is playing", () => runs.Phase == PNRunPhase.Playing && runs.Room != null && runs.Room.World != shopWorld && !PNGameFlow.Busy, 60);
+        if (failed) yield break;
+        yield return Seconds(.4f);
+        var third = PNRunSaveService.Peek().Save;
+        Check(third != null && third.Step == 2 && third.Room == runs.Room.Definition.Id && third.RunId == first.Save.RunId, "the continued run goes on and saves its next room");
+        var hurt = Player.GetComponent<PNStat>();
+        hurt.ReceiveDamage(PNCombatSource.Capture(hurt).Snapshot.CreateDamage(1e12, false, 0, PNContentIds.True));
+        yield return Until("the run ended", () => runs.Phase == PNRunPhase.Ended, 12);
+        Check(!failed && runs.State.Result == PNRunResult.Defeat && PNRunSaveService.Peek().Status == PNRunSaveStatus.Missing, "a lost run deletes the saved run");
+        yield return LeaveByButton();
     }
 
     private IEnumerator SecondRoom()
@@ -196,18 +357,18 @@ public sealed class PNRunFlowPlayReview : MonoBehaviour
         Check(!fountain.Available && fountain.UsesLeft == 0, "and is spent");
     }
 
-    // A shop room opens its heal; it costs the team wallet (30 from the cleared room) and heals fully; with no money left the entry is dimmed.
+    // A shop room opens its heal; it costs the team wallet (30 from the cleared room) and heals fully; with no shards left the entry is dimmed.
     private IEnumerator Shop(PNRoomDirector room)
     {
         var shop = Item(room, "shop_heal"); var runs = Game.Runs;
-        Check(shop.Available && runs.State.Money == 30, "a shop room opens its heal and the team holds 30");
+        Check(shop.Available && runs.State.Shards == 30, "a shop room opens its heal and the team holds 30");
         yield return WalkTo(shop);
         var stat = Player.GetComponent<PNStat>(); var scan = new PNInteractionScanner(); scan.Refresh(Game, Player);
-        Check(scan.Entries.Count == 1 && scan.Entries[0].Usable, "with the money, the entry is usable");
+        Check(scan.Entries.Count == 1 && scan.Entries[0].Usable, "with the shards, the entry is usable");
         Game.Sync.Send(shop.Target, PNInteractable.Command);
-        Check(runs.State.Money == 0 && Math.Abs(stat.GetCurrent(PNContentIds.Health) - stat.GetMax(PNContentIds.Health)) < 2, "paying 30 heals to full and empties the wallet");
+        Check(runs.State.Shards == 0 && Math.Abs(stat.GetCurrent(PNContentIds.Health) - stat.GetMax(PNContentIds.Health)) < 2, "paying 30 heals to full and empties the wallet");
         yield return new WaitForSeconds(.2f); scan.Refresh(Game, Player);
-        Check(scan.Entries.Count == 1 && !scan.Entries[0].Usable, "with no money left the entry is dimmed");
+        Check(scan.Entries.Count == 1 && !scan.Entries[0].Usable, "with no shards left the entry is dimmed");
         yield return Shot("shop_dimmed");
     }
 
@@ -261,7 +422,7 @@ public sealed class PNRunFlowPlayReview : MonoBehaviour
         Check(runs.Phase == PNRunPhase.Ended && runs.State.Result == PNRunResult.Victory, "the last gate wins the run");
         yield return Seconds(.4f);
         var s = runs.State.Stats;
-        Check(EndShown() && s.RoomsClearedTotal == 3 && s.Kills > 0 && s.MoneyEarned >= 30 && s.Seconds > 0, "the end screen shows a summary (" + s.RoomsClearedTotal + " rooms, " + s.Kills + " kills, " + s.MoneyEarned + " money)");
+        Check(EndShown() && s.RoomsClearedTotal == 3 && s.Kills > 0 && s.ShardsEarned >= 30 && s.Seconds > 0, "the end screen shows a summary (" + s.RoomsClearedTotal + " rooms, " + s.Kills + " kills, " + s.ShardsEarned + " shards)");
         yield return Shot("end_victory");
         yield return LeaveByButton();
     }
@@ -408,6 +569,8 @@ public sealed class PNRunFlowPlayReview : MonoBehaviour
     private void Finish()
     {
         CleanupInput();
+        PNRunSaveService.ResetStatics();
+        try { if (saveFolder != null && Directory.Exists(saveFolder)) Directory.Delete(saveFolder, true); } catch (IOException) { }
         Result = (failed ? "FAIL" : "PASS") + " " + lines.Count(x => x.StartsWith("PASS")) + " passed" + Environment.NewLine + string.Join(Environment.NewLine, lines);
         Finished = true; Debug.Log("RunFlow " + (failed ? "FAILED" : "PASSED") + " (" + lines.Count + " lines)");
         if (!string.IsNullOrEmpty(output)) { Directory.CreateDirectory(output); File.WriteAllText(Path.Combine(output, "result.txt"), Result); }
