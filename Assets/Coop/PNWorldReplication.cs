@@ -209,6 +209,7 @@ namespace ProjectN.Coop
             if(entry.Closing)return;entry.Closing=true;clientWorlds.Remove(entry.Offer.Ticket.World);
             worldFloors[entry.Offer.Ticket.World]=entry.Offer.Ticket.Subscription;closingWorlds.Add(entry);
             try{RetireClientWorldBindings(entry.Offer.Ticket.World);}catch(Exception error){LastFailure="World cleanup pending: "+error.Message;}
+            ForgetClientSyncEntities(entry.Offer.Ticket.World);
         }
         private void RetireClientWorldBindings(Guid world)
         {

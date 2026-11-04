@@ -39,6 +39,9 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         var stateProviders=hub.GetOrCreate<PNWorldStateDefinition>();
         stateProviders.Register(new PNWorldStateDefinition(EveId.Parse("project_n:actor_world_state"),1,8*1024*1024,typeof(PNActorWorldStateProvider),()=>new PNActorWorldStateProvider()));
         stateProviders.RegisterBase(EveId.Parse("base:actor_world_state"),EveId.Parse("project_n:actor_world_state"),"project_n",compatible:(a,b)=>a.Schema==b.Schema);
+        // What a run keeps of a player between rooms (health ratio, dead flag); named by the run's transfer request, never by a world policy.
+        stateProviders.Register(new PNWorldStateDefinition(PNRunActorStateProvider.Id,PNRunActorStateProvider.Schema,1024,typeof(PNRunActorStateProvider),()=>new PNRunActorStateProvider()));
+        stateProviders.RegisterBase(EveId.Parse("base:run_actor_state"),PNRunActorStateProvider.Id,"project_n",compatible:(a,b)=>a.Schema==b.Schema);
         worlds.Register(new PNWorldDefinition(EveId.Parse("project_n:scene_world"),PNWorldDefinition.HashContent("project_n:scene_world/v1/Assets/Game/Scenes/Test/ErMode/ErMode.unity"),typeof(PNSceneWorldProvider),()=>new PNSceneWorldProvider("Assets/Game/Scenes/Test/ErMode/ErMode.unity")));
         worlds.RegisterBase(EveId.Parse("base:scene_world"),EveId.Parse("project_n:scene_world"),"project_n",compatible:(a,b)=>true);
         worlds.Register(new PNWorldDefinition(EveId.Parse("project_n:hall_world"),PNWorldDefinition.HashContent("project_n:hall_world/v1/"+PNScenes.Hall),typeof(PNSceneWorldProvider),()=>new PNSceneWorldProvider(PNScenes.Hall)));
@@ -46,6 +49,10 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         // The lobby exists only to gather a roguelite party; once everyone moved on, it is discarded.
         worlds.Register(new PNWorldDefinition(EveId.Parse("project_n:roguelite_lobby"),PNWorldDefinition.HashContent("project_n:roguelite_lobby/v1/"+PNScenes.Lobby),typeof(PNSceneWorldProvider),()=>new PNSceneWorldProvider(PNScenes.Lobby),new PNWorldPolicy(PNEmptyWorldPolicy.Discard)));
         worlds.RegisterBase(EveId.Parse("base:roguelite_lobby"),EveId.Parse("project_n:roguelite_lobby"),"project_n",compatible:(a,b)=>true);
+        // A roguelite room map: one scene, a world of its own for every room played. Policy Continue (not Discard): a new room world is empty when it becomes ready and the team is only
+        // transferred in afterwards, so an empty-world discard would remove it first; the run director unloads the room the team has left.
+        worlds.Register(new PNWorldDefinition(EveId.Parse("project_n:map_star_test_01"),PNWorldDefinition.HashContent("project_n:map_star_test_01/v1/"+PNScenes.RoomStarTest01),typeof(PNSceneWorldProvider),()=>new PNSceneWorldProvider(PNScenes.RoomStarTest01)));
+        worlds.RegisterBase(EveId.Parse("base:map_star_test_01"),EveId.Parse("project_n:map_star_test_01"),"project_n",compatible:(a,b)=>true);
         worlds.Register(new PNWorldDefinition(EveId.Parse("project_n:generated_world"),PNWorldDefinition.HashContent("project_n:generated_world/v1/empty-main"),typeof(PNGeneratedWorldProvider),()=>new PNGeneratedWorldProvider()));
         worlds.RegisterBase(EveId.Parse("base:generated_world"),EveId.Parse("project_n:generated_world"),"project_n",compatible:(a,b)=>true);
         var modes=hub.GetOrCreate<PNModeDefinition>();
@@ -76,6 +83,11 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         PNStarreaperCombatContent.Register(hub);
 #if UNITY_5_3_OR_NEWER
         PNAgentToolkitContent.Register(hub);
+        // Interactables of the rooms: the sync block and command every interactable uses, and the room handlers (switch, gate, fountain, shop).
+        hub.SyncStates().Register(new PNSyncStateDefinition(PNInteractable.State,1,PNInteractable.StateBytes,PNSyncTargets.WorldObject));
+        hub.SyncStates().Register(new PNSyncStateDefinition(PNRunStateSync.State,1,PNRunStateSync.StateBytes,PNSyncTargets.Session));
+        hub.SyncCommands().Register(new PNSyncCommandDefinition(PNInteractable.Command,typeof(PNInteractCommandHandler),()=>new PNInteractCommandHandler(),PNInteractable.CommandBytes,PNSyncTargets.WorldObject));
+        PNRoomInteractions.Register(hub);
 #endif
         PNShaderWarmupContent.Register(hub);
         motionReferences.Clear();
@@ -185,6 +197,9 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
             foreach(var id in world.Policy.TransferParticipants)hub.Get<PNWorldTransferParticipantDefinition>().Get(id);
             foreach(var id in world.Policy.ActorStateProviders.Concat(world.Policy.WorldStateProviders))hub.Get<PNWorldStateDefinition>().Get(id);
         }
+        // A room names the map it is played on: the world must be registered (that its keys exist in the map is checked when the world loads).
+        foreach(var room in hub.RogueliteRooms().Snapshot().Values)
+            if(!hub.Get<PNWorldDefinition>().TryGet(room.World,out _))throw new FormatException("Room "+room.Id+" uses unknown world "+room.World+".");
 #endif
         PNSkillBindingContent.Validate(hub);
         PNPetSettings.ValidateAll(hub);

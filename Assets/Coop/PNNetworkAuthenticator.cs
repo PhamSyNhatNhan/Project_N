@@ -19,12 +19,14 @@ namespace ProjectN.Coop
         public uint Sequence;
         public uint ResumeChallenge;
         public uint ResumeFloor;
+        // Challenge of the last resume cycle the host closed: a heartbeat that still asks to resume under that cycle or an older one was sent before the client learned it was ready.
+        public uint ClearedChallenge;
         public bool SelectPlayer;
         public bool WantsRoomShell;
     }
     public sealed class PNNetworkAuthenticator : NetworkAuthenticator
     {
-        public const int NetworkVersion=11;
+        public const int NetworkVersion=13;
         public PNNetworkManager Manager;
         private readonly Dictionary<NetworkConnectionToClient,double> pending=new Dictionary<NetworkConnectionToClient,double>();
         public static string PlatformGroup => Application.platform==RuntimePlatform.Android||Application.platform==RuntimePlatform.IPhonePlayer?"Mobile":"PC";

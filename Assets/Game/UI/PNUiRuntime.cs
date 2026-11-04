@@ -26,6 +26,9 @@ public sealed class PNUiRuntime : MonoBehaviour
     public bool ShowMobileControls { get=>showMobileControls; set=>showMobileControls=value; }
     private PNMobileControls mobile;
     private PNPcControls pcControls;
+    private PNRunHudView runHud;
+    private PNInteractionListView interactionList;
+    private PNRunEndView runEnd;
     private PNPauseMenu pause;
     private PNModeMenu modeMenu;
     private GameObject ownedEventSystem;
@@ -153,6 +156,9 @@ public sealed class PNUiRuntime : MonoBehaviour
         SetTestExpanded(false);
         mobile=new PNMobileControls(this,root);
         pcControls=new PNPcControls(this,root);
+        runHud=new PNRunHudView(this,root);
+        interactionList=new PNInteractionListView(this,root);
+        runEnd=new PNRunEndView(this,root);
         pause=new PNPauseMenu(this,root);
         modeMenu=new PNModeMenu(this,root,pause);
         menuFlow=new PNMenuFlow(this,root);
@@ -201,7 +207,7 @@ public sealed class PNUiRuntime : MonoBehaviour
         if(PNViewCamera.Service==null) SyncCamera();
         if(!EveRegistrySession.IsReady)
         {
-            ClearWorlds(); entities.Clear(); HudPlayer=null; mobile?.Refresh(null); pcControls?.Refresh(null); UpdateHud(); UpdateSelection(); UpdateDetails(); return;
+            ClearWorlds(); entities.Clear(); HudPlayer=null; mobile?.Refresh(null); pcControls?.Refresh(null); runHud?.Refresh(null); interactionList?.Refresh(null); runEnd?.Refresh(); UpdateHud(); UpdateSelection(); UpdateDetails(); return;
         }
         if(session!=EveRegistrySession.Context.SessionId)
         { ClearWorlds(); ClearPortraits(); selected=default; session=EveRegistrySession.Context.SessionId; images.Clear(); ClearGlows(); }
@@ -224,6 +230,9 @@ public sealed class PNUiRuntime : MonoBehaviour
         foreach(var view in worlds.Values) view.Refresh(camera);
         mobile?.Refresh(HudPlayer);
         pcControls?.Refresh(HudPlayer);
+        runHud?.Refresh(HudPlayer);
+        interactionList?.Refresh(HudPlayer);
+        runEnd?.Refresh();
         UpdateHud(); UpdateSelection(); UpdateDetails();
     }
     private void UpdateHud()
@@ -357,6 +366,9 @@ public sealed class PNUiRuntime : MonoBehaviour
         pause?.Dispose(); pause=null;
         mobile?.Dispose(); mobile=null;
         pcControls?.Dispose(); pcControls=null;
+        runHud?.Dispose(); runHud=null;
+        interactionList?.Dispose(); interactionList=null;
+        runEnd?.Dispose(); runEnd=null;
         sparkleArtwork?.Dispose();sparkleArtwork=null;
         PNViewCamera.Updated-=SyncCamera;
         ClearWorlds(); ClearPortraits(); DisconnectCamera();

@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "extensions": {
+    "project_n": {
+      "rogueliteRuns": [
+        {
+          "id": "project_n:standard_run",
+          "name": "project_n:run.standard.name",
+          "floors": [ "project_n:floor_star_1" ],
+          "startMoney": 0,
+          "reviveHealth": 0.3,
+          "victory": "last_room_cleared"
+        }
+      ],
+      "rogueliteFloors": [
+        {
+          "id": "project_n:floor_star_1",
+          "steps": [
+            { "choices": 1, "rooms": [ { "room": "project_n:room_star_combat_a", "weight": 1 } ] },
+            {
+              "choices": 2,
+              "rooms": [
+                { "room": "project_n:room_star_combat_a", "weight": 3 },
+                { "room": "project_n:room_star_combat_b", "weight": 3 },
+                { "room": "project_n:room_rest", "weight": 1 },
+                { "room": "project_n:room_shop", "weight": 1 }
+              ]
+            },
+            { "choices": 1, "rooms": [ { "room": "project_n:room_star_boss", "weight": 1 } ] }
+          ]
+        }
+      ],
+      "rogueliteRooms": [
+        {
+          "id": "project_n:room_star_combat_a",
+          "kind": "combat",
+          "world": "project_n:map_star_test_01",
+          "start": { "mode": "interact", "interactable": "start_switch", "countdown": 3 },
+          "waves": [
+            { "delay": 0, "spawns": [ { "character": "project_n:starweaver", "count": 2, "group": "north" } ] },
+            { "delay": 1.5, "spawns": [ { "character": "project_n:starkeeper", "count": 1, "group": "south" } ] }
+          ],
+          "clear": "all_waves",
+          "reward": { "money": 30 },
+          "exits": [ "gate_a", "gate_b", "gate_c" ]
+        },
+        {
+          "id": "project_n:room_star_combat_b",
+          "kind": "combat",
+          "world": "project_n:map_star_test_01",
+          "start": { "mode": "interact", "interactable": "start_switch", "countdown": 3 },
+          "waves": [
+            { "delay": 0, "spawns": [ { "character": "project_n:starreaper", "count": 1, "group": "north" }, { "character": "project_n:starchanter", "count": 1, "group": "south" } ] }
+          ],
+          "clear": "all_waves",
+          "reward": { "money": 30 },
+          "exits": [ "gate_a", "gate_b", "gate_c" ]
+        },
+        {
+          "id": "project_n:room_rest",
+          "kind": "rest",
+          "world": "project_n:map_star_test_01",
+          "start": { "mode": "none" },
+          "clear": "none",
+          "exits": [ "gate_a", "gate_b", "gate_c" ],
+          "interactables": [ "fountain" ]
+        },
+        {
+          "id": "project_n:room_shop",
+          "kind": "shop",
+          "world": "project_n:map_star_test_01",
+          "start": { "mode": "none" },
+          "clear": "none",
+          "exits": [ "gate_a", "gate_b", "gate_c" ],
+          "interactables": [ "shop_heal" ]
+        },
+        {
+          "id": "project_n:room_star_boss",
+          "kind": "boss",
+          "world": "project_n:map_star_test_01",
+          "start": { "mode": "interact", "interactable": "start_switch", "countdown": 3 },
+          "waves": [
+            { "delay": 0, "spawns": [ { "character": "project_n:starforger", "count": 1, "group": "center" } ] }
+          ],
+          "clear": "all_waves",
+          "exits": [ "gate_a" ]
+        }
+      ]
+    }
+  }
+}

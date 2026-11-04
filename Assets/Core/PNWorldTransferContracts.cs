@@ -39,19 +39,28 @@ public sealed class PNWorldTransferRequest
     public string Spawn { get; }
     public string ReplacementTemplate { get; }
     public string TargetTemplate { get; }
+    // Replacement only. Owner -> character id the rebuilt player takes (instead of the destination spawn point's character): a run keeps each player's pick across rooms.
+    public IReadOnlyDictionary<long,string> Characters { get; }
+    // Replacement only. The state providers that capture the old actor and restore the new one (instead of the worlds' ActorStateProviders): both ends must use the same list.
+    public IReadOnlyList<EveId> StateProviders { get; }
     // Host-local presentation choice for this transfer (highest priority in the transition screen chain). Not part of the wire or Signature.
     public EveId TransitionScreen { get; set; }
     public string Signature { get; }
     public IReadOnlyList<long> EntityIds { get; }
-    public PNWorldTransferRequest(Guid id,IEnumerable<EveEntityLoader> actors,EveWorldContext destination,string slot=null,string spawn=null,string replacementTemplate=null,string targetTemplate=null)
+    public PNWorldTransferRequest(Guid id,IEnumerable<EveEntityLoader> actors,EveWorldContext destination,string slot=null,string spawn=null,string replacementTemplate=null,string targetTemplate=null,IReadOnlyDictionary<long,string> characters=null,IEnumerable<EveId> stateProviders=null)
     {
         var values=actors?.ToArray()??throw new ArgumentNullException(nameof(actors));
         if(id==Guid.Empty||destination==null||values.Length==0||values.Length>64||values.Any(x=>x==null)||values.Distinct().Count()!=values.Length||slot?.Length>128||spawn?.Length>128||replacementTemplate?.Length>128)throw new ArgumentException("Bounded unique transfer participants and destination required.");
         if(targetTemplate?.Length>128)throw new ArgumentException("Bounded template ID required.");
-        Id=id;Actors=Array.AsReadOnly(values);Destination=destination;Slot=slot;Spawn=spawn;ReplacementTemplate=replacementTemplate;TargetTemplate=targetTemplate;
+        var pick=characters==null?new Dictionary<long,string>():new Dictionary<long,string>(characters);
+        var providers=(stateProviders??Enumerable.Empty<EveId>()).ToArray();
+        if((pick.Count!=0||providers.Length!=0)&&replacementTemplate==null)throw new ArgumentException("Characters and state providers belong to a replacement transfer.");
+        if(pick.Count>64||pick.Any(x=>x.Key<0||!values.Any(a=>a.LoadContext?.Identity.OwnerId==x.Key)||x.Value==null||x.Value.Length>128||!EveId.TryParse(x.Value,out _)))throw new ArgumentException("Characters name owners of the participants and valid character ids.");
+        if(providers.Length>64||providers.Any(x=>!x.IsValid)||providers.Distinct().Count()!=providers.Length)throw new ArgumentException("Unique bounded state provider IDs required.");
+        Id=id;Actors=Array.AsReadOnly(values);Destination=destination;Slot=slot;Spawn=spawn;ReplacementTemplate=replacementTemplate;TargetTemplate=targetTemplate;Characters=pick;StateProviders=Array.AsReadOnly(providers);
         if(values.Any(x=>x.LoadContext?.Identity.HasId!=true))throw new ArgumentException("Loaded identified transfer actors required.");
         EntityIds=Array.AsReadOnly(values.Select(x=>x.LoadContext.Identity.Id.Value).ToArray());
-        Signature=new JArray(destination.InstanceId.ToString("N"),destination.Incarnation,slot,spawn,replacementTemplate,targetTemplate,new JArray(values.OrderBy(x=>x.LoadContext.Identity.Id.Value).Select(x=>new JArray(x.LoadContext.Identity.Id.Value,x.LoadContext.Generation,x.LoadContext.Identity.MembershipRevision)))).ToString(Formatting.None);
+        Signature=new JArray(destination.InstanceId.ToString("N"),destination.Incarnation,slot,spawn,replacementTemplate,targetTemplate,new JArray(pick.OrderBy(x=>x.Key).Select(x=>new JArray(x.Key,x.Value))),new JArray(providers.Select(x=>x.ToString())),new JArray(values.OrderBy(x=>x.LoadContext.Identity.Id.Value).Select(x=>new JArray(x.LoadContext.Identity.Id.Value,x.LoadContext.Generation,x.LoadContext.Identity.MembershipRevision)))).ToString(Formatting.None);
     }
 }
 public sealed class PNWorldTransferContext

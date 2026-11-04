@@ -17,5 +17,10 @@ namespace EveEngine
         public static EveRegistry<PNElementDefinition> Elements(this EveRegistryHub hub) => hub.Get<PNElementDefinition>();
         public static EveRegistry<PNTagDefinition> Tags(this EveRegistryHub hub) => hub.Get<PNTagDefinition>();
         public static EveRegistry<PNEnemyTypeDefinition> EnemyTypes(this EveRegistryHub hub) => hub.Get<PNEnemyTypeDefinition>();
+        public static EveRegistry<PNSyncStateDefinition> SyncStates(this EveRegistryHub hub) => hub.Get<PNSyncStateDefinition>();
+        public static EveRegistry<PNSyncCommandDefinition> SyncCommands(this EveRegistryHub hub) => hub.Get<PNSyncCommandDefinition>();
+        public static EveRegistry<PNRunDefinition> RogueliteRuns(this EveRegistryHub hub) => hub.Get<PNRunDefinition>();
+        public static EveRegistry<PNFloorDefinition> RogueliteFloors(this EveRegistryHub hub) => hub.Get<PNFloorDefinition>();
+        public static EveRegistry<PNRoomDefinition> RogueliteRooms(this EveRegistryHub hub) => hub.Get<PNRoomDefinition>();
     }
 }

@@ -41,6 +41,7 @@ namespace ProjectN.Coop
             InitializeBuff();
             InitializeMove();
             InitializeWorldReplication();
+            InitializeSync();
             if(Transfers==null)throw new InvalidOperationException("World transfer service is not attached.");
             Transfers.Transport=this;
         }
@@ -56,7 +57,7 @@ namespace ProjectN.Coop
             }
             // Keep adapter services reachable if binding cleanup needs a retry.
             if(errors.Count!=0)throw new AggregateException("Binding cleanup failed.",errors);
-            DisposeWorldReplication();DisposeBuff();DisposeMove();
+            DisposeSync();DisposeWorldReplication();DisposeBuff();DisposeMove();
             foreach(var value in initialStates)if(inbox.Contains(value.Key,value.Value.Token))inbox.Release(value.Key,value.Value.Token);
             initialStates.Clear();peerFences.Clear();clientFence.Clear();stateAdapters.Clear();subscribedSession=null;
         }
@@ -95,7 +96,7 @@ namespace ProjectN.Coop
         {
             if(stopping||!IsPlaying)return;
             if(fatalSerialization){StopSession();return;}
-            try{PumpMove();PumpBuff();}catch(Exception error){ProtocolFailure(error,NetworkServer.active);return;}
+            try{PumpMove();PumpBuff();PumpSync();}catch(Exception error){ProtocolFailure(error,NetworkServer.active);return;}
             if(!NetworkServer.active)return;
             try
             {
@@ -186,6 +187,7 @@ namespace ProjectN.Coop
             NetworkServer.RegisterHandler<PNPlayReady>(ReceivePlayReady);
             NetworkServer.RegisterHandler<PNHeartbeat>(ReceiveHeartbeat);
             NetworkServer.RegisterHandler<PNResume>(ReceiveResume);
+            NetworkServer.RegisterHandler<PNSyncCommandMessage>(ReceiveSyncCommand);
             ResetLobby();RegisterLobbyServer();
         }
         public override void OnStartClient()
@@ -203,6 +205,7 @@ namespace ProjectN.Coop
             NetworkClient.RegisterHandler<PNResume>(ReceiveResumeClient);
             NetworkClient.RegisterHandler<PNStatNotice>(ReceiveStatMessage);
             NetworkClient.RegisterHandler<PNStateFence>(ReceiveFence);
+            NetworkClient.RegisterHandler<PNSyncStateMessage>(ReceiveSyncState);
             RegisterLobbyClient();
         }
         public static GameObject CreateShell<T>(string name) where T:NetworkBehaviour
@@ -450,7 +453,9 @@ namespace ProjectN.Coop
             if(value.ResumeFloor>value.Sequence){conn.Disconnect();return;}
             if(value.ResumeFloor>peer.ResumeChallenge){peer.ResumeChallenge=0;peer.ResumeFloor=0;peerFences.Remove(conn.connectionId);}
             peer.Sequence=value.Sequence;peer.LastTraffic=Time.realtimeSinceStartupAsDouble;
-            if(value.ResumeRequired)
+            // A heartbeat sent before the client received our acknowledgement still says "resume required": it belongs to the cycle just closed (ResumeFloor <= ClearedChallenge), so it must not interrupt the peer again (with a round trip longer than the heartbeat interval that restarted the handshake forever).
+            bool staleResume=peer.InterruptedAt<0&&peer.ClearedChallenge>0&&value.ResumeFloor<=peer.ClearedChallenge;
+            if(value.ResumeRequired&&!staleResume)
             {Interrupt(peer);if(!value.Paused&&peer.ResumeFloor==0){peer.ResumeFloor=value.Sequence;peer.ResumeChallenge=value.Sequence;}}
             if(value.Paused){Interrupt(peer);peer.ResumeChallenge=peer.ResumeFloor=0;peerFences.Remove(conn.connectionId);return;}
             if(peer.InterruptedAt>=0)
@@ -488,6 +493,7 @@ namespace ProjectN.Coop
             if(Time.realtimeSinceStartupAsDouble-peer.InterruptedAt>=GraceLimit){conn.Disconnect();return;}
             if(!peer.Grace.TryResume(Time.realtimeSinceStartupAsDouble,EveRegistrySession.IsReady&&EveRegistrySession.Context.IsActive,value.BindingDigest==BindingDigest(conn),AdaptersSettled()))return;
             peer.InputReady=true;
+            peer.ClearedChallenge=peer.ResumeChallenge;
             peer.ResumeChallenge=0;
             peer.ResumeFloor=0;
             conn.Send(new PNResume {Session=PlaySession,PlayRevision=PlayRevision,Sequence=value.Sequence,Acknowledged=true,BindingDigest=value.BindingDigest});

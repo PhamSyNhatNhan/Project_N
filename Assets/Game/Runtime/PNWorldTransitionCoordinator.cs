@@ -143,7 +143,7 @@ public sealed class PNWorldTransitionCoordinator : IDisposable,IPNWorldTransferT
                 foreach(var actor in work.Actors)
                 {
                     foreach(var participant in actor.Participants)participant.Hold(actor.Context);
-                    if(actor.Context.Replacement){var map=work.Actors.ToDictionary(x=>x.Context.Entity.ToString(),x=>x.Context.Actor);actor.State=states.Capture(new PNWorldStateContext(actor.Context.Source,actor.Context.Actor,map),session.Registry.Get<PNWorldDefinition>().Get(actor.Context.Source.DefinitionId).Policy.ActorStateProviders);}
+                    if(actor.Context.Replacement){var map=work.Actors.ToDictionary(x=>x.Context.Entity.ToString(),x=>x.Context.Actor);actor.State=states.Capture(new PNWorldStateContext(actor.Context.Source,actor.Context.Actor,map),StateProviders(work,actor.Context.Source));}
                     var body=actor.Context.Actor.GetComponent<Rigidbody>();actor.Position=actor.Context.Actor.transform.position;actor.Rotation=actor.Context.Actor.transform.rotation;
                     if(body!=null){actor.Velocity=body.linearVelocity;actor.Angular=body.angularVelocity;}
                     actor.Hold=actor.Context.Actor.LoadContext.Identity.HoldGameplay();Transport?.Hold(actor.Context);
@@ -167,7 +167,12 @@ public sealed class PNWorldTransitionCoordinator : IDisposable,IPNWorldTransferT
         {
             var identity=loader.LoadContext.Identity;
             PNEntityRequest target;
-            if(PNEntityRoles.IsPlayer(loader))target=factory.Player(identity.OwnerId,work.Request.Destination,work.Request.Slot,work.Request.Spawn);
+            if(PNEntityRoles.IsPlayer(loader))
+            {
+                target=factory.Player(identity.OwnerId,work.Request.Destination,work.Request.Slot,work.Request.Spawn);
+                // A run rebuilds each player as the character it picked, wherever the destination's spawn point points.
+                if(work.Request.ReplacementTemplate!=null&&work.Request.Characters.TryGetValue(identity.OwnerId,out var picked)){session.Registry.Characters.Get(EveId.Parse(picked));target.Character=picked;}
+            }
             else
             {
                 var build=worlds.Get(work.Request.Destination);var slot=work.Request.Slot??(build.Slots.Count==1?build.Slots[0].Id:throw new InvalidOperationException("Explicit content slot required."));
@@ -188,6 +193,9 @@ public sealed class PNWorldTransitionCoordinator : IDisposable,IPNWorldTransferT
             Transport?.Validate(context);Transport?.Prepare(context);
         }
     }
+    // The providers a replacement captures and restores with: the request's own list (a run), else the policy of the world the state belongs to.
+    private IReadOnlyList<EveId> StateProviders(Work work,EveWorldContext world)
+        =>work.Request.StateProviders.Count!=0?work.Request.StateProviders:session.Registry.Get<PNWorldDefinition>().Get(world.DefinitionId).Policy.ActorStateProviders;
     private void PrepareReplacement(Work work,ActorWork actor)
     {
         var context=actor.Context;
@@ -201,7 +209,7 @@ public sealed class PNWorldTransitionCoordinator : IDisposable,IPNWorldTransferT
             stage.Restore=load=>
             {
                 var map=work.Actors.ToDictionary(x=>x.Context.Entity.ToString(),x=>x.Context.ReplacementCandidate.Loader);
-                states.Restore(new PNWorldStateContext(context.Destination,loader,map),actor.State,session.Registry.Get<PNWorldDefinition>().Get(context.Destination.DefinitionId).Policy.ActorStateProviders);
+                states.Restore(new PNWorldStateContext(context.Destination,loader,map),actor.State,StateProviders(work,context.Destination));
             };
         },null,error=>Fail(work,error),null,loader=>false,factoryPublished:false);
         context.StageReplacement(candidate);

@@ -91,6 +91,7 @@ public static class PNWorldTransferChecks
             scheduler.RetirePublished(restored);Pump(()=>session.Entities.Snapshot(b).All(x=>x.LoadContext.Identity.OwnerId!=2));
             scheduler.Retire(first);scheduler.Retire(second);Pump(()=>first.IsReturned&&second.IsReturned);Pump(()=>worlds.Unload(b));Check(session.Entities.Count==0&&transfers.PendingCount==0,"transfer/entity/world leases drain on teardown");
         }
+        catch(Exception error){Debug.LogException(error);throw;}
         finally{PNTransferProbe.FailDispose=PNTransferProbe.WaitPrepare=false;PNTransferProbe.FailCommitAt=0;transfers.Dispose();EveRegistrySession.End();factory.Dispose();}
         return "PASS "+rows.Count+" native world transfer cases\n"+string.Join("\n",rows);
     }

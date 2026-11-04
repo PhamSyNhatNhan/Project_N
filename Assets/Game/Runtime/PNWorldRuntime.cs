@@ -151,6 +151,8 @@ public sealed class PNWorldRuntime : IPNWorldRuntime,IPNWorldPopulation
             var spawns=roots.SelectMany(x=>x.GetComponentsInChildren<PNPlayerSpawnPoint>(true)).ToArray();
             foreach(var spawn in spawns)spawn.Validate();
             if(spawns.Select(x=>x.SpawnEntry).Distinct().Count()!=spawns.Length)throw new InvalidOperationException("Duplicate spawn entry in world content slot.");
+            PNWorldObject.ValidateSet(roots.SelectMany(x=>x.GetComponentsInChildren<PNWorldObject>(true)));
+            PNRoomSpawnGroup.ValidateSet(roots.SelectMany(x=>x.GetComponentsInChildren<PNRoomSpawnGroup>(true)));
         }
     }
     public bool Unload(EveWorldContext world)

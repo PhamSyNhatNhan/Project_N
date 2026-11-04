@@ -63,7 +63,7 @@ namespace ProjectN.Coop
             catch{EndRoomPlay();throw;}
         }
         private void ResetPeerPlay(PNPeer peer)
-        {peer.PlayRevision=PlayRevision;peer.InputReady=true;peer.ResumeChallenge=peer.ResumeFloor=0;peer.Grace=new PNGraceWindow(GraceLimit);}
+        {peer.PlayRevision=PlayRevision;peer.InputReady=true;peer.ResumeChallenge=peer.ResumeFloor=peer.ClearedChallenge=0;peer.Grace=new PNGraceWindow(GraceLimit);}
         private void ResetPlayState()
         {
             fatalSerialization=false;clientInputReady=false;clientInterrupted=hostInterrupted=-1;clientResumeFloor=0;
@@ -129,7 +129,7 @@ namespace ProjectN.Coop
                 // End precedes hides/state teardown on the reliable channel.
                 foreach(var conn in NetworkServer.connections.Values.ToArray())if(conn.authenticationData is PNPeer peer)
                 {
-                    peer.Grace=new PNGraceWindow(Profile.GraceSeconds);peer.InputReady=false;peer.ResumeChallenge=peer.ResumeFloor=0;conn.Send(PlayStatus());
+                    peer.Grace=new PNGraceWindow(Profile.GraceSeconds);peer.InputReady=false;peer.ResumeChallenge=peer.ResumeFloor=peer.ClearedChallenge=0;conn.Send(PlayStatus());
                     if(!(conn is LocalConnectionToClient))
                     {
                         // SetClientNotReady removes observer bookkeeping without sending hides.

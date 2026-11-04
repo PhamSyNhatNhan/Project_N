@@ -33,7 +33,7 @@ public sealed class PNGameFlow : MonoBehaviour
             if (loading) return PNFlowPhase.Loading;
             var id = EveRegistrySession.IsReady ? PNLocalWorldContext.Current?.World?.DefinitionId.ToString() : null;
             if (id == "project_n:roguelite_lobby") return PNFlowPhase.Lobby;
-            if (id == "project_n:scene_world") return PNFlowPhase.Run;
+            if (id == "project_n:scene_world" || id != null && id.StartsWith("project_n:map_", StringComparison.Ordinal)) return PNFlowPhase.Run;
             if (id == "project_n:hall_world") return PNFlowPhase.Hall;
             // Before the local view exists, fall back to the selected mode.
             if (!EveRegistrySession.IsReady) return PNFlowPhase.Hall;
@@ -58,7 +58,19 @@ public sealed class PNGameFlow : MonoBehaviour
     private static void SayKey(string key){messageKey=key;messageLocaleRevision=-1;NoticeSequence++;Raise();}
     private static bool Refuse(string key,out string reason){startErrorKey=key;reason=PNLocalization.Text(key);return false;}
 
-    // Start the roguelite from the Hall (or from anywhere): Offline goes straight to the run scene, Host/Join to the lobby.
+    // ErMode is the developers' test arena (the mob Player reviews use its authored spawn points). A solo start goes through the lobby into the first room of a run like every
+    // other start; this switch keeps the old straight-to-arena solo start for those reviews.
+    public static bool LegacyArena { get { return Array.IndexOf(Environment.GetCommandLineArgs(), "-pn-legacy-run") >= 0; } }
+    // A test sets this to replay a known run (the same seed offers the same rooms); -pn-run-seed=<n> does the same for a Player.
+    public static ulong? DebugSeed;
+    private static ulong RunSeed()
+    {
+        if (DebugSeed.HasValue) return DebugSeed.Value;
+        foreach (var argument in Environment.GetCommandLineArgs())
+            if (argument.StartsWith("-pn-run-seed=", StringComparison.Ordinal) && ulong.TryParse(argument.Substring("-pn-run-seed=".Length), out var fixedSeed)) return fixedSeed;
+        return ((ulong)(uint)Guid.NewGuid().GetHashCode() << 32) ^ (ulong)DateTime.UtcNow.Ticks;
+    }
+    // Start the roguelite from the Hall (or from anywhere): every start goes to the lobby and then, with the team there, into the first room of a run (a solo start goes on by itself).
     public static void StartRoguelite(PNFlowMode mode, string address = null) => StartMode("roguelite", mode, address);
     // Start any registered mode by its id (the menu passes the mode it listed). Scenes are still the roguelite ones: a mode with its own
     // scenes needs a scene mapping first (Docs/ModeMenuPlan.md).
@@ -153,7 +165,9 @@ public sealed class PNGameFlow : MonoBehaviour
     {
         reason = null;
         if (starting) return Refuse("project_n:error.starting",out reason);
-        if (!IsHost || Phase != PNFlowPhase.Lobby) return Refuse("project_n:error.host_only",out reason);
+        bool alone = EveRegistrySession.IsReady && EveRegistrySession.Context.Role == EveSessionRole.Offline;
+        if (!(IsHost || alone) || Phase != PNFlowPhase.Lobby) return Refuse("project_n:error.host_only",out reason);
+        if (alone) return true;
         var lobby = PNGameBootstrap.LobbyDriver?.Lobby;
         if (lobby == null) return Refuse("project_n:error.no_room",out reason);
         if (!lobby.AllReady) return Refuse("project_n:error.not_ready",out reason);
@@ -190,14 +204,14 @@ public sealed class PNGameFlow : MonoBehaviour
     }
     private IEnumerator Launch(string modeId, PNFlowMode mode, string address)
     {
-        BeginLoading(modeId, mode == PNFlowMode.Offline ? "project_n:scene_world" : "project_n:roguelite_lobby"); message = null; messageKey=null; Raise();
+        BeginLoading(modeId, mode == PNFlowMode.Offline && LegacyArena ? "project_n:scene_world" : "project_n:roguelite_lobby"); message = null; messageKey=null; Raise();
         string failure = null;
         var network = PNGameBootstrap.Config.Network; var preparation = PNGameBootstrap.Config.Preparation;
         var end = EndCurrent();
         while (true) { bool more; try { more = end.MoveNext(); } catch (Exception error) { failure = error.Message; break; } if (!more) break; yield return end.Current; }
         if (failure == null)
         {
-            var load = LoadScene(mode == PNFlowMode.Offline ? PNScenes.Run : PNScenes.Lobby);
+            var load = LoadScene(mode == PNFlowMode.Offline && LegacyArena ? PNScenes.Run : PNScenes.Lobby);
             while (true) { bool more; try { more = load.MoveNext(); } catch (Exception error) { failure = error.Message; break; } if (!more) break; yield return load.Current; }
         }
         if (failure == null)
@@ -219,6 +233,14 @@ public sealed class PNGameFlow : MonoBehaviour
         EndLoading();
         if (failure != null) { Debug.LogWarning("Roguelite start failed: " + failure); yield return Return(null,"project_n:error.join_failed"); yield break; }
         expectSession = true; Raise();
+        // Alone there is nobody to wait for: the run starts by itself once the lobby is up.
+        if (mode == PNFlowMode.Offline && !LegacyArena && modeId == "roguelite")
+        {
+            // The player is built a moment after the session is ready; the run takes it along, so wait for it.
+            double waitUntil = Time.realtimeSinceStartupAsDouble + ConnectTimeout;
+            while (Time.realtimeSinceStartupAsDouble < waitUntil && !(EveRegistrySession.IsReady && PNLocalWorldContext.Current?.Actor?.IsReady == true)) yield return null;
+            StartRun();
+        }
     }
     private IEnumerator Return(string notice,string noticeKey=null)
     {
@@ -249,50 +271,30 @@ public sealed class PNGameFlow : MonoBehaviour
     private IEnumerator BeginRun()
     {
         starting = true; Raise();
-        var driver = PNGameBootstrap.LobbyDriver;
-        string failure = null; EveWorldContext run = null; PNGameSession game = null;
+        // A room driver exists only for a hosted or joined room; alone there is nothing to lock or mark.
+        var driver = PNGameBootstrap.IsRoomOpen ? PNGameBootstrap.LobbyDriver : null;
+        string failure = null; PNRunDirector runs = null;
         try
         {
-            game = PNGameBootstrap.Runtime.GetComponent<PNGameSession>();
-            driver.LockAdmissions(true);
-            run = game.Worlds.Create(EveId.Parse("base:scene_world"));
+            var game = PNGameBootstrap.Runtime.GetComponent<PNGameSession>();
+            driver?.LockAdmissions(true);
+            runs = game.Runs;
+            if (!runs.Begin(EveId.Parse("project_n:standard_run"), PNLocalWorldContext.Current.World, RunSeed(), out var reason)) failure = reason;
         }
         catch (Exception error) { failure = error.Message; }
         double until = Time.realtimeSinceStartupAsDouble + RunTimeout;
-        while (failure == null && run.State != EveWorldState.Ready)
+        while (failure == null && runs.Phase != PNRunPhase.Playing)
         {
-            if (run.State == EveWorldState.Failed || run.State == EveWorldState.Unloading || run.State == EveWorldState.Disposed) failure = "Không nạp được world run: " + (run.Failure?.Message ?? run.State.ToString());
-            else if (Time.realtimeSinceStartupAsDouble > until) failure = "Nạp world run quá lâu.";
+            if (runs.Phase == PNRunPhase.Ended || runs.Phase == PNRunPhase.None) failure = runs.Error ?? "The run ended before it started.";
+            else if (Time.realtimeSinceStartupAsDouble > until) failure = "Chuyển sang run quá lâu.";
             else yield return null;
         }
-        PNWorldTransferReceipt receipt = null;
-        if (failure == null)
-        {
-            try
-            {
-                var from = PNLocalWorldContext.Current.World;
-                var players = game.Session.Entities.Snapshot(from).Where(x => x.IsReady && PNEntityRoles.IsPlayer(x)).ToArray();
-                if (players.Length == 0) throw new InvalidOperationException("Không có người chơi nào trong sảnh.");
-                // A scene world names its slots "chunk-N"; pick the slot that carries the "player" spawn point instead of assuming a name.
-                var slot = game.Worlds.Get(run).Slots.FirstOrDefault(x => x.Roots.Any(r => r != null && r.GetComponentsInChildren<PNPlayerSpawnPoint>(true).Any(p => p.SpawnEntry == "player")));
-                if (slot == null) throw new InvalidOperationException("World run không có điểm spawn \"player\".");
-                receipt = game.Transfers.Request(new PNWorldTransferRequest(Guid.NewGuid(), players, run, slot.Id, "player"));
-            }
-            catch (Exception error) { failure = error.Message; }
-        }
-        until = Time.realtimeSinceStartupAsDouble + RunTimeout;
-        while (failure == null && !(receipt.IsTerminal && !receipt.CleanupPending))
-        {
-            if (Time.realtimeSinceStartupAsDouble > until) failure = "Chuyển sang run quá lâu.";
-            else yield return null;
-        }
-        if (failure == null && receipt.State != PNWorldTransferState.Completed) failure = "Chuyển sang run thất bại (" + receipt.State + "): " + receipt.Error;
-        if (failure == null) { try { driver.MarkRunStarted(); } catch (Exception error) { failure = error.Message; } }
+        if (failure == null) { try { driver?.MarkRunStarted(); } catch (Exception error) { failure = error.Message; } }
         if (failure != null)
         {
             Debug.LogWarning("Run start failed: " + failure);
-            try { driver.LockAdmissions(false); } catch (Exception error) { Debug.LogException(error); }
-            try { if (run != null && game != null && run.State != EveWorldState.Disposed) game.Worlds.Unload(run); } catch (Exception error) { Debug.LogException(error); }
+            try { runs?.Abandon(); } catch (Exception error) { Debug.LogException(error); }
+            try { driver?.LockAdmissions(false); } catch (Exception error) { Debug.LogException(error); }
             starting = false; SayKey("project_n:error.run_failed"); yield break;
         }
         starting = false; Raise();
@@ -335,7 +337,7 @@ public sealed class PNGameFlow : MonoBehaviour
     public static void PrepareStart(string modeId = "roguelite", bool offline = false)
     {
         preCoverUntil = Time.realtimeSinceStartupAsDouble + 3;
-        usingHandoff = PNTransitionHandoffHost.Raise(StripPrefix(modeId), offline ? "project_n:scene_world" : "project_n:roguelite_lobby");
+        usingHandoff = PNTransitionHandoffHost.Raise(StripPrefix(modeId), offline && LegacyArena ? "project_n:scene_world" : "project_n:roguelite_lobby");
         if (!usingHandoff) ShowCover();
     }
     // Shipped modes keep their short selection name; others use the full id (the same rule StartMode applies).

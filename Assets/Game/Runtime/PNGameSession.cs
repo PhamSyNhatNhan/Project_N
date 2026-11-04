@@ -10,6 +10,9 @@ public sealed class PNGameSession : MonoBehaviour
     public IPNEntityFactory Factory {get;private set;}
     public EveSessionContext Session {get;private set;}
     public PNWorldRuntime Worlds {get;private set;}
+    public PNSyncService Sync {get;private set;}
+    public PNRunDirector Runs {get;private set;}
+    public PNRunStateSync RunView {get;private set;}
     public PNWorldTransitionCoordinator Transfers {get;private set;}
     public PNLocalWorldContext Local {get;private set;}
     public PNWorldLifetimeController Lifetimes {get;private set;}
@@ -37,6 +40,10 @@ public sealed class PNGameSession : MonoBehaviour
         service.WorldAssets=(runtime as EveGameRuntime)?.WorldAssets;service.WorldAssets?.BindSession(session);
         service.Scheduler=new EveEntityPreparationScheduler(session,PNGameBootstrap.Config.Preparation);
         service.Worlds=new PNWorldRuntime(session,service.Scheduler);
+        // Before any world can become ready (the entry scene is adopted at the end of this method): the objects of every world are registered as they appear.
+        service.Sync=new PNSyncService(session.Registry,session.HasAuthority,0,session);
+        var syncWorlds=new PNSyncWorldBinder(service.Worlds,service.Sync);
+        session.RegisterCleanup(()=>{syncWorlds.Dispose();service.Sync.Dispose();});
         service.Local=new PNLocalWorldContext(session);
         service.Presentation=runtime.GetComponent<PNWorldPresentation>()??runtime.gameObject.AddComponent<PNWorldPresentation>();service.Presentation.Bind(session,service.Worlds,service.Local);
         if(!PNCameraDirector.LegacyRequested)service.CameraDirector=PNCameraDirector.Attach(runtime.gameObject,session,service.Worlds,service.Local,service.Presentation);
@@ -49,6 +56,8 @@ public sealed class PNGameSession : MonoBehaviour
         PNEntityHosts.Set(session,new PNLocalEntityHost(session,service.Factory,service.Scheduler));session.RegisterCleanup(()=>{PNEntityHosts.Remove(session);PNSummons.Reset();});
         service.Transfers=new PNWorldTransitionCoordinator(session,service.Worlds,(PNEntityFactory)service.Factory,service.Scheduler);
         physics.BeforeSimulation+=service.Transfers.FixedBoundary;
+        service.Runs=new PNRunDirector(service);
+        service.RunView=new PNRunStateSync(service.Sync,service.Runs);session.RegisterCleanup(service.RunView.Dispose);
         service.Lifetimes=new PNWorldLifetimeController(session,service.Worlds,(PNEntityFactory)service.Factory,service.Scheduler);
         service.Saves=new PNWorldSaveService(session,service.Worlds,service.Lifetimes,System.IO.Path.Combine(Application.persistentDataPath,"WorldSaves"));
         if(!PNCameraDirector.LegacyRequested)service.Transitions=PNTransitionController.Attach(runtime.gameObject,session,service.Local,service.Transfers,service.CameraDirector);
@@ -82,8 +91,13 @@ public sealed class PNGameSession : MonoBehaviour
     private void Update()
     {
         if(Session==null || Scheduler==null)return;
-        if(Session.IsActive){Saves.Tick();Lifetimes.Tick();}
+        if(Session.IsActive){Saves.Tick();Lifetimes.Tick();Runs?.Tick(Time.deltaTime);FlushSync();}
         if(Session.IsActive || EveRegistrySession.State==EveSessionState.Stopping)Scheduler.AdvanceFrame();
+    }
+    private void FlushSync()
+    {
+        try{Sync?.Flush();}
+        catch(Exception error){Debug.LogException(error,this);}
     }
     public void RetryCleanup()
     { Scheduler.RetryQuarantines();if(EveRegistrySession.State==EveSessionState.Stopping)EveRegistrySession.RetryCleanup(); }

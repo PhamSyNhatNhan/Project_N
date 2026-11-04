@@ -51,7 +51,7 @@ namespace ProjectN.Composition
                 {
                     runtime.BeginSession(role);
                     var game=runtime.GetComponent<PNGameSession>();manager.Factory=game.Factory;manager.Scheduler=game.Scheduler;manager.Worlds=game.Worlds;
-                    manager.Transfers=game.Transfers;
+                    manager.Transfers=game.Transfers;manager.SyncProvider=()=>game.Sync;
                     game.Lifetimes.RestoredActor+=manager.PublishRestoredActor;
                 };
                 root.SetActive(true);

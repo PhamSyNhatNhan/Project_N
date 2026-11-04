@@ -26,5 +26,7 @@ public static class PNScenes
     public const string Lobby = "Assets/Game/Scenes/Roguelite/PNLobby/PNLobby.unity";
     public const string Run = "Assets/Game/Scenes/Test/ErMode/ErMode.unity";
     public const string Title = "Assets/Game/Scenes/Shared/PNTitle/PNTitle.unity";
+    // Maps of the roguelite rooms (each one a world: Docs/RogueliteFramePlan.md 5.4).
+    public const string RoomStarTest01 = "Assets/Game/Scenes/Roguelite/Rooms/PNRoomStarTest01/PNRoomStarTest01.unity";
 }
 #endif
