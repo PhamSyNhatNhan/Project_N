@@ -167,6 +167,8 @@ namespace ProjectN.Coop
         public System.Collections.Generic.ICollection<string> ContinuePersons=>ContinueSeats?.Keys;
         public System.Collections.Generic.ICollection<string> OnlinePersons()=>NetworkServer.connections.Values.Select(c=>(c.authenticationData as PNPeer)?.PlayerId).Where(x=>!string.IsNullOrEmpty(x)).ToList();
         public string PlayerIdOf(long owner){foreach(var c in NetworkServer.connections.Values)if(c.authenticationData is PNPeer p&&p.Owner==owner)return p.PlayerId;return null;}
+        // Host: the characters of the seats of a continued run that no connected person holds, in the order of the seats' person ids (a new run has none). Sent to clients in the lobby state.
+        public string[] EmptySeatCharacters(){if(ContinueSeats==null)return new string[0];var list=new System.Collections.Generic.List<string>();foreach(var pair in ContinueSeats.OrderBy(x=>x.Key,System.StringComparer.Ordinal))if(OwnerOf(pair.Key)==null)list.Add(pair.Value);return list.ToArray();}
         public long? OwnerOf(string playerId){if(string.IsNullOrEmpty(playerId))return null;foreach(var c in NetworkServer.connections.Values)if(c.authenticationData is PNPeer p&&p.PlayerId==playerId)return p.Owner;return null;}
         public void RouteIntent(NetworkConnectionToClient connection,Guid session,long entity,long generation,long sequence,string command,string payload,PNWorldBindingScope scope)
         {

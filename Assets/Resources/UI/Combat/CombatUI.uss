@@ -225,6 +225,7 @@
 .pn-interact-row-dim { opacity: 0.4; }
 .pn-interact-label { color: white; font-size: 18px; margin: 0 10px 0 0; text-shadow: 0 0 4px rgba(24,32,44,1); }
 .pn-interact-star { width: 22px; height: 24px; }
+.pn-interact-icon { width: 30px; height: 30px; margin: -3px 0; -unity-background-scale-mode: scale-to-fit; }
 .pn-interact-key { width: 24px; height: 24px; margin: 0 10px 0 0; padding: 0; border-width: 1px; border-color: rgba(255,255,255,0.9); border-radius: 8px; color: white; font-size: 14px; -unity-text-align: middle-center; text-shadow: 0 0 3px rgba(30,40,52,0.95); }
 
 /* Run end screen (no backdrop: text straight on the scene) */

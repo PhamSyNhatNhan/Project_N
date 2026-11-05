@@ -285,7 +285,9 @@ public sealed class PNRunDefinition : EveIIdentified
     public string Art { get; }
     public string Description { get; }
     public bool Hidden { get; }
-    public PNRunDefinition(EveId id, string name, IEnumerable<EveId> floors, int startShards, double reviveHealth, PNRunVictory victory, string art = "", string description = "", bool hidden = false)
+    // What a run of this map pays in stella when it is summed up (Docs/StellaPlan.md); null = nothing.
+    public PNStellaRule Stella { get; }
+    public PNRunDefinition(EveId id, string name, IEnumerable<EveId> floors, int startShards, double reviveHealth, PNRunVictory victory, string art = "", string description = "", bool hidden = false, PNStellaRule stella = null)
     {
         if (!id.IsValid || id.ToString().Length > PNRogueliteLimits.MaxText) throw new FormatException("a run needs a valid id.");
         name = name ?? "";
@@ -299,16 +301,18 @@ public sealed class PNRunDefinition : EveIIdentified
         if (description.Length > PNRogueliteLimits.MaxText || description.Length > 0 && !EveId.TryParse(description, out _)) throw new FormatException("a run description is a namespaced localization key of at most " + PNRogueliteLimits.MaxText + " characters.");
         if (!hidden && name.Length == 0) throw new FormatException("a run that is not hidden needs a name (it is offered on the map screen).");
         Id = id; Name = name; Floors = list.AsReadOnly(); StartShards = startShards; ReviveHealth = reviveHealth; Victory = victory;
-        Art = string.IsNullOrEmpty(art) ? "" : EveResourcePath.Validate(art); Description = description; Hidden = hidden;
+        Art = string.IsNullOrEmpty(art) ? "" : EveResourcePath.Validate(art); Description = description; Hidden = hidden; Stella = stella;
     }
     public static PNRunDefinition Parse(JObject obj, EveId id)
     {
-        PNBuffContentBatch.Fields(obj, "id", "name", "floors", "startShards", "reviveHealth", "victory", "art", "description", "hidden");
+        PNBuffContentBatch.Fields(obj, "id", "name", "floors", "startShards", "reviveHealth", "victory", "art", "description", "hidden", "stella");
         if (obj["hidden"] != null && obj["hidden"].Type != JTokenType.Boolean) throw new FormatException("run hidden must be true or false.");
+        if (obj["stella"] != null && !(obj["stella"] is JObject)) throw new FormatException("run stella must be an object.");
         foreach (var required in new[] { "floors", "startShards", "reviveHealth", "victory" }) if (obj[required] == null) throw new FormatException("run " + required + " is required.");
         return new PNRunDefinition(id, PNBuffContentBatch.OptionalString(obj, "name"), PNRogueliteParse.ArrayIn(obj, "floors", 1, PNRogueliteLimits.RunFloors).Select(x => PNRogueliteParse.Id(x, "run floor")),
             PNRogueliteParse.IntegerIn(obj, "startShards", 0, PNRogueliteLimits.MaxShards), PNBuffContentBatch.Number(obj, "reviveHealth"),
             PNRogueliteParse.Enum(obj, "victory", ("last_room_cleared", PNRunVictory.LastRoomCleared)),
-            PNBuffContentBatch.OptionalString(obj, "art"), PNBuffContentBatch.OptionalString(obj, "description"), obj["hidden"] != null && obj.Value<bool>("hidden"));
+            PNBuffContentBatch.OptionalString(obj, "art"), PNBuffContentBatch.OptionalString(obj, "description"), obj["hidden"] != null && obj.Value<bool>("hidden"),
+            obj["stella"] is JObject stella ? PNStellaRule.Parse(stella) : null);
     }
 }

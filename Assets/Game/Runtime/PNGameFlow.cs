@@ -173,6 +173,15 @@ public sealed class PNGameFlow : MonoBehaviour
         var load = PNRunSaveService.Peek();
         return load.Save != null && PNRunSaveService.Check(load.Save, EveRegistrySession.Current) == PNRunSaveProblem.None;
     }
+    // "Sum up now" in the pause menu (Docs/StellaPlan.md Q6-Q7): the run ends as it stands (retired). Alone or as the host only: a client has the room's Leave instead.
+    private static PNRunDirector CurrentRuns() => PNGameBootstrap.Runtime != null ? PNGameBootstrap.Runtime.GetComponent<PNGameSession>()?.Runs : null;
+    public static bool CanRetireRun()
+    {
+        if (Busy || CurrentMode == PNFlowMode.Join || !EveRegistrySession.IsReady || Phase != PNFlowPhase.Run) return false;
+        var runs = CurrentRuns();
+        return runs != null && runs.Phase == PNRunPhase.Playing && runs.State != null && runs.State.IsRunning;
+    }
+    public static bool RetireRun() => CanRetireRun() && CurrentRuns().Retire();
     public static bool RestartFromSave(out string reason)
     {
         reason = null;

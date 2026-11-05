@@ -142,6 +142,15 @@ public sealed class PNRunDirector : IDisposable
 
     public void Abandon() { if (IsActive) End(PNRunResult.Abandoned, null); }
 
+    // EN: "Sum up now" while the run is being played (Docs/StellaPlan.md Q6): the run ends as it stands with the result `retired`. End deletes the save, the published state tells every machine, and each
+    //     one shows the end screen and pays its own person. Only the authority calls it (PNGameFlow.RetireRun checks); false when no run is being played.
+    // VI: "Tổng kết ngay" khi đang chơi: run kết thúc như hiện tại với kết quả `retired`; bản lưu bị xoá, mọi máy hiện màn kết thúc.
+    public bool Retire()
+    {
+        if (disposed || Phase != PNRunPhase.Playing || State == null || !State.IsRunning) return false;
+        End(PNRunResult.Retired, null); return true;
+    }
+
     // The gate of the last room: the run is won. (What happens next, the end screen and the way back, is the end-of-run work.)
     public bool Complete()
     {

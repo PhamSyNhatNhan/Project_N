@@ -12,7 +12,8 @@ namespace ProjectN.Coop
     // Client -> host: the playable character the sender picked. The host validates it (registered, playable, not Forbidden) and ignores anything else.
     public struct PNLobbyCharacterIntent : NetworkMessage { public string Character; }
     // Host -> clients: bounded snapshot of the party. Clients only ever display it.
-    public struct PNLobbyState : NetworkMessage { public ulong Revision; public bool Locked, Started; public int Capacity; public PNLobbyPeer[] Peers; }
+    // EmptySeats: the characters of the seats of a continued run that nobody in the room holds yet (host-computed, in seat order); a new run sends none. Clients draw them as grey rows.
+    public struct PNLobbyState : NetworkMessage { public ulong Revision; public bool Locked, Started; public int Capacity; public PNLobbyPeer[] Peers; public string[] EmptySeats; }
 
     public sealed partial class PNNetworkManager
     {
@@ -66,6 +67,7 @@ namespace ProjectN.Coop
         {
             if(stopping||NetworkServer.active)return;
             if(state.Peers==null||state.Peers.Length>LobbyPeerLimit||state.Capacity<1||state.Capacity>LobbyPeerLimit)return;
+            if(state.EmptySeats!=null){if(state.EmptySeats.Length>LobbyPeerLimit)return;foreach(var seat in state.EmptySeats)if(string.IsNullOrEmpty(seat)||seat.Length>128)return;}
             if(hasClientLobby&&state.Revision<=clientLobby.Revision)return;
             clientLobby=state;hasClientLobby=true;
         }
@@ -86,21 +88,22 @@ namespace ProjectN.Coop
             var present=new HashSet<long>(peers.Select(p=>p.Owner));
             foreach(var owner in lobbyReady.Keys.ToArray())if(!present.Contains(owner))lobbyReady.Remove(owner);
             foreach(var owner in lobbyCharacter.Keys.ToArray())if(!present.Contains(owner))lobbyCharacter.Remove(owner);
-            string signature=string.Join(",",peers.Select(p=>p.Owner+(p.Ready?"r":"w")+p.Character))+"|"+AdmissionClosed+"|"+RunStarted;
+            var empty=EmptySeatCharacters();
+            string signature=string.Join(",",peers.Select(p=>p.Owner+(p.Ready?"r":"w")+p.Character))+"|"+AdmissionClosed+"|"+RunStarted+"|"+string.Join(",",empty);
             if(signature==lobbySignature)return;
             lobbySignature=signature;lobbyRevision++;
-            var state=new PNLobbyState{Revision=lobbyRevision,Locked=AdmissionClosed,Started=RunStarted,Capacity=Profile.MaximumClients+1,Peers=peers.ToArray()};
+            var state=new PNLobbyState{Revision=lobbyRevision,Locked=AdmissionClosed,Started=RunStarted,Capacity=Profile.MaximumClients+1,Peers=peers.ToArray(),EmptySeats=empty};
             foreach(var conn in NetworkServer.connections.Values.ToArray())
                 if(!(conn is LocalConnectionToClient)&&conn.isAuthenticated&&conn.authenticationData is PNPeer)conn.Send(state);
         }
         public PNLobbyInfo GetLobbyInfo()
         {
             if(stopping)return null;
-            List<PNLobbyPeer> peers;bool locked,started;int capacity;long local;
-            if(NetworkServer.active){peers=BuildLobbyPeers();locked=AdmissionClosed;started=RunStarted;capacity=Profile.MaximumClients+1;local=0;}
-            else if(hasClientLobby){peers=clientLobby.Peers.ToList();locked=clientLobby.Locked;started=clientLobby.Started;capacity=clientLobby.Capacity;local=RoomOwner;}
+            List<PNLobbyPeer> peers;bool locked,started;int capacity;long local;string[] empty;
+            if(NetworkServer.active){peers=BuildLobbyPeers();locked=AdmissionClosed;started=RunStarted;capacity=Profile.MaximumClients+1;local=0;empty=EmptySeatCharacters();}
+            else if(hasClientLobby){peers=clientLobby.Peers.ToList();locked=clientLobby.Locked;started=clientLobby.Started;capacity=clientLobby.Capacity;local=RoomOwner;empty=clientLobby.EmptySeats??new string[0];}
             else return null;
-            return new PNLobbyInfo(peers.Select(p=>new PNLobbyPeerInfo{Owner=p.Owner,Host=p.Host,Ready=p.Ready,Local=p.Owner==local,Character=p.Character??""}).ToList(),locked,started,capacity);
+            return new PNLobbyInfo(peers.Select(p=>new PNLobbyPeerInfo{Owner=p.Owner,Host=p.Host,Ready=p.Ready,Local=p.Owner==local,Character=p.Character??""}).ToList(),locked,started,capacity,empty);
         }
         public void SetLobbyReady(bool ready)
         {

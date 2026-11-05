@@ -16,8 +16,10 @@ public sealed class PNLobbyInfo
     public bool Locked { get; }
     public bool Started { get; }
     public int Capacity { get; }
-    public PNLobbyInfo(IReadOnlyList<PNLobbyPeerInfo> peers, bool locked, bool started, int capacity)
-    { Peers = peers ?? new List<PNLobbyPeerInfo>(); Locked = locked; Started = started; Capacity = capacity; }
+    // The characters of the seats of a continued run that nobody in the room holds yet (the lobby draws them grey, "not here yet"); empty for a new run.
+    public IReadOnlyList<string> EmptySeats { get; }
+    public PNLobbyInfo(IReadOnlyList<PNLobbyPeerInfo> peers, bool locked, bool started, int capacity, IReadOnlyList<string> emptySeats = null)
+    { Peers = peers ?? new List<PNLobbyPeerInfo>(); Locked = locked; Started = started; Capacity = capacity; EmptySeats = emptySeats ?? new string[0]; }
     // Every non-host peer is ready. The host starts the run, so the host flag itself is not a condition.
     public bool AllReady { get { if (Peers.Count == 0) return false; foreach (var peer in Peers) if (!peer.Host && !peer.Ready) return false; return true; } }
     public bool LocalReady { get { foreach (var peer in Peers) if (peer.Local) return peer.Host || peer.Ready; return false; } }

@@ -9,7 +9,7 @@ VI: Dữ liệu và logic thuần của run. Chưa có bộ điều khiển run/
 
 | Key | Definition | Notes |
 |---|---|---|
-| `rogueliteRuns` | `PNRunDefinition` | `floors` (1-16 unique), `startShards`, `reviveHealth` in (0,1], `victory` = `last_room_cleared`, `name` (localization key, required unless `hidden`), optional `description` (localization key), `art` (Resources path), `hidden` (not offered on the map screen). |
+| `rogueliteRuns` | `PNRunDefinition` | `floors` (1-16 unique), `startShards`, `reviveHealth` in (0,1], `victory` = `last_room_cleared`, `name` (localization key, required unless `hidden`), optional `description` (localization key), `art` (Resources path), `hidden` (not offered on the map screen), optional `stella` {`perFloor` int 0-10000, `perShard` number 0-100, `randomPerFloor` int 0-10000} = what a finished run pays in stella (Docs/StellaPlan.md; no block = pays nothing). |
 | `rogueliteFloors` | `PNFloorDefinition` | `steps` (1-32): `choices` 1-3 and `rooms` [{room, weight}] (distinct, `choices` <= rooms); optional `enemyBuffs` (<= 8 Buff ids). |
 | `rogueliteRooms` | `PNRoomDefinition` | `kind` combat/boss/rest/shop/event, `world` (a registered world = the map), `start` {mode interact/auto/none, `interactable` key, `countdown` 0-10 default 3, `delay` for auto 0-60}, `waves` (<= 16: `delay` 0-30, `spawns` [{character, entity default project_n:enemy, count 1-16, group}], <= 32 enemies), `clear` all_waves/none, `reward` {shards}, `exits` (1-3 keys), `interactables` (<= 16 keys). |
 

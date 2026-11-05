@@ -94,6 +94,9 @@ public sealed class PNRunFlowPlayReview : MonoBehaviour
         // A review never touches the real saved run: it writes to its own folder, removed at the end.
         saveFolder = Path.Combine(Application.temporaryCachePath, "RunFlowSave_" + Guid.NewGuid().ToString("N"));
         saveStore = new PNRunSaveStore(saveFolder); PNRunSaveService.Use(saveStore);
+        // Nor the real profile: a run that ends pays stella into the profile, so the review keeps its own (removed at the end).
+        profileFolder = Path.Combine(Application.temporaryCachePath, "RunFlowProfile_" + Guid.NewGuid().ToString("N"));
+        PNPlayerProfileService.Load(new PNProfileStore(profileFolder)); PNStellaService.ResetStatics();
         yield return Until("the Hall is up", () => EveRegistrySession.IsReady && PNGameFlow.Phase == PNFlowPhase.Hall && !PNGameFlow.Busy, 90);
         if (!failed && Scenario != "ui")
         {
@@ -104,6 +107,7 @@ public sealed class PNRunFlowPlayReview : MonoBehaviour
         else if (!failed && Scenario == "victory") yield return Victory();
         else if (!failed && (Scenario == "gamepad" || Scenario == "touch")) yield return Devices(Scenario == "gamepad");
         else if (!failed && Scenario == "save") yield return Saving();
+        else if (!failed && Scenario == "retire") yield return Retiring();
         else if (!failed && Scenario == "ui") yield return MenusDrawn();
         else if (!failed) yield return FirstRoom();
         if (!failed && Scenario == null) yield return SecondRoom();
@@ -160,13 +164,16 @@ public sealed class PNRunFlowPlayReview : MonoBehaviour
         yield return WalkTo(gates[0]);
         scan.Refresh(Game, Player);
         Check(scan.Entries.Count == 1 && scan.Entries[0].Item == gates[0] && scan.Entries[0].Usable, "next to the first gate the list shows it");
+        yield return Seconds(.4f);
+        var kindIcon = Ui.HudRoot?.Q("interact-kind-icon");
+        Check(kindIcon != null && kindIcon.resolvedStyle.backgroundImage.texture != null && kindIcon.resolvedStyle.width > 10, "the gate's row shows the icon of the kind of room behind it, not the star");
         yield return Shot("gate_list");
     }
 
     // ---- the saved run (Docs/RunSavePlan.md S4/S5) ----
     // Seed 1: first room (combat), clear it, hurt the player to half health, take a gate into the shop; the run is saved on entering each room; leave to the Hall (the save stays); continue it:
     // the same room, the same wallet and stats, the same health ratio (not full), the same gates behind the room (the random streams carry on); a lost run deletes the save.
-    private string saveFolder;
+    private string saveFolder, profileFolder;
     private PNRunSaveStore saveStore;
 
     // ---- the new menus, drawn (Docs/RunSavePlan.md S7): the map screen, the Continue / Sum up screen (playable and not), the summary of a summed-up run, the pause menu with Play again ----
@@ -424,7 +431,45 @@ public sealed class PNRunFlowPlayReview : MonoBehaviour
         var s = runs.State.Stats;
         Check(EndShown() && s.RoomsClearedTotal == 3 && s.Kills > 0 && s.ShardsEarned >= 30 && s.Seconds > 0, "the end screen shows a summary (" + s.RoomsClearedTotal + " rooms, " + s.Kills + " kills, " + s.ShardsEarned + " shards)");
         yield return Shot("end_victory");
+        // Stella (Docs/StellaPlan.md): this person was paid once for the run: one floor passed + a tenth of the shards earned + a roll of at most 3 per floor.
+        var definition = runs.State.Definition; var rule = Game.Session.Registry.RogueliteRuns().Get(definition).Stella;
+        int expectedBase = (int)Math.Floor(10.0 * 1 + 0.1 * s.ShardsEarned);
+        int balance = PNPlayerProfileService.Stella;
+        Check(rule != null && balance >= expectedBase && balance <= expectedBase + 3 && balance == PNStella.Compute(rule, 1, s.ShardsEarned, runs.State.RunId, PNPlayerProfileService.PlayerId), "the victory paid this person's stella once (" + balance + ", base " + expectedBase + ")");
+        Check(PNPlayerProfileService.Current.StellaRun == runs.State.RunId.ToString("N"), "the profile remembers the run it paid");
+        var endRows = EndRoot().Query<Label>(className: "pn-end-label").ToList().Select(x => x.text).ToList();
+        Check(endRows.Contains(PNLocalization.Text("project_n:run.end.stella")), "the end screen has a stella row");
+        yield return Seconds(.6f);
+        Check(PNPlayerProfileService.Stella == balance && PNStellaService.Settle(PNRunStateSyncs.Current()) == balance, "the screen redrawing does not pay the same run twice");
         yield return LeaveByButton();
+    }
+
+    // "Sum up now" in the pause menu while a run is played (Docs/StellaPlan.md Q6): the first press asks, the second ends the run as retired; standing on the first floor it pays nothing.
+    private IEnumerator Retiring()
+    {
+        var runs = Game.Runs; var ui = PNGameBootstrap.Runtime.GetComponent<PNUiRuntime>(); yield return Seconds(.6f);
+        Check(PNGameFlow.CanRetireRun(), "alone, while the run is played, Sum up now is possible");
+        ui.Pause.Open(); yield return Seconds(1.4f);
+        var retire = ui.HudRoot.Q<Button>("pause-retire");
+        Check(retire != null && retire.resolvedStyle.display == DisplayStyle.Flex, "the pause menu offers Sum up now inside a run");
+        yield return Shot("pause_retire");
+        if (retire == null) yield break;
+        using (var submit = NavigationSubmitEvent.GetPooled()) { submit.target = retire; retire.SendEvent(submit); }
+        yield return Seconds(.4f);
+        Check(runs.Phase == PNRunPhase.Playing && runs.State.IsRunning && retire.text == PNLocalization.Text("project_n:run.sumup.confirm"), "the first press only asks: the run goes on and the button says so");
+        yield return Shot("pause_retire_confirm");
+        using (var submit = NavigationSubmitEvent.GetPooled()) { submit.target = retire; retire.SendEvent(submit); }
+        yield return Until("the run ended", () => runs.Phase == PNRunPhase.Ended, 8);
+        Check(!failed && runs.State.Result == PNRunResult.Retired, "the second press ends the run as retired");
+        Check(saveStore.Load().Status == PNRunSaveStatus.Missing, "summing up frees the saved run");
+        yield return Seconds(.6f);
+        Check(EndShown(), "the end screen is shown for a retired run");
+        var labels = EndRoot().Query<Label>(className: "pn-end-label").ToList().Select(x => x.text).ToList();
+        Check(PNPlayerProfileService.Stella == 0 && !labels.Contains(PNLocalization.Text("project_n:run.end.stella")), "standing on the first floor pays no stella and shows no stella row");
+        Check(PNStellaService.Settle(PNRunStateSyncs.Current()) == 0, "settling the same run again still gives nothing");
+        yield return Shot("end_retired_in_run");
+        yield return LeaveByButton();
+        Check(!PNGameFlow.CanRetireRun(), "back in the Hall there is nothing to sum up");
     }
 
     private IEnumerator LeaveByButton()
@@ -569,7 +614,8 @@ public sealed class PNRunFlowPlayReview : MonoBehaviour
     private void Finish()
     {
         CleanupInput();
-        PNRunSaveService.ResetStatics();
+        PNRunSaveService.ResetStatics(); PNPlayerProfileService.ResetStatics(); PNStellaService.ResetStatics();
+        try { if (profileFolder != null && Directory.Exists(profileFolder)) Directory.Delete(profileFolder, true); } catch (IOException) { }
         try { if (saveFolder != null && Directory.Exists(saveFolder)) Directory.Delete(saveFolder, true); } catch (IOException) { }
         Result = (failed ? "FAIL" : "PASS") + " " + lines.Count(x => x.StartsWith("PASS")) + " passed" + Environment.NewLine + string.Join(Environment.NewLine, lines);
         Finished = true; Debug.Log("RunFlow " + (failed ? "FAILED" : "PASSED") + " (" + lines.Count + " lines)");

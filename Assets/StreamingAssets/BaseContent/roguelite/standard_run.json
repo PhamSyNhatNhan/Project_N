@@ -10,7 +10,8 @@
           "floors": [ "project_n:floor_star_1" ],
           "startShards": 0,
           "reviveHealth": 0.3,
-          "victory": "last_room_cleared"
+          "victory": "last_room_cleared",
+          "stella": { "perFloor": 10, "perShard": 0.1, "randomPerFloor": 3 }
         }
       ],
       "rogueliteFloors": [

@@ -62,6 +62,10 @@ public static class PNPlayerProfileService
     }
     public static void SetState(string id, PNCharacterState state) { Current.SetState(id, state); Save(); }
 
+    // The stella balance of this person (Docs/StellaPlan.md). A run is paid at most once: false = it already was.
+    public static int Stella => Current.Stella;
+    public static bool CreditStella(string runId, int amount) { bool paid = Current.CreditStella(runId, amount); if (paid) Save(); return paid; }
+
     private static void Save()
     {
         try { store.Save(current); }

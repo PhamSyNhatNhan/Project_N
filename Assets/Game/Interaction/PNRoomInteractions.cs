@@ -20,6 +20,19 @@ public static class PNRoomInteractions
     public static string KindKey(PNRoomKind kind) => KindKeyPrefix + kind.ToString().ToLowerInvariant();
     public static readonly string FinishKey = KindKeyPrefix + "finish";
 
+    // EN: The icon of a gate's label: a label key `project_n:room.kind.<kind>` for one of the five kinds gives that kind's icon
+    //     (white line on transparent with a soft halo, Resources/UI/Icons/RoomKinds/<kind>.png, placeholder art the user redraws later); any other key (the finish gate, a definition label) gives null.
+    // VI: Biểu tượng của nhãn cổng: khoá `project_n:room.kind.<loại>` của một trong năm loại phòng cho biểu tượng loại đó; khoá khác (cổng thắng, nhãn của định nghĩa) cho null.
+    private static readonly System.Collections.Generic.Dictionary<string, Texture2D> kindIcons = new System.Collections.Generic.Dictionary<string, Texture2D>(StringComparer.Ordinal);
+    public static Texture2D KindIcon(string labelKey)
+    {
+        if (string.IsNullOrEmpty(labelKey) || !labelKey.StartsWith(KindKeyPrefix, StringComparison.Ordinal)) return null;
+        string kind = labelKey.Substring(KindKeyPrefix.Length);
+        if (kind != "combat" && kind != "boss" && kind != "rest" && kind != "shop" && kind != "event") return null;
+        if (!kindIcons.TryGetValue(kind, out var icon) || icon == null) kindIcons[kind] = icon = Resources.Load<Texture2D>("UI/Icons/RoomKinds/" + kind);
+        return icon;
+    }
+
     private static JObject Data(string permission, string uses, string label, JObject handlerParams = null)
     {
         var data = new JObject { ["range"] = 1.6, ["permission"] = permission, ["uses"] = uses, ["label"] = label };

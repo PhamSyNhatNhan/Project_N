@@ -14,6 +14,8 @@ internal sealed class PNPauseMenu : IDisposable
     private readonly VisualElement frontStarSecond,backStarSecond;
     private readonly Button toggle, resume;
     private readonly Button leave;
+    private Button retire;    // "Sum up now": while a run is played, alone or as the host; the first press asks, the second (within 5 s) ends the run (Docs/StellaPlan.md)
+    private float retireArmedUntil;
     private Button restart;   // "Play again": only inside a run that has a saved start of its room (alone)
     private readonly List<Part> parts=new List<Part>();
     private readonly Texture2D lightTexture, coreTexture;
@@ -69,8 +71,8 @@ internal sealed class PNPauseMenu : IDisposable
         }
         card=new VisualElement { name="pause-card", pickingMode=PickingMode.Ignore }; card.AddToClassList("pause-card"); overlay.Add(card);
         resume=new Button(Close) { name="pause-continue", text="Tiếp tục" }; resume.AddToClassList("pause-choice"); resume.AddToClassList("pause-primary"); card.Add(resume);
-        foreach(var item in new[]{new[]{"pause-settings","Cài đặt"},new[]{"pause-restart","Chơi lại"},new[]{"pause-leave","Rời phòng"}})
-        { var button=new Button { name=item[0], text=item[1] }; button.AddToClassList("pause-choice"); card.Add(button); PNLocalizationUI.Bind(button,item[0]=="pause-settings"?"project_n:ui.settings":item[0]=="pause-restart"?"project_n:run.restart":"project_n:ui.leave");if(item[0]=="pause-restart"){restart=button;button.clicked+=Restart;button.style.display=DisplayStyle.None;}if(item[0]=="pause-settings")button.clicked+=OpenLanguages; if(item[0]=="pause-leave"){leave=button;button.clicked+=Leave;button.SetEnabled(false);} }
+        foreach(var item in new[]{new[]{"pause-settings","Cài đặt"},new[]{"pause-restart","Chơi lại"},new[]{"pause-retire","Tổng kết ngay"},new[]{"pause-leave","Rời phòng"}})
+        { var button=new Button { name=item[0], text=item[1] }; button.AddToClassList("pause-choice"); card.Add(button); PNLocalizationUI.Bind(button,item[0]=="pause-settings"?"project_n:ui.settings":item[0]=="pause-restart"?"project_n:run.restart":item[0]=="pause-retire"?"project_n:run.resume.sumup":"project_n:ui.leave");if(item[0]=="pause-restart"){restart=button;button.clicked+=Restart;button.style.display=DisplayStyle.None;}if(item[0]=="pause-retire"){retire=button;button.clicked+=Retire;button.style.display=DisplayStyle.None;}if(item[0]=="pause-settings")button.clicked+=OpenLanguages; if(item[0]=="pause-leave"){leave=button;button.clicked+=Leave;button.SetEnabled(false);} }
         PNLocalizationUI.Bind(resume,"project_n:ui.resume");
         int choiceIndex=0;
         foreach(var button in card.Children())
@@ -87,6 +89,18 @@ internal sealed class PNPauseMenu : IDisposable
     private void Leave(){ if(!IsOpen||PNGameFlow.Busy)return; Close(); PNGameFlow.ReturnToHall(); }
     // Play again: leave this play and continue the saved run, the start of the room the team is in (Docs/RunSavePlan.md Q11).
     private void Restart(){ if(!IsOpen||PNGameFlow.Busy)return; Close(); PNGameFlow.RestartFromSave(out _); }
+    private void Retire()
+    {
+        if(!IsOpen||PNGameFlow.Busy||retire==null)return;
+        if(Time.unscaledTime>=retireArmedUntil)
+        {
+            retireArmedUntil=Time.unscaledTime+5f; retire.text=PNLocalization.Text("project_n:run.sumup.confirm");
+            retire.schedule.Execute(()=>{ if(retire!=null&&Time.unscaledTime>=retireArmedUntil)retire.text=PNLocalization.Text("project_n:run.resume.sumup"); }).ExecuteLater(5100);
+            return;
+        }
+        retireArmedUntil=0; Close(); PNGameFlow.RetireRun();
+    }
+    private void RefreshRetire(){ if(retire==null)return; retireArmedUntil=0; retire.text=PNLocalization.Text("project_n:run.resume.sumup"); retire.style.display=EveRegistrySession.IsReady&&PNGameFlow.CanRetireRun()?DisplayStyle.Flex:DisplayStyle.None; }
     private void RefreshRestart(){ if(restart==null)return; restart.style.display=EveRegistrySession.IsReady&&PNGameFlow.Phase==PNFlowPhase.Run&&PNGameFlow.CanRestartFromSave()?DisplayStyle.Flex:DisplayStyle.None; }
     private PNSettingsView settingsView;
     private void OpenLanguages()
@@ -110,6 +124,7 @@ internal sealed class PNPauseMenu : IDisposable
         { previousTime=Time.timeScale; ownsTime=true; Time.timeScale=0; }
         overlay.style.display=DisplayStyle.Flex; toggle.style.display=DisplayStyle.None;
         RefreshRestart();
+        RefreshRetire();
         Animate(); resume.Focus();
     }
     public void Close()

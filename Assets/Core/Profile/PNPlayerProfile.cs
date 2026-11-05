@@ -8,16 +8,29 @@ public enum PNCharacterState { Owned, NotOwned, Forbidden }
 //     It never holds definitions. Ids it does not know (a disabled mod) are kept and written back untouched.
 //     JSON: { "schemaVersion": 2, "playerId": "<32 hex>", "lastCharacter": "project_n:eve", "lastRun": "project_n:standard_run", "characters": { "mod:vex": "owned" } }  (states: owned | not_owned | forbidden)
 //     Schema 2 (Docs/RunSavePlan.md 5.1) adds `playerId` (the person's own id, made once) and `lastRun` (the map chosen last time); a schema 1 file is read as it is and written back as 2.
-// VI: Hồ sơ người chơi duy nhất của máy: nhân vật chọn lần trước, map chọn lần trước, mã người chơi và trạng thái từng nhân vật; id lạ được giữ nguyên.
+//     Schema 3 (Docs/StellaPlan.md) adds `stella` (the balance of the currency outside a run) and `stellaRun` (the id of the run that was paid out last, so one run pays once); a schema 1 or 2 file is read with stella 0 and written back as 3.
+// VI: Hồ sơ người chơi duy nhất của máy: nhân vật chọn lần trước, map chọn lần trước, mã người chơi, số dư stella và trạng thái từng nhân vật; id lạ được giữ nguyên.
 public sealed class PNPlayerProfile
 {
-    public const int SchemaVersion = 2, MaxBytes = 64 * 1024, MaxEntries = 512, MaxIdLength = 128;
+    public const int SchemaVersion = 3, MaxBytes = 64 * 1024, MaxEntries = 512, MaxIdLength = 128;
+    public const int MaxStella = 2000000000, MaxStellaRunLength = 64;
     private readonly Dictionary<string, PNCharacterState> states = new Dictionary<string, PNCharacterState>(StringComparer.Ordinal);
     public string LastCharacter { get; private set; } = "";
     public string LastRun { get; private set; } = "";
     // The person's id (PNPlayerId), empty until made. The service makes it on first use; a profile read from a schema 1 file has none yet.
     public string PlayerId { get; private set; } = "";
     public int Count => states.Count;
+    // The stella balance and the id of the run paid out last (empty when none yet).
+    public int Stella { get; private set; }
+    public string StellaRun { get; private set; } = "";
+
+    // EN: Pays one run out. Returns false (and changes nothing) when this run was already paid, the run id is empty or too long, or the amount is negative; the balance never passes MaxStella.
+    // VI: Cộng stella của một run. Trả false và không đổi gì nếu run này đã được cộng rồi hoặc dữ liệu không hợp lệ.
+    public bool CreditStella(string runId, int amount)
+    {
+        if (string.IsNullOrEmpty(runId) || runId.Length > MaxStellaRunLength || amount < 0 || runId == StellaRun) return false;
+        Stella = (int)Math.Min((long)Stella + amount, MaxStella); StellaRun = runId; return true;
+    }
 
     public void SetPlayerId(string id) { PlayerId = PNPlayerId.Require(id); }
     // Makes the id when there is none. Returns true when it was made now (the caller saves the profile).
@@ -78,7 +91,7 @@ public sealed class PNPlayerProfile
         foreach (var id in ids) characters[id] = Name(states[id]);
         var root = new JObject { ["schemaVersion"] = SchemaVersion };
         if (PlayerId.Length > 0) root["playerId"] = PlayerId;
-        root["lastCharacter"] = LastCharacter; root["lastRun"] = LastRun; root["characters"] = characters;
+        root["lastCharacter"] = LastCharacter; root["lastRun"] = LastRun; root["stella"] = Stella; root["stellaRun"] = StellaRun; root["characters"] = characters;
         return root.ToString(Newtonsoft.Json.Formatting.Indented);
     }
 
@@ -103,6 +116,20 @@ public sealed class PNPlayerProfile
         {
             if (root["lastRun"].Type != JTokenType.String) throw new FormatException("lastRun must be a string.");
             profile.SetLastRun(root["lastRun"].Value<string>());
+        }
+        if (root["stella"] != null)
+        {
+            if (root["stella"].Type != JTokenType.Integer) throw new FormatException("stella must be an integer.");
+            long stella = root["stella"].Value<long>();
+            if (stella < 0 || stella > MaxStella) throw new FormatException("stella must be in [0, " + MaxStella + "].");
+            profile.Stella = (int)stella;
+        }
+        if (root["stellaRun"] != null)
+        {
+            if (root["stellaRun"].Type != JTokenType.String) throw new FormatException("stellaRun must be a string.");
+            string run = root["stellaRun"].Value<string>();
+            if (run.Length > MaxStellaRunLength) throw new FormatException("stellaRun is too long.");
+            profile.StellaRun = run;
         }
         if (root["lastCharacter"] != null)
         {

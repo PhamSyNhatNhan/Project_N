@@ -12,6 +12,8 @@ public sealed class PNRunSnapshot
 {
     public static readonly PNRunSnapshot None = new PNRunSnapshot();
     public string Phase = "none", Result = "running", RoomPhase = "";
+    // The run's id (32 hex, no dashes) and its definition id; stella is paid once per RunId and computed from the definition's `stella` rule (Docs/StellaPlan.md).
+    public string RunId = "", Definition = "";
     public PNRoomKind RoomKind = PNRoomKind.Combat;
     public int Shards, Countdown, Floor, Step, Seconds, Kills, Rooms, Earned;
     public long[] Players = new long[0];
@@ -50,6 +52,7 @@ public sealed class PNRunStateSync : IPNSyncStateSource, IPNSyncStateSink, IDisp
         o["phase"] = director.Phase == PNRunPhase.Ended ? "ended" : director.Phase == PNRunPhase.Playing ? "playing" : director.Phase == PNRunPhase.None ? "none" : "loading";
         if (state == null) return o;
         var stats = state.Stats; bool over = !state.IsRunning;
+        o["run"] = state.RunId.ToString("N"); o["definition"] = state.Definition.ToString();
         o["result"] = state.Result.ToString().ToLowerInvariant(); o["shards"] = state.Shards; o["floor"] = state.Floor; o["step"] = state.Step;
         o["time"] = over ? (int)stats.Seconds : 0; o["kills"] = stats.Kills; o["rooms"] = stats.RoomsClearedTotal; o["earned"] = stats.ShardsEarned;
         o["players"] = new JArray(state.Players.Select(x => (object)x.Owner).OrderBy(x => (long)x).ToArray());
@@ -67,6 +70,7 @@ public sealed class PNRunStateSync : IPNSyncStateSource, IPNSyncStateSink, IDisp
         if (o != null)
         {
             snap.Phase = (string)o["phase"] ?? "none"; snap.Result = (string)o["result"] ?? "running";
+            snap.RunId = (string)o["run"] ?? ""; snap.Definition = (string)o["definition"] ?? "";
             snap.Shards = (int?)o["shards"] ?? 0; snap.Floor = (int?)o["floor"] ?? 0; snap.Step = (int?)o["step"] ?? 0;
             snap.Seconds = (int?)o["time"] ?? 0; snap.Kills = (int?)o["kills"] ?? 0; snap.Rooms = (int?)o["rooms"] ?? 0; snap.Earned = (int?)o["earned"] ?? 0;
             snap.Countdown = (int?)o["countdown"] ?? 0; snap.RoomPhase = (string)o["roomPhase"] ?? "";

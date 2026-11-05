@@ -60,7 +60,7 @@ internal sealed class PNRunHudView : IDisposable
 
 // EN: The end-of-run screen (mockup D): a title (Complete / Defeated), the team's round portraits with a different rim each, four rows of the run's summary and one button back to the Hall.
 //     No backdrop; the text sits on the scene. Shown on this machine when its run director has ended with Victory or Defeat (Abandoned and Failed leave without a screen). The out-of-run
-//     currency has no row yet. A client sees it once the run state is published (F6b). The portraits are a rimmed disc with the star until the characters have portrait art.
+//     currency (stella) gets a fifth row when this person was paid something (Docs/StellaPlan.md). A client sees it once the run state is published (F6b). The portraits are a rimmed disc with the star until the characters have portrait art.
 // VI: Màn kết thúc run: tiêu đề, chân dung từng người (viền khác màu), bốn dòng tóm tắt, một nút về sảnh chính.
 internal sealed class PNRunEndView : IDisposable
 {
@@ -101,7 +101,8 @@ internal sealed class PNRunEndView : IDisposable
         bool show = snap.Ended && (snap.Result == "victory" || snap.Result == "defeat" || snap.Result == "retired") && !owner.MenuOpen;
         root.style.display = show ? DisplayStyle.Flex : DisplayStyle.None;
         if (!show) { signature = ""; return; }
-        string key = PNLocalization.Revision + "|" + snap.Result + "|" + snap.Rooms + "|" + snap.Kills + "|" + snap.Earned + "|" + snap.Seconds + "|" + snap.Players.Length;
+        int stella = PNStellaService.Settle(snap);   // pays this person once per run (Docs/StellaPlan.md); the same number back on a redraw
+        string key = PNLocalization.Revision + "|" + snap.Result + "|" + snap.Rooms + "|" + snap.Kills + "|" + snap.Earned + "|" + snap.Seconds + "|" + snap.Players.Length + "|" + stella;
         if (key == signature) return;
         bool first = signature.Length == 0; signature = key;
         bool win = snap.Result == "victory";
@@ -122,6 +123,7 @@ internal sealed class PNRunEndView : IDisposable
         AddRow("project_n:run.end.rooms", snap.Rooms.ToString());
         AddRow("project_n:run.end.kills", snap.Kills.ToString());
         AddRow("project_n:run.end.shards", snap.Earned.ToString());
+        if (stella > 0) AddRow("project_n:run.end.stella", stella.ToString());
         button.text = PNLocalization.Text("project_n:run.end.hall");
         if (first) button.schedule.Execute(() => { if (!disposed) button.Focus(); }).ExecuteLater(50);
     }
@@ -190,7 +192,10 @@ internal sealed class PNInteractionListView : IDisposable
             if (!entry.Usable) row.AddToClassList("pn-interact-row-dim");
             if (i == scanner.Selected && entry.Usable && !mobile) { var key = new Label(controls.KeyLabel) { pickingMode = PickingMode.Ignore }; key.AddToClassList("pn-interact-key"); row.Add(key); }
             var label = new Label(PNLocalization.Text(entry.LabelKey)) { pickingMode = PickingMode.Ignore }; label.AddToClassList("pn-interact-label"); row.Add(label);
-            var glyph = new PNSparkleGlyph(true); glyph.AddToClassList("pn-interact-star"); row.Add(glyph);
+            // A gate shows the icon of the kind of room behind it in place of the star (placeholder art, Resources/UI/Icons/RoomKinds); every other entry keeps the star.
+            var kindIcon = PNRoomInteractions.KindIcon(entry.LabelKey);
+            if (kindIcon != null) { var icon = new VisualElement { name = "interact-kind-icon", pickingMode = PickingMode.Ignore }; icon.AddToClassList("pn-interact-icon"); icon.style.backgroundImage = kindIcon; row.Add(icon); }
+            else { var glyph = new PNSparkleGlyph(true); glyph.AddToClassList("pn-interact-star"); row.Add(glyph); }
             if (mobile) row.RegisterCallback<PointerDownEvent>(e => { scanner.Select(index); if (!scanner.UseSelected(game)) refused = Time.unscaledTime; e.StopPropagation(); });
             column.Add(row);
         }

@@ -111,14 +111,13 @@ internal sealed class PNModeMenu : IDisposable
         if (!show) { peerSignature = ""; return; }
         bool host = PNGameFlow.IsHost;
         SendCharacter(info);
-        var missingSeats = PNGameFlow.MissingSeats();
-        string signature = string.Join(";", info.Peers.Select(p => p.Owner + (p.Ready ? "r" : "w") + p.Character)) + "|" + string.Join(",", missingSeats.Select(s => s.PlayerId));
+        string signature = string.Join(";", info.Peers.Select(p => p.Owner + (p.Ready ? "r" : "w") + p.Character)) + "|" + string.Join(",", info.EmptySeats);
         if (signature != peerSignature)
         {
             peerSignature = signature; team.Clear();
             int index = 0; foreach (var peer in info.Peers) team.Add(PeerRow(peer, index++));
             // The seats of a saved run that nobody holds yet: the character, grey, "Chưa vào".
-            foreach (var seat in missingSeats) team.Add(PeerRow(new PNLobbyPeerInfo { Character = seat.Character.ToString() }, index++, empty: true));
+            foreach (var character in info.EmptySeats) team.Add(PeerRow(new PNLobbyPeerInfo { Character = character }, index++, empty: true));
         }
         string nextAction=host?"project_n:ui.start":info.LocalReady?"project_n:ui.unready":"project_n:ui.ready";
         if(actionKey!=nextAction){actionKey=nextAction;PNLocalizationUI.Bind(action,nextAction);}
