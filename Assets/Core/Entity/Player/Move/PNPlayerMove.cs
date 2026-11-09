@@ -32,9 +32,12 @@ public class PNPlayerMove : PNMove, IPNEntityResourceOwner
         }
     }
 
+    private PNPlayerInputGate gate;
+    // The environment half of input permission is shared with the skill (PNPlayerInputGate); `canInput` and the menu block are this component's own switches.
+    protected PNPlayerInputGate InputGate => gate != null ? gate : (gate = PNPlayerInputGate.For(this));
     public virtual bool CanInput
     {
-        get => canInput && !MenuInputBlocked && PNLocalPlayerInput.Allows(GetComponent<EveEntityLoader>());
+        get => canInput && !MenuInputBlocked && InputGate.Allowed;
         set
         {
             canInput = value;
