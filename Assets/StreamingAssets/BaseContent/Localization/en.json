@@ -110,7 +110,7 @@
   "project_n:run.end.victory": "COMPLETE",
   "project_n:run.end.defeat": "DEFEATED",
   "project_n:run.end.time": "Time",
-  "project_n:run.end.rooms": "Rooms cleared",
+  "project_n:run.end.floors": "Floors cleared",
   "project_n:run.end.kills": "Enemies defeated",
   "project_n:run.end.shards": "Shards earned",
   "project_n:run.end.stella": "Stella earned",

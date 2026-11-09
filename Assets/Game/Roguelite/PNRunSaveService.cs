@@ -76,8 +76,8 @@ public static class PNRunSaveService
         try
         {
             var planner = new PNRunPlanner(run, id => registry.RogueliteFloors().TryGet(id, out var floor) ? floor : null);
-            if (save.Floor >= run.Floors.Count || save.Step >= planner.FloorAt(save.Floor).Steps.Count) return PNRunSaveProblem.Position;
-            if (planner.StepAt(save.Floor, save.Step).Rooms.All(x => x.Room != save.Room)) return PNRunSaveProblem.Position;
+            if (save.Floor >= run.Floors.Count) return PNRunSaveProblem.Position;
+            if (planner.FloorAt(save.Floor).Rooms.All(x => x.Room != save.Room)) return PNRunSaveProblem.Position;
         }
         catch (Exception e) when (e is InvalidOperationException || e is ArgumentOutOfRangeException) { return PNRunSaveProblem.Position; }
         if (!registry.RogueliteRooms().TryGet(save.Room, out _) || save.Options.Any(x => !registry.RogueliteRooms().TryGet(x, out _))) return PNRunSaveProblem.Position;

@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using System.Text;
 
-public enum PNRunSaveStatus { Missing, Loaded, RestoredFromBackup, Corrupt, NewerVersion }
+public enum PNRunSaveStatus { Missing, Loaded, RestoredFromBackup, Corrupt, NewerVersion, Obsolete }
 
 public sealed class PNRunSaveLoad
 {
@@ -33,14 +33,14 @@ public sealed class PNRunSaveStore
     public string FilePath => path;
     public bool SaveRefused => locked;
 
-    private static PNRunSave TryRead(string file, out bool newer)
+    private static PNRunSave TryRead(string file, out bool newer, out bool obsolete)
     {
-        newer = false;
+        newer = false; obsolete = false;
         PNWorldFileStore.RejectReparse(file);
         var info = new FileInfo(file);
         if (!info.Exists) return null;
         if (info.Length > PNRunSave.MaxBytes) throw new FormatException("Run save is too large.");
-        return PNRunSave.Parse(new UTF8Encoding(false, true).GetString(File.ReadAllBytes(file)), out newer);
+        return PNRunSave.Parse(new UTF8Encoding(false, true).GetString(File.ReadAllBytes(file)), out newer, out obsolete);
     }
 
     public PNRunSaveLoad Load()
@@ -49,13 +49,15 @@ public sealed class PNRunSaveStore
         if (!File.Exists(path))
         {
             // The main file can be gone after an interrupted replace; the backup is still good.
-            if (File.Exists(backup)) { try { var b = TryRead(backup, out var bn); if (b != null && !bn) return new PNRunSaveLoad(b, PNRunSaveStatus.RestoredFromBackup); } catch (Exception e) when (e is FormatException || e is IOException || e is DecoderFallbackException) { } }
+            if (File.Exists(backup)) { try { var b = TryRead(backup, out var bn, out var bo); if (bo) { DeleteFiles(); return new PNRunSaveLoad(null, PNRunSaveStatus.Obsolete); } if (b != null && !bn) return new PNRunSaveLoad(b, PNRunSaveStatus.RestoredFromBackup); } catch (Exception e) when (e is FormatException || e is IOException || e is DecoderFallbackException) { } }
             return new PNRunSaveLoad(null, PNRunSaveStatus.Missing);
         }
         try
         {
-            var save = TryRead(path, out var newer);
+            var save = TryRead(path, out var newer, out var obsolete);
             if (newer) { locked = true; return new PNRunSaveLoad(null, PNRunSaveStatus.NewerVersion); }
+            // An older schema is not read and not converted (Docs/FloorRestructurePlan.md D3): the file, its backup and its temp file go, and the slot is empty.
+            if (obsolete) { DeleteFiles(); return new PNRunSaveLoad(null, PNRunSaveStatus.Obsolete); }
             return new PNRunSaveLoad(save, PNRunSaveStatus.Loaded);
         }
         catch (Exception e) when (e is FormatException || e is DecoderFallbackException || e is IOException)
@@ -64,8 +66,9 @@ public sealed class PNRunSaveStore
             try { File.Copy(path, corrupt, true); File.Delete(path); } catch (IOException) { }
             try
             {
-                bool bn = false;
-                var b = File.Exists(backup) ? TryRead(backup, out bn) : null;
+                bool bn = false, bo = false;
+                var b = File.Exists(backup) ? TryRead(backup, out bn, out bo) : null;
+                if (bo) { DeleteFiles(); return new PNRunSaveLoad(null, PNRunSaveStatus.Obsolete); }
                 if (b != null && !bn) return new PNRunSaveLoad(b, PNRunSaveStatus.RestoredFromBackup);
             }
             catch (Exception e2) when (e2 is FormatException || e2 is DecoderFallbackException || e2 is IOException) { }
@@ -92,6 +95,11 @@ public sealed class PNRunSaveStore
     public void Delete()
     {
         if (locked) throw new InvalidOperationException("The run save comes from a newer version and is not deleted.");
+        DeleteFiles();
+    }
+
+    private void DeleteFiles()
+    {
         foreach (var file in new[] { path, backup, temp })
         {
             PNWorldFileStore.RejectReparse(file);

@@ -80,7 +80,6 @@ public sealed class PNRunState
     public EveId Definition { get; }
     public PNRunRandom Random { get; }
     public int Floor { get; internal set; }
-    public int Step { get; internal set; }
     public EveId Room { get; internal set; }
     // The rooms offered at the gates of the room being played, in gate order (empty while a room is played and after the last one).
     public List<EveId> Options { get; } = new List<EveId>();
@@ -117,13 +116,13 @@ public sealed class PNRunState
 
     // EN: Rebuild a run that was saved at the start of a room. The state is the one the saved run had on entering that room; the streams carry on from where they stood.
     // VI: Dựng lại run đã lưu lúc vào phòng; ngẫu nhiên tiếp tục đúng chỗ đã dừng.
-    public static PNRunState Restore(Guid runId, EveId definition, PNRunRandom random, int floor, int step, EveId room, IEnumerable<EveId> options, int shards,
+    public static PNRunState Restore(Guid runId, EveId definition, PNRunRandom random, int floor, EveId room, IEnumerable<EveId> options, int shards,
         double seconds, int kills, int shardsEarned, IReadOnlyDictionary<PNRoomKind, int> cleared, IEnumerable<string> loadout, IEnumerable<SavedPlayer> players)
     {
         var state = new PNRunState(runId, definition, random, shards);
-        if (floor < 0 || step < 0) throw new ArgumentOutOfRangeException(nameof(floor));
+        if (floor < 0) throw new ArgumentOutOfRangeException(nameof(floor));
         if (!room.IsValid) throw new ArgumentException("A run is in a room.", nameof(room));
-        state.Floor = floor; state.Step = step; state.Room = room;
+        state.Floor = floor; state.Room = room;
         if (options != null) state.Options.AddRange(options);
         if (loadout != null) state.Loadout.AddRange(loadout);
         state.Stats.Restore(seconds, kills, shardsEarned, cleared);

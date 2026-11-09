@@ -28,7 +28,7 @@ public sealed class PNRunSaveSeat
 
 public sealed class PNRunSave
 {
-    public const int SchemaVersion = 1, MaxBytes = 64 * 1024, MaxSeats = 4, MaxLoadout = 64, MaxText = 128, MaxOptions = 3;
+    public const int SchemaVersion = 2, MaxBytes = 64 * 1024, MaxSeats = 4, MaxLoadout = 64, MaxText = 128, MaxOptions = 3;
     private const string TimeFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'";
 
     public string RulesVersion { get; private set; }
@@ -40,7 +40,6 @@ public sealed class PNRunSave
     public ulong Seed { get; private set; }
     public IReadOnlyList<ulong> Streams { get; private set; }
     public int Floor { get; private set; }
-    public int Step { get; private set; }
     public EveId Room { get; private set; }
     public IReadOnlyList<EveId> Options { get; private set; }
     public int Shards { get; private set; }
@@ -68,7 +67,7 @@ public sealed class PNRunSave
         {
             RulesVersion = Text(rulesVersion, "rulesVersion"), Content = Text(content, "content"), Mode = Text(mode, "mode"), SavedAtUtc = Truncate(utcNow),
             RunId = state.RunId, Definition = state.Definition, Seed = state.Random.Seed, Streams = state.Random.Streams(),
-            Floor = state.Floor, Step = state.Step, Room = state.Room, Options = state.Options.ToList(), Shards = state.Shards, Loadout = state.Loadout.ToList(),
+            Floor = state.Floor, Room = state.Room, Options = state.Options.ToList(), Shards = state.Shards, Loadout = state.Loadout.ToList(),
             Seconds = state.Stats.Seconds, Kills = state.Stats.Kills, ShardsEarned = state.Stats.ShardsEarned, Cleared = cleared, Seats = seats
         };
         save.Validate();
@@ -90,7 +89,7 @@ public sealed class PNRunSave
         if (!Definition.IsValid || Definition.ToString().Length > MaxText) throw new FormatException("run definition must be a namespaced id.");
         if (!Room.IsValid || Room.ToString().Length > MaxText) throw new FormatException("room must be a namespaced id.");
         if (Streams == null || Streams.Count != PNRunRandom.StreamCount) throw new FormatException("random must hold " + PNRunRandom.StreamCount + " stream positions.");
-        if (Floor < 0 || Step < 0) throw new FormatException("floor and step cannot be negative.");
+        if (Floor < 0) throw new FormatException("floor cannot be negative.");
         if (Options.Count > MaxOptions || Options.Any(x => !x.IsValid || x.ToString().Length > MaxText)) throw new FormatException("options must hold up to " + MaxOptions + " room ids.");
         if (Shards < 0 || Shards > PNRunState.MaxShards) throw new FormatException("shards must be in [0, " + PNRunState.MaxShards + "].");
         if (Loadout.Count > MaxLoadout || Loadout.Any(x => string.IsNullOrEmpty(x) || x.Length > MaxText)) throw new FormatException("loadout must hold up to " + MaxLoadout + " ids.");
@@ -115,7 +114,7 @@ public sealed class PNRunSave
             present.Add(new PNRunState.SavedPlayer { Owner = owner.Value, PlayerId = seat.PlayerId, Character = seat.Character, Health = seat.Health, Dead = seat.Dead });
         }
         if (present.Count == 0) throw new InvalidOperationException("No player of the saved run is here.");
-        return PNRunState.Restore(RunId, Definition, new PNRunRandom(Seed, Streams), Floor, Step, Room, Options, Shards, Seconds, Kills, ShardsEarned, Cleared, Loadout, present);
+        return PNRunState.Restore(RunId, Definition, new PNRunRandom(Seed, Streams), Floor, Room, Options, Shards, Seconds, Kills, ShardsEarned, Cleared, Loadout, present);
     }
 
     // ---- text ----
@@ -129,7 +128,7 @@ public sealed class PNRunSave
         {
             ["id"] = RunId.ToString("D"), ["definition"] = Definition.ToString(), ["seed"] = Seed.ToString(CultureInfo.InvariantCulture),
             ["random"] = new JArray(Streams.Select(x => (object)x.ToString(CultureInfo.InvariantCulture)).ToArray()),
-            ["floor"] = Floor, ["step"] = Step, ["room"] = Room.ToString(), ["options"] = new JArray(Options.Select(x => (object)x.ToString()).ToArray()),
+            ["floor"] = Floor, ["room"] = Room.ToString(), ["options"] = new JArray(Options.Select(x => (object)x.ToString()).ToArray()),
             ["shards"] = Shards, ["loadout"] = new JArray(Loadout.Select(x => (object)x).ToArray()), ["stats"] = stats
         };
         var seats = new JArray();
@@ -144,19 +143,30 @@ public sealed class PNRunSave
 
     private static string KindName(PNRoomKind kind) => kind.ToString().ToLowerInvariant();
 
-    // EN: `newer` is true when the text was written by a newer schema (then nothing is read and the result is null). Malformed text throws FormatException.
+    // EN: `newer` is true when the text was written by a newer schema, `obsolete` when it was written by an older one (Docs/FloorRestructurePlan.md D3: an older save is not read and not converted, the store
+    //     deletes it); in both cases nothing else is read and the result is null. Malformed text throws FormatException.
+    // VI: `newer`: bản lưu của schema mới hơn; `obsolete`: của schema cũ hơn (không đọc, không chuyển đổi, store xoá). Cả hai trả null; văn bản hỏng ném FormatException.
+    // The two-argument form is for callers that have nothing to do with an older save: it refuses one like any other text that is not a save of this schema.
     public static PNRunSave Parse(string json, out bool newer)
     {
-        newer = false;
+        var save = Parse(json, out newer, out bool obsolete);
+        if (obsolete) throw new FormatException("Run save was written by an older schema.");
+        return save;
+    }
+
+    public static PNRunSave Parse(string json, out bool newer, out bool obsolete)
+    {
+        newer = false; obsolete = false;
         if (json == null || json.Length > MaxBytes) throw new FormatException("Run save is missing or too large.");
         JObject root = Load(json);
         if (root["schemaVersion"]?.Type != JTokenType.Integer) throw new FormatException("Run save schemaVersion is required.");
         int version = root["schemaVersion"].Value<int>();
         if (version > SchemaVersion) { newer = true; return null; }
         if (version < 1) throw new FormatException("Run save schemaVersion is invalid.");
+        if (version < SchemaVersion) { obsolete = true; return null; }
         Fields(root, "run save", "schemaVersion", "rulesVersion", "content", "savedAt", "mode", "run", "seats");
         var run = Object(root, "run");
-        Fields(run, "run", "id", "definition", "seed", "random", "floor", "step", "room", "options", "shards", "loadout", "stats");
+        Fields(run, "run", "id", "definition", "seed", "random", "floor", "room", "options", "shards", "loadout", "stats");
         var stats = Object(run, "stats");
         Fields(stats, "stats", "seconds", "kills", "shardsEarned", "cleared");
         var save = new PNRunSave
@@ -166,7 +176,7 @@ public sealed class PNRunSave
             RunId = Guid.TryParseExact(Str(run, "id"), "D", out var id) ? id : throw new FormatException("run id must be a GUID."),
             Definition = Id(Str(run, "definition"), "run definition"), Seed = U64(Str(run, "seed"), "seed"),
             Streams = Array(run, "random").Select(x => U64(x.Type == JTokenType.String ? x.Value<string>() : null, "random")).ToList(),
-            Floor = Int(run, "floor"), Step = Int(run, "step"), Room = Id(Str(run, "room"), "room"),
+            Floor = Int(run, "floor"), Room = Id(Str(run, "room"), "room"),
             Options = Array(run, "options").Select(x => Id(x.Type == JTokenType.String ? x.Value<string>() : null, "option")).ToList(),
             Shards = Int(run, "shards"), Loadout = Array(run, "loadout").Select(x => x.Type == JTokenType.String ? x.Value<string>() : throw new FormatException("loadout entries are strings.")).ToList(),
             Seconds = Number(stats, "seconds"), Kills = Int(stats, "kills"), ShardsEarned = Int(stats, "shardsEarned"), Cleared = ReadCleared(Object(stats, "cleared"))

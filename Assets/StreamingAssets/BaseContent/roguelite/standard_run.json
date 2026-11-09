@@ -7,7 +7,7 @@
           "id": "project_n:standard_run",
           "name": "project_n:run.standard.name",
           "description": "project_n:run.standard.description",
-          "floors": [ "project_n:floor_star_1" ],
+          "floors": [ "project_n:floor_star_1", "project_n:floor_star_2", "project_n:floor_star_3" ],
           "startShards": 0,
           "reviveHealth": 0.3,
           "victory": "last_room_cleared",
@@ -15,22 +15,18 @@
         }
       ],
       "rogueliteFloors": [
+        { "id": "project_n:floor_star_1", "choices": 1, "rooms": [ { "room": "project_n:room_star_combat_a", "weight": 1 } ] },
         {
-          "id": "project_n:floor_star_1",
-          "steps": [
-            { "choices": 1, "rooms": [ { "room": "project_n:room_star_combat_a", "weight": 1 } ] },
-            {
-              "choices": 2,
-              "rooms": [
-                { "room": "project_n:room_star_combat_a", "weight": 3 },
-                { "room": "project_n:room_star_combat_b", "weight": 3 },
-                { "room": "project_n:room_rest", "weight": 1 },
-                { "room": "project_n:room_shop", "weight": 1 }
-              ]
-            },
-            { "choices": 1, "rooms": [ { "room": "project_n:room_star_boss", "weight": 1 } ] }
+          "id": "project_n:floor_star_2",
+          "choices": 2,
+          "rooms": [
+            { "room": "project_n:room_star_combat_a", "weight": 3 },
+            { "room": "project_n:room_star_combat_b", "weight": 3 },
+            { "room": "project_n:room_rest", "weight": 1 },
+            { "room": "project_n:room_shop", "weight": 1 }
           ]
-        }
+        },
+        { "id": "project_n:floor_star_3", "choices": 1, "rooms": [ { "room": "project_n:room_star_boss", "weight": 1 } ] }
       ],
       "rogueliteRooms": [
         {

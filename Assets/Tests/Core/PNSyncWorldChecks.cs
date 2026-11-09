@@ -116,7 +116,7 @@ public static class PNSyncWorldChecks
 
         // ---- the real base content: the frame's sample run, its rooms, and the map world they name ----
         var run = hub.RogueliteRuns().Get(EveId.Parse("project_n:standard_run"));
-        Check(run.Floors.Count == 1 && hub.RogueliteFloors().Get(run.Floors[0]).Steps.Count == 3, "the base content carries the sample run with one floor of three steps");
+        Check(run.Floors.Count == 3 && run.Floors.All(f => hub.RogueliteFloors().Get(f).Rooms.Count >= 1) && hub.RogueliteFloors().Get(run.Floors[1]).Choices == 2, "the base content carries the sample run with three floors, the second one offering two gates");
         var rooms = hub.RogueliteRooms().Snapshot().Values.Where(x => x.Id.Namespace == "project_n").ToArray();
         Check(rooms.Length == 5 && rooms.All(x => hub.Get<PNWorldDefinition>().TryGet(x.World, out _)) && rooms.All(x => x.World == EveId.Parse("project_n:map_star_test_01")), "its five rooms are played on the registered map world");
         var mapDefinition = hub.Get<PNWorldDefinition>().Get(EveId.Parse("project_n:map_star_test_01"));

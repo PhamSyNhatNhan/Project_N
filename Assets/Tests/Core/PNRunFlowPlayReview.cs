@@ -118,7 +118,7 @@ public sealed class PNRunFlowPlayReview : MonoBehaviour
     {
         var runs = Game.Runs; var room = runs.Room;
         Check(PNGameFlow.Phase == PNFlowPhase.Run, "the flow reports the Run phase in a map world");
-        Check(room.Definition.Id.ToString() == "project_n:room_star_combat_a" && room.Flow.Phase == PNRoomPhase.Waiting && room.StartAvailable, "the first room is the only room of step 0 and waits for its switch");
+        Check(room.Definition.Id.ToString() == "project_n:room_star_combat_a" && room.Flow.Phase == PNRoomPhase.Waiting && room.StartAvailable, "the first room is the only room of floor 0 and waits for its switch");
         yield return Until("the lobby is gone", () => Worlds("project_n:roguelite_lobby") == 0, 20);
         Check(Worlds("project_n:map_star_test_01") == 1 && Player.LoadContext.Identity.World.DefinitionId.ToString() == "project_n:map_star_test_01", "one map world is loaded and the player stands in it");
         Check(Player.GetComponent<PNStat>().CharacterDefinitionId == "project_n:eve" && PNLocalWorldContext.Current.Actor == Player, "the player is the picked character and the local view follows it");
@@ -248,7 +248,7 @@ public sealed class PNRunFlowPlayReview : MonoBehaviour
     {
         var runs = Game.Runs; string me = PNPlayerProfileService.PlayerId;
         var first = PNRunSaveService.Peek();
-        Check(first.Status == PNRunSaveStatus.Loaded && first.Save.Room == runs.Room.Definition.Id && first.Save.Floor == 0 && first.Save.Step == 0 && first.Save.Options.Count == 0 && first.Save.Shards == 0, "entering the first room saves the run at its start");
+        Check(first.Status == PNRunSaveStatus.Loaded && first.Save.Room == runs.Room.Definition.Id && first.Save.Floor == 0 && first.Save.Options.Count == 0 && first.Save.Shards == 0, "entering the first room saves the run at its start");
         Check(first.Save.Seats.Count == 1 && first.Save.Seats[0].PlayerId == me && first.Save.Seats[0].Health == 1 && !first.Save.Seats[0].Dead && first.Save.Seats[0].Character.ToString() == "project_n:eve", "one seat, this person, full health, the picked character");
         var current = first.Save;
         var stale = PNRunSave.Parse(current.ToJson().Replace(current.RulesVersion, "project_n:1"), out _);
@@ -269,8 +269,8 @@ public sealed class PNRunFlowPlayReview : MonoBehaviour
         if (failed) yield break;
         yield return Seconds(.4f);
         var second = PNRunSaveService.Peek().Save;
-        Check(second != null && second.RunId == first.Save.RunId && second.Step == 1 && second.Room == chosen && second.Options.Count == 0 && second.Shards == 30 && second.Kills == 3 && second.Cleared[PNRoomKind.Combat] == 1,
-            "entering the second room saved it: the same run, one step on, the room behind the gate, the wallet and stats of the first room, no gates drawn yet");
+        Check(second != null && second.RunId == first.Save.RunId && second.Floor == 1 && second.Room == chosen && second.Options.Count == 0 && second.Shards == 30 && second.Kills == 3 && second.Cleared[PNRoomKind.Combat] == 1,
+            "entering the second room saved it: the same run, one floor on, the room behind the gate, the wallet and stats of the first room, no gates drawn yet");
         Check(Math.Abs(second.Seats[0].Health - ratio) < .02, "and the health ratio the person carried (" + ratio.ToString("0.00") + ")");
         var exits = runs.Room.Definition.HasCombat ? null : runs.Exits().ToArray();
         Check(exits != null, "this seed puts a room without combat behind the first gate (its gates are drawn at once)");
@@ -283,7 +283,7 @@ public sealed class PNRunFlowPlayReview : MonoBehaviour
         yield return Until("the Hall is up", () => EveRegistrySession.IsReady && PNGameFlow.Phase == PNFlowPhase.Hall && !PNGameFlow.Busy, 60);
         if (failed) yield break;
         var kept = PNRunSaveService.Peek();
-        Check(kept.Status == PNRunSaveStatus.Loaded && kept.Save.RunId == first.Save.RunId && kept.Save.Step == 1, "leaving to the Hall keeps the saved run");
+        Check(kept.Status == PNRunSaveStatus.Loaded && kept.Save.RunId == first.Save.RunId && kept.Save.Floor == 1, "leaving to the Hall keeps the saved run");
 
         // ---- continue ----
         PNGameFlow.NextRun = PNRunRequest.Continue(kept.Save);
@@ -291,13 +291,13 @@ public sealed class PNRunFlowPlayReview : MonoBehaviour
         yield return Until("the continued run is playing", () => EveRegistrySession.IsReady && Game != null && Game.Runs.Phase == PNRunPhase.Playing && Game.Runs.Room != null && !PNGameFlow.Busy, 90);
         if (failed) yield break;
         runs = Game.Runs; yield return Seconds(.6f);
-        Check(runs.State.RunId == first.Save.RunId && runs.Room.Definition.Id == chosen && runs.State.Step == 1 && runs.State.Floor == 0, "the continued run is the same run, in the room it was saved at");
+        Check(runs.State.RunId == first.Save.RunId && runs.Room.Definition.Id == chosen && runs.State.Floor == 1, "the continued run is the same run, in the room it was saved at");
         Check(runs.State.Shards == shardsHeld && runs.State.Stats.Kills == killsHeld && runs.State.Stats.RoomsClearedTotal == roomsHeld && roomsHeld == 2 && runs.State.Stats.RoomsCleared(PNRoomKind.Combat) == combatHeld && otherHeld == 1, "with the wallet and stats the run held (30 shards, 3 kills, the combat room and this room, each counted once)");
         var back = Player.GetComponent<PNStat>();
         Check(Math.Abs(back.GetCurrent(PNContentIds.Health) / back.GetMax(PNContentIds.Health) - ratio) < .02 && back.CharacterDefinitionId == "project_n:eve", "the player has the saved health ratio, not the full health of the lobby body");
         Check(runs.Room.Flow.Phase == PNRoomPhase.Cleared && runs.Exits().SequenceEqual(exits), "the room is cleared again at once and draws the same gates as before: the random streams carried on");
         var again = PNRunSaveService.Peek().Save;
-        Check(again != null && again.Step == 1 && again.Room == chosen && again.RunId == first.Save.RunId, "the continued run is saved again on entering its room");
+        Check(again != null && again.Floor == 1 && again.Room == chosen && again.RunId == first.Save.RunId, "the continued run is saved again on entering its room");
 
         // ---- Play again (the pause menu's button): the same path as Continue, from inside the run ----
         Check(PNGameFlow.CanRestartFromSave(), "Play again is offered inside a run with a playable save");
@@ -307,7 +307,7 @@ public sealed class PNRunFlowPlayReview : MonoBehaviour
         yield return Until("the run is playing again", () => EveRegistrySession.IsReady && Game != null && !ReferenceEquals(Game.Runs, before) && Game.Runs.Phase == PNRunPhase.Playing && Game.Runs.Room != null && !PNGameFlow.Busy, 90);
         if (failed) yield break;
         runs = Game.Runs; yield return Seconds(.6f);
-        Check(runs.State.RunId == first.Save.RunId && runs.Room.Definition.Id == chosen && runs.State.Step == 1 && runs.State.Shards == shardsHeld, "Play again is the same run, in the same room, with the same wallet");
+        Check(runs.State.RunId == first.Save.RunId && runs.Room.Definition.Id == chosen && runs.State.Floor == 1 && runs.State.Shards == shardsHeld, "Play again is the same run, in the same room, with the same wallet");
         var replayed = Player.GetComponent<PNStat>();
         Check(Math.Abs(replayed.GetCurrent(PNContentIds.Health) / replayed.GetMax(PNContentIds.Health) - ratio) < .02, "and the same health ratio");
 
@@ -318,7 +318,7 @@ public sealed class PNRunFlowPlayReview : MonoBehaviour
         if (failed) yield break;
         yield return Seconds(.4f);
         var third = PNRunSaveService.Peek().Save;
-        Check(third != null && third.Step == 2 && third.Room == runs.Room.Definition.Id && third.RunId == first.Save.RunId, "the continued run goes on and saves its next room");
+        Check(third != null && third.Floor == 2 && third.Room == runs.Room.Definition.Id && third.RunId == first.Save.RunId, "the continued run goes on and saves its next room");
         var hurt = Player.GetComponent<PNStat>();
         hurt.ReceiveDamage(PNCombatSource.Capture(hurt).Snapshot.CreateDamage(1e12, false, 0, PNContentIds.True));
         yield return Until("the run ended", () => runs.Phase == PNRunPhase.Ended, 12);
@@ -337,7 +337,7 @@ public sealed class PNRunFlowPlayReview : MonoBehaviour
         yield return Until("the next room is playing", () => runs.Phase == PNRunPhase.Playing && runs.Room != null && runs.Room.World != oldWorld && !PNGameFlow.Busy, 60);
         if (failed) yield break;
         var after = Player; var afterStat = after.GetComponent<PNStat>();
-        Check(runs.Room.Definition.Id == chosen && runs.State.Step == 1, "the first gate leads to the room that was drawn behind it");
+        Check(runs.Room.Definition.Id == chosen && runs.State.Floor == 1, "the first gate leads to the room that was drawn behind it");
         Check(after.LoadContext.Identity.Id.Value != oldId && !ReferenceEquals(after, before), "the player was rebuilt: a new entity");
         Check(Math.Abs(afterStat.GetCurrent(PNContentIds.Health) / afterStat.GetMax(PNContentIds.Health) - ratio) < .02, "and it kept its health ratio (" + ratio.ToString("0.00") + ")");
         Check(PNLocalWorldContext.Current.Actor == after && after.LoadContext.Identity.World == runs.Room.World, "the local view follows the new player in the new world");
@@ -431,11 +431,11 @@ public sealed class PNRunFlowPlayReview : MonoBehaviour
         var s = runs.State.Stats;
         Check(EndShown() && s.RoomsClearedTotal == 3 && s.Kills > 0 && s.ShardsEarned >= 30 && s.Seconds > 0, "the end screen shows a summary (" + s.RoomsClearedTotal + " rooms, " + s.Kills + " kills, " + s.ShardsEarned + " shards)");
         yield return Shot("end_victory");
-        // Stella (Docs/StellaPlan.md): this person was paid once for the run: one floor passed + a tenth of the shards earned + a roll of at most 3 per floor.
+        // Stella (Docs/StellaPlan.md): this person was paid once for the run: three floors passed (the sample run has three, a floor is one room) + a tenth of the shards earned + a roll of at most 3 per floor.
         var definition = runs.State.Definition; var rule = Game.Session.Registry.RogueliteRuns().Get(definition).Stella;
-        int expectedBase = (int)Math.Floor(10.0 * 1 + 0.1 * s.ShardsEarned);
+        int expectedBase = (int)Math.Floor(10.0 * 3 + 0.1 * s.ShardsEarned);
         int balance = PNPlayerProfileService.Stella;
-        Check(rule != null && balance >= expectedBase && balance <= expectedBase + 3 && balance == PNStella.Compute(rule, 1, s.ShardsEarned, runs.State.RunId, PNPlayerProfileService.PlayerId), "the victory paid this person's stella once (" + balance + ", base " + expectedBase + ")");
+        Check(rule != null && balance >= expectedBase && balance <= expectedBase + 9 && balance == PNStella.Compute(rule, 3, s.ShardsEarned, runs.State.RunId, PNPlayerProfileService.PlayerId), "the victory paid this person's stella once (" + balance + ", base " + expectedBase + ")");
         Check(PNPlayerProfileService.Current.StellaRun == runs.State.RunId.ToString("N"), "the profile remembers the run it paid");
         var endRows = EndRoot().Query<Label>(className: "pn-end-label").ToList().Select(x => x.text).ToList();
         Check(endRows.Contains(PNLocalization.Text("project_n:run.end.stella")), "the end screen has a stella row");
@@ -585,7 +585,7 @@ public sealed class PNRunFlowPlayReview : MonoBehaviour
         var old = room.World; var chosenWorldBefore = old;
         if (gamepad) yield return Press(GamepadButton.RightStick); else { rows = Rows(); yield return Tap(rows[target]); }
         yield return Until("the next room (" + kind + ")", () => runs.Phase == PNRunPhase.Playing && runs.Room != null && runs.Room.World != chosenWorldBefore && !PNGameFlow.Busy, 60);
-        Check(!failed && runs.State.Step == 1, kind + ": the chosen gate led to the next room");
+        Check(!failed && runs.State.Floor == 1, kind + ": the chosen gate led to the next room");
         if (failed) yield break;
         yield return Seconds(.5f);
 

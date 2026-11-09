@@ -120,7 +120,7 @@ internal sealed class PNRunEndView : IDisposable
         }
         rows.Clear();
         AddRow("project_n:run.end.time", Clock(snap.Seconds));
-        AddRow("project_n:run.end.rooms", snap.Rooms.ToString());
+        AddRow("project_n:run.end.floors", snap.Rooms.ToString());
         AddRow("project_n:run.end.kills", snap.Kills.ToString());
         AddRow("project_n:run.end.shards", snap.Earned.ToString());
         if (stella > 0) AddRow("project_n:run.end.stella", stella.ToString());

@@ -4,14 +4,15 @@ using System.Linq;
 using EveEngine;
 using Newtonsoft.Json.Linq;
 
-// EN: The three definitions of the roguelite frame (Docs/RogueliteFramePlan.md section 5): a run (floors in order, rules), a floor (steps, each offering rooms by weight) and a
+// EN: The three definitions of the roguelite frame (Docs/RogueliteFramePlan.md section 5, restructured by Docs/FloorRestructurePlan.md): a run (floors in order, rules), a floor (ONE stage:
+//     the rooms it may be played in by weight, how many gates offer them, the enemy Buffs of the stage) and a
 //     room (kind, map world, how it starts, waves, how it clears, reward, exits). All are immutable content read from `extensions.project_n`
 //     (rogueliteRuns / rogueliteFloors / rogueliteRooms). Unknown fields are refused, every number is finite and inside the hard limits (refused, never clamped).
 //     A room is made from JSON alone; a map (a world with its scene and navigation) is code and Unity work.
 // VI: Ba định nghĩa của khung roguelite: run, tầng, phòng. Bất biến, đọc từ JSON; trường lạ bị từ chối, số phải hữu hạn trong giới hạn cứng.
 public static class PNRogueliteLimits
 {
-    public const int RunFloors = 16, FloorSteps = 32, StepChoices = 3, StepRooms = 16, RoomWaves = 16, WaveSpawns = 16, SpawnCount = 16, WaveEnemies = 32, RoomExits = 3, RoomInteractables = 16, FloorEnemyBuffs = 8, MaxShards = 100000, MaxDefinitionsPerDocument = 1024, MaxText = 128;
+    public const int RunFloors = 64, FloorChoices = 3, FloorRooms = 16, RoomWaves = 16, WaveSpawns = 16, SpawnCount = 16, WaveEnemies = 32, RoomExits = 3, RoomInteractables = 16, FloorEnemyBuffs = 8, MaxShards = 100000, MaxDefinitionsPerDocument = 1024, MaxText = 128;
     public const double MaxCountdown = 10, MaxAutoDelay = 60, MaxWaveDelay = 30, MaxWeight = 1000, DefaultCountdown = 3;
     public static readonly EveId DefaultEntity = EveId.Parse("project_n:enemy");
 }
@@ -215,60 +216,46 @@ public sealed class PNFloorRoom
     public double Weight { get; }
     public PNFloorRoom(EveId room, double weight)
     {
-        if (!room.IsValid) throw new FormatException("a step entry needs a room.");
+        if (!room.IsValid) throw new FormatException("a floor entry needs a room.");
         if (double.IsNaN(weight) || double.IsInfinity(weight) || weight <= 0 || weight > PNRogueliteLimits.MaxWeight) throw new FormatException("a room weight is above 0 and at most " + PNRogueliteLimits.MaxWeight + ".");
         Room = room; Weight = weight;
     }
 }
 
-public sealed class PNFloorStep
-{
-    public int Choices { get; }
-    public IReadOnlyList<PNFloorRoom> Rooms { get; }
-    public PNFloorStep(int choices, IEnumerable<PNFloorRoom> rooms)
-    {
-        var list = (rooms ?? throw new ArgumentNullException(nameof(rooms))).ToList();
-        if (list.Count < 1 || list.Count > PNRogueliteLimits.StepRooms) throw new FormatException("a step offers 1-" + PNRogueliteLimits.StepRooms + " rooms.");
-        if (list.Select(x => x.Room).Distinct().Count() != list.Count) throw new FormatException("a step lists each room once.");
-        if (choices < 1 || choices > PNRogueliteLimits.StepChoices) throw new FormatException("a step gives 1-" + PNRogueliteLimits.StepChoices + " choices.");
-        if (choices > list.Count) throw new FormatException("a step cannot give more choices (" + choices + ") than it has rooms (" + list.Count + ").");
-        Choices = choices; Rooms = list.AsReadOnly();
-    }
-    public static PNFloorStep Parse(JToken token)
-    {
-        var obj = PNBuffContentBatch.Object(token);
-        PNBuffContentBatch.Fields(obj, "choices", "rooms");
-        if (obj["choices"] == null) throw new FormatException("step choices is required.");
-        var rooms = PNRogueliteParse.ArrayIn(obj, "rooms", 1, PNRogueliteLimits.StepRooms).Select(entry =>
-        {
-            var e = PNBuffContentBatch.Object(entry);
-            PNBuffContentBatch.Fields(e, "room", "weight");
-            if (e["room"] == null || e["weight"] == null) throw new FormatException("a step entry needs room and weight.");
-            return new PNFloorRoom(PNRogueliteParse.Id(e["room"], "step room"), PNBuffContentBatch.Number(e, "weight"));
-        });
-        return new PNFloorStep(PNRogueliteParse.IntegerIn(obj, "choices", 1, PNRogueliteLimits.StepChoices), rooms);
-    }
-}
-
+// EN: One stage of a run (Docs/FloorRestructurePlan.md): the rooms it may be played in (weighted), how many of them the gates of the stage before offer (`Choices`), and the enemy Buffs of the stage.
+//     The first floor of a run is played in one room drawn from it, whatever `Choices` says. A floor id may be listed more than once in a run.
+// VI: Một chặng của run: các phòng có thể chơi (có trọng số), số cổng ở chặng trước đưa ra (`Choices`), và Buff quái của chặng. Chặng đầu rút một phòng, không theo Choices. Một id tầng được lặp trong run.
 public sealed class PNFloorDefinition : EveIIdentified
 {
     public EveId Id { get; }
-    public IReadOnlyList<PNFloorStep> Steps { get; }
+    public int Choices { get; }
+    public IReadOnlyList<PNFloorRoom> Rooms { get; }
     public IReadOnlyList<EveId> EnemyBuffs { get; }
-    public PNFloorDefinition(EveId id, IEnumerable<PNFloorStep> steps, IEnumerable<EveId> enemyBuffs)
+    public PNFloorDefinition(EveId id, int choices, IEnumerable<PNFloorRoom> rooms, IEnumerable<EveId> enemyBuffs)
     {
         if (!id.IsValid || id.ToString().Length > PNRogueliteLimits.MaxText) throw new FormatException("a floor needs a valid id.");
-        var list = (steps ?? throw new ArgumentNullException(nameof(steps))).ToList();
-        if (list.Count < 1 || list.Count > PNRogueliteLimits.FloorSteps) throw new FormatException("a floor has 1-" + PNRogueliteLimits.FloorSteps + " steps.");
+        var list = (rooms ?? throw new ArgumentNullException(nameof(rooms))).ToList();
+        if (list.Count < 1 || list.Count > PNRogueliteLimits.FloorRooms) throw new FormatException("a floor offers 1-" + PNRogueliteLimits.FloorRooms + " rooms.");
+        if (list.Select(x => x.Room).Distinct().Count() != list.Count) throw new FormatException("a floor lists each room once.");
+        if (choices < 1 || choices > PNRogueliteLimits.FloorChoices) throw new FormatException("a floor gives 1-" + PNRogueliteLimits.FloorChoices + " choices.");
+        if (choices > list.Count) throw new FormatException("a floor cannot give more choices (" + choices + ") than it has rooms (" + list.Count + ").");
         var buffs = (enemyBuffs ?? Enumerable.Empty<EveId>()).ToList();
         if (buffs.Count > PNRogueliteLimits.FloorEnemyBuffs || buffs.Any(x => !x.IsValid) || buffs.Distinct().Count() != buffs.Count) throw new FormatException("floor enemyBuffs are up to " + PNRogueliteLimits.FloorEnemyBuffs + " unique valid ids.");
-        Id = id; Steps = list.AsReadOnly(); EnemyBuffs = buffs.AsReadOnly();
+        Id = id; Choices = choices; Rooms = list.AsReadOnly(); EnemyBuffs = buffs.AsReadOnly();
     }
     public static PNFloorDefinition Parse(JObject obj, EveId id)
     {
-        PNBuffContentBatch.Fields(obj, "id", "steps", "enemyBuffs");
+        PNBuffContentBatch.Fields(obj, "id", "choices", "rooms", "enemyBuffs");
+        if (obj["choices"] == null) throw new FormatException("floor choices is required.");
         var buffs = obj["enemyBuffs"] == null ? new List<EveId>() : PNRogueliteParse.ArrayIn(obj, "enemyBuffs", 0, PNRogueliteLimits.FloorEnemyBuffs).Select(x => PNRogueliteParse.Id(x, "enemy buff")).ToList();
-        return new PNFloorDefinition(id, PNRogueliteParse.ArrayIn(obj, "steps", 1, PNRogueliteLimits.FloorSteps).Select(PNFloorStep.Parse), buffs);
+        var rooms = PNRogueliteParse.ArrayIn(obj, "rooms", 1, PNRogueliteLimits.FloorRooms).Select(entry =>
+        {
+            var e = PNBuffContentBatch.Object(entry);
+            PNBuffContentBatch.Fields(e, "room", "weight");
+            if (e["room"] == null || e["weight"] == null) throw new FormatException("a floor entry needs room and weight.");
+            return new PNFloorRoom(PNRogueliteParse.Id(e["room"], "floor room"), PNBuffContentBatch.Number(e, "weight"));
+        });
+        return new PNFloorDefinition(id, PNRogueliteParse.IntegerIn(obj, "choices", 1, PNRogueliteLimits.FloorChoices), rooms, buffs);
     }
 }
 
@@ -293,7 +280,7 @@ public sealed class PNRunDefinition : EveIIdentified
         name = name ?? "";
         if (name.Length > PNRogueliteLimits.MaxText || name.Length > 0 && !EveId.TryParse(name, out _)) throw new FormatException("a run name is a namespaced localization key of at most " + PNRogueliteLimits.MaxText + " characters.");
         var list = (floors ?? throw new ArgumentNullException(nameof(floors))).ToList();
-        if (list.Count < 1 || list.Count > PNRogueliteLimits.RunFloors || list.Any(x => !x.IsValid) || list.Distinct().Count() != list.Count) throw new FormatException("a run lists 1-" + PNRogueliteLimits.RunFloors + " unique floors.");
+        if (list.Count < 1 || list.Count > PNRogueliteLimits.RunFloors || list.Any(x => !x.IsValid)) throw new FormatException("a run lists 1-" + PNRogueliteLimits.RunFloors + " floors (an id may repeat).");
         if (startShards < 0 || startShards > PNRogueliteLimits.MaxShards) throw new FormatException("startShards must be an integer in [0, " + PNRogueliteLimits.MaxShards + "].");
         if (double.IsNaN(reviveHealth) || double.IsInfinity(reviveHealth) || reviveHealth <= 0 || reviveHealth > 1) throw new FormatException("reviveHealth must be above 0 and at most 1.");
         if (!System.Enum.IsDefined(typeof(PNRunVictory), victory)) throw new FormatException("run victory is unknown.");

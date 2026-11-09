@@ -110,7 +110,7 @@
   "project_n:run.end.victory": "HOÀN THÀNH",
   "project_n:run.end.defeat": "THẤT BẠI",
   "project_n:run.end.time": "Thời gian",
-  "project_n:run.end.rooms": "Phòng đã qua",
+  "project_n:run.end.floors": "Tầng đã qua",
   "project_n:run.end.kills": "Quái đã hạ",
   "project_n:run.end.shards": "Shard nhận được",
   "project_n:run.end.stella": "Stella nhận được",

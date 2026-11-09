@@ -14,7 +14,7 @@ public static class PNRunSummary
         if (save == null) throw new ArgumentNullException(nameof(save));
         Pending = new PNRunSnapshot
         {
-            Phase = "ended", Result = "retired", RunId = save.RunId.ToString("N"), Definition = save.Definition.ToString(), Shards = save.Shards, Floor = save.Floor, Step = save.Step,
+            Phase = "ended", Result = "retired", RunId = save.RunId.ToString("N"), Definition = save.Definition.ToString(), Shards = save.Shards, Floor = save.Floor,
             Seconds = (int)save.Seconds, Kills = save.Kills, Rooms = save.Cleared.Values.Sum(), Earned = save.ShardsEarned,
             Players = save.Seats.Select((x, i) => (long)i).ToArray()
         };

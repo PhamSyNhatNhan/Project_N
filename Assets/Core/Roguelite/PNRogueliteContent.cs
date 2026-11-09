@@ -54,8 +54,7 @@ public sealed partial class PNBuffContentBatch
             foreach (var floor in run.Floors) RequireRoguelite(floor, rogueliteFloors, hub.Get<PNFloorDefinition>(), document, "run " + run.Id + " floor");
         foreach (var floor in rogueliteFloors.Values)
         {
-            foreach (var step in floor.Steps)
-                foreach (var entry in step.Rooms) RequireRoguelite(entry.Room, rogueliteRooms, hub.Get<PNRoomDefinition>(), document, "floor " + floor.Id + " room");
+            foreach (var entry in floor.Rooms) RequireRoguelite(entry.Room, rogueliteRooms, hub.Get<PNRoomDefinition>(), document, "floor " + floor.Id + " room");
             foreach (var buff in floor.EnemyBuffs) context.Require<PNBuffDefinition>(buff, "floor " + floor.Id + " enemyBuffs");
         }
         foreach (var room in rogueliteRooms.Values)
