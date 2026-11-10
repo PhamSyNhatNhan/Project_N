@@ -153,6 +153,15 @@ public sealed class PNRunState
         if (total > MaxShards) throw new InvalidOperationException("The wallet cannot hold more than " + MaxShards + ".");
         Shards = (int)total; Stats.AddShardsEarned(amount);
     }
+    // EN: Gives shards back (a sold item, a refund). Unlike AddShards it is NOT income: it does not count as shards earned (stella is paid on those). The ceiling still applies.
+    public void RefundShards(int amount, string source)
+    {
+        if (amount < 0) throw new ArgumentOutOfRangeException(nameof(amount));
+        if (string.IsNullOrEmpty(source)) throw new ArgumentException("A shard source is required.", nameof(source));
+        long total = (long)Shards + amount;
+        if (total > MaxShards) throw new InvalidOperationException("The wallet cannot hold more than " + MaxShards + ".");
+        Shards = (int)total;
+    }
     public bool TrySpendShards(int amount, string source)
     {
         if (amount < 0) throw new ArgumentOutOfRangeException(nameof(amount));

@@ -22,5 +22,11 @@ namespace EveEngine
         public static EveRegistry<PNRunDefinition> RogueliteRuns(this EveRegistryHub hub) => hub.Get<PNRunDefinition>();
         public static EveRegistry<PNFloorDefinition> RogueliteFloors(this EveRegistryHub hub) => hub.Get<PNFloorDefinition>();
         public static EveRegistry<PNRoomDefinition> RogueliteRooms(this EveRegistryHub hub) => hub.Get<PNRoomDefinition>();
+        public static EveRegistry<PNRogueConstellationDefinition> RogueConstellations(this EveRegistryHub hub) => hub.Get<PNRogueConstellationDefinition>();
+        public static EveRegistry<PNRogueSparkDefinition> RogueSparks(this EveRegistryHub hub) => hub.Get<PNRogueSparkDefinition>();
+        public static EveRegistry<PNRogueLodestarDefinition> RogueLodestars(this EveRegistryHub hub) => hub.Get<PNRogueLodestarDefinition>();
+        public static EveRegistry<PNRogueFactoryDefinition> RogueFactories(this EveRegistryHub hub) => hub.Get<PNRogueFactoryDefinition>();
+        public static EveRegistry<PNWorldFeatureDefinition> WorldFeatures(this EveRegistryHub hub) => hub.Get<PNWorldFeatureDefinition>();
+        public static EveRegistry<PNEntityModuleDefinition> EntityModules(this EveRegistryHub hub) => hub.Get<PNEntityModuleDefinition>();
     }
 }

@@ -69,6 +69,7 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         screens.RegisterBase(PNTransitionSelector.NoScreen,EveId.Parse("project_n:no_transition"),"project_n",compatible:(a,b)=>true);
 #endif
         PNGameSkillBindings.RegisterBehaviors(hub);
+        PNRogueBuiltIn.Register(hub);
         PNBuffGameplayContent.Register(hub);
         PNInstances.Create(hub);
         PNAreaGameplayContent.Register(hub);
@@ -86,6 +87,11 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         // Interactables of the rooms: the sync block and command every interactable uses, and the room handlers (switch, gate, fountain, shop).
         hub.SyncStates().Register(new PNSyncStateDefinition(PNInteractable.State,1,PNInteractable.StateBytes,PNSyncTargets.WorldObject));
         hub.SyncStates().Register(new PNSyncStateDefinition(PNRunStateSync.State,1,PNRunStateSync.StateBytes,PNSyncTargets.Session));
+        hub.SyncStates().Register(new PNSyncStateDefinition(PNRogueStateSync.State,1,PNRogueStateSync.StateBytes,PNSyncTargets.Session));
+        hub.SyncStates().Register(new PNSyncStateDefinition(PNRogueEntityView.State,1,PNRogueEntityView.StateBytes,PNSyncTargets.Entity));
+        // What a player carries in a world that has Roguelite Buff (before the entity modules the factory added these to every player everywhere): the buff manager, the numbers block and the sync binding that block needs.
+        hub.EntityModules().Register(new PNEntityModuleDefinition(EveId.Parse("project_n:rogue_buff_player"),PNEntityModuleRoles.Player,null,new[]{PNRunFeatures.RogueBuff},new[]{typeof(PNSyncEntity),typeof(PNRogueEntityView),typeof(PNRogueBuffManager)}));
+        hub.SyncCommands().Register(new PNSyncCommandDefinition(PNRogueCommandHandler.Command,typeof(PNRogueCommandHandler),()=>new PNRogueCommandHandler(),PNRogueCommandHandler.CommandBytes,PNSyncTargets.Session));
         hub.SyncCommands().Register(new PNSyncCommandDefinition(PNInteractable.Command,typeof(PNInteractCommandHandler),()=>new PNInteractCommandHandler(),PNInteractable.CommandBytes,PNSyncTargets.WorldObject));
         PNRoomInteractions.Register(hub);
 #endif
@@ -190,12 +196,15 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
     // VI: Kiểm tra khung Core được nhận diện với action đã chọn trước khi công bố phiên.
     public virtual void ValidateContent(EveRegistryHub hub)
     {
+        PNRogueValidation.Validate(hub);
+        PNEntityModuleValidation.Validate(hub);
 #if UNITY_5_3_OR_NEWER
         PNEntityPrefabReferences.Validate(hub, PNEntityPrefabs.Source);
         foreach(var world in hub.Get<PNWorldDefinition>().Snapshot().Values)
         {
             foreach(var id in world.Policy.TransferParticipants)hub.Get<PNWorldTransferParticipantDefinition>().Get(id);
             foreach(var id in world.Policy.ActorStateProviders.Concat(world.Policy.WorldStateProviders))hub.Get<PNWorldStateDefinition>().Get(id);
+            foreach(var id in world.Policy.Features)if(!hub.Get<PNWorldFeatureDefinition>().TryGet(id,out _))throw new FormatException("World "+world.Id+" has unregistered feature "+id+".");
         }
         // A room names the map it is played on: the world must be registered (that its keys exist in the map is checked when the world loads).
         foreach(var room in hub.RogueliteRooms().Snapshot().Values)

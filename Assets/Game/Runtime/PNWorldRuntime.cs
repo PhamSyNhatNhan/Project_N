@@ -31,6 +31,31 @@ public sealed class PNWorldRuntime : IPNWorldRuntime,IPNWorldPopulation
     public Action<EveWorldContext> Ready;
     public event Action<EveWorldContext> WorldReady;
     public event Action<EveWorldContext> WorldUnloading;
+    // ---- world features (Docs/EntityModulePlan.md E2) ----
+    // A world's features = the mode's + its definition's + its creator's. The host (or an offline player) works them out ONCE when the world is created; a client never works them out, it is given the host's final set.
+    // Who knows the mode's features: the game session wires it for a host or an offline player; a runtime built by itself (a test) has none.
+    public Func<IEnumerable<EveId>> ModeFeatureSource;
+    private readonly Dictionary<Guid,PNWorldFeatures> creatorFeatures=new Dictionary<Guid,PNWorldFeatures>();
+    private readonly Queue<Guid> creatorOrder=new Queue<Guid>();
+    private const int MaximumRememberedCreators=256;
+    private PNWorldFeatures ModeFeatures()=>new PNWorldFeatures(ModeFeatureSource?.Invoke()??Array.Empty<EveId>());
+    private PNWorldFeatures Compose(PNWorldDefinition definition,PNWorldFeatures creator,IEnumerable<EveId> supplied)
+    {
+        PNWorldFeatures result;
+        if(supplied!=null)result=new PNWorldFeatures(supplied);
+        else if(session.Role==EveSessionRole.Client)result=PNWorldFeatures.Empty;
+        else result=ModeFeatures().With(definition.Policy.Features).With(creator?.Ids);
+        var registered=session.Registry.Get<PNWorldFeatureDefinition>();
+        foreach(var id in result.Ids)if(!registered.TryGet(id,out _))throw new InvalidOperationException("World "+definition.Id+" has unregistered feature "+id+".");
+        return result;
+    }
+    // What the creator of a world instance asked for stays with the instance, so a discarded world that is created again (or restored from a checkpoint) in this play gets the same features. Bounded: the oldest are forgotten.
+    private void RememberCreator(Guid instance,PNWorldFeatures creator)
+    {
+        if(creator==null||creator.Count==0||creatorFeatures.ContainsKey(instance))return;
+        creatorFeatures.Add(instance,creator);creatorOrder.Enqueue(instance);
+        while(creatorOrder.Count>MaximumRememberedCreators)creatorFeatures.Remove(creatorOrder.Dequeue());
+    }
     private Scene entryScene;
     private EveId entryDefinition=EveId.Parse("base:scene_world");
     public EveId EntryDefinition=>entryDefinition;
@@ -51,14 +76,15 @@ public sealed class PNWorldRuntime : IPNWorldRuntime,IPNWorldPopulation
     public bool RestoredPopulation(EveWorldContext world)=>entries.TryGetValue(world.InstanceId,out var entry)&&ReferenceEquals(entry.Build.World,world)&&entry.DeferReady;
     // Existing scene entry is a borrowed content slot. Scan only once at the boundary;
     // factory/enrollment never search globally after the world has been registered.
-    public EveWorldContext Adopt(Scene scene,Guid instance=default,ulong incarnation=1) => Adopt(scene,instance,incarnation,0);
-    private EveWorldContext Adopt(Scene scene,Guid instance,ulong incarnation,ulong subscription)
+    public EveWorldContext Adopt(Scene scene,Guid instance=default,ulong incarnation=1) => Adopt(scene,instance,incarnation,0,null);
+    private EveWorldContext Adopt(Scene scene,Guid instance,ulong incarnation,ulong subscription,IEnumerable<EveId> supplied)
     {
         var definition=session.Registry.Get<PNWorldDefinition>().Get(entryDefinition);
+        var features=Compose(definition,null,supplied);
         var world=subscription==0?session.Worlds.Create(instance==Guid.Empty?Guid.NewGuid():instance,incarnation,definition.Id,definition.ContentHash):session.Worlds.CreateReplica(instance,incarnation,definition.Id,definition.ContentHash,subscription);
         var owner=CreateOwner(world);world.RegisterCleanup(()=>UnloadScene(owner));
         world.ConfigurePhysics(owner,Application.isPlaying);world.BeginLoading();
-        var build=new PNWorldBuildContext(world,owner);
+        var build=new PNWorldBuildContext(world,owner,features);
         entries.Add(world.InstanceId,new Entry{Build=build});
         var roots=scene.GetRootGameObjects().Where(x=>x.GetComponent<EveRuntime>()==null&&x.GetComponent<PNRoomResource>()==null&&!x.GetComponentsInChildren<PNFactoryEntity>(true).Any()).ToArray();
         world.RegisterCleanup(()=>{foreach(var root in roots)if(root!=null&&root.scene==owner&&scene.IsValid()&&scene.isLoaded)SceneManager.MoveGameObjectToScene(root,scene);});
@@ -67,6 +93,12 @@ public sealed class PNWorldRuntime : IPNWorldRuntime,IPNWorldPopulation
         world.CompleteLoading();DefaultWorld=world;PublishStaged(world);return world;
     }
     public EveWorldContext Create(EveId definition,Guid instance=default,ulong incarnation=1)=>Create(definition,instance,incarnation,0);
+    // The creator's features (for example the run's) join the mode's and the definition's. Not available to a client: its worlds are replicas.
+    public EveWorldContext Create(EveId definition,Guid instance,ulong incarnation,IEnumerable<EveId> features)
+    {
+        if(session.Role==EveSessionRole.Client)throw new InvalidOperationException("A client does not choose world features; it is given the host's set.");
+        return Create(definition,instance,incarnation,0,false,null,features==null?null:new PNWorldFeatures(features));
+    }
     public EveWorldContext CreateStaged(EveId definition,Guid instance,ulong incarnation)=>Create(definition,instance,incarnation,0,true);
     public bool SupportsPersistence(EveWorldContext world)=>entries.TryGetValue(world.InstanceId,out var entry)&&entry.Provider is IPNPortableWorldProvider;
     public void ValidateLoadDescriptor(EveId definition,Newtonsoft.Json.Linq.JToken descriptor)
@@ -83,33 +115,39 @@ public sealed class PNWorldRuntime : IPNWorldRuntime,IPNWorldPopulation
         var descriptor=portable.CaptureLoadDescriptor(build)??throw new InvalidOperationException("Portable provider omitted its descriptor.");
         portable.ValidateLoadDescriptor(descriptor);return descriptor.DeepClone();
     }
-    private EveWorldContext Create(EveId definition,Guid instance,ulong incarnation,ulong subscription,bool deferReady=false,Newtonsoft.Json.Linq.JToken descriptor=null)
+    private EveWorldContext Create(EveId definition,Guid instance,ulong incarnation,ulong subscription,bool deferReady=false,Newtonsoft.Json.Linq.JToken descriptor=null,PNWorldFeatures creator=null,IEnumerable<EveId> supplied=null)
     {
         if(instance!=Guid.Empty&&entries.ContainsKey(instance))throw new InvalidOperationException("World runtime still owns that logical identity or its pending callbacks.");
         var selected=session.Registry.Get<PNWorldDefinition>().Get(definition);
-        var world=subscription==0?session.Worlds.Create(instance==Guid.Empty?Guid.NewGuid():instance,incarnation,selected.Id,selected.ContentHash):session.Worlds.CreateReplica(instance,incarnation,selected.Id,selected.ContentHash,subscription);
-        var entry=new Entry{Build=new PNWorldBuildContext(world,default),Started=Time.realtimeSinceStartupAsDouble,DeferReady=deferReady};entries.Add(world.InstanceId,entry);
+        var id=instance==Guid.Empty?Guid.NewGuid():instance;
+        if(creator==null&&creatorFeatures.TryGetValue(id,out var kept))creator=kept;
+        var features=Compose(selected,creator,supplied);
+        var world=subscription==0?session.Worlds.Create(id,incarnation,selected.Id,selected.ContentHash):session.Worlds.CreateReplica(instance,incarnation,selected.Id,selected.ContentHash,subscription);
+        RememberCreator(world.InstanceId,creator);
+        var entry=new Entry{Build=new PNWorldBuildContext(world,default,features),Started=Time.realtimeSinceStartupAsDouble,DeferReady=deferReady};entries.Add(world.InstanceId,entry);
         try
         {
             var owner=CreateOwner(world);
             world.RegisterCleanup(()=>UnloadScene(owner));
             world.ConfigurePhysics(owner,Application.isPlaying);
-            world.BeginLoading();entry.Build=new PNWorldBuildContext(world,owner);if(descriptor!=null)entry.Build.SetLoadDescriptor(descriptor);
+            world.BeginLoading();entry.Build=new PNWorldBuildContext(world,owner,features);if(descriptor!=null)entry.Build.SetLoadDescriptor(descriptor);
             entry.Job=scheduler.SchedulePreparation(()=>LoadStep(entry,selected),error=>{world.Fail(error);DisposeLoad(entry);});
         }
         catch(Exception error){world.Fail(error);throw;}
         return world;
     }
-    public EveWorldContext CreateReplica(EveId definition,Guid instance,ulong incarnation,ulong subscription,bool defaultWorld)
+    public EveWorldContext CreateReplica(EveId definition,Guid instance,ulong incarnation,ulong subscription,bool defaultWorld)=>CreateReplica(definition,instance,incarnation,subscription,defaultWorld,null);
+    // `features` is the host's final set for this world (the wire carries it from step E4); null leaves the replica with no features.
+    public EveWorldContext CreateReplica(EveId definition,Guid instance,ulong incarnation,ulong subscription,bool defaultWorld,IEnumerable<EveId> features)
     {
         if(session.Role!=EveSessionRole.Client)throw new InvalidOperationException("Replica worlds belong to clients.");
         if(defaultWorld)
         {
             var selected=session.Registry.Get<PNWorldDefinition>().Get(entryDefinition);
             if(definition!=selected.Id||!entryScene.IsValid()||!entryScene.isLoaded)throw new InvalidOperationException("Default world does not match the recorded entry content.");
-            return Adopt(entryScene,instance,incarnation,subscription);
+            return Adopt(entryScene,instance,incarnation,subscription,features??Array.Empty<EveId>());
         }
-        return Create(definition,instance,incarnation,subscription);
+        return Create(definition,instance,incarnation,subscription,false,null,null,features??Array.Empty<EveId>());
     }
     private bool LoadStep(Entry entry,PNWorldDefinition definition)
     {

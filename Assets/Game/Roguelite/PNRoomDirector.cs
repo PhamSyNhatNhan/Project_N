@@ -64,6 +64,8 @@ public sealed class PNRoomDirector : IDisposable
     // After a clear: one gate per drawn option, each saying which kind of room is behind it; the last room has one gate that finishes the run.
     private void OpenGates()
     {
+        // An offer of Roguelite Buff items waits for the host: the gates stay shut until it is picked.
+        if (runs.Rogue != null && runs.Rogue.HasPendingOffer) { CloseGates(); return; }
         var options = runs.Exits();
         for (int i = 0; i < Definition.Exits.Count; i++)
         {
@@ -74,6 +76,8 @@ public sealed class PNRoomDirector : IDisposable
         }
     }
 
+    // The offer was picked: open the gates a cleared room shows.
+    internal void RefreshGates() { if (cleared && !disposed) OpenGates(); }
     public void CloseGates() { foreach (var key in Definition.Exits) Interactable(key)?.SetAvailable(false); }
 
     // The switch was pressed. False when the room is not waiting for it.

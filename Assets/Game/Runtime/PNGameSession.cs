@@ -13,6 +13,7 @@ public sealed class PNGameSession : MonoBehaviour
     public PNSyncService Sync {get;private set;}
     public PNRunDirector Runs {get;private set;}
     public PNRunStateSync RunView {get;private set;}
+    public PNRogueStateSync RogueView {get;private set;}
     public PNWorldTransitionCoordinator Transfers {get;private set;}
     public PNLocalWorldContext Local {get;private set;}
     public PNWorldLifetimeController Lifetimes {get;private set;}
@@ -40,6 +41,8 @@ public sealed class PNGameSession : MonoBehaviour
         service.WorldAssets=(runtime as EveGameRuntime)?.WorldAssets;service.WorldAssets?.BindSession(session);
         service.Scheduler=new EveEntityPreparationScheduler(session,PNGameBootstrap.Config.Preparation);
         service.Worlds=new PNWorldRuntime(session,service.Scheduler);
+        // A client is given each world's features by the host; the host and an offline player work them out, the mode's first.
+        if(session.Role!=EveSessionRole.Client)service.Worlds.ModeFeatureSource=()=>PNModeDefinition.Select(session.Registry,PNGameBootstrap.ModeId,PNGameBootstrap.Config.Network).Features;
         // Before any world can become ready (the entry scene is adopted at the end of this method): the objects of every world are registered as they appear.
         service.Sync=new PNSyncService(session.Registry,session.HasAuthority,0,session);
         var syncWorlds=new PNSyncWorldBinder(service.Worlds,service.Sync);
@@ -58,6 +61,7 @@ public sealed class PNGameSession : MonoBehaviour
         physics.BeforeSimulation+=service.Transfers.FixedBoundary;
         service.Runs=new PNRunDirector(service);
         service.RunView=new PNRunStateSync(service.Sync,service.Runs);session.RegisterCleanup(service.RunView.Dispose);
+        service.RogueView=new PNRogueStateSync(service.Sync,service.Runs);session.RegisterCleanup(service.RogueView.Dispose);
         service.Lifetimes=new PNWorldLifetimeController(session,service.Worlds,(PNEntityFactory)service.Factory,service.Scheduler);
         service.Saves=new PNWorldSaveService(session,service.Worlds,service.Lifetimes,System.IO.Path.Combine(Application.persistentDataPath,"WorldSaves"));
         if(!PNCameraDirector.LegacyRequested)service.Transitions=PNTransitionController.Attach(runtime.gameObject,session,service.Local,service.Transfers,service.CameraDirector);

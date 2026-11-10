@@ -153,7 +153,7 @@ internal sealed class PNMobileControls : IDisposable
             if(show)SuppressLegacy(); else RestoreLegacy();
             transport.SetActive(show);
         }
-        accepting=show && !owner.MenuOpen && Time.timeScale>0 && (Application.isEditor || Application.isFocused) && !owner.TestExpanded;
+        accepting=show && !owner.MenuOpen && !owner.RogueModalOpen && Time.timeScale>0 && (Application.isEditor || Application.isFocused) && !owner.TestExpanded;
         if(!accepting)Reset();
         foreach(var control in controls)
         {
@@ -163,7 +163,7 @@ internal sealed class PNMobileControls : IDisposable
             control.Sparkles.Tick(Time.unscaledTime);
         }
         // Keep the virtual device and legacy suppression alive under the menu.
-        root.style.display=show&&!owner.MenuOpen?DisplayStyle.Flex:DisplayStyle.None;
+        root.style.display=show&&!owner.MenuOpen&&!owner.RogueModalOpen?DisplayStyle.Flex:DisplayStyle.None;
         if(!show)return;
         SuppressLegacy();
         var area=simulatedScreen?UnityEngine.Device.Screen.safeArea:Screen.safeArea;

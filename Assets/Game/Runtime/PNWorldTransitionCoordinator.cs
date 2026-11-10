@@ -161,6 +161,8 @@ public sealed class PNWorldTransitionCoordinator : IDisposable,IPNWorldTransferT
         }
         return false;
     }
+    private bool ModuleComponentsMatch(EveEntityLoader loader,EveWorldContext source,EveWorldContext destination)
+        =>PNEntityModules.ComponentTypes(factory.ModulesFor(loader,source)).OrderBy(x=>x.FullName,StringComparer.Ordinal).SequenceEqual(PNEntityModules.ComponentTypes(factory.ModulesFor(loader,destination)).OrderBy(x=>x.FullName,StringComparer.Ordinal));
     private void PrepareActors(Work work)
     {
         foreach(var loader in work.Request.Actors)
@@ -182,6 +184,8 @@ public sealed class PNWorldTransitionCoordinator : IDisposable,IPNWorldTransferT
             }
             if(work.Request.ReplacementTemplate!=null){target.Template=target.Entity=work.Request.ReplacementTemplate;factory.ResolvePrefab(target);}
             if(work.Request.ReplacementTemplate==null&&EveId.Parse(target.Character)!=(identity.CharacterId.IsValid?identity.CharacterId:loader.GetComponent<PNStat>().CharacterId))throw new InvalidOperationException("Destination character differs; request explicit replacement.");
+            // An entity that is kept is not built again, so it cannot gain or lose the components its modules give it: a destination whose features give it other modules needs a replacement (Docs/EntityModulePlan.md E3).
+            if(work.Request.ReplacementTemplate==null&&!ModuleComponentsMatch(loader,identity.World,work.Request.Destination))throw new InvalidOperationException("Destination world gives this entity other entity modules; request explicit replacement.");
             var prototype=loader.GetComponent<PNFactoryEntity>()?.Prototype;
             if(work.Request.ReplacementTemplate==null&&prototype!=null&&factory.ResolvePrefab(target)!=prototype)throw new InvalidOperationException("Destination template selects a different prototype; request explicit replacement.");
             var context=new PNWorldTransferContext(work.Request.Id,loader,work.Request.Destination,target,work.Request.ReplacementTemplate!=null);

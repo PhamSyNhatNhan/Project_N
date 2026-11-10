@@ -29,7 +29,7 @@ public sealed class PNWorldDefinition : EveIIdentified,EveIRegistrationReference
     { var result=factory(); if(result==null||!ImplementationType.IsInstanceOfType(result))throw new InvalidOperationException("Invalid selected world provider.");return result; }
     public void ValidateRegistrationReferences(string owner,IReadOnlyCollection<string> dependencies)
     {
-        foreach(var id in Policy.TransferParticipants.Concat(Policy.ActorStateProviders).Concat(Policy.WorldStateProviders))
+        foreach(var id in Policy.TransferParticipants.Concat(Policy.ActorStateProviders).Concat(Policy.WorldStateProviders).Concat(Policy.Features))
             if(id.Namespace!="base"&&id.Namespace!=owner&&!dependencies.Contains(id.Namespace))throw new InvalidOperationException("World provider reference requires a declared content dependency: "+id);
     }
     public static string HashContent(string canonicalContent)
@@ -76,7 +76,9 @@ public sealed class PNWorldBuildContext
     private readonly List<PNWorldSlot> slots=new List<PNWorldSlot>();
     public IReadOnlyList<PNWorldSlot> Slots => slots.AsReadOnly();
     public bool IsCurrent => World.Session.IsActive && World.State==EveWorldState.Loading;
-    public PNWorldBuildContext(EveWorldContext world,Scene scene) { World=world;PhysicsScene=scene; }
+    // The features of this world instance (Docs/EntityModulePlan.md): fixed when the world is created, the same on every machine.
+    public PNWorldFeatures Features { get; }
+    public PNWorldBuildContext(EveWorldContext world,Scene scene,PNWorldFeatures features=null) { World=world;PhysicsScene=scene;Features=features??PNWorldFeatures.Empty; }
     // Register cleanup BEFORE starting acquisition, including AsyncOperations that cannot cancel.
     public void Own(Action cleanup) => World.RegisterCleanup(cleanup);
     public void AddSlot(string id,Scene source,IEnumerable<GameObject> roots,bool owned=true)
@@ -102,6 +104,9 @@ public interface IPNWorldRuntime
     PNWorldBuildContext Get(EveWorldContext world);
     EveWorldContext Create(EveId definition,Guid instance=default,ulong incarnation=1);
     EveWorldContext CreateReplica(EveId definition,Guid instance,ulong incarnation,ulong subscription,bool defaultWorld);
+    // Additive: the creator's features (host) or the host's final feature set (client replica). Default members keep existing implementations compatible.
+    EveWorldContext Create(EveId definition,Guid instance,ulong incarnation,IEnumerable<EveId> features)=>throw new NotSupportedException("This world runtime does not carry world features.");
+    EveWorldContext CreateReplica(EveId definition,Guid instance,ulong incarnation,ulong subscription,bool defaultWorld,IEnumerable<EveId> features)=>throw new NotSupportedException("This world runtime does not carry world features.");
     event Action<EveWorldContext> WorldReady;
     event Action<EveWorldContext> WorldUnloading;
     bool Unload(EveWorldContext world);

@@ -17,11 +17,15 @@ public sealed class PNTransferProbe : IPNWorldTransferParticipant
     public void Complete(PNWorldTransferContext c) { }
     public void Dispose(){if(FailDispose)throw new InvalidOperationException("Injected participant cleanup failure");}
 }
+public sealed class PNTransferFixtureProbe : MonoBehaviour { }
 public sealed class PNTransferFixtureModule : EveIContentModule
 {
     public void Register(EveRegistryHub hub)
     {
         hub.GetOrCreate<PNWorldTransferParticipantDefinition>().Register(new PNWorldTransferParticipantDefinition(EveId.Parse("fixture:transfer_probe"),typeof(PNTransferProbe),()=>new PNTransferProbe()));
+        hub.WorldFeatures().Register(new PNWorldFeatureDefinition(EveId.Parse("fixture:transfer_feature")));
+        hub.EntityModules().Register(new PNEntityModuleDefinition(EveId.Parse("fixture:transfer_module"),PNEntityModuleRoles.Player,null,new[]{EveId.Parse("fixture:transfer_feature")},new[]{typeof(PNTransferFixtureProbe)}));
+        hub.GetOrCreate<PNWorldDefinition>().Register(new PNWorldDefinition(EveId.Parse("fixture:transfer_featured"),new string('b',64),typeof(PNWorldFixtureProvider),()=>new PNWorldFixtureProvider(),new PNWorldPolicy(PNEmptyWorldPolicy.Continue,new[]{EveId.Parse("base:world_gameplay"),EveId.Parse("fixture:transfer_probe")},null,null,default,new[]{EveId.Parse("fixture:transfer_feature")})));
         hub.GetOrCreate<PNWorldDefinition>().Register(new PNWorldDefinition(EveId.Parse("fixture:transfer_world"),new string('a',64),typeof(PNWorldFixtureProvider),()=>new PNWorldFixtureProvider(),new PNWorldPolicy(participants:new[]{EveId.Parse("base:world_gameplay"),EveId.Parse("fixture:transfer_probe")})));
     }
 }
@@ -89,6 +93,17 @@ public static class PNWorldTransferChecks
             Check(Newtonsoft.Json.Linq.JToken.DeepEquals(snapshot,restored.GetComponent<PNAbilityManager>().Abilities.CaptureCheckpoint()),"replacement preserves ability charge recovery timers and configuration");
             Check(restored.GetComponent<PNMove>().FacingDirection==-1,"replacement preserves movement facing and passive locomotion state");
             scheduler.RetirePublished(restored);Pump(()=>session.Entities.Snapshot(b).All(x=>x.LoadContext.Identity.OwnerId!=2));
+            // ---- entity modules (Docs/EntityModulePlan.md E3): a kept entity is not built again, so a world that gives it other modules needs a replacement ----
+            var featured=worlds.Create(EveId.Parse("fixture:transfer_featured"));Pump(()=>featured.CanExecute);
+            var lone=Spawn(b,9);
+            Check(lone.Loader.GetComponent<PNTransferFixtureProbe>()==null,"a player in a world without the feature carries no probe");
+            var keep=transfers.Request(new PNWorldTransferRequest(Guid.NewGuid(),new[]{lone.Loader},featured,"chunk-0","player"));Pump(()=>keep.IsTerminal&&!keep.CleanupPending);
+            Check(keep.State==PNWorldTransferState.Aborted&&keep.Error!=null&&keep.Error.Contains("entity modules")&&lone.Loader.LoadContext.Identity.World==b&&lone.Loader.GetComponent<PNTransferFixtureProbe>()==null,"keeping the entity across worlds that give it other modules is refused and nothing moves");
+            var rebuild=transfers.Request(new PNWorldTransferRequest(Guid.NewGuid(),new[]{lone.Loader},featured,"chunk-0","player",replacementTemplate:"base:scene_spawn"));Pump(()=>rebuild.IsTerminal&&!rebuild.CleanupPending);
+            if(rebuild.State!=PNWorldTransferState.Completed)throw new Exception("Replacement into the featured world failed: "+rebuild.Error);
+            var rebuilt=session.Entities.Snapshot(featured).Single(x=>x.LoadContext.Identity.OwnerId==9);
+            Check(rebuilt.GetComponent<PNTransferFixtureProbe>()!=null&&rebuilt.GetComponent<PNEntityModuleMarker>().ToString()=="fixture:transfer_module","a replacement is built in the destination, so it carries that world's modules");
+            scheduler.RetirePublished(rebuilt);Pump(()=>session.Entities.Snapshot(featured).Count==0);Pump(()=>worlds.Unload(featured));
             scheduler.Retire(first);scheduler.Retire(second);Pump(()=>first.IsReturned&&second.IsReturned);Pump(()=>worlds.Unload(b));Check(session.Entities.Count==0&&transfers.PendingCount==0,"transfer/entity/world leases drain on teardown");
         }
         catch(Exception error){Debug.LogException(error);throw;}

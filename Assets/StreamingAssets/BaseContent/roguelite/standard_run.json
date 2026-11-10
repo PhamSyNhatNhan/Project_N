@@ -11,7 +11,8 @@
           "startShards": 0,
           "reviveHealth": 0.3,
           "victory": "last_room_cleared",
-          "stella": { "perFloor": 10, "perShard": 0.1, "randomPerFloor": 3 }
+          "stella": { "perFloor": 10, "perShard": 0.1, "randomPerFloor": 3 },
+          "rogue": { "offer": 3, "emptyOfferShards": 20, "shop": { "stock": 4, "rerollBase": 20, "rerollStep": 10, "sellRatio": 0.5, "exchangeRatio": 0.5 } }
         }
       ],
       "rogueliteFloors": [
@@ -39,7 +40,7 @@
             { "delay": 1.5, "spawns": [ { "character": "project_n:starkeeper", "count": 1, "group": "south" } ] }
           ],
           "clear": "all_waves",
-          "reward": { "shards": 30 },
+          "reward": { "shards": 30, "rogue": true },
           "exits": [ "gate_a", "gate_b", "gate_c" ]
         },
         {
@@ -51,7 +52,7 @@
             { "delay": 0, "spawns": [ { "character": "project_n:starreaper", "count": 1, "group": "north" }, { "character": "project_n:starchanter", "count": 1, "group": "south" } ] }
           ],
           "clear": "all_waves",
-          "reward": { "shards": 30 },
+          "reward": { "shards": 30, "rogue": true },
           "exits": [ "gate_a", "gate_b", "gate_c" ]
         },
         {
@@ -70,7 +71,7 @@
           "start": { "mode": "none" },
           "clear": "none",
           "exits": [ "gate_a", "gate_b", "gate_c" ],
-          "interactables": [ "shop_heal" ]
+          "interactables": [ "shop_heal", "shop_rogue" ]
         },
         {
           "id": "project_n:room_star_boss",

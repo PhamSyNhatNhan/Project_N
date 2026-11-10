@@ -28,16 +28,26 @@ public sealed class PNWorldFixtureProvider : IPNWorldProvider,IPNPortableWorldPr
             var spawn=new GameObject("spawn").AddComponent<PNPlayerSpawnPoint>();spawn.transform.SetParent(root.transform);spawn.transform.position=new Vector3(i*4,1,0);
             spawn.Prefab=AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Game/Entity/Character/Eve/Prefab/Eve.prefab");spawn.Ground=floor.GetComponent<Collider>();
             var actor=new GameObject("authored");actor.SetActive(false);actor.transform.SetParent(root.transform);
-            actor.AddComponent<EveEntityIdentity>();actor.AddComponent<PNWorldFixtureStat>();actor.AddComponent<EveEntityLoader>();actor.AddComponent<EveSceneEntityKey>().Configure("fixture:scene","dummy");
+            actor.AddComponent<EveEntityIdentity>();actor.AddComponent<PNWorldFixtureStat>();actor.AddComponent<EveEntityLoader>();if(i==0)actor.AddComponent<PNSceneEntityRole>().Configure("project_n:enemy");actor.AddComponent<EveSceneEntityKey>().Configure("fixture:scene","dummy");
             context.AddSlot("chunk-"+i,context.PhysicsScene,new[]{root});yield return null;
             if(fault)throw new InvalidOperationException("Injected partial world load failure");
         }
     }
 }
+public sealed class PNFixtureProbe : MonoBehaviour { }
+public sealed class PNFixtureEnemyProbe : MonoBehaviour { }
 public sealed class PNWorldFixtureModule : EveIContentModule
 {
     public void Register(EveRegistryHub hub)
-    { hub.GetOrCreate<PNWorldDefinition>().Register(new PNWorldDefinition(EveId.Parse("fixture:world"),new string('a',64),typeof(PNWorldFixtureProvider),()=>new PNWorldFixtureProvider())); }
+    {
+        hub.GetOrCreate<PNWorldDefinition>().Register(new PNWorldDefinition(EveId.Parse("fixture:world"),new string('a',64),typeof(PNWorldFixtureProvider),()=>new PNWorldFixtureProvider()));
+        foreach(var feature in new[]{"fixture:feature_mode","fixture:feature_a","fixture:feature_b"})hub.WorldFeatures().Register(new PNWorldFeatureDefinition(EveId.Parse(feature)));
+        hub.GetOrCreate<PNWorldDefinition>().Register(new PNWorldDefinition(EveId.Parse("fixture:world_featured"),new string('b',64),typeof(PNWorldFixtureProvider),()=>new PNWorldFixtureProvider(),
+            new PNWorldPolicy(PNEmptyWorldPolicy.Continue,null,null,null,default,new[]{EveId.Parse("fixture:feature_a")})));
+        // entity modules (E3): every player in a world with feature_a carries PNFixtureProbe; an entity with the registered Enemy role carries PNFixtureEnemyProbe
+        hub.EntityModules().Register(new PNEntityModuleDefinition(EveId.Parse("fixture:player_probe"),PNEntityModuleRoles.Player,null,new[]{EveId.Parse("fixture:feature_a")},new[]{typeof(PNFixtureProbe)}));
+        hub.EntityModules().Register(new PNEntityModuleDefinition(EveId.Parse("fixture:enemy_probe"),PNEntityModuleRoles.None,new[]{EveId.Parse("project_n:enemy")},new[]{EveId.Parse("fixture:feature_a")},new[]{typeof(PNFixtureEnemyProbe)}));
+    }
 }
 public static class PNWorldLifecycleChecks
 {
@@ -76,6 +86,11 @@ public static class PNWorldLifecycleChecks
             }
             Pump(()=>session.Entities.Snapshot().Count==4);
             Check(session.Entities.Snapshot(a).Count==2&&session.Entities.Snapshot(b).Count==2,"scoped world index keeps globally unique entity IDs");
+            // an authored entity that names a role gets that role's identity; one that does not has no role (Docs/EntityModulePlan.md E2b)
+            var authoredEntities=session.Entities.Snapshot(a).ToArray();
+            var withRole=authoredEntities.Where(e=>e.GetComponent<PNSceneEntityRole>()!=null).ToArray();var withoutRole=authoredEntities.Where(e=>e.GetComponent<PNSceneEntityRole>()==null).ToArray();
+            Check(withRole.Length==1&&withoutRole.Length==1&&withRole[0].GetComponent<PNEntityRole>()?.Entity=="project_n:enemy"&&!PNEntityRoles.IsPlayer(withRole[0])&&withRole[0].GetComponent<PNEntityRole>().Persist,"an authored entity that names a role gets that role's identity");
+            Check(withoutRole[0].GetComponent<PNEntityRole>()==null&&!PNEntityRoles.IsPlayer(withoutRole[0]),"and one that names none keeps having no role");
             var lease=a.AcquireLease("fixture join");Check(!worlds.Unload(a),"world unload waits for explicit join lease");lease.Dispose();
             Pump(()=>candidates.Take(2).All(x=>x.IsReturned));Check(worlds.Unload(a),"world A drains entities and resources");
             Check(session.Entities.Snapshot(b).Count==2&&bl!=null&&b.State==EveWorldState.Ready,"unload A preserves world B actors and pool");
@@ -94,6 +109,46 @@ public static class PNWorldLifecycleChecks
             Check(io.State==EveWorldState.Unloading&&io.Failure==null&&session.Worlds.TryGet(io.InstanceId,io.Incarnation,out _),"pending IO is Unloading rather than a runtime fault");
             ioReady=true;session.Worlds.Remove(io);Check(io.State==EveWorldState.Disposed,"pending scene cleanup completes after IO drains");
             Reject(()=>session.Worlds.Create(a.InstanceId,a.Incarnation,a.DefinitionId,a.ContentHash),"disposed world rejects stale incarnation reuse");
+            // ---- world features (Docs/EntityModulePlan.md E2): mode + definition + creator, fixed at creation, remembered for a world created again ----
+            PNWorldFixtureProvider.InjectLoadFailure=false;
+            worlds.ModeFeatureSource=()=>new[]{EveId.Parse("fixture:feature_mode")};
+            string Feat(EveWorldContext w)=>worlds.Get(w).Features.ToString();
+            var plain=worlds.Create(EveId.Parse("fixture:world"));
+            var viaDefinition=worlds.Create(EveId.Parse("fixture:world_featured"));
+            var viaCreator=worlds.Create(EveId.Parse("fixture:world_featured"),Guid.Empty,1,new[]{EveId.Parse("fixture:feature_b")});
+            Pump(()=>plain.State==EveWorldState.Ready&&viaDefinition.State==EveWorldState.Ready&&viaCreator.State==EveWorldState.Ready);
+            Check(Feat(plain)=="fixture:feature_mode","a world has the mode's features and nothing else when nobody adds any");
+            Check(Feat(viaDefinition)=="fixture:feature_a,fixture:feature_mode","a world also has the features its definition declares, sorted by id");
+            Check(Feat(viaCreator)=="fixture:feature_a,fixture:feature_b,fixture:feature_mode","and the features its creator asked for");
+            Check(worlds.Get(plain).Features==worlds.Get(plain).Features&&!worlds.Get(plain).Features.Has(EveId.Parse("fixture:feature_a")),"the set belongs to the world instance and does not change");
+            Reject(()=>worlds.Create(EveId.Parse("fixture:world"),Guid.Empty,1,new[]{EveId.Parse("fixture:feature_missing")}),"a creator naming an unregistered feature is refused before the world exists");
+            Reject(()=>worlds.Create(EveId.Parse("fixture:world"),Guid.Empty,1,Enumerable.Range(0,PNEntityModuleLimits.MaxFeaturesPerWorld+1).Select(i=>EveId.Parse("fixture:f"+i))),"and so is a creator that asks for more than the maximum number of features");
+            var creatorWorld=viaCreator.InstanceId;var creatorIncarnation=viaCreator.Incarnation;
+            Pump(()=>worlds.Unload(viaCreator));
+            var recreated=worlds.Create(EveId.Parse("fixture:world_featured"),creatorWorld,checked(creatorIncarnation+1));Pump(()=>recreated.State==EveWorldState.Ready);
+            Check(Feat(recreated)=="fixture:feature_a,fixture:feature_b,fixture:feature_mode","a world created again with the same identity (discarded, restored) gets the creator's features back");
+            Pump(()=>worlds.Unload(recreated));Pump(()=>worlds.Unload(viaDefinition));Pump(()=>worlds.Unload(plain));
+            // ---- entity modules (Docs/EntityModulePlan.md E3): the factory attaches what matches the entity's role and the features of ITS world ----
+            var noFeature=worlds.Create(EveId.Parse("fixture:world"));var withFeature=worlds.Create(EveId.Parse("fixture:world_featured"));
+            Pump(()=>noFeature.State==EveWorldState.Ready&&withFeature.State==EveWorldState.Ready);
+            var plainRequest=factory.Player(0,noFeature,"chunk-0","player");var plainLoader=factory.Get(plainRequest);factory.Configure(plainLoader,plainRequest);
+            Check(plainLoader.GetComponent<PNFixtureProbe>()==null&&factory.ModulesFor(plainLoader,noFeature).Count==0&&(plainLoader.GetComponent<PNEntityModuleMarker>()==null||plainLoader.GetComponent<PNEntityModuleMarker>().Applied.Count==0),"a player in a world without the feature gets no module");
+            var featuredRequest=factory.Player(1,withFeature,"chunk-0","player");var featuredLoader=factory.Get(featuredRequest);factory.Configure(featuredLoader,featuredRequest);
+            Check(featuredLoader.GetComponent<PNFixtureProbe>()!=null&&featuredLoader.GetComponent<PNFixtureEnemyProbe>()==null&&featuredLoader.GetComponent<PNEntityModuleMarker>().ToString()=="fixture:player_probe","a player in a world with the feature gets exactly the modules that match it");
+            factory.Return(featuredLoader);var featuredAgain=factory.Get(featuredRequest);factory.Configure(featuredAgain,featuredRequest);
+            Check(ReferenceEquals(featuredAgain,featuredLoader)&&featuredAgain.GetComponents<PNFixtureProbe>().Length==1&&featuredAgain.GetComponent<PNEntityModuleMarker>().Applied.Count==1,"a reused pooled player holds each component once and its marker is written again, not extended");
+            var authoredRequests=factory.SceneEntities(withFeature).ToArray();var named=authoredRequests.Select(r=>(request:r,loader:factory.Get(r))).ToArray();
+            foreach(var pair in named)factory.Configure(pair.loader,pair.request);
+            Check(named.Count(x=>x.loader.GetComponent<PNFixtureEnemyProbe>()!=null)==1&&named.Count(x=>x.loader.GetComponent<PNSceneEntityRole>()!=null&&x.loader.GetComponent<PNFixtureEnemyProbe>()!=null)==1,"an authored entity that names the Enemy role gets the Enemy module in a world with the feature, one that names none gets none");
+            foreach(var pair in named)factory.Return(pair.loader);
+            var noFeatureAuthored=factory.SceneEntities(noFeature).Select(r=>(request:r,loader:factory.Get(r))).ToArray();
+            foreach(var pair in noFeatureAuthored)factory.Configure(pair.loader,pair.request);
+            Check(noFeatureAuthored.All(x=>x.loader.GetComponent<PNFixtureEnemyProbe>()==null),"and none in a world without it");
+            foreach(var pair in noFeatureAuthored)factory.Return(pair.loader);
+            factory.Return(plainLoader);factory.Return(featuredAgain);
+            Pump(()=>worlds.Unload(noFeature));Pump(()=>worlds.Unload(withFeature));
+            worlds.ModeFeatureSource=null;
+
             Pump(()=>{worlds.Unload(b);return candidates.All(x=>x.IsReturned);});worlds.Unload(b);
             Check(session.Entities.Count==0&&session.Worlds.Snapshot().Count==0,"all scoped entity and world ownership drained");
         }

@@ -5,6 +5,8 @@ change of room and the end screen are steps F3-F6.
 
 VI: Dữ liệu và logic thuần của run. Chưa có bộ điều khiển run/phòng, sinh quái, chuyển phòng, màn kết thúc (F3-F6).
 
+Roguelite Buff (constellations, Sparks, Lodestars; the run `rogue` block, `reward.rogue`, the shop) is documented in `Rogue/PNRogueREADME.md`; it uses `PNRunState.Loadout` and the `Reward` stream.
+
 ## JSON (`extensions.project_n`, parsed in `PNBuffContentBatch.ParseRoguelite`)
 
 | Key | Definition | Notes |

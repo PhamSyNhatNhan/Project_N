@@ -22,7 +22,9 @@ namespace ProjectN.Coop
         public bool Equals(PNWorldBindingScope x)=>World==x.World&&Incarnation==x.Incarnation&&Membership==x.Membership&&Subscription==x.Subscription;
     }
     public struct PNWorldOffer : NetworkMessage
-    {public PNWorldTicket Ticket;public string Definition,ContentHash;public bool Active,DefaultWorld,Paused;}
+    {public PNWorldTicket Ticket;public string Definition,ContentHash;public bool Active,DefaultWorld,Paused;
+        // The features of this world instance as the HOST fixed them (Docs/EntityModulePlan.md E4): sorted, unique, at most PNEntityModuleLimits.MaxFeaturesPerWorld. A client never works its own set out.
+        public string[] Features;}
     public struct PNWorldLoaded : NetworkMessage
     {public PNWorldTicket Ticket;public bool Success;}
     public struct PNWorldFence : NetworkMessage
@@ -47,10 +49,31 @@ namespace ProjectN.Coop
         {if(value.World!=Guid.Empty)value.Validate();else if(value.Incarnation!=0||value.Membership!=0||value.Subscription!=0)throw new FormatException("Partial world scope.");w.WriteGuid(value.World);w.WriteULong(value.Incarnation);w.WriteULong(value.Membership);w.WriteULong(value.Subscription);}
         public static PNWorldBindingScope ReadWorldBindingScope(this NetworkReader r)
         {var v=new PNWorldBindingScope{World=r.ReadGuid(),Incarnation=r.ReadULong(),Membership=r.ReadULong(),Subscription=r.ReadULong()};if(v.World!=Guid.Empty)v.Validate();else if(v.Incarnation!=0||v.Membership!=0||v.Subscription!=0)throw new FormatException("Partial world scope.");return v;}
+        private static void WriteFeatures(NetworkWriter w,string[] features)
+        {
+            features=features??Array.Empty<string>();Features(features);w.WriteByte((byte)features.Length);
+            foreach(var feature in features)Text(w,feature,PNEntityModuleLimits.MaxText);
+        }
+        private static string[] ReadFeatures(NetworkReader r)
+        {
+            int count=r.ReadByte();if(count>PNEntityModuleLimits.MaxFeaturesPerWorld)throw new FormatException("World feature count bound.");
+            var result=new string[count];for(int i=0;i<count;i++)result[i]=Text(r,PNEntityModuleLimits.MaxText);
+            Features(result);return result;
+        }
+        // Valid ids, strictly sorted by ordinal comparison (so unique): two machines that hold the same set write and read the same bytes.
+        private static void Features(string[] features)
+        {
+            if(features.Length>PNEntityModuleLimits.MaxFeaturesPerWorld)throw new FormatException("World feature count bound.");
+            for(int i=0;i<features.Length;i++)
+            {
+                if(string.IsNullOrEmpty(features[i])||!EveId.TryParse(features[i],out var id)||id.ToString()!=features[i])throw new FormatException("World feature id.");
+                if(i>0&&string.CompareOrdinal(features[i-1],features[i])>=0)throw new FormatException("World features are sorted and unique.");
+            }
+        }
         public static void WriteWorldOffer(this NetworkWriter w,PNWorldOffer v)
-        {v.Ticket.Validate();_ = EveId.Parse(v.Definition);Hash(v.ContentHash);w.WriteWorldTicket(v.Ticket);Text(w,v.Definition,128);Text(w,v.ContentHash,64);w.WriteByte((byte)((v.Active?1:0)|(v.DefaultWorld?2:0)|(v.Paused?4:0)));}
+        {v.Ticket.Validate();_ = EveId.Parse(v.Definition);Hash(v.ContentHash);w.WriteWorldTicket(v.Ticket);Text(w,v.Definition,128);Text(w,v.ContentHash,64);w.WriteByte((byte)((v.Active?1:0)|(v.DefaultWorld?2:0)|(v.Paused?4:0)));WriteFeatures(w,v.Features);}
         public static PNWorldOffer ReadWorldOffer(this NetworkReader r)
-        {Control(r);var v=new PNWorldOffer{Ticket=r.ReadWorldTicket(),Definition=Text(r,128),ContentHash=Text(r,64)};int flags=r.ReadByte();if(flags>7)throw new FormatException("World offer flags.");_ = EveId.Parse(v.Definition);Hash(v.ContentHash);v.Active=(flags&1)!=0;v.DefaultWorld=(flags&2)!=0;v.Paused=(flags&4)!=0;return v;}
+        {Control(r);var v=new PNWorldOffer{Ticket=r.ReadWorldTicket(),Definition=Text(r,128),ContentHash=Text(r,64)};int flags=r.ReadByte();if(flags>7)throw new FormatException("World offer flags.");_ = EveId.Parse(v.Definition);Hash(v.ContentHash);v.Active=(flags&1)!=0;v.DefaultWorld=(flags&2)!=0;v.Paused=(flags&4)!=0;v.Features=ReadFeatures(r);return v;}
         public static void WriteWorldLoaded(this NetworkWriter w,PNWorldLoaded v){w.WriteWorldTicket(v.Ticket);w.WriteByte((byte)(v.Success?1:0));}
         public static PNWorldLoaded ReadWorldLoaded(this NetworkReader r){Control(r);var t=r.ReadWorldTicket();byte ok=r.ReadByte();if(ok>1)throw new FormatException("World load flags.");return new PNWorldLoaded{Ticket=t,Success=ok==1};}
         public static void WriteWorldFence(this NetworkWriter w,PNWorldFence v)

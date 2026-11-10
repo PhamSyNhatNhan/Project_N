@@ -132,6 +132,14 @@ public class PNContentModule : EveIContentModule, EveIContentFinalizeModule, Eve
         hub.GetOrCreate<PNRunDefinition>(); hub.NameRegistry<PNRunDefinition>("roguelite_runs");
         hub.GetOrCreate<PNFloorDefinition>(); hub.NameRegistry<PNFloorDefinition>("roguelite_floors");
         hub.GetOrCreate<PNRoomDefinition>(); hub.NameRegistry<PNRoomDefinition>("roguelite_rooms");
+        hub.GetOrCreate<PNRogueConstellationDefinition>(); hub.NameRegistry<PNRogueConstellationDefinition>("rogue_constellations");
+        hub.GetOrCreate<PNRogueSparkDefinition>(); hub.NameRegistry<PNRogueSparkDefinition>("rogue_sparks");
+        hub.GetOrCreate<PNRogueLodestarDefinition>(); hub.NameRegistry<PNRogueLodestarDefinition>("rogue_lodestars");
+        hub.GetOrCreate<PNRogueFactoryDefinition>(); hub.NameRegistry<PNRogueFactoryDefinition>("rogue_factories");
+        hub.GetOrCreate<PNWorldFeatureDefinition>(); hub.NameRegistry<PNWorldFeatureDefinition>("world_features");
+        hub.GetOrCreate<PNEntityModuleDefinition>(); hub.NameRegistry<PNEntityModuleDefinition>("entity_modules");
+        // The world feature a run with Roguelite Buff gives its rooms (Docs/EntityModulePlan.md): the vocabulary lives here, the module that answers to it in the gameplay module.
+        hub.WorldFeatures().Register(new PNWorldFeatureDefinition(PNRunFeatures.RogueBuff, "Worlds of a run that has Roguelite Buff."));
     }
 
     public virtual void FinalizeContent(EveRegistryHub hub) { }

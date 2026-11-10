@@ -17,10 +17,16 @@ public sealed class PNWorldPolicy
     public IReadOnlyList<EveId> WorldStateProviders { get; }
     // Optional transition screen id for transfers into this world (empty = next step of the selection chain). Presentation only.
     public EveId TransitionScreen { get; }
+    // World features every instance of this world has (Docs/EntityModulePlan.md); merged with the mode's and the creator's when a world is created.
+    public IReadOnlyList<EveId> Features { get; } = Array.AsReadOnly(Array.Empty<EveId>());
     // Additive overload; the original constructor above keeps its signature for already-built mods.
     public PNWorldPolicy(PNEmptyWorldPolicy empty,IEnumerable<EveId> participants,IEnumerable<EveId> actorState,IEnumerable<EveId> worldState,EveId transitionScreen)
         : this(empty,participants,actorState,worldState)
     { if(transitionScreen.IsValid&&transitionScreen.ToString().Length>128)throw new ArgumentException("Bounded transition screen ID required.");TransitionScreen=transitionScreen; }
+    // Additive overload for worlds that declare features.
+    public PNWorldPolicy(PNEmptyWorldPolicy empty,IEnumerable<EveId> participants,IEnumerable<EveId> actorState,IEnumerable<EveId> worldState,EveId transitionScreen,IEnumerable<EveId> features)
+        : this(empty,participants,actorState,worldState,transitionScreen)
+    { Features=Array.AsReadOnly(new PNWorldFeatures(features??Array.Empty<EveId>()).Ids.ToArray()); }
     public PNWorldPolicy(PNEmptyWorldPolicy empty=PNEmptyWorldPolicy.Continue,IEnumerable<EveId> participants=null,IEnumerable<EveId> actorState=null,IEnumerable<EveId> worldState=null)
     {
         if(!Enum.IsDefined(typeof(PNEmptyWorldPolicy),empty))throw new ArgumentOutOfRangeException(nameof(empty));Empty=empty;

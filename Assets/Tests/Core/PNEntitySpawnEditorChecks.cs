@@ -166,7 +166,7 @@ public static class PNEntitySpawnEditorChecks
 
         // The coop hash carries one entry per referenced prefab.
         var hashes = PNEntityPrefabReferences.Hashes(hub, PNEntityPrefabs.Source);
-        Check(hashes.Count == 3 && hashes.ContainsKey("entity_prefab:project_n:visual_test") && hashes.ContainsKey("entity_prefab:project_n:eve2_pet") && hashes["entity_prefab:project_n:eve_2"] == baseline, "the coop hash entry for project_n:eve_2 is the prefab fingerprint");
+        Check(hashes.Count == PNEntityPrefabReferences.Collect(hub).Count && hashes.ContainsKey("entity_prefab:project_n:visual_test") && hashes.ContainsKey("entity_prefab:project_n:eve2_pet") && hashes.TryGetValue("entity_prefab:project_n:eve_2", out var eveHash) && eveHash == baseline, "the coop hash carries one entry per referenced prefab and the entry for project_n:eve_2 is the prefab fingerprint (" + hashes.Count + " entries: " + string.Join(", ", hashes.Keys) + ")");
     }
 
     // E4: the factory builds entities from the instances registry, the catalog and the spawn points, and keeps the old behavior for players.
@@ -261,7 +261,7 @@ public static class PNEntitySpawnEditorChecks
             Check(second.Loader.GetComponent<PNEnemySkill>()?.ActiveBehaviorId == firstBehavior && second.Loader.GetComponent<PNBuffManager>().Buffs.Snapshot().Count == 0, "the reused enemy starts with the default behavior and no Buff");
             var playerSpawn = Spawn(factory.Player(3, world, "chunk-0", null)); var playerLoader = playerSpawn.Loader; var playerStat = playerLoader.GetComponent<PNStat>();
             double playerHealth = playerStat.GetMax(PNContentIds.Health), playerStart = playerStat.GetCurrent(PNContentIds.Health);
-            playerStat.ReceiveDamage(again.CreateDamage(playerHealth * .5, false, PNContentIds.True));
+            playerStat.ReceiveDamage(again.CreateDamage(playerHealth * 100, false, PNContentIds.True));   // far more than the pool: the test needs the player dead whatever the source's damage scaling is
             playerStat.SetSource(EveId.Parse("test:dirty"), new[] { new EveStatModifier(PNContentIds.AttackPower, 50d, 0) });
             double playerHurt = playerStat.GetCurrent(PNContentIds.Health);
             scheduler.RetirePublished(playerLoader); Pump(() => playerSpawn.IsReturned);

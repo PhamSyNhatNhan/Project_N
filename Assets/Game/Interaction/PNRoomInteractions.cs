@@ -10,12 +10,13 @@ using UnityEngine;
 //       room_exit   a gate of a cleared room: takes the team through it (host only); the gate of the last room ends the run as a victory.
 //       rest_heal   a fountain: heals every living player of the room by `params.ratio` of their maximum health (once, everyone).
 //       shop_heal   a shop heal: costs `params.cost` from the team wallet and heals by `params.ratio` (repeatable, host only).
+//       shop_rogue  the Roguelite Buff shop of a shop room: opens the shop screen on every machine (host only; the buying itself is the `project_n:rogue_command` command).
 //     A handler keeps no state: it asks the run director (the owner of the room, the wallet and the gates) and acts through it. A map names its interactables by definition id on the
 //     PNInteractable of each object; which objects are open, and when, is decided by the room director.
 // VI: Các vật tương tác của phòng roguelite: công tắc bắt đầu, cổng ra, đài hồi máu, hồi máu ở cửa hàng. Handler không giữ trạng thái, hỏi PNRunDirector và làm qua nó.
 public static class PNRoomInteractions
 {
-    public static readonly EveId RoomStart = EveId.Parse("project_n:room_start"), RoomExit = EveId.Parse("project_n:room_exit"), RestHeal = EveId.Parse("project_n:rest_heal"), ShopHeal = EveId.Parse("project_n:shop_heal");
+    public static readonly EveId RoomStart = EveId.Parse("project_n:room_start"), RoomExit = EveId.Parse("project_n:room_exit"), RestHeal = EveId.Parse("project_n:rest_heal"), ShopHeal = EveId.Parse("project_n:shop_heal"), ShopRogue = EveId.Parse("project_n:shop_rogue");
     public const string KindKeyPrefix = "project_n:room.kind.";
     public static string KindKey(PNRoomKind kind) => KindKeyPrefix + kind.ToString().ToLowerInvariant();
     public static readonly string FinishKey = KindKeyPrefix + "finish";
@@ -47,7 +48,8 @@ public static class PNRoomInteractions
         instances.Register(new PNInteractableDefinition(RoomExit, typeof(PNRoomExitHandler), () => new PNRoomExitHandler(), Data("host", "repeat", "project_n:interact.room_exit")));
         instances.Register(new PNInteractableDefinition(RestHeal, typeof(PNRestHealHandler), () => new PNRestHealHandler(), Data("everyone", "once", "project_n:interact.rest_heal", new JObject { ["ratio"] = 0.5 }), PNHealParams.Validate));
         instances.Register(new PNInteractableDefinition(ShopHeal, typeof(PNShopHealHandler), () => new PNShopHealHandler(), Data("host", "repeat", "project_n:interact.shop_heal", new JObject { ["cost"] = 30, ["ratio"] = 1.0 }), PNHealParams.ValidateShop));
-        foreach (var id in new[] { RoomStart, RoomExit, RestHeal, ShopHeal })
+        instances.Register(new PNInteractableDefinition(ShopRogue, typeof(PNRogueShopHandler), () => new PNRogueShopHandler(), Data("host", "repeat", "project_n:interact.shop_rogue")));
+        foreach (var id in new[] { RoomStart, RoomExit, RestHeal, ShopHeal, ShopRogue })
             instances.RegisterBase<PNInteractableDefinition>(new EveId("base", id.Path), id, "project_n", compatible: (original, replacement) => true);
     }
 
@@ -146,5 +148,14 @@ public sealed class PNShopHealHandler : IPNInteractionHandler
         PNHealParams.HealTeam(context, settings.Params.Value<double>("ratio"));
         run.Raise();
     }
+}
+public sealed class PNRogueShopHandler : IPNInteractionHandler
+{
+    public PNInteractionAvailability CanUse(PNInteractionContext context)
+    {
+        var rogue = PNRunDirector.Find(context.Session)?.Rogue;
+        return rogue != null && rogue.Shop != null && !rogue.ShopOpen ? PNInteractionAvailability.Yes : PNInteractionAvailability.Denied();
+    }
+    public void Interact(PNInteractionContext context) { PNRunDirector.Find(context.Session)?.Rogue?.Execute(new Newtonsoft.Json.Linq.JObject { ["op"] = "open" }); }
 }
 #endif

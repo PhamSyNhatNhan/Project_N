@@ -38,6 +38,8 @@ public sealed class PNRunDirector : IDisposable
     public PNRunDefinition Definition { get; private set; }
     public PNRunState State { get; private set; }
     public PNRoomDirector Room { get; private set; }
+    // The Roguelite Buff of this run (items, offer, shop), or null when the run definition has no `rogue` block.
+    public PNRogueRun Rogue { get; private set; }
     public string Error { get; private set; }
     public double ReviveHealth => Definition?.ReviveHealth ?? PNRunActorStateProvider.DefaultReviveRatio;
     public bool IsActive => Phase != PNRunPhase.None && Phase != PNRunPhase.Ended;
@@ -69,11 +71,11 @@ public sealed class PNRunDirector : IDisposable
             var team = players.ToDictionary(x => x.LoadContext.Identity.OwnerId, x => CharacterOf(x));
             var directory = PNPlayerDirectories.Current;
             State = planner.Begin(Guid.NewGuid(), seed, team.Select(x => new KeyValuePair<long, EveId>(x.Key, x.Value)), directory.PlayerIdOf);
-            Room = null; Error = null; source = from; healthFromState = false;
+            Room = null; Error = null; source = from; healthFromState = false; Rogue = NewRogue(hub);
             ChangeRoom(hub.RogueliteRooms().Get(State.Room));
             return true;
         }
-        catch (Exception exception) { error = exception.Message; Phase = PNRunPhase.None; State = null; Definition = null; return false; }
+        catch (Exception exception) { error = exception.Message; Phase = PNRunPhase.None; State = null; Definition = null; Rogue = null; return false; }
     }
 
     // EN: Continue a saved run (Docs/RunSavePlan.md 5.6): the players in `from` (the lobby) take the seats of the people they are, and the team enters the room the run was saved at. The first
@@ -97,12 +99,15 @@ public sealed class PNRunDirector : IDisposable
             State = save.ToState(person => ownerOf.TryGetValue(person, out var owner) ? owner : (long?)null);
             // The authority's own person must be in the run (owner 0): its body is in the lobby and is rebuilt as its seat.
             if (!State.TryGetPlayer(0, out _)) throw new InvalidOperationException("The host holds no seat of the saved run.");
-            Room = null; Error = null; source = from; healthFromState = true;
+            Room = null; Error = null; source = from; healthFromState = true; Rogue = NewRogue(hub);
             ChangeRoom(hub.RogueliteRooms().Get(State.Room));
             return true;
         }
-        catch (Exception exception) { error = exception.Message; Phase = PNRunPhase.None; State = null; Definition = null; return false; }
+        catch (Exception exception) { error = exception.Message; Phase = PNRunPhase.None; State = null; Definition = null; Rogue = null; return false; }
     }
+
+    // The Roguelite Buff of a run whose definition has the `rogue` block (Docs/RogueBuffPlan.md); the numbers are the definition's, the set is the run state's loadout.
+    private PNRogueRun NewRogue(EveRegistryHub hub) => Definition.Rogue == null ? null : new PNRogueRun(this, State, Definition.Rogue, PNRogueCatalog.Build(hub), PNRogueRun.DefaultAllows);
 
     private EveRegistryHub Prepare(EveWorldContext from)
     {
@@ -165,6 +170,7 @@ public sealed class PNRunDirector : IDisposable
         State.Stats.AddCleared(Room.Definition.Kind);
         if (Room.Definition.Reward.Shards > 0) State.AddShards(Room.Definition.Reward.Shards, "room:" + Room.Definition.Id);
         planner.PrepareExits(State);
+        Rogue?.RoomCleared(Room.Definition);
         Raise();
     }
     internal void OnDefeat() { if (defeatTimer < 0f && State != null && State.IsRunning) defeatTimer = DefeatDelaySeconds; Raise(); }
@@ -180,6 +186,7 @@ public sealed class PNRunDirector : IDisposable
         // A world made for a room change that did not complete is dropped; the team stays where it was.
         if (destination != null && destination != Room?.World) unloading.Add(destination);
         destination = null; nextRoom = null; receipt = null;
+        Rogue?.Clear();
         Phase = PNRunPhase.Ended; Raise();
     }
 
@@ -187,7 +194,7 @@ public sealed class PNRunDirector : IDisposable
     private void ChangeRoom(PNRoomDefinition room)
     {
         nextRoom = room; phaseStarted = Time.realtimeSinceStartupAsDouble;
-        destination = game.Worlds.Create(room.World);
+        destination = game.Worlds.Create(room.World, Guid.Empty, 1, PNRunFeatures.Of(Definition).Ids);
         Phase = PNRunPhase.CreatingRoom; Raise();
     }
 
@@ -241,7 +248,7 @@ public sealed class PNRunDirector : IDisposable
         if (old != null && old != destination) unloading.Add(old);
         destination = null; nextRoom = null; receipt = null; healthFromState = false;
         // Saved before the room starts: a continued run enters the room again, and the clearing of a room without combat (its count, its reward, the gates it draws) happens again with it.
-        Phase = PNRunPhase.Playing; SaveOnEntry(); Room.Enter(); Raise();
+        Phase = PNRunPhase.Playing; SaveOnEntry(); Rogue?.RoomEntered(Room.Definition); Room.Enter(); Raise();
     }
 
     private string SlotOf(EveWorldContext world)

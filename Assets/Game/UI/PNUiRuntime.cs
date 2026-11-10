@@ -29,12 +29,17 @@ public sealed class PNUiRuntime : MonoBehaviour
     private PNRunHudView runHud;
     private PNInteractionListView interactionList;
     private PNRunEndView runEnd;
+    private PNRogueOfferView rogueOffer;
+    private PNRogueShopView rogueShop;
+    private PNRogueHudView rogueHud;
     private PNPauseMenu pause;
     private PNModeMenu modeMenu;
     private GameObject ownedEventSystem;
     private PNMenuFlow menuFlow;
     // Any local menu that owns the screen: the pause menu or the mode / setup / character flow (HUD, mobile controls and world UI hide for both).
     public bool MenuOpen => PauseOpen || FlowOpen;
+    // The Roguelite pick screen or shop is up and the local player can act on it: a phone's virtual stick and buttons step aside (they sit over the left half and would take the finger).
+    internal bool RogueModalOpen => (rogueOffer != null && rogueOffer.Interactive) || (rogueShop != null && rogueShop.Interactive);
     internal bool PauseOpen => pause!=null && pause.IsOpen;
     internal bool FlowOpen => menuFlow!=null && menuFlow.IsOpen;
     internal PNMenuFlow MenuFlow => menuFlow;
@@ -160,6 +165,9 @@ public sealed class PNUiRuntime : MonoBehaviour
         runHud=new PNRunHudView(this,root);
         interactionList=new PNInteractionListView(this,root);
         runEnd=new PNRunEndView(this,root);
+        rogueOffer=new PNRogueOfferView(this,root);
+        rogueShop=new PNRogueShopView(this,root);
+        rogueHud=new PNRogueHudView(this,root);
         pause=new PNPauseMenu(this,root);
         modeMenu=new PNModeMenu(this,root,pause);
         menuFlow=new PNMenuFlow(this,root);
@@ -208,7 +216,7 @@ public sealed class PNUiRuntime : MonoBehaviour
         if(PNViewCamera.Service==null) SyncCamera();
         if(!EveRegistrySession.IsReady)
         {
-            ClearWorlds(); entities.Clear(); HudPlayer=null; mobile?.Refresh(null); pcControls?.Refresh(null); runHud?.Refresh(null); interactionList?.Refresh(null); runEnd?.Refresh(); UpdateHud(); UpdateSelection(); UpdateDetails(); return;
+            ClearWorlds(); entities.Clear(); HudPlayer=null; mobile?.Refresh(null); pcControls?.Refresh(null); runHud?.Refresh(null); interactionList?.Refresh(null); runEnd?.Refresh(); rogueOffer?.Refresh(); rogueShop?.Refresh(); rogueHud?.Refresh(null); UpdateHud(); UpdateSelection(); UpdateDetails(); return;
         }
         if(session!=EveRegistrySession.Context.SessionId)
         { ClearWorlds(); ClearPortraits(); selected=default; session=EveRegistrySession.Context.SessionId; images.Clear(); ClearGlows(); }
@@ -234,6 +242,9 @@ public sealed class PNUiRuntime : MonoBehaviour
         runHud?.Refresh(HudPlayer);
         interactionList?.Refresh(HudPlayer);
         runEnd?.Refresh();
+        rogueOffer?.Refresh();
+        rogueShop?.Refresh();
+        rogueHud?.Refresh(HudPlayer);
         UpdateHud(); UpdateSelection(); UpdateDetails();
     }
     private void UpdateHud()
@@ -370,6 +381,7 @@ public sealed class PNUiRuntime : MonoBehaviour
         runHud?.Dispose(); runHud=null;
         interactionList?.Dispose(); interactionList=null;
         runEnd?.Dispose(); runEnd=null;
+        rogueOffer?.Dispose(); rogueOffer=null; rogueShop?.Dispose(); rogueShop=null; rogueHud?.Dispose(); rogueHud=null;
         sparkleArtwork?.Dispose();sparkleArtwork=null;
         PNViewCamera.Updated-=SyncCamera;
         ClearWorlds(); ClearPortraits(); DisconnectCamera();

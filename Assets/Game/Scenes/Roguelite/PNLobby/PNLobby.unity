@@ -334,6 +334,7 @@ GameObject:
   - component: {fileID: 367849527}
   - component: {fileID: 367849526}
   - component: {fileID: 367849532}
+  - component: {fileID: 1936282201}
   m_Layer: 7
   m_Name: Dummy
   m_TagString: Enemy
@@ -478,6 +479,19 @@ MonoBehaviour:
   m_EditorClassIdentifier: EveEngine::EveEngine.EveSceneEntityKey
   sceneKey: project_n:ermode
   entityKey: dummy
+--- !u!114 &1936282201
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 367849522}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 260bfb76cf17dcd47810d3a7bc264ed3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: ProjectN.Core::PNSceneEntityRole
+  role: project_n:enemy
 --- !u!1 &519420028
 GameObject:
   m_ObjectHideFlags: 0

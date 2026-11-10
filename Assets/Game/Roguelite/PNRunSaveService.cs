@@ -81,6 +81,8 @@ public static class PNRunSaveService
         }
         catch (Exception e) when (e is InvalidOperationException || e is ArgumentOutOfRangeException) { return PNRunSaveProblem.Position; }
         if (!registry.RogueliteRooms().TryGet(save.Room, out _) || save.Options.Any(x => !registry.RogueliteRooms().TryGet(x, out _))) return PNRunSaveProblem.Position;
+        // The items the team holds: a run without Roguelite Buff holds none; a run with it holds a set that is valid for the content loaded now.
+        if (run.Rogue == null ? save.Loadout.Count > 0 : PNRogueSet.Problem(PNRogueCatalog.Build(registry), save.Loadout) != null) return PNRunSaveProblem.Position;
         foreach (var seat in save.Seats)
         {
             if (!registry.Characters.TryGet(seat.Character, out var character)) return PNRunSaveProblem.Character;

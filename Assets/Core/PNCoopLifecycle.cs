@@ -38,6 +38,8 @@ public interface IPNSessionPolicy
     void OnOwnerLeft(Action retire);
     // Default screen for this mode's transitions; default interface member keeps already-built mode policies compatible.
     EveEngine.EveId TransitionScreen => default;
+    // World features every world of this play has (Docs/EntityModulePlan.md); default member keeps already-built mode policies compatible.
+    IEnumerable<EveEngine.EveId> Features => Array.Empty<EveEngine.EveId>();
 }
 #endif
 #if UNITY_5_3_OR_NEWER

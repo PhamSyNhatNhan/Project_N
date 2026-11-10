@@ -81,7 +81,7 @@ public static class PNSyncWorldChecks
             var objects = roots.SelectMany(x => x.GetComponentsInChildren<PNWorldObject>(true)).ToArray(); var groupList = roots.SelectMany(x => x.GetComponentsInChildren<PNRoomSpawnGroup>(true)).ToArray();
             PNWorldObject.ValidateSet(objects); PNRoomSpawnGroup.ValidateSet(groupList);
             var keys = objects.Select(x => x.Key).OrderBy(x => x).ToArray(); var groups = groupList.Select(x => x.Group).OrderBy(x => x).ToArray();
-            Check(keys.SequenceEqual(new[] { "fountain", "gate_a", "gate_b", "gate_c", "room", "shop_heal", "start_switch" }), "its seven world objects: room, start switch, three gates, fountain, shop");
+            Check(keys.SequenceEqual(new[] { "fountain", "gate_a", "gate_b", "gate_c", "room", "shop_heal", "shop_rogue", "start_switch" }), "its eight world objects: room, start switch, three gates, fountain, shop heal, star shop");
             Check(groups.SequenceEqual(new[] { "center", "north", "south" }), "its three spawn groups: north, south, center");
             var spawn = roots.SelectMany(x => x.GetComponentsInChildren<PNPlayerSpawnPoint>(true)).Single(); spawn.Validate();
             Check(spawn.SpawnEntry == "player" && spawn.Ground != null && spawn.Ground.gameObject.layer == 13 && spawn.Character == "project_n:eve", "the player spawn point has the Eve prefab and a ground on layer 13");
@@ -89,7 +89,7 @@ public static class PNSyncWorldChecks
             Check(nav.Cache.ProfileId == "ground-small" && Mathf.Approximately(nav.Cache.Radius, 0.2f) && Mathf.Approximately(nav.Cache.Height, 1.4f), "navigation uses the same ground-small profile as ErMode (radius 0.2, height 1.4)");
             Check(PNNavigationBaker.GeometryHash(nav.GeometryRoots) == nav.Cache.MapHash && nav.GeometryRoots.Length == 1 && nav.GeometryRoots[0].layer == 13, "the cache was baked from the floor as it is now");
             var interactive = objects.Where(x => x.GetComponent<PNInteractable>() != null).ToArray();
-            Check(interactive.Select(x => x.Key).OrderBy(x => x).SequenceEqual(new[] { "fountain", "gate_a", "gate_b", "gate_c", "shop_heal", "start_switch" }), "the switch, the three gates, the fountain and the shop heal carry a PNInteractable");
+            Check(interactive.Select(x => x.Key).OrderBy(x => x).SequenceEqual(new[] { "fountain", "gate_a", "gate_b", "gate_c", "shop_heal", "shop_rogue", "start_switch" }), "the switch, the three gates, the fountain, the shop heal and the star shop carry a PNInteractable");
             Check(interactive.All(x => hub.Instances().TryGetKind<PNInteractableDefinition>(EveId.Parse(x.GetComponent<PNInteractable>().DefinitionId), out var found) && found.Settings.Range > 0), "each names a registered interactable definition");
             var keySet = new HashSet<string>(keys); var groupSet = new HashSet<string>(groups);
             foreach (var room in hub.RogueliteRooms().Snapshot().Values.Where(x => x.World == id))
@@ -117,6 +117,12 @@ public static class PNSyncWorldChecks
         // ---- the real base content: the frame's sample run, its rooms, and the map world they name ----
         var run = hub.RogueliteRuns().Get(EveId.Parse("project_n:standard_run"));
         Check(run.Floors.Count == 3 && run.Floors.All(f => hub.RogueliteFloors().Get(f).Rooms.Count >= 1) && hub.RogueliteFloors().Get(run.Floors[1]).Choices == 2, "the base content carries the sample run with three floors, the second one offering two gates");
+        // Roguelite Buff of the base content (Docs/RogueBuffPlan.md R4): the run has the rogue block, combat rooms offer items, two sample constellations of stats only
+        var rogue = PNRogueCatalog.Build(hub);
+        Check(run.Rogue != null && run.Rogue.Offer == 3 && run.Rogue.EmptyOfferShards == 20 && run.Rogue.ShopStock == 4 && run.Rogue.RerollBase == 20 && run.Rogue.RerollStep == 10 && run.Rogue.SellRatio == 0.5 && run.Rogue.ExchangeRatio == 0.5, "the sample run carries the numbers of its Roguelite Buff");
+        Check(rogue.Constellations.Count == 2 && hub.RogueLodestars().Snapshot().Count == 4 && hub.RogueSparks().Snapshot().Count == 9 && rogue.Items.All(x => x.FactoryId == PNRogueBuiltIn.StatsOnly && x.Modifiers.Count > 0), "the base content has two constellations of stats-only items (4 Lodestars, 9 Sparks)");
+        Check(PNRogueOffer.Eligible(rogue, new PNRogueSet(rogue, new List<string>()), a => a == PNRogueAvailability.Default).Count == 10 && rogue.Items.Count(x => x.Availability == PNRogueAvailability.Forbidden) == 2, "ten of them may be offered at the start: the two forbidden ones and the Spark that needs a Lodestar stay out");
+        Check(hub.RogueliteRooms().Get(EveId.Parse("project_n:room_star_combat_a")).Reward.Rogue && hub.RogueliteRooms().Get(EveId.Parse("project_n:room_star_combat_b")).Reward.Rogue && !hub.RogueliteRooms().Get(EveId.Parse("project_n:room_star_boss")).Reward.Rogue && !hub.RogueliteRooms().Get(EveId.Parse("project_n:room_rest")).Reward.Rogue, "the combat rooms offer items, the others do not");
         var rooms = hub.RogueliteRooms().Snapshot().Values.Where(x => x.Id.Namespace == "project_n").ToArray();
         Check(rooms.Length == 5 && rooms.All(x => hub.Get<PNWorldDefinition>().TryGet(x.World, out _)) && rooms.All(x => x.World == EveId.Parse("project_n:map_star_test_01")), "its five rooms are played on the registered map world");
         var mapDefinition = hub.Get<PNWorldDefinition>().Get(EveId.Parse("project_n:map_star_test_01"));

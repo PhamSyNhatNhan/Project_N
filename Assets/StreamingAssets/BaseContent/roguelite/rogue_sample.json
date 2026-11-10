@@ -1,0 +1,271 @@
+{
+  "schemaVersion": 1,
+  "extensions": {
+    "project_n": {
+      "rogueConstellations": [
+        {
+          "id": "project_n:rogue_orbit",
+          "name": "project_n:rogue.rogue_orbit.name",
+          "description": "project_n:rogue.rogue_orbit.desc",
+          "icon": "UI/Icons/Rogue/rogue_orbit",
+          "factoryId": "project_n:rogue_passive"
+        },
+        {
+          "id": "project_n:rogue_crystal",
+          "name": "project_n:rogue.rogue_crystal.name",
+          "description": "project_n:rogue.rogue_crystal.desc",
+          "icon": "UI/Icons/Rogue/rogue_crystal",
+          "factoryId": "project_n:rogue_passive"
+        }
+      ],
+      "rogueLodestars": [
+        {
+          "id": "project_n:rogue_orbit_wide",
+          "constellation": "project_n:rogue_orbit",
+          "name": "project_n:rogue.rogue_orbit_wide.name",
+          "description": "project_n:rogue.rogue_orbit_wide.desc",
+          "icon": "UI/Icons/Rogue/rogue_orbit_wide",
+          "weight": 1,
+          "price": 120,
+          "factoryId": "project_n:rogue_stats_only",
+          "stats": [
+            {
+              "statId": "base:attack_power",
+              "group": 1,
+              "value": 0.1
+            },
+            {
+              "statId": "base:attack_speed",
+              "group": 1,
+              "value": 0.05
+            }
+          ]
+        },
+        {
+          "id": "project_n:rogue_orbit_close",
+          "constellation": "project_n:rogue_orbit",
+          "name": "project_n:rogue.rogue_orbit_close.name",
+          "description": "project_n:rogue.rogue_orbit_close.desc",
+          "icon": "UI/Icons/Rogue/rogue_orbit_close",
+          "weight": 1,
+          "price": 120,
+          "factoryId": "project_n:rogue_stats_only",
+          "stats": [
+            {
+              "statId": "base:crit_rate",
+              "group": 0,
+              "value": 3
+            },
+            {
+              "statId": "base:crit_damage",
+              "group": 0,
+              "value": 10
+            }
+          ]
+        },
+        {
+          "id": "project_n:rogue_crystal_core",
+          "constellation": "project_n:rogue_crystal",
+          "name": "project_n:rogue.rogue_crystal_core.name",
+          "description": "project_n:rogue.rogue_crystal_core.desc",
+          "icon": "UI/Icons/Rogue/rogue_crystal_core",
+          "weight": 1,
+          "price": 120,
+          "factoryId": "project_n:rogue_stats_only",
+          "stats": [
+            {
+              "statId": "base:defense",
+              "group": 1,
+              "value": 0.1
+            },
+            {
+              "statId": "base:health",
+              "group": 1,
+              "value": 0.08
+            }
+          ]
+        },
+        {
+          "id": "project_n:rogue_crystal_prism",
+          "constellation": "project_n:rogue_crystal",
+          "name": "project_n:rogue.rogue_crystal_prism.name",
+          "description": "project_n:rogue.rogue_crystal_prism.desc",
+          "icon": "UI/Icons/Rogue/rogue_crystal_prism",
+          "weight": 1,
+          "price": 120,
+          "factoryId": "project_n:rogue_stats_only",
+          "stats": [
+            {
+              "statId": "base:cooldown_reduction",
+              "group": 0,
+              "value": 5
+            },
+            {
+              "statId": "base:attack_power",
+              "group": 1,
+              "value": 0.05
+            }
+          ]
+        }
+      ],
+      "rogueSparks": [
+        {
+          "id": "project_n:rogue_orbit_power",
+          "constellation": "project_n:rogue_orbit",
+          "name": "project_n:rogue.rogue_orbit_power.name",
+          "description": "project_n:rogue.rogue_orbit_power.desc",
+          "icon": "UI/Icons/Rogue/rogue_orbit_power",
+          "weight": 3,
+          "price": 60,
+          "factoryId": "project_n:rogue_stats_only",
+          "stats": [
+            {
+              "statId": "base:attack_power",
+              "group": 1,
+              "value": 0.05
+            }
+          ]
+        },
+        {
+          "id": "project_n:rogue_orbit_haste",
+          "constellation": "project_n:rogue_orbit",
+          "name": "project_n:rogue.rogue_orbit_haste.name",
+          "description": "project_n:rogue.rogue_orbit_haste.desc",
+          "icon": "UI/Icons/Rogue/rogue_orbit_haste",
+          "weight": 3,
+          "price": 60,
+          "factoryId": "project_n:rogue_stats_only",
+          "stats": [
+            {
+              "statId": "base:attack_speed",
+              "group": 1,
+              "value": 0.05
+            }
+          ]
+        },
+        {
+          "id": "project_n:rogue_orbit_edge",
+          "constellation": "project_n:rogue_orbit",
+          "name": "project_n:rogue.rogue_orbit_edge.name",
+          "description": "project_n:rogue.rogue_orbit_edge.desc",
+          "icon": "UI/Icons/Rogue/rogue_orbit_edge",
+          "weight": 3,
+          "price": 60,
+          "factoryId": "project_n:rogue_stats_only",
+          "stats": [
+            {
+              "statId": "base:crit_rate",
+              "group": 0,
+              "value": 3
+            }
+          ]
+        },
+        {
+          "id": "project_n:rogue_orbit_echo",
+          "constellation": "project_n:rogue_orbit",
+          "name": "project_n:rogue.rogue_orbit_echo.name",
+          "description": "project_n:rogue.rogue_orbit_echo.desc",
+          "icon": "UI/Icons/Rogue/rogue_orbit_echo",
+          "weight": 2,
+          "price": 90,
+          "factoryId": "project_n:rogue_stats_only",
+          "stats": [
+            {
+              "statId": "base:attack_power",
+              "group": 1,
+              "value": 0.08
+            }
+          ],
+          "requires": "project_n:rogue_orbit_wide"
+        },
+        {
+          "id": "project_n:rogue_orbit_hidden",
+          "constellation": "project_n:rogue_orbit",
+          "name": "project_n:rogue.rogue_orbit_hidden.name",
+          "description": "project_n:rogue.rogue_orbit_hidden.desc",
+          "icon": "UI/Icons/Rogue/rogue_orbit_hidden",
+          "weight": 3,
+          "price": 60,
+          "factoryId": "project_n:rogue_stats_only",
+          "stats": [
+            {
+              "statId": "base:attack_power",
+              "group": 1,
+              "value": 0.1
+            }
+          ],
+          "availability": "forbidden"
+        },
+        {
+          "id": "project_n:rogue_crystal_guard",
+          "constellation": "project_n:rogue_crystal",
+          "name": "project_n:rogue.rogue_crystal_guard.name",
+          "description": "project_n:rogue.rogue_crystal_guard.desc",
+          "icon": "UI/Icons/Rogue/rogue_crystal_guard",
+          "weight": 3,
+          "price": 60,
+          "factoryId": "project_n:rogue_stats_only",
+          "stats": [
+            {
+              "statId": "base:defense",
+              "group": 1,
+              "value": 0.08
+            }
+          ]
+        },
+        {
+          "id": "project_n:rogue_crystal_vital",
+          "constellation": "project_n:rogue_crystal",
+          "name": "project_n:rogue.rogue_crystal_vital.name",
+          "description": "project_n:rogue.rogue_crystal_vital.desc",
+          "icon": "UI/Icons/Rogue/rogue_crystal_vital",
+          "weight": 3,
+          "price": 60,
+          "factoryId": "project_n:rogue_stats_only",
+          "stats": [
+            {
+              "statId": "base:health",
+              "group": 1,
+              "value": 0.05
+            }
+          ]
+        },
+        {
+          "id": "project_n:rogue_crystal_focus",
+          "constellation": "project_n:rogue_crystal",
+          "name": "project_n:rogue.rogue_crystal_focus.name",
+          "description": "project_n:rogue.rogue_crystal_focus.desc",
+          "icon": "UI/Icons/Rogue/rogue_crystal_focus",
+          "weight": 3,
+          "price": 60,
+          "factoryId": "project_n:rogue_stats_only",
+          "stats": [
+            {
+              "statId": "base:cooldown_reduction",
+              "group": 0,
+              "value": 3
+            }
+          ]
+        },
+        {
+          "id": "project_n:rogue_crystal_hidden",
+          "constellation": "project_n:rogue_crystal",
+          "name": "project_n:rogue.rogue_crystal_hidden.name",
+          "description": "project_n:rogue.rogue_crystal_hidden.desc",
+          "icon": "UI/Icons/Rogue/rogue_crystal_hidden",
+          "weight": 3,
+          "price": 60,
+          "factoryId": "project_n:rogue_stats_only",
+          "stats": [
+            {
+              "statId": "base:defense",
+              "group": 1,
+              "value": 0.1
+            }
+          ],
+          "availability": "forbidden"
+        }
+      ]
+    }
+  }
+}

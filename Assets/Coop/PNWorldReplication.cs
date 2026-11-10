@@ -93,7 +93,7 @@ namespace ProjectN.Coop
             if(worldPeers.TryGetValue(key,out var current))return current.Offer.Ticket.Subscription;
             if(worldPeers.Values.Count(x=>x.Connection==connection)>=8)throw new InvalidOperationException("Peer world descriptor count bound.");
             var entry=new WorldSubscription{World=world,Connection=connection,Started=Time.realtimeSinceStartupAsDouble};
-            entry.Offer=new PNWorldOffer{Ticket=WorldTicket(world,checked(++nextWorldSubscription)),Definition=world.DefinitionId.ToString(),ContentHash=world.ContentHash,Active=true,DefaultWorld=ReferenceEquals(world,Worlds.DefaultWorld),Paused=world.State==EveWorldState.Paused};
+            entry.Offer=new PNWorldOffer{Ticket=WorldTicket(world,checked(++nextWorldSubscription)),Definition=world.DefinitionId.ToString(),ContentHash=world.ContentHash,Active=true,DefaultWorld=ReferenceEquals(world,Worlds.DefaultWorld),Paused=world.State==EveWorldState.Paused,Features=Worlds.Get(world).Features.Ids.Select(x=>x.ToString()).ToArray()};
             try{entry.DescriptorLease=ReserveWorld(512);entry.WorldLease=world.AcquireLease("world subscription");worldPeers.Add(key,entry);}
             catch{entry.DescriptorLease?.Dispose();entry.WorldLease?.Dispose();throw;}
             if(connection is LocalConnectionToClient){entry.Loaded=true;entry.Confirmed=true;entry.InitialReady=true;}else connection.Send(entry.Offer);
@@ -187,7 +187,7 @@ namespace ProjectN.Coop
                 {
                     if(current.Offer.Ticket.Equals(offer.Ticket))
                     {
-                        if(current.Offer.Definition!=offer.Definition||current.Offer.ContentHash!=offer.ContentHash||current.Offer.DefaultWorld!=offer.DefaultWorld)throw new FormatException("Conflicting world descriptor.");
+                        if(current.Offer.Definition!=offer.Definition||current.Offer.ContentHash!=offer.ContentHash||current.Offer.DefaultWorld!=offer.DefaultWorld||!(current.Offer.Features??Array.Empty<string>()).SequenceEqual(offer.Features??Array.Empty<string>()))throw new FormatException("Conflicting world descriptor.");
                         current.Offer=offer;
                         if(current.Loaded)
                         {
@@ -331,7 +331,7 @@ namespace ProjectN.Coop
                 if(closingWorlds.Any(x=>x.Offer.Ticket.World==offer.Ticket.World)||!WorldLoadAllowed(offer))continue;
                 var entry=new WorldSubscription{Offer=offer,Started=Time.realtimeSinceStartupAsDouble};
                 entry.DescriptorLease=waitingOfferLeases[offer.Ticket.World];waitingOfferLeases.Remove(offer.Ticket.World);clientWorlds.Add(offer.Ticket.World,entry);waitingWorldOffers.Remove(offer.Ticket.World);
-                try{entry.World=Worlds.CreateReplica(EveId.Parse(offer.Definition),offer.Ticket.World,offer.Ticket.Incarnation,offer.Ticket.Subscription,offer.DefaultWorld);}
+                try{entry.World=Worlds.CreateReplica(EveId.Parse(offer.Definition),offer.Ticket.World,offer.Ticket.Incarnation,offer.Ticket.Subscription,offer.DefaultWorld,(offer.Features??Array.Empty<string>()).Select(EveId.Parse).ToArray());}
                 catch(Exception error){if(subscribedSession.Worlds.TryGet(offer.Ticket.World,offer.Ticket.Incarnation,out var partial))entry.World=partial;LastFailure="World load failed: "+error.Message;NetworkClient.Send(new PNWorldLoaded{Ticket=offer.Ticket,Success=false});CloseClientWorld(entry);}
             }
             foreach(var entry in clientWorlds.Values.ToArray())

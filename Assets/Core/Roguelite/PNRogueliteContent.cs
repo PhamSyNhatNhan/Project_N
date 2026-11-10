@@ -11,18 +11,24 @@ using Newtonsoft.Json.Linq;
 // VI: JSON của khung roguelite trong `extensions.project_n`. Nằm chung batch với Buff/Visual: parse vào từ điển chờ, kiểm tham chiếu sau khi đủ tài liệu, commit nguyên tử.
 public sealed partial class PNBuffContentBatch
 {
-    public static readonly string[] RogueliteFields = { "rogueliteRuns", "rogueliteFloors", "rogueliteRooms" };
+    public static readonly string[] RogueliteFields = { "rogueliteRuns", "rogueliteFloors", "rogueliteRooms", "rogueConstellations", "rogueSparks", "rogueLodestars" };
     private readonly Dictionary<EveId, PNRunDefinition> rogueliteRuns = new Dictionary<EveId, PNRunDefinition>();
     private readonly Dictionary<EveId, PNFloorDefinition> rogueliteFloors = new Dictionary<EveId, PNFloorDefinition>();
     private readonly Dictionary<EveId, PNRoomDefinition> rogueliteRooms = new Dictionary<EveId, PNRoomDefinition>();
+    private readonly Dictionary<EveId, PNRogueConstellationDefinition> rogueConstellations = new Dictionary<EveId, PNRogueConstellationDefinition>();
+    private readonly Dictionary<EveId, PNRogueSparkDefinition> rogueSparks = new Dictionary<EveId, PNRogueSparkDefinition>();
+    private readonly Dictionary<EveId, PNRogueLodestarDefinition> rogueLodestars = new Dictionary<EveId, PNRogueLodestarDefinition>();
 
-    private IEnumerable<EveIIdentified> RogueliteDefinitions => rogueliteRuns.Values.Cast<EveIIdentified>().Concat(rogueliteFloors.Values).Concat(rogueliteRooms.Values);
+    private IEnumerable<EveIIdentified> RogueliteDefinitions => rogueliteRuns.Values.Cast<EveIIdentified>().Concat(rogueliteFloors.Values).Concat(rogueliteRooms.Values).Concat(rogueConstellations.Values).Concat(rogueSparks.Values).Concat(rogueLodestars.Values);
 
     private void CommitRoguelite()
     {
         foreach (var d in rogueliteRuns.Values) hub.Get<PNRunDefinition>().Register(d);
         foreach (var d in rogueliteFloors.Values) hub.Get<PNFloorDefinition>().Register(d);
         foreach (var d in rogueliteRooms.Values) hub.Get<PNRoomDefinition>().Register(d);
+        foreach (var d in rogueConstellations.Values) hub.Get<PNRogueConstellationDefinition>().Register(d);
+        foreach (var d in rogueSparks.Values) hub.Get<PNRogueSparkDefinition>().Register(d);
+        foreach (var d in rogueLodestars.Values) hub.Get<PNRogueLodestarDefinition>().Register(d);
     }
 
     private void ParseRoguelite(JObject root, EveContentExtensionDocument document, IReadOnlyList<EveIIdentified> pendingDefinitions)
@@ -30,7 +36,11 @@ public sealed partial class PNBuffContentBatch
         foreach (var token in Array(root["rogueliteRuns"])) { var obj = Object(token); var d = PNRunDefinition.Parse(obj, RogueliteId(obj, document)); AddRoguelite(rogueliteRuns, d, hub.Get<PNRunDefinition>()); }
         foreach (var token in Array(root["rogueliteFloors"])) { var obj = Object(token); var d = PNFloorDefinition.Parse(obj, RogueliteId(obj, document)); AddRoguelite(rogueliteFloors, d, hub.Get<PNFloorDefinition>()); }
         foreach (var token in Array(root["rogueliteRooms"])) { var obj = Object(token); var d = PNRoomDefinition.Parse(obj, RogueliteId(obj, document)); AddRoguelite(rogueliteRooms, d, hub.Get<PNRoomDefinition>()); }
+        foreach (var token in Array(root["rogueConstellations"])) { var obj = Object(token); var d = PNRogueConstellationDefinition.Parse(obj, RogueliteId(obj, document)); AddRoguelite(rogueConstellations, d, hub.Get<PNRogueConstellationDefinition>()); }
+        foreach (var token in Array(root["rogueSparks"])) { var obj = Object(token); var d = PNRogueSparkDefinition.Parse(obj, RogueliteId(obj, document)); AddRoguelite(rogueSparks, d, hub.Get<PNRogueSparkDefinition>()); }
+        foreach (var token in Array(root["rogueLodestars"])) { var obj = Object(token); var d = PNRogueLodestarDefinition.Parse(obj, RogueliteId(obj, document)); AddRoguelite(rogueLodestars, d, hub.Get<PNRogueLodestarDefinition>()); }
         checks.Add(() => ValidateRoguelite(document, pendingDefinitions));
+        checks.Add(() => ValidateRogue(document, pendingDefinitions));
     }
 
     private static EveId RogueliteId(JObject obj, EveContentExtensionDocument document)

@@ -144,8 +144,11 @@ public sealed class PNEntityFactory : IPNWorldEntityFactory
         var gate=loader.GetComponent<PNNetworkInputGate>();if(gate!=null)gate.Blocked=false;
         if(!HasRole(request))
         {
-            // An authored scene entity has no role. Its stat class is the only marker it has, so one with a player stat is declared a player here (as it always was); every other authored entity is not.
-            if(loader.GetComponent<PNPlayerStat>()!=null)(loader.GetComponent<PNEntityRole>()??loader.gameObject.AddComponent<PNEntityRole>()).Declare("",true);
+            // An authored scene entity that names a role (PNSceneEntityRole) gets that role's identity. One that does not has no role: its stat class is the only marker it has, so one with a player stat is declared a player here (as it always was); every other authored entity is not.
+            var named=loader.GetComponent<PNSceneEntityRole>();
+            if(named!=null&&named.HasRole)ApplyAuthoredRole(loader,request,named);
+            else if(loader.GetComponent<PNPlayerStat>()!=null)(loader.GetComponent<PNEntityRole>()??loader.gameObject.AddComponent<PNEntityRole>()).Declare("",true);
+            ApplyModules(loader,request);
             return;
         }
         var role=Role(request);var spawn=IsPlayer(role)?Spawn(request):null;var root=loader.gameObject;
@@ -156,6 +159,7 @@ public sealed class PNEntityFactory : IPNWorldEntityFactory
         var body=PNBodySettings.Parse(session.Registry.Characters.Get(EveId.Parse(request.Character)).Data);
         double? lifetime=request.Lifetime??role.Settings.Lifetime;
         (loader.GetComponent<PNEntityRole>()??loader.gameObject.AddComponent<PNEntityRole>()).Apply(request.Entity,role.Settings,body,lifetime,role.IsPlayer);
+        ApplyModules(loader,request);
         if(loader.GetComponent<PNEnemyStat>()!=null)PNLoricaPresentation.Ensure(loader.gameObject);
         if(loader.TryGetComponent<PNVisualBody>(out var visualBody))visualBody.Begin(session.Registry.Characters.Get(EveId.Parse(request.Character)),session.Registry);   // a character with body.visual is drawn as a rig puppet
         var life=loader.GetComponent<PNEntityLifetime>();
@@ -166,6 +170,47 @@ public sealed class PNEntityFactory : IPNWorldEntityFactory
             life.Begin(lifetime.Value,()=>{var host=PNEntityHosts.Find(session);if(host!=null){host.Retire(loader);return;}if(Scheduler==null)throw new InvalidOperationException("Entity lifetime needs the factory scheduler.");Scheduler.TryRetirePublished(loader);});
         }
         else life?.Cancel();
+    }
+    // ---- entity modules (Docs/EntityModulePlan.md E3) ----
+    // What the matching rule needs to know about an entity that already carries its role (Apply/Declare ran): whether it is a player and the canonical id of its registered role (invalid when it has none).
+    private PNEntityModuleTarget ModuleTarget(EveEntityLoader loader)
+    {
+        var role=loader.GetComponent<PNEntityRole>();
+        if(role==null)return new PNEntityModuleTarget(false);
+        EveId id=default;
+        if(!string.IsNullOrEmpty(role.Entity)&&EveId.TryParse(role.Entity,out var parsed)&&session.Registry.Instances().TryGet(parsed,out var definition))id=definition.Id;
+        return new PNEntityModuleTarget(role.IsPlayer,id);
+    }
+    // The modules this entity carries in a world: the matching rule over the registered modules and the features of that world (every machine holds the same set, the host's).
+    public IReadOnlyList<PNEntityModuleDefinition> ModulesFor(EveEntityLoader loader,EveWorldContext world)
+    {
+        var modules=session.Registry.EntityModules();
+        if(modules.Count==0)return Array.Empty<PNEntityModuleDefinition>();
+        return PNEntityModules.Select(modules.Snapshot().Values,ModuleTarget(loader),worlds.Get(world).Features);
+    }
+    // Adds the components of the matching modules (each component once) and records what was applied. Runs while the entity is Idle in Configure, after its role is applied and before it is prepared, so the load steps of the added components
+    // are ordered with the rest. A pooled entity lives in one world, whose features do not change, so a reused one already holds the same components; the marker is simply written again.
+    private void ApplyModules(EveEntityLoader loader,PNEntityRequest request)
+    {
+        var selected=ModulesFor(loader,request.World);
+        var marker=loader.GetComponent<PNEntityModuleMarker>();
+        if(selected.Count==0&&marker==null)return;
+        marker=marker??loader.gameObject.AddComponent<PNEntityModuleMarker>();
+        marker.Begin();
+        foreach(var module in selected)
+        {
+            foreach(var type in module.Components)if(loader.GetComponent(type)==null)loader.gameObject.AddComponent(type);
+            marker.Record(module.Id);
+        }
+    }
+    // The identity of a registered role for an entity placed in a scene (Docs/EntityModulePlan.md E2b): the same `PNEntityRole.Apply` a spawned entity gets, without the placement, prefab, lifetime and spawn Buffs of a spawn.
+    // An unknown role id, or the id of something that is not an entity role, fails here with its name: a typo in a scene must not leave an entity silently without a role.
+    private void ApplyAuthoredRole(EveEntityLoader loader,PNEntityRequest request,PNSceneEntityRole named)
+    {
+        var id=named.Id;
+        var role=session.Registry.Instances().GetEffectiveKind<PNEntityDefinition>(id);
+        var body=PNBodySettings.Parse(session.Registry.Characters.Get(EveId.Parse(request.Character)).Data);
+        (loader.GetComponent<PNEntityRole>()??loader.gameObject.AddComponent<PNEntityRole>()).Apply(id.ToString(),role.Settings,body,null,role.IsPlayer);
     }
     public void Return(EveEntityLoader loader)
     {

@@ -145,14 +145,17 @@ public sealed class PNRoomWave
 public sealed class PNRoomReward
 {
     public int Shards { get; }
-    public PNRoomReward(int shards)
-    { if (shards < 0 || shards > PNRogueliteLimits.MaxShards) throw new FormatException("reward shards must be an integer in [0, " + PNRogueliteLimits.MaxShards + "]."); Shards = shards; }
+    // True when clearing the room also offers a choice of Roguelite Buff items (only in a run that has the `rogue` block; Docs/RogueBuffPlan.md).
+    public bool Rogue { get; }
+    public PNRoomReward(int shards, bool rogue = false)
+    { if (shards < 0 || shards > PNRogueliteLimits.MaxShards) throw new FormatException("reward shards must be an integer in [0, " + PNRogueliteLimits.MaxShards + "]."); Shards = shards; Rogue = rogue; }
     public static PNRoomReward Parse(JToken token)
     {
         if (token == null) return new PNRoomReward(0);
         var obj = PNBuffContentBatch.Object(token);
-        PNBuffContentBatch.Fields(obj, "shards");
-        return new PNRoomReward(obj["shards"] != null ? PNRogueliteParse.IntegerIn(obj, "shards", 0, PNRogueliteLimits.MaxShards) : 0);
+        PNBuffContentBatch.Fields(obj, "shards", "rogue");
+        if (obj["rogue"] != null && obj["rogue"].Type != JTokenType.Boolean) throw new FormatException("reward rogue must be true or false.");
+        return new PNRoomReward(obj["shards"] != null ? PNRogueliteParse.IntegerIn(obj, "shards", 0, PNRogueliteLimits.MaxShards) : 0, obj["rogue"] != null && obj.Value<bool>("rogue"));
     }
 }
 
@@ -274,8 +277,16 @@ public sealed class PNRunDefinition : EveIIdentified
     public bool Hidden { get; }
     // What a run of this map pays in stella when it is summed up (Docs/StellaPlan.md); null = nothing.
     public PNStellaRule Stella { get; }
-    public PNRunDefinition(EveId id, string name, IEnumerable<EveId> floors, int startShards, double reviveHealth, PNRunVictory victory, string art = "", string description = "", bool hidden = false, PNStellaRule stella = null)
+    // The numbers of the Roguelite Buff of this run; null = the run has none (Docs/RogueBuffPlan.md).
+    public PNRogueRunRules Rogue { get; }
+    // World features this run declares for its rooms (not the ones its data blocks imply: see PNRunFeatures.Of).
+    public IReadOnlyList<EveId> Features { get; }
+    public PNRunDefinition(EveId id, string name, IEnumerable<EveId> floors, int startShards, double reviveHealth, PNRunVictory victory, string art = "", string description = "", bool hidden = false, PNStellaRule stella = null, PNRogueRunRules rogue = null, IEnumerable<EveId> features = null)
     {
+        var declared = (features ?? Array.Empty<EveId>()).ToArray();
+        if (declared.Length > PNRunFeatures.MaxDeclared || declared.Any(x => !x.IsValid || x.ToString().Length > PNRogueliteLimits.MaxText) || declared.Distinct().Count() != declared.Length) throw new FormatException("run features are at most " + PNRunFeatures.MaxDeclared + " valid, different ids.");
+        foreach (var feature in declared) if (PNRunFeatures.IsImpliedByABlock(feature)) throw new FormatException("run feature " + feature + " comes from the run's data block and is never declared.");
+
         if (!id.IsValid || id.ToString().Length > PNRogueliteLimits.MaxText) throw new FormatException("a run needs a valid id.");
         name = name ?? "";
         if (name.Length > PNRogueliteLimits.MaxText || name.Length > 0 && !EveId.TryParse(name, out _)) throw new FormatException("a run name is a namespaced localization key of at most " + PNRogueliteLimits.MaxText + " characters.");
@@ -288,11 +299,11 @@ public sealed class PNRunDefinition : EveIIdentified
         if (description.Length > PNRogueliteLimits.MaxText || description.Length > 0 && !EveId.TryParse(description, out _)) throw new FormatException("a run description is a namespaced localization key of at most " + PNRogueliteLimits.MaxText + " characters.");
         if (!hidden && name.Length == 0) throw new FormatException("a run that is not hidden needs a name (it is offered on the map screen).");
         Id = id; Name = name; Floors = list.AsReadOnly(); StartShards = startShards; ReviveHealth = reviveHealth; Victory = victory;
-        Art = string.IsNullOrEmpty(art) ? "" : EveResourcePath.Validate(art); Description = description; Hidden = hidden; Stella = stella;
+        Art = string.IsNullOrEmpty(art) ? "" : EveResourcePath.Validate(art); Description = description; Hidden = hidden; Stella = stella; Rogue = rogue; Features = Array.AsReadOnly(declared);
     }
     public static PNRunDefinition Parse(JObject obj, EveId id)
     {
-        PNBuffContentBatch.Fields(obj, "id", "name", "floors", "startShards", "reviveHealth", "victory", "art", "description", "hidden", "stella");
+        PNBuffContentBatch.Fields(obj, "id", "name", "floors", "startShards", "reviveHealth", "victory", "art", "description", "hidden", "stella", "rogue", "features");
         if (obj["hidden"] != null && obj["hidden"].Type != JTokenType.Boolean) throw new FormatException("run hidden must be true or false.");
         if (obj["stella"] != null && !(obj["stella"] is JObject)) throw new FormatException("run stella must be an object.");
         foreach (var required in new[] { "floors", "startShards", "reviveHealth", "victory" }) if (obj[required] == null) throw new FormatException("run " + required + " is required.");
@@ -300,6 +311,7 @@ public sealed class PNRunDefinition : EveIIdentified
             PNRogueliteParse.IntegerIn(obj, "startShards", 0, PNRogueliteLimits.MaxShards), PNBuffContentBatch.Number(obj, "reviveHealth"),
             PNRogueliteParse.Enum(obj, "victory", ("last_room_cleared", PNRunVictory.LastRoomCleared)),
             PNBuffContentBatch.OptionalString(obj, "art"), PNBuffContentBatch.OptionalString(obj, "description"), obj["hidden"] != null && obj.Value<bool>("hidden"),
-            obj["stella"] is JObject stella ? PNStellaRule.Parse(stella) : null);
+            obj["stella"] is JObject stella ? PNStellaRule.Parse(stella) : null, obj["rogue"] != null ? PNRogueRunRules.Parse(obj["rogue"]) : null,
+            obj["features"] != null ? PNRogueliteParse.ArrayIn(obj, "features", 0, PNRunFeatures.MaxDeclared).Select(x => PNRogueliteParse.Id(x, "run feature")) : null);
     }
 }

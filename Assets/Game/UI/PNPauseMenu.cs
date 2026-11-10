@@ -16,6 +16,8 @@ internal sealed class PNPauseMenu : IDisposable
     private readonly Button leave;
     private Button retire;    // "Sum up now": while a run is played, alone or as the host; the first press asks, the second (within 5 s) ends the run (Docs/StellaPlan.md)
     private float retireArmedUntil;
+    private Button stars;      // "Stars": the team's Roguelite Buff items by constellation, only inside a run that has them
+    private PNRogueListView starList;
     private Button restart;   // "Play again": only inside a run that has a saved start of its room (alone)
     private readonly List<Part> parts=new List<Part>();
     private readonly Texture2D lightTexture, coreTexture;
@@ -42,6 +44,8 @@ internal sealed class PNPauseMenu : IDisposable
         safe.AddToClassList("menu-safe-area"); root.Add(safe);
         toggle=new Button(Toggle) { name="toggle-pause", tooltip="Menu" };
         toggle.AddToClassList("pause-toggle"); safe.Add(toggle);
+        // The star is for a finger or a mouse (Escape and the pad's Start open the menu); focusable, a pad's South (the UI's Submit) would press it whenever it kept the focus after the menu closed and reopen the menu in the middle of play.
+        toggle.focusable=false;
         var icon=new PNPauseDrawing(PNPauseDrawing.Shape.Icon);icon.AddToClassList("pause-sparkle-icon");toggle.Add(icon);
         overlay=new VisualElement { name="pause-overlay" }; overlay.AddToClassList("pause-overlay"); root.Add(overlay);
         surface=new VisualElement { name="pause-surface", pickingMode=PickingMode.Ignore };
@@ -71,8 +75,8 @@ internal sealed class PNPauseMenu : IDisposable
         }
         card=new VisualElement { name="pause-card", pickingMode=PickingMode.Ignore }; card.AddToClassList("pause-card"); overlay.Add(card);
         resume=new Button(Close) { name="pause-continue", text="Tiếp tục" }; resume.AddToClassList("pause-choice"); resume.AddToClassList("pause-primary"); card.Add(resume);
-        foreach(var item in new[]{new[]{"pause-settings","Cài đặt"},new[]{"pause-restart","Chơi lại"},new[]{"pause-retire","Tổng kết ngay"},new[]{"pause-leave","Rời phòng"}})
-        { var button=new Button { name=item[0], text=item[1] }; button.AddToClassList("pause-choice"); card.Add(button); PNLocalizationUI.Bind(button,item[0]=="pause-settings"?"project_n:ui.settings":item[0]=="pause-restart"?"project_n:run.restart":item[0]=="pause-retire"?"project_n:run.resume.sumup":"project_n:ui.leave");if(item[0]=="pause-restart"){restart=button;button.clicked+=Restart;button.style.display=DisplayStyle.None;}if(item[0]=="pause-retire"){retire=button;button.clicked+=Retire;button.style.display=DisplayStyle.None;}if(item[0]=="pause-settings")button.clicked+=OpenLanguages; if(item[0]=="pause-leave"){leave=button;button.clicked+=Leave;button.SetEnabled(false);} }
+        foreach(var item in new[]{new[]{"pause-settings","Cài đặt"},new[]{"pause-stars","Ngôi sao"},new[]{"pause-restart","Chơi lại"},new[]{"pause-retire","Tổng kết ngay"},new[]{"pause-leave","Rời phòng"}})
+        { var button=new Button { name=item[0], text=item[1] }; button.AddToClassList("pause-choice"); card.Add(button); PNLocalizationUI.Bind(button,item[0]=="pause-settings"?"project_n:ui.settings":item[0]=="pause-stars"?"project_n:ui.rogue.list.button":item[0]=="pause-restart"?"project_n:run.restart":item[0]=="pause-retire"?"project_n:run.resume.sumup":"project_n:ui.leave");if(item[0]=="pause-restart"){restart=button;button.clicked+=Restart;button.style.display=DisplayStyle.None;}if(item[0]=="pause-retire"){retire=button;button.clicked+=Retire;button.style.display=DisplayStyle.None;}if(item[0]=="pause-stars"){stars=button;button.clicked+=OpenStars;button.style.display=DisplayStyle.None;}if(item[0]=="pause-settings")button.clicked+=OpenLanguages; if(item[0]=="pause-leave"){leave=button;button.clicked+=Leave;button.SetEnabled(false);} }
         PNLocalizationUI.Bind(resume,"project_n:ui.resume");
         int choiceIndex=0;
         foreach(var button in card.Children())
@@ -102,6 +106,13 @@ internal sealed class PNPauseMenu : IDisposable
     }
     private void RefreshRetire(){ if(retire==null)return; retireArmedUntil=0; retire.text=PNLocalization.Text("project_n:run.resume.sumup"); retire.style.display=EveRegistrySession.IsReady&&PNGameFlow.CanRetireRun()?DisplayStyle.Flex:DisplayStyle.None; }
     private void RefreshRestart(){ if(restart==null)return; restart.style.display=EveRegistrySession.IsReady&&PNGameFlow.Phase==PNFlowPhase.Run&&PNGameFlow.CanRestartFromSave()?DisplayStyle.Flex:DisplayStyle.None; }
+    private void RefreshStars(){ if(stars==null)return; var view=EveRegistrySession.IsReady?PNRogueStateSyncs.Current():PNRogueView.None; stars.style.display=view.Active?DisplayStyle.Flex:DisplayStyle.None; }
+    private void OpenStars()
+    {
+        if(starList!=null||settingsView!=null||closing||!IsOpen)return;
+        card.style.display=DisplayStyle.None;
+        starList=new PNRogueListView(overlay,()=>{starList?.Dispose();starList=null;card.style.display=DisplayStyle.Flex;resume.Focus();});
+    }
     private PNSettingsView settingsView;
     private void OpenLanguages()
     {
@@ -125,12 +136,14 @@ internal sealed class PNPauseMenu : IDisposable
         overlay.style.display=DisplayStyle.Flex; toggle.style.display=DisplayStyle.None;
         RefreshRestart();
         RefreshRetire();
+        RefreshStars();
         Animate(); resume.Focus();
     }
     public void Close()
     {
         if(!IsOpen || closing)return;
         if(settingsView!=null){settingsView.Cancel();return;}
+        if(starList!=null){starList.Cancel();return;}
         closing=true;elapsed=0;closeAlpha=surfaceAlpha;
         foreach(var part in parts)part.Capture();
     }
@@ -309,11 +322,11 @@ internal sealed class PNPauseMenu : IDisposable
     private void FinishClose()
     {
         IsOpen=false;closing=false;overlay.style.display=DisplayStyle.None;toggle.style.display=DisplayStyle.Flex;
-        RestoreTime(); owner.ResetMobileInput(); ReleaseNeutralInput(); toggle.Focus();
+        RestoreTime(); owner.ResetMobileInput(); ReleaseNeutralInput(); (overlay.panel?.focusController?.focusedElement as VisualElement)?.Blur();   // nothing keeps the focus after the menu closes (it used to go to the star, and a pad's South then reopened the menu)
     }
     private void Abort()
     {
-        settingsView?.Dispose();settingsView=null;card.style.display=DisplayStyle.Flex;surface.style.visibility=Visibility.Visible;
+        starList?.Dispose();starList=null;settingsView?.Dispose();settingsView=null;card.style.display=DisplayStyle.Flex;surface.style.visibility=Visibility.Visible;
         IsOpen=false;closing=false;overlay.style.display=DisplayStyle.None;toggle.style.display=DisplayStyle.Flex;
         RestoreTime();owner.ResetMobileInput();
         foreach(var move in moves)if(move!=null)move.MenuInputBlocked=false;
@@ -322,7 +335,7 @@ internal sealed class PNPauseMenu : IDisposable
     }
     public void Dispose()
     {
-        settingsView?.Dispose();settingsView=null;
+        starList?.Dispose();starList=null;settingsView?.Dispose();settingsView=null;
         if(disposed)return;disposed=true;Abort();menu.performed-=OnMenu;menu.Disable();menu.Dispose();
         overlay.RemoveFromHierarchy();safe.RemoveFromHierarchy();
         PNUiRuntime.Retire(lightTexture);PNUiRuntime.Retire(coreTexture);

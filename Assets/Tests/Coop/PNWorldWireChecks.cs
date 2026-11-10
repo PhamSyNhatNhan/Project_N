@@ -18,6 +18,20 @@ namespace ProjectN.Coop.Tests
             var writer=new NetworkWriter();writer.Write(offer);var copy=new NetworkReader(writer.ToArray()).Read<PNWorldOffer>();
             Check(copy.Ticket.Equals(ticket)&&copy.Definition==offer.Definition&&copy.ContentHash==offer.ContentHash&&copy.Active&&copy.DefaultWorld&&copy.Paused,"actual Weaver bounded descriptor roundtrip");
             Check(writer.Position<PNWorldWire.ControlBytes,"descriptor stays in control message bound");
+            // the features of the world as the host fixed them (Docs/EntityModulePlan.md E4)
+            Check(copy.Features!=null&&copy.Features.Length==0,"an offer without features reads back with an empty list");
+            var featured=offer;featured.Features=new[]{"base:alpha","project_n:rogue_buff","zeta:last"};writer.Reset();writer.Write(featured);var featuredCopy=new NetworkReader(writer.ToArray()).Read<PNWorldOffer>();
+            Check(featuredCopy.Features.Length==3&&featuredCopy.Features[0]=="base:alpha"&&featuredCopy.Features[1]=="project_n:rogue_buff"&&featuredCopy.Features[2]=="zeta:last"&&featuredCopy.Ticket.Equals(ticket)&&featuredCopy.Paused,"the feature list round-trips with the rest of the descriptor");
+            var maxFeatures=offer;maxFeatures.Features=new string[32];for(int i=0;i<32;i++)maxFeatures.Features[i]="test:f"+i.ToString("00");writer.Reset();writer.Write(maxFeatures);
+            Check(new NetworkReader(writer.ToArray()).Read<PNWorldOffer>().Features.Length==32&&writer.Position<PNWorldWire.ControlBytes,"the maximum number of features fits the control message bound");
+            var tooMany=offer;tooMany.Features=new string[33];for(int i=0;i<33;i++)tooMany.Features[i]="test:f"+i.ToString("00");Reject(()=>{writer.Reset();writer.Write(tooMany);},"more than the maximum number of features is refused on write");
+            var unsorted=offer;unsorted.Features=new[]{"test:b","test:a"};Reject(()=>{writer.Reset();writer.Write(unsorted);},"unsorted features are refused on write");
+            var duplicated=offer;duplicated.Features=new[]{"test:a","test:a"};Reject(()=>{writer.Reset();writer.Write(duplicated);},"duplicated features are refused on write");
+            var invalidFeature=offer;invalidFeature.Features=new[]{"not an id"};Reject(()=>{writer.Reset();writer.Write(invalidFeature);},"an invalid feature id is refused on write");
+            var longFeature=offer;longFeature.Features=new[]{"test:"+new string('x',140)};Reject(()=>{writer.Reset();writer.Write(longFeature);},"an oversized feature id is refused on write");
+            // the read side: the count byte follows the flags byte, so it is the last byte of the same offer written without features
+            writer.Reset();writer.Write(offer);int countAt=writer.Position-1;writer.Reset();writer.Write(featured);var raised=writer.ToArray();raised[countAt]=33;
+            Reject(()=>new NetworkReader(raised).ReadWorldOffer(),"a feature count above the bound is refused on read");
             var stale=ticket;stale.PlayRevision--;Check(!stale.Equals(ticket),"play revision is part of world ticket");stale=ticket;stale.Subscription--;Check(!stale.Equals(ticket),"subscription revision is part of world ticket");stale=ticket;stale.Incarnation--;Check(!stale.Equals(ticket),"world incarnation is part of ticket");
             var bad=offer;bad.ContentHash=new string('g',64);Reject(()=>{writer.Reset();writer.Write(bad);},"nonhex world hash rejected");
             bad=offer;bad.Definition="fixture:"+new string('x',129);Reject(()=>{writer.Reset();writer.Write(bad);},"oversized descriptor ID rejected");

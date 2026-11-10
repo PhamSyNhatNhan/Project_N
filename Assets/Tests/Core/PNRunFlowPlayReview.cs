@@ -8,6 +8,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.LowLevel;
 using UnityEngine.UIElements;
+using Newtonsoft.Json.Linq;
 
 // EN: Opt-in review of the roguelite run on the real flow, in Play Mode or a Player started from the Hall (Docs/RogueliteFramePlan.md F3-F5):
 //       solo start -> lobby -> first room (the lobby is gone, the player is rebuilt in the map world) -> the start switch is the only open object, out of range it does nothing, a peer
@@ -108,6 +109,8 @@ public sealed class PNRunFlowPlayReview : MonoBehaviour
         else if (!failed && (Scenario == "gamepad" || Scenario == "touch")) yield return Devices(Scenario == "gamepad");
         else if (!failed && Scenario == "save") yield return Saving();
         else if (!failed && Scenario == "retire") yield return Retiring();
+        else if (!failed && Scenario == "rogue") yield return RogueBuff();
+        else if (!failed && (Scenario == "rogue_gamepad" || Scenario == "rogue_touch")) yield return RogueDevices(Scenario == "rogue_gamepad");
         else if (!failed && Scenario == "ui") yield return MenusDrawn();
         else if (!failed) yield return FirstRoom();
         if (!failed && Scenario == null) yield return SecondRoom();
@@ -127,7 +130,7 @@ public sealed class PNRunFlowPlayReview : MonoBehaviour
         yield return new WaitForSeconds(.2f);
         var objects = Game.Sync.ObjectsOf(room.World.InstanceId, room.World.Incarnation).Select(x => (x.Value as PNWorldObject)?.GetComponent<PNInteractable>()).Where(x => x != null).ToArray();
         var open = objects.Where(x => x.Available).Select(x => x.Key).ToArray();
-        Check(objects.Length == 6 && open.Length == 1 && open[0] == "start_switch", "of the six interactables of the map only the start switch is open");
+        Check(objects.Length == 7 && open.Length == 1 && open[0] == "start_switch", "of the seven interactables of the map only the start switch is open");
         var start = Item(room, "start_switch");
         Check(start.Definition.Settings.Permission == PNInteractionPermission.Host && start.UsesLeft == 1, "it is a host-only, once-only switch");
         Game.Sync.Send(start.Target, PNInteractable.Command);
@@ -159,6 +162,14 @@ public sealed class PNRunFlowPlayReview : MonoBehaviour
         var exits = runs.Exits();
         Check(!failed && runs.State.Shards == 30 && runs.State.Stats.RoomsClearedTotal == 1 && runs.State.Stats.Kills == 3, "clearing pays 30, counts the room and 3 kills");
         Check(exits.Count == 2 && exits[0] != exits[1], "two different gates were drawn");
+        var rogueNow = runs.Rogue;
+        if (rogueNow != null && rogueNow.HasPendingOffer)
+        {
+            Check(!Item(room, "gate_a").Available && !Item(room, "gate_b").Available, "the gates stay shut while the offer of the cleared room waits");
+            RogueCommand(new { op = "pick", index = 0 });
+            yield return Until("the offer is picked", () => !rogueNow.HasPendingOffer, 5);
+            yield return new WaitForSeconds(.3f);
+        }
         var gates = new[] { "gate_a", "gate_b", "gate_c" }.Select(k => Item(room, k)).ToArray();
         Check(gates[0].Available && gates[1].Available && !gates[2].Available && gates[0].LabelKey == PNRoomInteractions.KindKey(runs.KindOf(exits[0])) && gates[1].LabelKey == PNRoomInteractions.KindKey(runs.KindOf(exits[1])), "two gates open, each saying the kind of room behind it; the third stays closed");
         yield return WalkTo(gates[0]);
@@ -383,6 +394,7 @@ public sealed class PNRunFlowPlayReview : MonoBehaviour
     private static VisualElement EndRoot() => FindObjectsByType<UIDocument>(FindObjectsInactive.Include).Select(d => d.rootVisualElement?.Q("run-end")).FirstOrDefault(x => x != null);
     private static bool EndShown() { var root = EndRoot(); return root != null && root.resolvedStyle.display == DisplayStyle.Flex; }
 
+    private bool keepOffer;   // the rogue scenarios look at the offer themselves; every other flow takes the first item so the gates open
     private IEnumerator ClearRoom(PNRoomDirector room)
     {
         if (room.Flow.Phase == PNRoomPhase.Waiting) { var start = Item(room, "start_switch"); yield return WalkTo(start); Game.Sync.Send(start.Target, PNInteractable.Command); }
@@ -390,6 +402,8 @@ public sealed class PNRunFlowPlayReview : MonoBehaviour
         while (room.Flow.Phase != PNRoomPhase.Cleared && Time.realtimeSinceStartup < end) { Kill(room); yield return null; }
         if (room.Flow.Phase != PNRoomPhase.Cleared) Fail("timeout: room cleared");
         yield return Seconds(.3f);
+        var pending = Game.Runs.Rogue;
+        if (!keepOffer && pending != null && pending.HasPendingOffer) { RogueCommand(new { op = "pick", index = 0 }); yield return Until("the offer is picked", () => !pending.HasPendingOffer, 5); yield return Seconds(.3f); }
     }
 
     private IEnumerator Defeat()
@@ -445,6 +459,162 @@ public sealed class PNRunFlowPlayReview : MonoBehaviour
     }
 
     // "Sum up now" in the pause menu while a run is played (Docs/StellaPlan.md Q6): the first press asks, the second ends the run as retired; standing on the first floor it pays nothing.
+
+    // ---- Roguelite Buff (Docs/RogueBuffPlan.md R5): the offer after a cleared room, the gates shut until it is picked, the host-only command, the shop, and that the effect starts on the next floor ----
+    private static PNStat PlayerStat => Player.GetComponent<PNStat>();
+    private static bool RogueCommand(object payload) { var sent = Game.Sync.Send(PNSyncTarget.Session, PNRogueCommandHandler.Command, JObject.FromObject(payload)); return sent; }
+    // The stats an item's modifiers name, with their value now (before the item can have any effect).
+    private static Dictionary<EveId, double> Values(IEnumerable<PNRogueItemDefinition> items, PNStat stat)
+        => items.SelectMany(x => x.Modifiers).Select(m => m.Id).Distinct().ToDictionary(id => id, id => stat.Evaluate(id));
+    // What a stat is worth with exactly these items: the group 1 percentages of all of them added, then the group 0 flats added (the sample items use nothing else).
+    private static double Expected(double baseline, IEnumerable<PNRogueItemDefinition> items, EveId stat)
+    {
+        double percent = 0, flat = 0;
+        foreach (var item in items) foreach (var m in item.Modifiers) if (m.Id == stat) { if (m.Group == 0) flat += m.Value; else percent += m.Value; }
+        return baseline * (1 + percent) + flat;
+    }
+
+    private IEnumerator RogueBuff()
+    {
+        keepOffer = true;
+        var runs = Game.Runs; var rogue = runs.Rogue; var state = runs.State; var hub = EveRegistrySession.Current;
+        Check(rogue != null && rogue.Rules.Offer == 3 && rogue.Set.Count == 0, "the sample run has Roguelite Buff and the team owns nothing at the start");
+        var manager = Player.GetComponent<PNRogueBuffManager>();
+        Check(manager != null && manager.IsActive && manager.Runtime.Entries.Count == 0, "the player carries the manager and, with nothing owned, it builds nothing");
+
+        // ---- floor 0: clear the room, the offer waits, the gates are shut ----
+        var saved = PNRunSaveService.Peek().Save;   // written on entering the room, before anything was drawn
+        yield return ClearRoom(runs.Room);
+        if (failed) yield break;
+        var offer = rogue.Offer.ToList();
+        Check(offer.Count == 3 && offer.Select(x => x.Id).Distinct().Count() == 3, "clearing a room that offers items draws three different ones");
+        var expectedOffer = PNRogueOffer.Draw(PNRogueOffer.Eligible(rogue.Catalog, new PNRogueSet(rogue.Catalog, new List<string>()), PNRogueRun.DefaultAllows), 3, new PNRunRandom(saved.Seed, saved.Streams));
+        Check(string.Join(",", offer.Select(x => x.Id)) == string.Join(",", expectedOffer.Select(x => x.Id)), "the same three come out of the stream positions saved on entering the room (a continued run offers them again, nothing about them is saved)");
+        Check(new[] { "gate_a", "gate_b", "gate_c" }.All(k => !Item(runs.Room, k).Available), "while an offer waits every gate is shut");
+        var view = PNRogueStateSyncs.Current();
+        yield return Until("the offer reaches the view", () => PNRogueStateSyncs.Current().HasOffer, 5);
+        view = PNRogueStateSyncs.Current();
+        Check(view.Active && view.Offer.SequenceEqual(offer.Select(x => x.Id.ToString())) && view.Set.Length == 0 && !view.HasShop, "every machine reads the offer from the synced block (ids only)");
+
+        yield return Seconds(.6f); yield return Shot("rogue_offer");
+        // only the host picks; nothing else does anything
+        var command = hub.SyncCommands().Get(PNRogueCommandHandler.Command);
+        new PNRogueCommandHandler().Execute(new PNSyncCommandContext(Game.Sync, Game.Session, 3, PNSyncTarget.Session, null, command, JObject.FromObject(new { op = "pick", index = 0 })));
+        Check(rogue.HasPendingOffer && rogue.Set.Count == 0, "a pick sent by a player who is not the host is ignored");
+        RogueCommand(new { op = "pick", index = 5 }); RogueCommand(new { op = "pick", index = -1 }); RogueCommand(new { op = "pick" }); RogueCommand(new { op = "dance" }); RogueCommand(new { op = "buy", index = 0 });
+        yield return null;
+        Check(rogue.HasPendingOffer && rogue.Set.Count == 0 && new[] { "gate_a", "gate_b", "gate_c" }.All(k => !Item(runs.Room, k).Available), "a pick that is out of range, a missing index, an unknown operation and a purchase outside a shop change nothing");
+
+        // pick the first Spark (one stat), else the first item; D6: the player on this floor does not change
+        var chosen = offer.FirstOrDefault(x => x is PNRogueSparkDefinition) ?? offer[0]; int index = offer.IndexOf(chosen);
+        var stat = PlayerStat; var before = Values(new[] { chosen }, stat);
+        Check(RogueCommand(new { op = "pick", index }), "the host's pick is accepted");
+        yield return Until("the pick is applied", () => !rogue.HasPendingOffer, 5);
+        Check(rogue.Set.Ids.SequenceEqual(new[] { chosen.Id.ToString() }) && state.Loadout.SequenceEqual(new[] { chosen.Id.ToString() }), "the picked item is in the team's set (the run state's loadout)");
+        Check(runs.Room.Flow.Phase == PNRoomPhase.Cleared && runs.Exits().Count > 0 && new[] { "gate_a", "gate_b", "gate_c" }.Any(k => Item(runs.Room, k).Available), "and the gates open");
+        Check(before.All(pair => Math.Abs(PlayerStat.Evaluate(pair.Key) - pair.Value) < 1e-9) && manager.Runtime.Entries.Count == 0, "the player of this floor is NOT changed: the effect starts with the next floor");
+        yield return Until("the set reaches the view", () => PNRogueStateSyncs.Current().Set.Length == 1 && !PNRogueStateSyncs.Current().HasOffer, 5);
+        Check(PNRogueStateSyncs.Current().Set[0] == chosen.Id.ToString(), "and every machine sees it in the synced set");
+        var ui = PNGameBootstrap.Runtime.GetComponent<PNUiRuntime>();
+        ui.Pause.Open(); yield return Seconds(1.4f);
+        var stars = ui.HudRoot.Q<Button>("pause-stars");
+        Check(stars != null && stars.resolvedStyle.display == DisplayStyle.Flex, "the pause menu offers the team's stars inside a run that has Roguelite Buff");
+        if (stars != null) { using (var submit = NavigationSubmitEvent.GetPooled()) { submit.target = stars; stars.SendEvent(submit); } }
+        yield return Seconds(.8f);
+        Check(ui.HudRoot.Q("pn-rogue-list") != null, "the list of the team's items opens from it");
+        yield return Shot("rogue_list");
+        ui.Pause.Close(); yield return Seconds(.4f); ui.Pause.Close(); yield return Seconds(1.2f);
+        Check(!ui.MenuOpen && ui.HudRoot.Q("pn-rogue-list") == null, "back closes the list and then the menu");
+        RogueCommand(new { op = "pick", index = 0 }); yield return null;
+        Check(rogue.Set.Count == 1, "a second pick with no offer does nothing");
+
+        // ---- go to the shop behind a gate (seed 1 puts the shop behind the first gate) ----
+        var options = runs.Exits().ToList(); int shopGate = options.FindIndex(x => runs.KindOf(x) == PNRoomKind.Shop);
+        if (!Check(shopGate >= 0, "this seed puts a shop behind one of the gates (" + string.Join(",", options.Select(x => x.Path)) + ")")) yield break;
+        var old = runs.Room.World; var gate = Item(runs.Room, "gate_" + "abc"[shopGate]);
+        yield return WalkTo(gate); Game.Sync.Send(gate.Target, PNInteractable.Command);
+        yield return Until("the shop room", () => runs.Phase == PNRunPhase.Playing && runs.Room != null && runs.Room.World != old && !PNGameFlow.Busy, 60);
+        if (failed) yield break;
+
+        // ---- the new floor builds the player from the set ----
+        stat = PlayerStat; manager = Player.GetComponent<PNRogueBuffManager>();
+        Check(manager.IsActive && manager.Runtime.Entries.Count == 2 && manager.Runtime.Entries[0].Definition.Kind == PNRogueKind.Constellation && manager.Runtime.Entries[1].Definition.Id == chosen.Id, "the next floor builds the item (and its constellation) on the new player");
+        Check(before.All(pair => Math.Abs(stat.Evaluate(pair.Key) - Expected(pair.Value, new[] { chosen }, pair.Key)) < 1e-9), "and its stats are in effect, exactly as the item says (" + string.Join(", ", before.Select(p => p.Key.Path + " " + p.Value.ToString("0.###") + " -> " + stat.Evaluate(p.Key).ToString("0.###"))) + ")");
+        Check(runs.Rogue.Shop != null && runs.Rogue.Shop.Slots.Count == 4 && runs.Rogue.Shop.Slots.All(s => s.Item != null && !rogue.Set.Has(s.Item.Id)) && !runs.Rogue.ShopOpen, "a shop room has its four shelves, none of them an item the team owns, and the shop is closed");
+        var shop = runs.Rogue.Shop; var shelves = shop.Slots.Select(x => x.Item.Id).ToList();
+        var savedShop = PNRunSaveService.Peek().Save;
+        var twin = new PNRunState(Guid.NewGuid(), state.Definition, savedShop.Seed, 0); twin.Loadout.AddRange(savedShop.Loadout);
+        var refilled = new PNRogueShop(twin, rogue.Rules, rogue.Catalog, PNRogueRun.DefaultAllows);
+        refilled.Fill(new PNRunRandom(savedShop.Seed, savedShop.Streams));
+        Check(savedShop.Loadout.SequenceEqual(new[] { chosen.Id.ToString() }) && string.Join(",", shelves) == string.Join(",", refilled.Slots.Select(x => x.Item.Id)), "the shelves come out of the stream positions and the set saved on entering the room too (a continued run stocks the same shop)");
+        yield return Until("the shop reaches the view", () => PNRogueStateSyncs.Current().HasShop, 5);
+        Check(PNRogueStateSyncs.Current().ShelfItems.SequenceEqual(shelves.Select(x => x.ToString())) && PNRogueStateSyncs.Current().RerollPrice == 20, "every machine reads the shelves and the reroll price");
+
+        // ---- the shop, through the command ----
+        state.AddShards(500, "review");
+        var item0 = shop.Slots[0].Item; int wallet = state.Shards; int earned = state.Stats.ShardsEarned;
+        RogueCommand(new { op = "buy", index = 0 }); yield return null;
+        Check(rogue.Set.Count == 1 && state.Shards == wallet, "buying with the shop closed does nothing");
+        RogueCommand(new { op = "open" }); yield return Until("the shop opens", () => rogue.ShopOpen, 5);
+        yield return Seconds(.6f); yield return Shot("rogue_shop");
+        yield return Until("the shop opens in the view", () => PNRogueStateSyncs.Current().ShopOpen, 5);
+        Check(PNRogueStateSyncs.Current().ShopOpen, "the host opens the shop and every machine sees it open");
+        var valuesNow = Values(new[] { item0 }, PlayerStat);
+        RogueCommand(new { op = "buy", index = 0 }); yield return Until("the purchase", () => rogue.Set.Has(item0.Id), 5);
+        Check(state.Shards == wallet - item0.Price && shop.Slots[0].Sold && state.Stats.ShardsEarned == earned, "a purchase pays the price from the team wallet and marks the shelf");
+        Check(valuesNow.All(pair => Math.Abs(PlayerStat.Evaluate(pair.Key) - pair.Value) < 1e-9), "and the player of this floor is not changed by it (the item starts with the next floor)");
+        // sell the first item back (a Spark gives back half its price and no earned shards; a Lodestar cannot be sold)
+        wallet = state.Shards;
+        if (chosen is PNRogueSparkDefinition)
+        {
+            RogueCommand(new { op = "sell", id = chosen.Id.ToString() }); yield return Until("the sale", () => !rogue.Set.Has(chosen.Id), 5);
+            Check(state.Shards == wallet + (int)Math.Floor(chosen.Price * 0.5) && state.Stats.ShardsEarned == earned, "selling a Spark gives back half its price and that is not shards earned");
+        }
+        else { RogueCommand(new { op = "sell", id = chosen.Id.ToString() }); yield return null; Check(rogue.Set.Has(chosen.Id), "a Lodestar cannot be sold"); }
+        // reroll
+        wallet = state.Shards; RogueCommand(new { op = "reroll" }); yield return Until("the reroll", () => shop.Rerolls == 1, 5);
+        Check(state.Shards == wallet - 20 && shop.RerollPrice == 30 && shop.Slots[0].Sold, "a reroll costs 20, the next one 30, and keeps what was bought");
+        // exchange a Lodestar (put one in the set directly for the test, then exchange it through the command)
+        var lodestar = rogue.Catalog.Items.OfType<PNRogueLodestarDefinition>().First(x => !rogue.Set.Has(x.Id) && rogue.Set.WhyNotAdd(x.Id) == null && PNRogueRun.DefaultAllows(x.Availability));
+        rogue.Set.Add(lodestar.Id); var target = shop.ExchangeTargets(lodestar.Id).First(); wallet = state.Shards;
+        RogueCommand(new { op = "exchange", from = lodestar.Id.ToString(), to = target.Id.ToString() }); yield return Until("the exchange", () => rogue.Set.Has(target.Id), 5);
+        Check(!rogue.Set.Has(lodestar.Id) && state.Shards == wallet - shop.ExchangeCost(target), "an exchange swaps the Lodestar for another of its constellation and pays half its price");
+        RogueCommand(new { op = "close" }); yield return Until("the shop closes", () => !rogue.ShopOpen, 5);
+        var finalSet = rogue.Set.Items.ToList();
+
+        // ---- leave: the next floor is built from the set as it is now ----
+        yield return ClearRoom(runs.Room);
+        if (failed) yield break;
+        var next = runs.Exits().ToList(); old = runs.Room.World; var exit = new[] { "gate_a", "gate_b", "gate_c" }.Select(k => Item(runs.Room, k)).First(g => g.Available);
+        yield return WalkTo(exit); Game.Sync.Send(exit.Target, PNInteractable.Command);
+        yield return Until("the floor after the shop", () => runs.Phase == PNRunPhase.Playing && runs.Room != null && runs.Room.World != old && !PNGameFlow.Busy, 60);
+        if (failed) yield break;
+        stat = PlayerStat; manager = Player.GetComponent<PNRogueBuffManager>();
+        var names = finalSet.Select(x => x.Id).OrderBy(x => x.ToString(), StringComparer.Ordinal).ToList();
+        Check(manager.IsActive && manager.Runtime.Entries.Where(x => x.Definition.Kind != PNRogueKind.Constellation).Select(x => x.Definition.Id).OrderBy(x => x.ToString(), StringComparer.Ordinal).SequenceEqual(names), "the next floor builds exactly the items the team holds then (the bought ones, not the sold one)");
+        bool statsRight = true; var ids = finalSet.SelectMany(x => x.Modifiers).Select(m => m.Id).Distinct().ToList();
+        foreach (var id in ids)
+        {
+            double baseline = stat.Set.TryGetBase(id, out var entry) ? entry.Value : 0d;
+            if (Math.Abs(stat.Evaluate(id) - Expected(baseline, finalSet, id)) > 1e-9) { statsRight = false; Fail("stat " + id + " is " + stat.Evaluate(id) + ", expected " + Expected(baseline, finalSet, id)); }
+        }
+        Check(ids.Count > 0 && statsRight, "every stat the owned items name is the base value with those items added, no more (nothing from the sold item, nothing twice)");
+        Check(manager.Runtime.Failures == 0, "no item failed to start");
+
+        // ---- the HUD numbers: a sample item shows none, so an item is given some here and they must travel the `rogue_view` block and reach the HUD ----
+        var entityView = Player.GetComponent<PNRogueEntityView>();
+        Check(entityView != null && entityView.IsBound && entityView.Items.Count == 0, "the player carries the numbers block, bound to its entity, and nothing shows while no item has numbers");
+        var shownEntry = manager.Runtime.Entries.First(x => x.Definition.Kind != PNRogueKind.Constellation);
+        typeof(PNRogueLogic).GetProperty("Display").SetValue(shownEntry.Logic, new PNRogueDisplay(3, null, null, 12));
+        yield return Until("the numbers reach the view", () => entityView.Items.Count == 1 && entityView.Items[0].Id == shownEntry.Definition.Id.ToString() && entityView.Items[0].Display.TopLeft == 3 && entityView.Items[0].Display.BottomRight == 12 && !entityView.Items[0].Display.TopRight.HasValue, 5);
+        yield return Seconds(.6f);
+        var hudRoot = PNGameBootstrap.Runtime.GetComponent<PNUiRuntime>().HudRoot.Q("rogue-hud");
+        Check(hudRoot != null && hudRoot.resolvedStyle.display == DisplayStyle.Flex && hudRoot.Query<Label>(className: "pn-rogue-num").ToList().Select(x => x.text).OrderBy(x => x).SequenceEqual(new[] { "12", "3" }), "the HUD shows exactly the two numbers the item gave, once");
+        yield return Shot("rogue_hud");
+        typeof(PNRogueLogic).GetProperty("Display").SetValue(shownEntry.Logic, default(PNRogueDisplay));
+        yield return Until("the numbers go away", () => entityView.Items.Count == 0, 5);
+    }
+
     private IEnumerator Retiring()
     {
         var runs = Game.Runs; var ui = PNGameBootstrap.Runtime.GetComponent<PNUiRuntime>(); yield return Seconds(.6f);
@@ -504,6 +674,7 @@ public sealed class PNRunFlowPlayReview : MonoBehaviour
 
     private void CleanupInput()
     {
+        PNRogueReviewSwitch.IgnoreFocus = false;
         if (pad != null) { InputSystem.RemoveDevice(pad); pad = null; }
         if (screen != null) { InputSystem.RemoveDevice(screen); screen = null; }
         if (settings != null) { if (oldSettings != null) InputSystem.settings = oldSettings; Destroy(settings); settings = null; }
@@ -534,6 +705,117 @@ public sealed class PNRunFlowPlayReview : MonoBehaviour
         var player = Player; var body = player.GetComponent<Rigidbody>(); target.y = player.transform.position.y;
         player.transform.position = target; if (body != null) { body.position = target; body.linearVelocity = Vector3.zero; }
         yield return Seconds(.5f);
+    }
+
+    // ---- Roguelite Buff views with a real pad / a real finger (Docs/RogueBuffPlan.md R7): the pick screen, the shop and the list of the team's items ----
+    // Needs a focused application (the views read keys only then, like the interaction list), so it is meant for a Player: `RunDevices.ps1 -Scenario rogue_gamepad|rogue_touch` (seed 1: the shop is behind the first gate).
+    private IEnumerator RogueDevices(bool gamepad)
+    {
+        string kind = gamepad ? "rogue gamepad" : "rogue touch", tag = gamepad ? "rogue_pad" : "rogue_touch";
+        keepOffer = true; PNRogueReviewSwitch.IgnoreFocus = true;   // a Player started by a script often has no window focus; the Roguelite views would then ignore the pad
+        var runs = Game.Runs; var rogue = runs.Rogue; var state = runs.State; var ui = Ui;
+        PrepareInput();
+        if (gamepad) pad = InputSystem.AddDevice<Gamepad>("PNRunReviewPad");
+        else { ui.ShowMobileControls = true; screen = InputSystem.AddDevice<Touchscreen>("PNRunReviewTouch"); }
+        yield return Seconds(.5f);
+        lines.Add("info " + kind + ": focused=" + Application.isFocused + " screen=" + Screen.width + "x" + Screen.height);
+
+        // ---- the pick screen ----
+        yield return ClearRoom(runs.Room);
+        if (failed) yield break;
+        var offer = rogue.Offer.ToList();
+        List<VisualElement> Tiles() => ui.HudRoot.Query<VisualElement>(className: "pn-rogue-tile").ToList();
+        int SelectedTile() => Tiles().FindIndex(t => t.ClassListContains("pn-rogue-sel"));
+        yield return Until("the pick screen shows three tiles", () => ui.HudRoot.Q("rogue-offer")?.resolvedStyle.display == DisplayStyle.Flex && Tiles().Count == 3, 10);
+        Check(offer.Count == 3 && Tiles().Count == 3 && SelectedTile() == 0, kind + ": the pick screen shows the three items and the first is selected");
+        yield return Shot(tag + "_offer");
+        int chosen;
+        if (gamepad)
+        {
+            yield return Press(GamepadButton.DpadRight); Check(SelectedTile() == 1, "rogue gamepad: right moves the selection to the second item");
+            yield return Press(GamepadButton.DpadRight); yield return Press(GamepadButton.DpadRight); Check(SelectedTile() == 2, "rogue gamepad: right stops at the last item");
+            yield return Press(GamepadButton.DpadLeft); Check(SelectedTile() == 1, "rogue gamepad: left moves back");
+            Check(rogue.HasPendingOffer, "rogue gamepad: moving the selection picks nothing");
+            chosen = 1; yield return Press(GamepadButton.South);
+        }
+        else { chosen = 2; yield return Tap(Tiles()[2]); }
+        yield return Until("the pick is applied", () => !rogue.HasPendingOffer, 5);
+        Check(rogue.Set.Ids.SequenceEqual(new[] { offer[chosen].Id.ToString() }), kind + ": " + (gamepad ? "the South button picks the selected item" : "a tap picks the tile that was touched"));
+        yield return Seconds(.4f);
+        Check(ui.HudRoot.Q("rogue-offer")?.resolvedStyle.display != DisplayStyle.Flex, kind + ": the pick screen goes away");
+
+        // ---- the pause menu's list of the team's items ----
+        ui.Pause.Open(); yield return Until("the pause menu is open", () => ui.Pause.IsOpen, 8); yield return Seconds(1.2f);
+        var stars = ui.HudRoot.Q<Button>("pause-stars");
+        Check(stars != null && stars.resolvedStyle.display == DisplayStyle.Flex, kind + ": the pause menu offers the stars");
+        if (stars != null)
+        {
+            if (!gamepad) { var hit = stars.panel.Pick(stars.worldBound.center); lines.Add("info rogue touch: stars bounds=" + stars.worldBound + " pickingMode=" + stars.pickingMode + " opacity=" + stars.resolvedStyle.opacity + " under the finger=" + (hit == null ? "nothing" : (hit.name + "/" + hit.GetType().Name + "/" + string.Join(" ", hit.GetClasses()))) + " focused=" + Application.isFocused); }
+            if (gamepad) { stars.Focus(); yield return Seconds(.2f); yield return Press(GamepadButton.South); } else yield return Tap(stars);
+            yield return Seconds(.8f);
+            Check(ui.HudRoot.Q("pn-rogue-list") != null, kind + ": " + (gamepad ? "the South button opens the list" : "a tap opens the list"));
+            yield return Shot(tag + "_list");
+            if (gamepad) yield return Press(GamepadButton.East); else { var back = ui.HudRoot.Q<Button>(className: "pn-rogue-list-back"); if (back != null) yield return Tap(back); }
+            yield return Seconds(.8f);
+            Check(ui.HudRoot.Q("pn-rogue-list") == null, kind + ": " + (gamepad ? "the East button" : "the back button") + " closes the list");
+        }
+        ui.Pause.Close(); yield return Seconds(.4f); if (ui.MenuOpen) ui.Pause.Close(); yield return Seconds(1.2f);
+        Check(!ui.MenuOpen, kind + ": the menu is closed again");
+
+        // ---- the shop ----
+        var options = runs.Exits().ToList(); int shopGate = options.FindIndex(x => runs.KindOf(x) == PNRoomKind.Shop);
+        if (!Check(shopGate >= 0, "this seed puts a shop behind one of the gates (" + string.Join(",", options.Select(x => x.Path)) + ")")) yield break;
+        var old = runs.Room.World; var gate = Item(runs.Room, "gate_" + "abc"[shopGate]);
+        yield return WalkTo(gate); Game.Sync.Send(gate.Target, PNInteractable.Command);
+        yield return Until("the shop room", () => runs.Phase == PNRunPhase.Playing && runs.Room != null && runs.Room.World != old && !PNGameFlow.Busy, 60);
+        if (failed) yield break;
+        state.AddShards(500, "review");
+        var shopObject = Item(runs.Room, "shop_rogue"); yield return WalkTo(shopObject); yield return Seconds(.4f);
+        // The shop is opened by the host's command (what the shop row sends): the row itself needs the window focus and is covered by the interaction-list scenarios.
+        RogueCommand(new { op = "open" });
+        yield return Until("the shop opens", () => rogue.ShopOpen, 5);
+        Check(rogue.ShopOpen, kind + ": the shop is open");
+        List<VisualElement> Shelves() => ui.HudRoot.Query<VisualElement>(className: "pn-rogue-shelf").ToList();
+        yield return Until("the shop is drawn", () => ui.HudRoot.Q("rogue-shop")?.resolvedStyle.display == DisplayStyle.Flex && Shelves().Count == 4, 10);
+        yield return Seconds(.5f); yield return Shot(tag + "_shop");
+        lines.Add("info " + kind + ": focused element = " + ((ui.HudRoot.panel?.focusController?.focusedElement as VisualElement) is VisualElement fe ? fe.name + "/" + fe.GetType().Name : "none"));
+        lines.Add("info " + kind + ": after the shot: pauseOpen=" + ui.Pause.IsOpen + " menuOpen=" + ui.MenuOpen + " frame=" + Time.frameCount);
+        var shop = rogue.Shop; int wallet = state.Shards; int price0 = shop.Slots[0].Item.Price, price1 = shop.Slots[1].Item.Price;
+        lines.Add("info " + kind + ": before the shop input focused=" + Application.isFocused + " menuOpen=" + ui.MenuOpen + " shopOpen=" + rogue.ShopOpen + " wallet=" + wallet + " screen=" + Screen.width + "x" + Screen.height);
+        if (gamepad)
+        {
+            Check(Shelves().FindIndex(x => x.ClassListContains("pn-rogue-sel")) == 0, "rogue gamepad: the first shelf is selected when the shop opens");
+            yield return Press(GamepadButton.South); yield return Until("the first purchase", () => shop.Slots[0].Sold, 5);
+            Check(shop.Slots[0].Sold && state.Shards == wallet - price0, "rogue gamepad: the South button buys the selected shelf for its price");
+            yield return Press(GamepadButton.DpadDown); yield return Seconds(.3f);
+            Check(Shelves().FindIndex(x => x.ClassListContains("pn-rogue-sel")) == 1, "rogue gamepad: down moves to the next shelf");
+            yield return Press(GamepadButton.South); yield return Until("the second purchase", () => shop.Slots[1].Sold, 5);
+            Check(shop.Slots[1].Sold && state.Shards == wallet - price0 - price1, "rogue gamepad: and buys that one");
+            yield return Press(GamepadButton.East);
+        }
+        else
+        {
+            if (Shelves().Count < 2) { Fail("rogue touch: the shop shows fewer than two shelves"); yield break; }
+            { var shelf = Shelves()[0]; var hit = shelf.panel.Pick(shelf.worldBound.center); var at = ScreenOf(shelf); lines.Add("info rogue touch: shelf 0 bounds=" + shelf.worldBound + " pickingMode=" + shelf.pickingMode + " finger at screen " + at + " (screen " + Screen.width + "x" + Screen.height + ", hud width " + ui.HudRoot.resolvedStyle.width + ") under the finger=" + (hit == null ? "nothing" : (hit.name + "/" + hit.GetType().Name + "/" + string.Join(" ", hit.GetClasses())))); }
+            yield return Tap(Shelves()[0]); yield return Until("the first purchase", () => shop.Slots[0].Sold, 5);
+            Check(shop.Slots[0].Sold && state.Shards == wallet - price0, "rogue touch: a tap on a shelf buys it for its price");
+            yield return Tap(Shelves()[1]); yield return Until("the second purchase", () => shop.Slots[1].Sold, 5);
+            Check(shop.Slots[1].Sold && state.Shards == wallet - price0 - price1, "rogue touch: and another shelf too");
+            var close = ui.HudRoot.Q<Button>(className: "pn-rogue-close"); Check(close != null, "rogue touch: the shop has its close button");
+            if (close != null) yield return Tap(close);
+        }
+        yield return Until("the shop closes", () => !rogue.ShopOpen, 5);
+        if (rogue.ShopOpen || !shop.Slots[0].Sold)
+        {
+            // control: what the same commands do when the review sends them itself (separates a view that sends nothing from a host that refuses)
+            lines.Add("info " + kind + ": the views sent " + PNRogueReviewSwitch.Sent + " commands, the last " + PNRogueReviewSwitch.Last + " (accepted by the sync layer: " + PNRogueReviewSwitch.LastAccepted + ")");
+            string before = "sold0=" + shop.Slots[0].Sold + " shards=" + state.Shards + " open=" + rogue.ShopOpen + " set=" + string.Join(",", rogue.Set.Ids);
+            bool sentBuy = RogueCommand(new { op = "buy", index = 0 }); yield return Seconds(.6f);
+            lines.Add("info " + kind + ": control. before: " + before + " | after a direct buy command (sent=" + sentBuy + "): sold0=" + shop.Slots[0].Sold + " shards=" + state.Shards + " | shop slot 0 item=" + shop.Slots[0].Item?.Id + " price=" + shop.Slots[0].Item?.Price);
+        }
+        Check(!rogue.ShopOpen, kind + ": " + (gamepad ? "the East button" : "the close button") + " closes the shop");
+        yield return Seconds(.5f);
+        Check(ui.HudRoot.Q("rogue-shop")?.resolvedStyle.display != DisplayStyle.Flex, kind + ": the shop screen goes away");
     }
 
     private IEnumerator Devices(bool gamepad)
