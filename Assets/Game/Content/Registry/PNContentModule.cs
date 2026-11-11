@@ -140,6 +140,12 @@ public class PNContentModule : EveIContentModule, EveIContentFinalizeModule, Eve
         hub.GetOrCreate<PNEntityModuleDefinition>(); hub.NameRegistry<PNEntityModuleDefinition>("entity_modules");
         // The world feature a run with Roguelite Buff gives its rooms (Docs/EntityModulePlan.md): the vocabulary lives here, the module that answers to it in the gameplay module.
         hub.WorldFeatures().Register(new PNWorldFeatureDefinition(PNRunFeatures.RogueBuff, "Worlds of a run that has Roguelite Buff."));
+        // Grid worlds (Docs/SandboxPlan.md G1): the feature they all have and the ground types they can be painted with (colour is the placeholder look).
+        hub.WorldFeatures().Register(new PNWorldFeatureDefinition(PNGridIds.GridWorldFeature, "Worlds built from grid cell data."));
+        hub.GetOrCreate<PNGroundDefinition>(); hub.NameRegistry<PNGroundDefinition>("grounds");
+        hub.Grounds().Register(new PNGroundDefinition(PNGridIds.Grass, true, 112, 160, 96, "Grass."));
+        hub.Grounds().Register(new PNGroundDefinition(PNGridIds.Sand, true, 214, 196, 138, "Sand."));
+        hub.Grounds().Register(new PNGroundDefinition(PNGridIds.Stone, false, 120, 120, 128, "Bare stone that cannot be walked on."));
     }
 
     public virtual void FinalizeContent(EveRegistryHub hub) { }

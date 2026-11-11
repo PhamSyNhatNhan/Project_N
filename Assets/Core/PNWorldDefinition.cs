@@ -78,6 +78,13 @@ public sealed class PNWorldBuildContext
     public bool IsCurrent => World.Session.IsActive && World.State==EveWorldState.Loading;
     // The features of this world instance (Docs/EntityModulePlan.md): fixed when the world is created, the same on every machine.
     public PNWorldFeatures Features { get; }
+    // A world built from cell data (Docs/SandboxPlan.md G1/G2) hands its cells and its navigation source over here instead of a baked cache in a scene. Set once, while the world is loading.
+    public PNGridWorldData GridWorld { get; private set; }
+    public IPNNavigationSource Navigation { get; private set; }
+    public void SetGridWorld(PNGridWorldData data)
+    { if(!IsCurrent||GridWorld!=null)throw new InvalidOperationException("The grid world is set once, while the world loads.");GridWorld=data??throw new ArgumentNullException(nameof(data)); }
+    public void SetNavigation(IPNNavigationSource source)
+    { if(!IsCurrent||Navigation!=null)throw new InvalidOperationException("Navigation is set once, while the world loads.");Navigation=source??throw new ArgumentNullException(nameof(source)); }
     public PNWorldBuildContext(EveWorldContext world,Scene scene,PNWorldFeatures features=null) { World=world;PhysicsScene=scene;Features=features??PNWorldFeatures.Empty; }
     // Register cleanup BEFORE starting acquisition, including AsyncOperations that cannot cancel.
     public void Own(Action cleanup) => World.RegisterCleanup(cleanup);

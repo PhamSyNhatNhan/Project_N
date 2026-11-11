@@ -25,6 +25,8 @@ public class PNEnemyMove : PNMove
     private long nextLook;
     public Vector2 LookDirection { get; private set; } = Vector2.right;
     public PNEnemyNavigationRequest NavigationRequest => current;
+    // The distance at which this body counts a waypoint as reached; a grid path keeps its corners at least this much beyond the body radius away from walls.
+    internal float CornerToleranceValue => navigation.CornerTolerance;
     public int NavigationSuspensions => suspensions.Count;
     public bool HasPendingNavigationPath => workerPending;
     public bool NavigationReady => PNWorldNavigation.Find(GetComponent<EveEntityIdentity>()?.World) != null;

@@ -49,6 +49,13 @@ public sealed class PNWorldNavigation : IDisposable
     {
         var declarations = build.Slots.SelectMany(s => s.Roots).Where(x => x != null)
             .SelectMany(x => x.GetComponentsInChildren<PNWorldNavigationSource>(true)).ToArray();
+        // A world built from cell data declares its navigation in the build context (Docs/SandboxPlan.md G2); a scene world keeps declaring a baked cache in the scene. Never both.
+        if (build.Navigation != null)
+        {
+            if (declarations.Length != 0) throw new InvalidOperationException("A world declares its navigation in the build context or in a scene, not both.");
+            if (build.World.Session.HasAuthority) ForSession(build.World.Session).LoadGrid(build.World, build.Navigation);
+            return;
+        }
         if (declarations.Length == 0) return;
         if (declarations.Length != 1) throw new InvalidOperationException("One navigation declaration per world is required.");
         var source = declarations[0]; source.Validate();
@@ -74,6 +81,38 @@ public sealed class PNWorldNavigation : IDisposable
             foreach (var graph in lease.Graphs)
                 graph.GetNodes(node => node.GetConnections(other =>
                 { if (other.GraphIndex != node.GraphIndex) throw new InvalidOperationException("Navigation graph connects outside its world."); }));
+            lease.Publish(); return lease;
+        }
+        catch { lease.Retire(); throw; }
+    }
+    // The grid flavour of Load: one GridGraph built from the cells of the world's navigation source, never from a physics scan (the grid's own collision scan reads the default physics scene, not the world's).
+    // First release limits: a flat floor, and the scan runs on the calling frame, so big worlds should be loaded under a cover.
+    public PNWorldNavigationLease LoadGrid(EveWorldContext world, IPNNavigationSource source)
+    {
+        if (disposed || !session.IsActive || !ReferenceEquals(world?.Session, session) || world.State != EveWorldState.Loading || worlds.ContainsKey(world))
+            throw new InvalidOperationException("Load navigation once during world preparation.");
+        if (source == null) throw new ArgumentNullException(nameof(source));
+        if (!source.IsFlat) throw new NotSupportedException("Grid navigation supports a flat floor only; heights are not wired yet.");
+        if (source.Width < 1 || source.Depth < 1 || source.CellSize <= 0) throw new ArgumentException("A grid navigation source needs a size.", nameof(source));
+        if (GraphCount >= 32) throw new InvalidOperationException("A*5.3.3 GraphMask capacity exceeded (32 graphs).");
+        var lease = new PNWorldNavigationLease(this, world, source);
+        worlds.Add(world, lease); world.RegisterCleanup(lease.Dispose);
+        try
+        {
+            var graph = (GridGraph)Astar.data.AddGraph(typeof(GridGraph)); lease.Graphs.Add(graph);
+            if (graph.graphIndex >= 32) throw new InvalidOperationException("Grid graph index is not representable in a mask.");
+            graph.collision.collisionCheck = false; graph.collision.heightCheck = false;
+            graph.SetDimensions(source.Width, source.Depth, source.CellSize);
+            graph.center = new Vector3(source.OriginX + source.Width * source.CellSize * .5f, 0, source.OriginZ + source.Depth * source.CellSize * .5f);
+            graph.neighbours = NumNeighbours.Eight; graph.cutCorners = false;
+            Astar.Scan(graph);
+            if (graph.width != source.Width || graph.depth != source.Depth) throw new InvalidOperationException("The grid graph came out " + graph.width + "x" + graph.depth + " for a " + source.Width + "x" + source.Depth + " source (size limit?).");
+            Astar.AddWorkItem(ctx =>
+            {
+                for (int z = 0; z < source.Depth; z++) for (int x = 0; x < source.Width; x++) if (!source.Walkable(x, z)) graph.GetNode(x, z).Walkable = false;
+                graph.RecalculateAllConnections();
+            });
+            Astar.FlushWorkItems();
             lease.Publish(); return lease;
         }
         catch { lease.Retire(); throw; }
@@ -149,6 +188,24 @@ public sealed class PNWorldNavigationLease : IDisposable
         (World.State == EveWorldState.Loading || World.State == EveWorldState.Ready || World.State == EveWorldState.Paused);
     internal PNWorldNavigationLease(PNWorldNavigation owner, EveWorldContext world, PNNavigationCache cache)
     { this.owner = owner; World = world; ProfileId = cache.ProfileId; Radius = cache.Radius; Height = cache.Height; }
+    // A lease over a grid built from a navigation source; its paths are refined (corner margin) before the enemy follows them.
+    internal PNWorldNavigationLease(PNWorldNavigation owner, EveWorldContext world, IPNNavigationSource source)
+    { this.owner = owner; World = world; Source = source; ProfileId = source.Profile.Id; Radius = source.Profile.Radius; Height = source.Profile.Height; }
+    public IPNNavigationSource Source { get; }
+    // Pull the raw funnel path off the cell corners: keep every inner waypoint, and every segment, at least a body radius plus the follower's corner tolerance away from blocked cells.
+    private Vector3[] Refined(Path path, PNEnemyNavigationRequest movement)
+    {
+        var raw = path.vectorPath;
+        if (Source == null || raw.Count < 2) return raw.ToArray();   // a repath from the body to a goal in sight has only two points, and its one segment can still graze a corner
+        float tolerance = movement?.Owner != null ? movement.Owner.CornerToleranceValue : .12f;
+        var points = new List<PNGridPoint>(raw.Count);
+        foreach (var v in raw) points.Add(new PNGridPoint(v.x, v.z));
+        var refined = PNGridPathRefiner.Refine(points, Source, Radius, Radius + tolerance + .02f);
+        var result = new Vector3[refined.Count];
+        for (int i = 0; i < result.Length; i++)
+            result[i] = i == 0 ? raw[0] : i == result.Length - 1 ? raw[raw.Count - 1] : new Vector3(refined[i].X, raw[0].y, refined[i].Z);
+        return result;
+    }
     internal void Publish() => published = true;
     internal void Retire() { retiring = true; published = false; }
     public bool TryProject(Vector3 point, float tolerance, out Vector3 projected)
@@ -198,7 +255,7 @@ public sealed class PNWorldNavigationLease : IDisposable
                         !ReachesEndpoints(path, start, goal, tolerance))
                     { completed(null, string.IsNullOrEmpty(path.errorLog) ? "No complete path reaching the requested endpoints in this world." : path.errorLog); return; }
                     // Copy before the Seeker releases its pooled Path, never retain vectorPath.
-                    completed(path.vectorPath.ToArray(), null);
+                    completed(Refined(path, movement), null);
                 }
                 finally { Pending--; }
             };

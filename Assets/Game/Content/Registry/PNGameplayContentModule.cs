@@ -55,6 +55,13 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         worlds.RegisterBase(EveId.Parse("base:map_star_test_01"),EveId.Parse("project_n:map_star_test_01"),"project_n",compatible:(a,b)=>true);
         worlds.Register(new PNWorldDefinition(EveId.Parse("project_n:generated_world"),PNWorldDefinition.HashContent("project_n:generated_world/v1/empty-main"),typeof(PNGeneratedWorldProvider),()=>new PNGeneratedWorldProvider()));
         worlds.RegisterBase(EveId.Parse("base:generated_world"),EveId.Parse("project_n:generated_world"),"project_n",compatible:(a,b)=>true);
+        // Grid worlds built from cell data (Docs/SandboxPlan.md G1/G2): test worlds with a built-in map. Policy Continue, and the grid_world feature.
+        foreach(var (worldId,mapId,width,depth) in new[]{(PNGridIds.SandboxTestFlat,PNGridIds.FlatMap,64,64),(PNGridIds.SandboxTestMaze,PNGridIds.TestMazeMap,96,64)})
+        {
+            var gridDescriptor=new PNGridWorldDescriptor(width,depth,.5f,mapId.ToString(),1);
+            worlds.Register(new PNWorldDefinition(worldId,PNWorldDefinition.HashContent(worldId+"/v1/"+gridDescriptor.ToJson().ToString(Newtonsoft.Json.Formatting.None)),typeof(PNGridWorldProvider),()=>new PNGridWorldProvider(gridDescriptor),
+                new PNWorldPolicy(PNEmptyWorldPolicy.Continue,null,null,null,default(EveId),new[]{PNGridIds.GridWorldFeature})));
+        }
         var modes=hub.GetOrCreate<PNModeDefinition>();
         var rogueliteListing=new PNModeListing("Roguelite","Vượt qua các căn phòng, một mình hoặc cùng bạn bè trong mạng LAN.",new[]{231,185,143},"",0,
             new[]{new PNModeStartOption("solo","Chơi đơn",PNModeStart.Offline),new PNModeStartOption("host","Tạo phòng LAN",PNModeStart.Host),new PNModeStartOption("join","Vào phòng LAN",PNModeStart.Join)});
