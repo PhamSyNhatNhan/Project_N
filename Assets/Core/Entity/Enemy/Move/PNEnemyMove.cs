@@ -18,6 +18,9 @@ public class PNEnemyMove : PNMove
     private long nextRequest;
     private PNEnemyNavigationRequest current;
     private PNWorldNavigationLease navigationWorld;
+    private int seenChange;
+    // Metres around the body inside which a changed cell makes the route worth recomputing.
+    private const float ChangeReach = 16f;
     private bool workerPending;
     private readonly HashSet<Guid> suspensions = new HashSet<Guid>();
     private RaycastHit[] obstacles = new RaycastHit[32];
@@ -61,7 +64,7 @@ public class PNEnemyMove : PNMove
         var previous = current;
         var request = new PNEnemyNavigationRequest(this, checked(++nextRequest), generation, goal, stopDistance, options, ownerIsCurrent);
         request.FollowHeading = LastMoveDirection;
-        current = request; navigationWorld = world; request.PreviousBody = Body.position; request.RepathElapsed = navigation.RepathInterval;
+        current = request; if (!ReferenceEquals(navigationWorld, world)) seenChange = world.ChangeSerial; navigationWorld = world; request.PreviousBody = Body.position; request.RepathElapsed = navigation.RepathInterval;
         previous?.Finish(PNEnemyNavigationStatus.Cancelled, PNEnemyNavigationEndReason.Replaced); return request;
     }
     public bool UpdateGoal(PNEnemyNavigationRequest request, Vector3 goal)
@@ -160,6 +163,9 @@ public class PNEnemyMove : PNMove
         }
         if (request.Status == PNEnemyNavigationStatus.Suspended) Relocated();
         float delta = Time.fixedDeltaTime * MovementTimeScale; request.RepathElapsed += Time.fixedDeltaTime;
+        // A grid world whose cells changed (something placed or broken): look again when the change is on the route or near the body (a removed wall can give a shorter way).
+        if (navigationWorld.Source != null && navigationWorld.ChangedNear(ref seenChange, Body.position, request.Route, request.Corner, navigationWorld.Radius + navigation.CornerTolerance + .5f, ChangeReach))
+            request.NeedsPath = true;
         if (request.NeedsPath && !workerPending && request.RepathElapsed >= navigation.RepathInterval)
         {
             workerPending = request.Pending = true; request.SubmittedGoal = request.Goal; request.RouteGeneration = Guid.NewGuid();

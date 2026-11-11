@@ -46,6 +46,10 @@ public sealed class PNGridWorldProvider : IPNWorldProvider, IPNPortableWorldProv
 
         var build = host.BuildAll(16);
         while (build.MoveNext()) yield return null;
+        // The edit gateway and the placed things (step G3); the root is also the world object `grid` that the place and break commands are sent to.
+        var controller = PNGridWorldController.Create(context.World, host, definitions.Select(x => x.Walkable).ToArray());
+        context.Own(controller.Dispose);
+        host.gameObject.AddComponent<PNWorldObject>().Configure(PNGridCommands.ObjectKey);
         // AddSlot wants the root to be in the scene it names as the source: the world's own physics scene.
         UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(host.gameObject, context.PhysicsScene);
         context.AddSlot("main", context.PhysicsScene, new[] { host.gameObject });

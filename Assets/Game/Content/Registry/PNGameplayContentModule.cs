@@ -79,6 +79,7 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         PNRogueBuiltIn.Register(hub);
         PNBuffGameplayContent.Register(hub);
         PNInstances.Create(hub);
+        PNPlaceableContent.Register(hub);
         PNAreaGameplayContent.Register(hub);
         PNProjectileGameplayContent.Register(hub);
         PNEntityGameplayContent.Register(hub);
@@ -101,6 +102,9 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         hub.SyncCommands().Register(new PNSyncCommandDefinition(PNRogueCommandHandler.Command,typeof(PNRogueCommandHandler),()=>new PNRogueCommandHandler(),PNRogueCommandHandler.CommandBytes,PNSyncTargets.Session));
         hub.SyncCommands().Register(new PNSyncCommandDefinition(PNInteractable.Command,typeof(PNInteractCommandHandler),()=>new PNInteractCommandHandler(),PNInteractable.CommandBytes,PNSyncTargets.WorldObject));
         PNRoomInteractions.Register(hub);
+        // Placing and breaking things in a grid world (Docs/SandboxPlan.md G3): both commands go to the world's grid object and the host decides.
+        hub.SyncCommands().Register(new PNSyncCommandDefinition(PNGridCommands.Place,typeof(PNGridPlaceCommandHandler),()=>new PNGridPlaceCommandHandler(),PNGridCommands.CommandBytes,PNSyncTargets.WorldObject));
+        hub.SyncCommands().Register(new PNSyncCommandDefinition(PNGridCommands.Break,typeof(PNGridBreakCommandHandler),()=>new PNGridBreakCommandHandler(),PNGridCommands.CommandBytes,PNSyncTargets.WorldObject));
 #endif
         PNShaderWarmupContent.Register(hub);
         motionReferences.Clear();

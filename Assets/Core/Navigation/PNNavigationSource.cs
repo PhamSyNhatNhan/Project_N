@@ -30,6 +30,8 @@ public interface IPNNavigationSource
     float OriginZ { get; }
     // True while the floor is at height 0 everywhere (the first release of the grid navigation supports only that).
     bool IsFlat { get; }
+    // How many cells away from a changed cell `Walkable` of another cell can change (a grid update looks at the changed region grown by this much).
+    int Influence { get; }
     bool Walkable(int x, int z);
     bool Blocks(int x, int z);
 }
@@ -47,6 +49,7 @@ public sealed class PNGridNavigationSource : IPNNavigationSource
     public float OriginX { get; }
     public float OriginZ { get; }
     public bool IsFlat => data.IsFlat();
+    public int Influence => neededClearance;
     public PNGridWorldData Data => data;
 
     // `groundWalkable[i]` says whether palette entry i can be walked on.

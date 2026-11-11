@@ -192,6 +192,78 @@ public sealed class PNWorldNavigationLease : IDisposable
     internal PNWorldNavigationLease(PNWorldNavigation owner, EveWorldContext world, IPNNavigationSource source)
     { this.owner = owner; World = world; Source = source; ProfileId = source.Profile.Id; Radius = source.Profile.Radius; Height = source.Profile.Height; }
     public IPNNavigationSource Source { get; }
+
+    // ---- cell changes (step G3) ----
+    // A grid lease follows its world's cells: after the edit gateway changed some, the world calls ApplyGridChanges with the regions that changed. The graph is updated in an A* work item
+    // (walkability of the changed cells and the `Influence` ring around them, then the connections of that region), so no path runs against a half-updated graph. The lease keeps the most recent
+    // regions with a serial number: a body that follows a route asks `ChangedNear` whether something changed since the serial it last looked at (routes cross a changed region, or the body is
+    // near enough that a removed wall could now give a shorter way).
+    private const int ChangeHistory = 32;
+    private readonly PNGridRegion[] changeRegions = new PNGridRegion[ChangeHistory];
+    public int ChangeSerial { get; private set; }
+    public event Action<PNGridRegion> Changed;
+    public int GridUpdates { get; private set; }
+    public void ApplyGridChanges(IReadOnlyList<PNGridRegion> regions)
+    {
+        if (Source == null) throw new InvalidOperationException("Only a grid lease follows cell changes.");
+        if (regions == null) throw new ArgumentNullException(nameof(regions));
+        if (!IsCurrent || regions.Count == 0) return;
+        var source = Source; var graph = (GridGraph)Graphs[0]; var copy = new List<PNGridRegion>(regions.Count);
+        foreach (var region in regions)
+        {
+            var grown = region.Expand(source.Influence).Clip(source.Width, source.Depth);
+            if (!grown.IsValid) continue;
+            copy.Add(grown); changeRegions[++ChangeSerial % ChangeHistory] = grown;
+        }
+        if (copy.Count == 0) return;
+        owner.Astar.AddWorkItem(ctx =>
+        {
+            foreach (var grown in copy)
+            {
+                for (int z = grown.Z0; z <= grown.Z1; z++) for (int x = grown.X0; x <= grown.X1; x++)
+                { var node = graph.GetNode(x, z); bool walkable = source.Walkable(x, z); node.WalkableErosion = walkable; node.Walkable = walkable; }
+                graph.RecalculateConnectionsInRegion(new Pathfinding.IntRect(grown.X0, grown.Z0, grown.X1, grown.Z1).Expand(1));
+            }
+        });
+        GridUpdates++;
+        if (Changed != null) foreach (var grown in copy) Changed(grown);
+    }
+    // True when a region changed after `serial` that a body at `position` (metres) following `route` from `corner` on should care about: the route passes within `margin` metres of it, or the
+    // body itself is within `reach` metres of it. If more changes happened than the lease remembers, the answer is yes. `serial` is updated to the current one.
+    internal bool ChangedNear(ref int serial, Vector3 position, Vector3[] route, int corner, float margin, float reach)
+    {
+        if (Source == null || serial == ChangeSerial) return false;
+        bool missed = ChangeSerial - serial > ChangeHistory, hit = missed;
+        for (int s = serial + 1; s <= ChangeSerial && !hit; s++)
+        {
+            var region = changeRegions[s % ChangeHistory]; float cell = Source.CellSize;
+            float x0 = Source.OriginX + region.X0 * cell, x1 = Source.OriginX + (region.X1 + 1) * cell, z0 = Source.OriginZ + region.Z0 * cell, z1 = Source.OriginZ + (region.Z1 + 1) * cell;
+            if (DistanceToBox(position.x, position.z, x0, z0, x1, z1) <= reach) { hit = true; break; }
+            if (route == null) continue;
+            for (int i = Mathf.Max(0, corner - 1); i < route.Length - 1 && !hit; i++)
+                if (SegmentNearBox(route[i], route[i + 1], x0 - margin, z0 - margin, x1 + margin, z1 + margin)) hit = true;
+        }
+        serial = ChangeSerial; return hit;
+    }
+    private static float DistanceToBox(float px, float pz, float x0, float z0, float x1, float z1)
+    {
+        float dx = Mathf.Max(Mathf.Max(x0 - px, 0), px - x1), dz = Mathf.Max(Mathf.Max(z0 - pz, 0), pz - z1);
+        return Mathf.Sqrt(dx * dx + dz * dz);
+    }
+    // Segment against a box in the plane (slab test).
+    private static bool SegmentNearBox(Vector3 a, Vector3 b, float x0, float z0, float x1, float z1)
+    {
+        float t0 = 0, t1 = 1, dx = b.x - a.x, dz = b.z - a.z;
+        return Clip(-dx, a.x - x0, ref t0, ref t1) && Clip(dx, x1 - a.x, ref t0, ref t1) && Clip(-dz, a.z - z0, ref t0, ref t1) && Clip(dz, z1 - a.z, ref t0, ref t1);
+    }
+    private static bool Clip(float p, float q, ref float t0, ref float t1)
+    {
+        if (Mathf.Abs(p) < 1e-9f) return q >= 0;
+        float r = q / p;
+        if (p < 0) { if (r > t1) return false; if (r > t0) t0 = r; }
+        else { if (r < t0) return false; if (r < t1) t1 = r; }
+        return true;
+    }
     // Pull the raw funnel path off the cell corners: keep every inner waypoint, and every segment, at least a body radius plus the follower's corner tolerance away from blocked cells.
     private Vector3[] Refined(Path path, PNEnemyNavigationRequest movement)
     {

@@ -151,11 +151,12 @@ public sealed class PNGridWorldData
 
     // ---- solid cells (a wall, a rock, the footprint of something that blocks) ----
     public bool IsSolid(int x, int z) => InBounds(x, z) ? solid[Index(x, z)] != 0 : true;   // the edge of the world is a wall
-    public void SetSolid(int x, int z, bool value)
+    // `recomputeClearance: false` is for a caller that changes many cells and then calls RecomputeClearance once per cluster (the edit gateway); until then the clearance field is stale around the cell.
+    public void SetSolid(int x, int z, bool value, bool recomputeClearance = true)
     {
         Require(x, z); int i = Index(x, z); if ((solid[i] != 0) == value) return;
         solid[i] = value ? (byte)1 : (byte)0; SolidCount += value ? 1 : -1;
-        Touch(PNGridRegion.Cell(x, z)); RecomputeClearance(PNGridRegion.Cell(x, z));
+        Touch(PNGridRegion.Cell(x, z)); if (recomputeClearance) RecomputeClearance(PNGridRegion.Cell(x, z));
     }
     public void FillSolid(PNGridRegion region, bool value)
     {
