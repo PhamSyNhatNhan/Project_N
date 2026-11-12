@@ -147,6 +147,8 @@ public class PNContentModule : EveIContentModule, EveIContentFinalizeModule, Eve
         hub.WorldFeatures().Register(new PNWorldFeatureDefinition(PNGridIds.GridWorldFeature, "Worlds built from grid cell data."));
         // Worlds whose enemies are removed when no player is near for a while (Docs/SandboxPlan.md G4); a roguelite room does not have it.
         hub.WorldFeatures().Register(new PNWorldFeatureDefinition(PNDespawnIds.Feature, "Worlds that remove enemies far from every living player."));
+        // Worlds that bring monsters to the players on their own (Docs/SandboxPlan.md G9); the service stays idle until a mode configures it.
+        hub.WorldFeatures().Register(new PNWorldFeatureDefinition(PNSpawnerIds.Feature, "Worlds whose monsters are brought to the players by the spawner."));
         hub.WorldFeatures().Register(new PNWorldFeatureDefinition(PNGridSaveIds.Feature, "Grid worlds that save their ground, placed things and player places, and can be restored from that save."));
         hub.GetOrCreate<PNGroundDefinition>(); hub.NameRegistry<PNGroundDefinition>("grounds");
         hub.Grounds().Register(new PNGroundDefinition(PNGridIds.Grass, true, 112, 160, 96, "Grass."));

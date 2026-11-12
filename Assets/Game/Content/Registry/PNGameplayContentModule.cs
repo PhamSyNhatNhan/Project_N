@@ -60,7 +60,7 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         {
             var gridDescriptor=new PNGridWorldDescriptor(width,depth,.5f,mapId.ToString(),1);
             worlds.Register(new PNWorldDefinition(worldId,PNWorldDefinition.HashContent(worldId+"/v1/"+gridDescriptor.ToJson().ToString(Newtonsoft.Json.Formatting.None)),typeof(PNGridWorldProvider),()=>new PNGridWorldProvider(gridDescriptor),
-                new PNWorldPolicy(PNEmptyWorldPolicy.Continue,null,null,null,default(EveId),new[]{PNGridIds.GridWorldFeature,PNDespawnIds.Feature,PNGridSaveIds.Feature})));
+                new PNWorldPolicy(PNEmptyWorldPolicy.Continue,null,null,null,default(EveId),new[]{PNGridIds.GridWorldFeature,PNDespawnIds.Feature,PNGridSaveIds.Feature,PNSpawnerIds.Feature})));
         }
         var modes=hub.GetOrCreate<PNModeDefinition>();
         var rogueliteListing=new PNModeListing("Roguelite","Vượt qua các căn phòng, một mình hoặc cùng bạn bè trong mạng LAN.",new[]{231,185,143},"",0,

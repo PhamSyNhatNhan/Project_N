@@ -31,6 +31,8 @@ public sealed class PNGridWorldController : MonoBehaviour
     public PNGridEditor Editor { get; private set; }
     public PNGridPlacements Placements { get; private set; }
     public PNGridWorldHost Host { get; private set; }
+    // The map block of the map this world was made from (spawn points, gates, zones, groups; G9), or null for a world without one. Read by the spawner and the run frame; the save keeps it.
+    public PNGridMapMeta Meta { get; set; }
     public int TicksWithEdits { get; private set; }
     public int CellsPerFrameLimit { get; set; } = CellsPerFrame;
     // The time one frame may spend applying edits (0 turns the time budget off and applies exactly CellsPerFrameLimit).

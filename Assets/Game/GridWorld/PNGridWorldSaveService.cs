@@ -88,7 +88,7 @@ public sealed class PNGridWorldSaveService : MonoBehaviour
     private sealed class Job
     {
         public PNGridChunkCopy[] Copies; public PNGridSavedPlacement[] Placed; public PNGridSavedPlayer[] Players; public double Time;
-        public PNGridWorldDescriptor Descriptor; public IReadOnlyList<string> Palette; public byte[][] Blobs;
+        public PNGridWorldDescriptor Descriptor; public IReadOnlyList<string> Palette; public byte[][] Blobs; public PNGridMapMeta Meta;
         public PNWorldFileStore Store; public string Key; public Guid SaveId; public string DefinitionId, ContentHash; public EveContentCompatibility Compatibility;
         public long Revision; public int Bytes; public int PlacedSignature, PlayersSignature;
     }
@@ -226,7 +226,7 @@ public sealed class PNGridWorldSaveService : MonoBehaviour
         var definition = World.Session.Registry.Get<PNWorldDefinition>().Get(World.DefinitionId);
         return new Job
         {
-            Copies = copies.ToArray(), Placed = placed, Players = kept, Time = Math.Max(0, World.GameplayTime), Descriptor = Descriptor, Palette = Data.Palette, Blobs = blobs,
+            Copies = copies.ToArray(), Placed = placed, Players = kept, Time = Math.Max(0, World.GameplayTime), Descriptor = Descriptor, Palette = Data.Palette, Blobs = blobs, Meta = Controller.Meta,
             Store = Store, Key = Key, SaveId = SaveWorldId, DefinitionId = World.DefinitionId.ToString(), ContentHash = definition.ContentHash, Compatibility = World.Session.Compatibility,
             PlacedSignature = PlacedSignature(), PlayersSignature = PlayersSignature()
         };
@@ -243,7 +243,7 @@ public sealed class PNGridWorldSaveService : MonoBehaviour
     private static Job Write(Job work)
     {
         foreach (var copy in work.Copies) { work.Blobs[copy.Index] = copy.Encode(); copy.Release(); }
-        var snapshot = new PNGridWorldSnapshot(work.Descriptor, work.Palette, work.Blobs, work.Placed, work.Players);
+        var snapshot = new PNGridWorldSnapshot(work.Descriptor, work.Palette, work.Blobs, work.Placed, work.Players, work.Meta);
         var envelope = PNWorldSaveEnvelope.Create(work.SaveId, work.DefinitionId, work.ContentHash, work.Compatibility, work.Descriptor.ToJson(), new JObject(), snapshot.ToState(work.Time));
         work.Revision = work.Store.Write(work.Key, envelope); work.Bytes = envelope.Bytes;
         return work;

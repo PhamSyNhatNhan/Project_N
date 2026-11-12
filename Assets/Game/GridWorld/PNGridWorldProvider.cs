@@ -23,7 +23,7 @@ public sealed class PNGridWorldProvider : IPNWorldProvider, IPNPortableWorldProv
     public void ValidateLoadDescriptor(JToken descriptor)
     {
         var parsed = PNGridWorldDescriptor.Parse(descriptor);
-        if (!PNGridTestMaps.Knows(parsed.Map)) throw new FormatException("Unknown grid map: " + parsed.Map);
+        if (!PNGridTestMaps.Knows(parsed.Map) && !PNGridMaps.Has(parsed.Map)) throw new FormatException("Unknown grid map: " + parsed.Map);
     }
 
     public IEnumerator Load(PNWorldBuildContext context)
@@ -53,6 +53,15 @@ public sealed class PNGridWorldProvider : IPNWorldProvider, IPNPortableWorldProv
         var definitions = grounds.Snapshot().Values.OrderBy(x => x.Id.ToString(), StringComparer.Ordinal).Take(PNGridWorldLimits.MaxPalette).ToArray();
         if (definitions.Length == 0) throw new InvalidOperationException("A grid world needs at least one registered ground type.");
         var data = new PNGridWorldData(descriptor, definitions.Select(x => x.Id.ToString()).ToArray());
+        // A map made with the map tool (a file or a generated one, step G9) fills the world like a restored save does; the built-in test maps are still filled by code.
+        var mapEntry = PNGridMaps.Get(descriptor.Map);
+        if (!replica && restored == null && mapEntry != null)
+        {
+            var known = context.World.Session.Registry.Instances();
+            restored = mapEntry.Build(descriptor, data.Palette, definitions.Select(x => x.Walkable).ToArray(),
+                id => EveId.TryParse(id, out var parsedId) ? known.GetEffectiveKind<PNPlaceableDefinition>(parsedId) : null);
+        }
+        var meta = replica ? mapEntry?.Meta : restored?.Meta ?? mapEntry?.Meta;
         if (replica) { }
         else if (restored == null) PNGridTestMaps.Fill(data, descriptor.Map, descriptor.Seed);
         else
@@ -73,6 +82,7 @@ public sealed class PNGridWorldProvider : IPNWorldProvider, IPNPortableWorldProv
         // The edit gateway and the placed things (step G3); the root is also the world object `grid` that the place and break commands are sent to.
         var controller = PNGridWorldController.Create(context.World, host, definitions.Select(x => x.Walkable).ToArray());
         context.Own(controller.Dispose);
+        controller.Meta = meta;
         host.gameObject.AddComponent<PNWorldObject>().Configure(PNGridCommands.ObjectKey);
         if (restored != null)
         {
@@ -97,8 +107,10 @@ public sealed class PNGridWorldProvider : IPNWorldProvider, IPNPortableWorldProv
             if (context.Features.Has(PNGridSaveIds.Feature)) context.Own(PNGridWorldSaveService.Create(context.World, context.PhysicsScene, controller, descriptor, restored).Dispose);
             // The despawn service (step G4) for worlds that have the feature; a world without it keeps every enemy.
             if (context.Features.Has(PNDespawnIds.Feature)) context.Own(PNDespawnService.Create(context.World, context.PhysicsScene).Dispose);
+            // The spawner (step G9) for worlds that have the feature; it stays idle until a mode configures it.
+            if (context.Features.Has(PNSpawnerIds.Feature)) context.Own(PNSpawnerService.Create(context.World, context.PhysicsScene, controller, definitions.Select(x => x.Walkable).ToArray(), descriptor.Seed).Dispose);
         }
-        AddPlayerSpawn(context, data, host);   // a client's copy has it too: the client side of a transfer looks the entry up in its own copy of the world
+        AddPlayerSpawn(context, data, host, meta);   // a client's copy has it too: the client side of a transfer looks the entry up in its own copy of the world
         // AddSlot wants the root to be in the scene it names as the source: the world's own physics scene.
         UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(host.gameObject, context.PhysicsScene);
         context.AddSlot("main", context.PhysicsScene, new[] { host.gameObject });
@@ -108,19 +120,32 @@ public sealed class PNGridWorldProvider : IPNWorldProvider, IPNPortableWorldProv
     // The entry for players (G8b-2): a transfer or a mode puts a player into a grid world through the slot `main` and the spawn entry `player`, like any other world. One spawn point, on the free ground nearest to the middle of the
     // world; skipped when no ground collider exists yet, the default character is not registered, or no free spot is near the middle (a map with a tool-placed entry replaces this in G9).
     public const string PlayerSpawnEntry = "player", PlayerSpawnCharacter = "project_n:eve_2", PlayerSpawnSceneKey = "project_n:grid_world";
-    private static void AddPlayerSpawn(PNWorldBuildContext context, PNGridWorldData data, PNGridWorldHost host)
+    private static void AddPlayerSpawn(PNWorldBuildContext context, PNGridWorldData data, PNGridWorldHost host, PNGridMapMeta meta)
     {
         var session = context.World.Session;
         if (!session.Registry.Characters.TryGet(EveId.Parse(PlayerSpawnCharacter), out _)) { Debug.LogWarning("Grid world: no player spawn point (character " + PlayerSpawnCharacter + " is not registered)."); return; }
-        if (!PNGridBodies.FindFreeSpot(data, data.Width * data.CellSize / 2f, data.Depth * data.CellSize / 2f, out float x, out float z)) { Debug.LogWarning("Grid world: no player spawn point (no free ground near the middle)."); return; }
         var prefab = PNEntityPrefabs.For(session, PlayerSpawnCharacter, null);
         if (prefab == null) { Debug.LogWarning("Grid world: no player spawn point (" + PlayerSpawnCharacter + " names no prefab)."); return; }
-        var point = new GameObject("PN Player Spawn").AddComponent<PNPlayerSpawnPoint>();
+        // A map with player spawn points (G9) names its own entries; the first one is also the entry `player` when none is called that.
+        var named = meta?.Spawns.Where(x => x.Kind == PNGridMapMeta.PlayerKind).ToList();
+        if (named != null && named.Count > 0)
+        {
+            foreach (var spawn in named) MakeSpawn(host, prefab, spawn.Name, (spawn.X + .5f) * data.CellSize, (spawn.Z + .5f) * data.CellSize);
+            if (!named.Any(x => x.Name == PlayerSpawnEntry)) MakeSpawn(host, prefab, PlayerSpawnEntry, (named[0].X + .5f) * data.CellSize, (named[0].Z + .5f) * data.CellSize);
+            return;
+        }
+        if (!PNGridBodies.FindFreeSpot(data, data.Width * data.CellSize / 2f, data.Depth * data.CellSize / 2f, out float x, out float z)) { Debug.LogWarning("Grid world: no player spawn point (no free ground near the middle)."); return; }
+        MakeSpawn(host, prefab, PlayerSpawnEntry, x, z);
+    }
+
+    private static void MakeSpawn(PNGridWorldHost host, GameObject prefab, string entry, float x, float z)
+    {
+        var point = new GameObject("PN Player Spawn " + entry).AddComponent<PNPlayerSpawnPoint>();
         point.transform.SetParent(host.transform, false); point.transform.position = new Vector3(x, .05f, z);
         // The "ground" a spawn point names is a collider of its own (a thin trigger on the Ignore Raycast layer): the chunk colliders are replaced whenever a chunk is rebuilt, so none of them can be held.
         var box = point.gameObject.AddComponent<BoxCollider>(); box.isTrigger = true; point.gameObject.layer = 2;
         box.center = new Vector3(0, -.05f, 0); box.size = new Vector3(1f, .1f, 1f);
-        point.Prefab = prefab; point.Ground = box; point.Character = PlayerSpawnCharacter; point.SceneKey = PlayerSpawnSceneKey; point.SpawnEntry = PlayerSpawnEntry;
+        point.Prefab = prefab; point.Ground = box; point.Character = PlayerSpawnCharacter; point.SceneKey = PlayerSpawnSceneKey; point.SpawnEntry = entry;
     }
 }
 #endif

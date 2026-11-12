@@ -163,9 +163,11 @@ public sealed class PNGridWorldSnapshot
     public IReadOnlyList<byte[]> Blobs { get; }
     public IReadOnlyList<PNGridSavedPlacement> Placed { get; }
     public IReadOnlyList<PNGridSavedPlayer> Players { get; }
+    // The map block (spawn points, gates, zones, groups; Docs/SandboxPlan.md G9). Null in an ordinary save of a running world.
+    public PNGridMapMeta Meta { get; }
     public int ChunkCount { get; }
 
-    public PNGridWorldSnapshot(PNGridWorldDescriptor descriptor, IReadOnlyList<string> palette, IReadOnlyList<byte[]> blobs, IReadOnlyList<PNGridSavedPlacement> placed, IReadOnlyList<PNGridSavedPlayer> players)
+    public PNGridWorldSnapshot(PNGridWorldDescriptor descriptor, IReadOnlyList<string> palette, IReadOnlyList<byte[]> blobs, IReadOnlyList<PNGridSavedPlacement> placed, IReadOnlyList<PNGridSavedPlayer> players, PNGridMapMeta meta = null)
     {
         Descriptor = (descriptor ?? throw new ArgumentNullException(nameof(descriptor))).WithoutRestore();
         if (palette == null || palette.Count == 0 || palette.Count > PNGridWorldLimits.MaxPalette || palette.Any(string.IsNullOrEmpty) || palette.Distinct(StringComparer.Ordinal).Count() != palette.Count) throw new FormatException("A save needs 1 to " + PNGridWorldLimits.MaxPalette + " distinct ground ids.");
@@ -186,21 +188,31 @@ public sealed class PNGridWorldSnapshot
             if (player == null || string.IsNullOrEmpty(player.Key) || player.Key.Length > PNGridSaveLimits.MaxKeyLength || player.Key.Any(c => !(c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || c == ':' || c == '_' || c == '-')) || !keys.Add(player.Key) ||
                 !IsFinite(player.X) || !IsFinite(player.Y) || !IsFinite(player.Z)) throw new FormatException("A saved player is invalid.");
         }
+        if (meta != null && meta.IsEmpty) meta = null;
+        meta?.CheckShape(descriptor.Width, descriptor.Depth);
+        Meta = meta;
         Palette = Array.AsReadOnly(palette.ToArray()); Blobs = Array.AsReadOnly(blobs.ToArray()); Placed = Array.AsReadOnly(placed.ToArray()); Players = Array.AsReadOnly(players.ToArray());
     }
 
     private static bool IsFinite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
 
     // All chunks of a world, encoded (a first save, and the tests).
-    public static PNGridWorldSnapshot Build(PNGridWorldData data, PNGridWorldDescriptor descriptor, IEnumerable<PNGridSavedPlacement> placed, IEnumerable<PNGridSavedPlayer> players)
+    public static PNGridWorldSnapshot Build(PNGridWorldData data, PNGridWorldDescriptor descriptor, IEnumerable<PNGridSavedPlacement> placed, IEnumerable<PNGridSavedPlayer> players, PNGridMapMeta meta = null)
     {
         if (data == null) throw new ArgumentNullException(nameof(data));
         var blobs = new byte[data.ChunkCount][];
         for (int cz = 0; cz < data.ChunksZ; cz++) for (int cx = 0; cx < data.ChunksX; cx++) blobs[data.ChunkIndex(cx, cz)] = PNGridChunkCopy.Capture(data, cx, cz).Encode();
-        return new PNGridWorldSnapshot(descriptor, data.Palette, blobs, placed?.ToList(), players?.ToList());
+        return new PNGridWorldSnapshot(descriptor, data.Palette, blobs, placed?.ToList(), players?.ToList(), meta);
     }
 
     public JObject ToJson()
+    {
+        var json = ToJsonCore();
+        if (Meta != null) json["map"] = Meta.ToJson();
+        return json;
+    }
+
+    private JObject ToJsonCore()
     {
         return new JObject
         {
@@ -230,7 +242,7 @@ public sealed class PNGridWorldSnapshot
     public static PNGridWorldSnapshot Parse(JToken token, PNGridWorldDescriptor descriptor)
     {
         if (!(token is JObject obj)) throw new FormatException("A grid save is a JSON object.");
-        foreach (var property in obj.Properties()) if (property.Name != "format" && property.Name != "palette" && property.Name != "chunks" && property.Name != "placed" && property.Name != "players") throw new FormatException("Unknown grid save field: " + property.Name);
+        foreach (var property in obj.Properties()) if (property.Name != "format" && property.Name != "palette" && property.Name != "chunks" && property.Name != "placed" && property.Name != "players" && property.Name != "map") throw new FormatException("Unknown grid save field: " + property.Name);
         if (obj["format"]?.Type != JTokenType.Integer || (int)obj["format"] != PNGridSaveLimits.Format) throw new FormatException("Unknown grid save format.");
         JArray Items(string name) => obj[name] as JArray ?? throw new FormatException("Grid save field " + name + " must be an array.");
         var palette = Items("palette").Select(x => x.Type == JTokenType.String ? (string)x : throw new FormatException("A palette entry is a string.")).ToList();
@@ -258,7 +270,8 @@ public sealed class PNGridWorldSnapshot
             if (o["key"]?.Type != JTokenType.String || pos == null || pos.Count != 3 || pos.Any(x => x.Type != JTokenType.Float && x.Type != JTokenType.Integer)) throw new FormatException("A saved player needs a key and a position of three numbers.");
             players.Add(new PNGridSavedPlayer { Key = (string)o["key"], X = (float)pos[0], Y = (float)pos[1], Z = (float)pos[2] });
         }
-        return new PNGridWorldSnapshot(descriptor, palette, blobs, placed, players);
+        PNGridMapMeta meta = obj["map"] == null ? null : PNGridMapMeta.Parse(obj["map"], descriptor.Width, descriptor.Depth);
+        return new PNGridWorldSnapshot(descriptor, palette, blobs, placed, players, meta);
     }
 
     // The save must have been taken from a world of this shape and these ground types, or it is refused whole.

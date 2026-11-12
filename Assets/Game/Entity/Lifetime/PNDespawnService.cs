@@ -40,6 +40,8 @@ public sealed class PNDespawnService : MonoBehaviour
     // Removes a published entity; by default the session's entity host. A fixture that has no host sets its own.
     public Func<EveEntityLoader, bool> Retire { get; set; }
     public int Removed { get; private set; }
+    // Raised after the service retired an enemy for being far from every player (the spawner skips a round when this happens).
+    public event Action Expired;
     public int Tracked => states.Count;
     public int Scans { get; private set; }
 
@@ -109,7 +111,7 @@ public sealed class PNDespawnService : MonoBehaviour
         Home(stat, over, distance, !wasRunning && state.Running, settings);
         if (verdict != PNDespawnVerdict.Expire) return;
         states.Remove(stat);
-        if (Retire != null && Retire(loader)) Removed++;
+        if (Retire != null && Retire(loader)) { Removed++; Expired?.Invoke(); }
     }
 
     private float Nearest(Vector3 point)
