@@ -16,7 +16,9 @@ public sealed class PNGameFlow : MonoBehaviour
 {
     private const double SessionEndTimeout = 20, ConnectTimeout = 30, RunTimeout = 60;
     private static PNGameFlow instance;
-    private static bool loading, expectSession;
+    private static bool loading, expectSession, coverHold;
+    // True while a solo roguelite start is on its way from the lobby into the first room: the loading screen the transition controller adopted must not hide at the lobby.
+    public static bool HoldsCover => coverHold;
     private static string message;
     private static bool starting;
     public static event Action Changed;
@@ -160,7 +162,7 @@ public sealed class PNGameFlow : MonoBehaviour
     private void BootFailed(Exception error)
     {
         Debug.LogException(error);
-        BootFailure = error.Message; Booting = false; loading = false; coverUntil = 0;
+        BootFailure = error.Message; Booting = false; loading = false; coverHold = false; coverUntil = 0;
         if (usingHandoff) PNTransitionHandoffHost.Abandon();
         Raise();
     }
@@ -277,17 +279,18 @@ public sealed class PNGameFlow : MonoBehaviour
             else if (mode != PNFlowMode.Offline && !PNGameBootstrap.IsRoomOpen) failure = LobbyFailure() ?? "Phòng không khả dụng.";
             else yield return null;
         }
-        EndLoading();
+        // Alone in the roguelite nobody waits in the lobby: the run starts by itself, and the loading cover stays up until its first room is there (the lobby used to show for a moment between the two covers).
+        bool solo = failure == null && mode == PNFlowMode.Offline && !LegacyArena && modeId == "roguelite";
+        coverHold = solo;
+        if (!solo) EndLoading();
         if (failure != null) { Debug.LogWarning("Roguelite start failed: " + failure); yield return Return(null,"project_n:error.join_failed"); yield break; }
         expectSession = true; Raise();
-        // Alone there is nobody to wait for: the run starts by itself once the lobby is up.
-        if (mode == PNFlowMode.Offline && !LegacyArena && modeId == "roguelite")
-        {
-            // The player is built a moment after the session is ready; the run takes it along, so wait for it.
-            double waitUntil = Time.realtimeSinceStartupAsDouble + ConnectTimeout;
-            while (Time.realtimeSinceStartupAsDouble < waitUntil && !(EveRegistrySession.IsReady && PNLocalWorldContext.Current?.Actor?.IsReady == true)) yield return null;
-            StartRun();
-        }
+        if (!solo) yield break;
+        // The player is built a moment after the session is ready; the run takes it along, so wait for it.
+        double waitUntil = Time.realtimeSinceStartupAsDouble + ConnectTimeout;
+        while (Time.realtimeSinceStartupAsDouble < waitUntil && !(EveRegistrySession.IsReady && PNLocalWorldContext.Current?.Actor?.IsReady == true)) yield return null;
+        yield return BeginRun();
+        coverHold = false; EndLoading(); Raise();
     }
     private IEnumerator Return(string notice,string noticeKey=null)
     {
@@ -410,7 +413,7 @@ public sealed class PNGameFlow : MonoBehaviour
     private static bool usingHandoff;
     private static void BeginLoading(string modeId, string worldDefinition)
     {
-        preCoverUntil = 0; loading = true; coverRef = PNTransitionController.Current; coverBase = coverRef != null ? coverRef.ShowCount : 0; 
+        preCoverUntil = 0; coverHold = false; loading = true; coverRef = PNTransitionController.Current; coverBase = coverRef != null ? coverRef.ShowCount : 0; 
         usingHandoff = PNTransitionHandoffHost.Raise(StripPrefix(modeId), worldDefinition);
         if (!usingHandoff) ShowCover();
     }

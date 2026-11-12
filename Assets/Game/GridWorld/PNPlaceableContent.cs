@@ -29,4 +29,21 @@ public static class PNPlaceableContent
         foreach (var id in new[] { PNPlaceableIds.Vanish, PNPlaceableIds.LeaveGround, PNPlaceableIds.Marker, PNPlaceableIds.Tree, PNPlaceableIds.Rock, PNPlaceableIds.Wall })
             instances.RegisterBase<PNPlaceableDefinition>(new EveId("base", id.Path), id, "project_n", compatible: (original, replacement) => true);
     }
+
+    // Placeables that carry an interactable (G9c). Registered after the interactable definitions, which exist only in the Unity build (the standalone smoke suite has no interactables).
+    public static void RegisterInteractable(EveRegistryHub hub)
+    {
+        var instances = hub.Instances();
+        // A fountain a player uses: the same rest-heal definition the roguelite room fountain uses. It does not block the way and cannot be broken.
+        instances.Register(new PNPlaceableDefinition(PNPlaceableIds.Fountain, typeof(PNPlaceableVanishLogic), () => new PNPlaceableVanishLogic(),
+            new JObject { ["footprint"] = new JObject { ["width"] = 1, ["depth"] = 1 }, ["blocksPath"] = false, ["breakable"] = false, ["interactable"] = "project_n:rest_heal" }));
+        // The interactables of the roguelite rooms (G10a): all of them keep the way open and cannot be broken.
+        void Room(EveId id, string interactable, int width, int depth)
+            => instances.Register(new PNPlaceableDefinition(id, typeof(PNPlaceableVanishLogic), () => new PNPlaceableVanishLogic(),
+                new JObject { ["footprint"] = new JObject { ["width"] = width, ["depth"] = depth }, ["blocksPath"] = false, ["breakable"] = false, ["interactable"] = interactable }));
+        Room(PNPlaceableIds.RoomStart, "project_n:room_start", 1, 1); Room(PNPlaceableIds.RoomExit, "project_n:room_exit", 3, 1);
+        Room(PNPlaceableIds.ShopHeal, "project_n:shop_heal", 2, 2); Room(PNPlaceableIds.ShopRogue, "project_n:shop_rogue", 2, 2);
+        foreach (var id in new[] { PNPlaceableIds.Fountain, PNPlaceableIds.RoomStart, PNPlaceableIds.RoomExit, PNPlaceableIds.ShopHeal, PNPlaceableIds.ShopRogue })
+            instances.RegisterBase<PNPlaceableDefinition>(new EveId("base", id.Path), id, "project_n", compatible: (original, replacement) => true);
+    }
 }

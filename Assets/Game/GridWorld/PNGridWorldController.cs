@@ -22,6 +22,7 @@ public sealed class PNGridWorldController : MonoBehaviour
     private static readonly Dictionary<EveWorldContext, PNGridWorldController> controllers = new Dictionary<EveWorldContext, PNGridWorldController>();
     private readonly List<PNGridRegion> regions = new List<PNGridRegion>();
     private readonly Dictionary<int, GameObject> markers = new Dictionary<int, GameObject>();
+    private readonly Dictionary<int, GameObject> interactables = new Dictionary<int, GameObject>();
     private GameObject markerRoot;
     private Material markerMaterial;
     private bool disposed;
@@ -120,18 +121,59 @@ public sealed class PNGridWorldController : MonoBehaviour
         return moved;
     }
 
+    // The slot the grid world's root is registered in (PNGridWorldProvider), where the world objects of placed things are found.
+    public const string SlotId = "main";
+
+    // A thing with an interactable gets a world object (its key) and a PNInteractable under the world root (G9c), so the room frame and the interaction scanner find it like an authored one. It is closed:
+    // whoever uses it (the room director, a mode) opens it. A thing placed before the world is ready is found by the ready scan; one placed later is made addressable here.
+    private void AddInteractable(PNPlacedObject placed)
+    {
+        float cell = Data.CellSize;
+        var go = new GameObject("interactable " + placed.EffectiveKey);
+        go.transform.SetParent(Host.transform, false);
+        go.transform.localPosition = new Vector3((placed.X + placed.CellsX * .5f) * cell, 0f, (placed.Z + placed.CellsZ * .5f) * cell);
+        var worldObject = go.AddComponent<PNWorldObject>(); worldObject.Configure(placed.EffectiveKey);
+        go.AddComponent<PNInteractable>().Configure(placed.Definition.Settings.Interactable);
+        interactables[placed.Id] = go;
+        if (!placed.Definition.Settings.BlocksPath)
+        {
+            var picture = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            var collider = picture.GetComponent<Collider>(); if (collider != null) DestroyImmediate(collider);
+            picture.name = "picture"; picture.transform.SetParent(go.transform, false);
+            picture.transform.localPosition = new Vector3(0f, .5f, 0f); picture.transform.localScale = new Vector3(placed.CellsX * cell * .6f, 1f, placed.CellsZ * cell * .6f);
+            if (markerMaterial != null) picture.GetComponent<Renderer>().sharedMaterial = markerMaterial;
+        }
+        PNSyncWorldBinder.Find(World)?.AddLate(World, SlotId, worldObject);
+    }
+
+    private void RemoveInteractable(PNPlacedObject placed)
+    {
+        if (!interactables.TryGetValue(placed.Id, out var go)) return;
+        interactables.Remove(placed.Id);
+        if (go == null) return;
+        PNSyncWorldBinder.Find(World)?.RemoveLate(World, go.GetComponent<PNWorldObject>());
+        DestroyImmediate(go);
+    }
+
+    // The world object of a placed thing with an interactable (null when it has none or is gone).
+    public PNInteractable InteractableOf(int placedId) => interactables.TryGetValue(placedId, out var go) && go != null ? go.GetComponent<PNInteractable>() : null;
+
+    private void EnsureMarkerRoot()
+    {
+        if (markerRoot != null) return;
+        markerRoot = new GameObject("PN Grid Markers");
+        markerRoot.SetActive(false);
+        UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(markerRoot, gameObject.scene);
+        markerRoot.SetActive(true);
+        var shader = Shader.Find("Sprites/Default") ?? Shader.Find("Unlit/Color");
+        if (shader != null) markerMaterial = new Material(shader) { name = "PN Grid Marker (placeholder)", color = new Color(1f, .85f, .3f, 1f) };
+    }
+
     private void OnAdded(PNPlacedObject placed)
     {
+        if (placed.Definition.Settings.Interactable != null) { if (!placed.Definition.Settings.BlocksPath) EnsureMarkerRoot(); AddInteractable(placed); return; }   // it has its own picture
         if (placed.Definition.Settings.BlocksPath) return;
-        if (markerRoot == null)
-        {
-            markerRoot = new GameObject("PN Grid Markers");
-            markerRoot.SetActive(false);
-            UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(markerRoot, gameObject.scene);
-            markerRoot.SetActive(true);
-            var shader = Shader.Find("Sprites/Default") ?? Shader.Find("Unlit/Color");
-            if (shader != null) markerMaterial = new Material(shader) { name = "PN Grid Marker (placeholder)", color = new Color(1f, .85f, .3f, 1f) };
-        }
+        EnsureMarkerRoot();
         float cell = Data.CellSize;
         var marker = GameObject.CreatePrimitive(PrimitiveType.Cube);
         var collider = marker.GetComponent<Collider>(); if (collider != null) DestroyImmediate(collider);   // the marker is a picture; bodies walk over it
@@ -145,6 +187,7 @@ public sealed class PNGridWorldController : MonoBehaviour
     private void OnRemoved(PNPlacedObject placed)
     {
         if (markers.TryGetValue(placed.Id, out var marker)) { markers.Remove(placed.Id); if (marker != null) DestroyImmediate(marker); }
+        RemoveInteractable(placed);
     }
 
     public void Dispose()
@@ -152,7 +195,7 @@ public sealed class PNGridWorldController : MonoBehaviour
         if (disposed) return; disposed = true;
         if (World != null) controllers.Remove(World);
         if (Placements != null) { Placements.Added -= OnAdded; Placements.Removed -= OnRemoved; }
-        markers.Clear();
+        markers.Clear(); interactables.Clear();
         if (markerRoot != null) DestroyImmediate(markerRoot);
         if (markerMaterial != null) DestroyImmediate(markerMaterial);
         markerRoot = null; markerMaterial = null;

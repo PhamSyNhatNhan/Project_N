@@ -359,8 +359,7 @@
      "capsule": {
       "height": 0.85,
       "radius": 0.9
-     },
-     "shadow": 0.9
+     }
     },
     {
      "id": "project_n:build_normal",
@@ -368,8 +367,7 @@
      "capsule": {
       "height": 1,
       "radius": 1
-     },
-     "shadow": 1
+     }
     },
     {
      "id": "project_n:build_tall",
@@ -390,8 +388,7 @@
      "capsule": {
       "height": 1.15,
       "radius": 1.25
-     },
-     "shadow": 1.2
+     }
     }
    ],
    "visualMotions": [

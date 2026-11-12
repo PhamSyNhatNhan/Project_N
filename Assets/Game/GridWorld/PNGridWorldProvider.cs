@@ -84,13 +84,25 @@ public sealed class PNGridWorldProvider : IPNWorldProvider, IPNPortableWorldProv
         context.Own(controller.Dispose);
         controller.Meta = meta;
         host.gameObject.AddComponent<PNWorldObject>().Configure(PNGridCommands.ObjectKey);
+        if (replica && mapEntry != null)
+        {
+            // A client builds the interactables of a generated map by itself: the map makes the same things with the same keys on every machine (G10a), so the world objects the host addresses are there. Only things
+            // that keep the way open are taken, because the client's cells arrive later from the host.
+            var known = context.World.Session.Registry.Instances();
+            var copy = mapEntry.Build(descriptor, data.Palette, definitions.Select(x => x.Walkable).ToArray(), id => EveId.TryParse(id, out var parsedId) ? known.GetEffectiveKind<PNPlaceableDefinition>(parsedId) : null);
+            foreach (var item in copy.Placed)
+            {
+                var definition = known.GetEffectiveKind<PNPlaceableDefinition>(EveId.Parse(item.Definition));
+                if (definition != null && definition.Settings.Interactable != null && !definition.Settings.BlocksPath) controller.Placements.Restore(definition, item.Id, item.X, item.Z, item.Direction, item.Health, item.Key);
+            }
+        }
         if (restored != null)
         {
             var placeables = context.World.Session.Registry.Instances();
             foreach (var item in restored.Placed)
             {
                 var definition = placeables.GetEffectiveKind<PNPlaceableDefinition>(EveId.Parse(item.Definition)) ?? throw new FormatException("The save places " + item.Definition + ", which this game does not register.");
-                controller.Placements.Restore(definition, item.Id, item.X, item.Z, item.Direction, item.Health);
+                controller.Placements.Restore(definition, item.Id, item.X, item.Z, item.Direction, item.Health, item.Key);
             }
         }
         if (replica)

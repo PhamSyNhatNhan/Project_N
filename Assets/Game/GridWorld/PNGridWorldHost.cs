@@ -12,6 +12,8 @@ using UnityEngine;
 public sealed class PNGridWorldHost : MonoBehaviour
 {
     public const int GroundLayer = 13, WallLayer = 9;
+    // Floor and wall meshes use the sprite shader (transparent queue, no depth write): sorted by distance they could be drawn over a character standing inside a big chunk, so they always draw first.
+    public const int GroundSortingOrder = -100;
     private static readonly List<Vector3> vertices = new List<Vector3>();
     private static readonly List<Vector3> normals = new List<Vector3>();
     private static readonly List<Color32> colors = new List<Color32>();
@@ -29,6 +31,13 @@ public sealed class PNGridWorldHost : MonoBehaviour
     private int[] built;
     private Material material;
     private bool disposed;
+    // Solid cells are invisible walls in the game: their colliders stay, their mesh is not drawn (a thing that should look like a wall is a placeable with a picture). The map tool turns the picture on.
+    private bool showWalls;
+    public bool ShowWalls
+    {
+        get => showWalls;
+        set { showWalls = value; foreach (var go in wallObjects) { var r = go != null ? go.GetComponent<MeshRenderer>() : null; if (r != null) r.enabled = value; } }
+    }
 
     // The root is created inactive and outside any world; the provider activates it after the world registered it.
     public static PNGridWorldHost Create(PNGridWorldData data, Color32[] groundColors)
@@ -93,7 +102,7 @@ public sealed class PNGridWorldHost : MonoBehaviour
         {
             chunk = new GameObject("chunk " + cx + "_" + cz) { layer = GroundLayer };
             chunk.transform.SetParent(transform, false);
-            chunk.AddComponent<MeshFilter>(); var renderer = chunk.AddComponent<MeshRenderer>(); renderer.sharedMaterial = material;
+            chunk.AddComponent<MeshFilter>(); var renderer = chunk.AddComponent<MeshRenderer>(); renderer.sharedMaterial = material; renderer.sortingOrder = GroundSortingOrder;
             renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             chunkObjects[index] = chunk;
         }
@@ -132,7 +141,7 @@ public sealed class PNGridWorldHost : MonoBehaviour
             {
                 walls = new GameObject("walls " + cx + "_" + cz) { layer = WallLayer };
                 walls.transform.SetParent(chunk.transform, false);
-                walls.AddComponent<MeshFilter>(); var renderer = walls.AddComponent<MeshRenderer>(); renderer.sharedMaterial = material;
+                walls.AddComponent<MeshFilter>(); var renderer = walls.AddComponent<MeshRenderer>(); renderer.sharedMaterial = material; renderer.sortingOrder = GroundSortingOrder; renderer.enabled = showWalls;
                 wallObjects[index] = walls;
             }
             wallMeshes[index] = Fill(wallMeshes[index], "walls " + cx + "_" + cz);

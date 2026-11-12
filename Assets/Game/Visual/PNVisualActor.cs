@@ -384,7 +384,6 @@ public sealed class PNVisualActor : MonoBehaviour
     // The capsule of this body in metres: the rig's own size times the build's factors.
     public float CapsuleHeight { get; private set; }
     public float CapsuleRadius { get; private set; }
-    public float ShadowScale { get; private set; } = 1f;
     public bool Visible => meshRenderer != null && meshRenderer.isVisible;
 
     // Builds the puppet. `feetLocal` is where the feet are in the parent's space (the mesh origin sits there); `buildOverride` replaces the appearance's build.
@@ -398,7 +397,7 @@ public sealed class PNVisualActor : MonoBehaviour
         var motions = hub.Get<PNVisualMotionDefinition>();
         animator = new PNVisualAnimator(rig, set, id => motions.Get(id), build);
         if (appearance.Expression.IsValid) animator.SetExpression(hub.Get<PNVisualExpressionDefinition>().Get(appearance.Expression));
-        CapsuleHeight = rigDef.CapsuleHeight * build.CapsuleHeight; CapsuleRadius = rigDef.CapsuleRadius * build.CapsuleRadius; ShadowScale = build.Shadow;
+        CapsuleHeight = rigDef.CapsuleHeight * build.CapsuleHeight; CapsuleRadius = rigDef.CapsuleRadius * build.CapsuleRadius;
         hubUsed = hub; forcedLive = forceLive;
         var atlas = PNVisualRuntime.AtlasFor(hub, WantsRaw); epochUsed = PNVisualRuntime.Epoch;
         BuildDrawables(hub, atlas);

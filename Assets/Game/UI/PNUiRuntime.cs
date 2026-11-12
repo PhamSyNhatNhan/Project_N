@@ -208,7 +208,8 @@ public sealed class PNUiRuntime : MonoBehaviour
         modeMenu?.Tick();
         // A menu action can end the session (and unbind this UI) from inside its Tick.
         if(hud==null) return;
-        hud.rootVisualElement.Q("test-panel").style.display=MenuOpen?DisplayStyle.None:DisplayStyle.Flex;
+        // The test panel is hidden for now (user, 2026-11-13); the element and its code stay. Show it again by restoring `MenuOpen?None:Flex`.
+        hud.rootVisualElement.Q("test-panel").style.display=DisplayStyle.None;
         var camera=ViewCamera!=null?ViewCamera:PNViewCamera.Current;
         if(camera!=attachedCamera) ConnectCamera(camera);
         // With a camera director the sync runs after Brain (PNViewCamera.Updated); Brain's execution order is after this LateUpdate,

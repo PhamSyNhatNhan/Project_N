@@ -37,11 +37,14 @@ public sealed class PNMapZone
 
 public sealed class PNMapGroupEntry { public string Entity; public int Count; }
 
-// A fixed group of monsters at a point: the dungeon rooms of the run frame read these instead of a scene component.
+// A named place at a point. A sandbox group holds fixed monsters (Entries); a roguelite room map names the places its waves use and leaves Entries empty (the room definition says which monsters) -
+// the room director picks a spot within Radius metres of the point (G10a).
 public sealed class PNMapGroup
 {
+    public const double DefaultRadius = 3, MaxRadius = 50;
     public string Name;
     public int X, Z;
+    public double Radius = DefaultRadius;
     public List<PNMapGroupEntry> Entries = new List<PNMapGroupEntry>();
 }
 
@@ -60,7 +63,7 @@ public sealed class PNGridMapMeta
         copy.Spawns.AddRange(Spawns.Select(x => new PNMapSpawn { Name = x.Name, Kind = x.Kind, X = x.X, Z = x.Z }));
         copy.Gates.AddRange(Gates.Select(x => new PNMapGate { Name = x.Name, To = x.To, Region = x.Region }));
         copy.Zones.AddRange(Zones.Select(x => new PNMapZone { Name = x.Name, Region = x.Region, SpawnBlock = x.SpawnBlock, RateScale = x.RateScale }));
-        copy.Groups.AddRange(Groups.Select(x => new PNMapGroup { Name = x.Name, X = x.X, Z = x.Z, Entries = x.Entries.Select(e => new PNMapGroupEntry { Entity = e.Entity, Count = e.Count }).ToList() }));
+        copy.Groups.AddRange(Groups.Select(x => new PNMapGroup { Name = x.Name, X = x.X, Z = x.Z, Radius = x.Radius, Entries = x.Entries.Select(e => new PNMapGroupEntry { Entity = e.Entity, Count = e.Count }).ToList() }));
         return copy;
     }
 
@@ -101,7 +104,8 @@ public sealed class PNGridMapMeta
         foreach (var g in Groups)
         {
             if (!In(g.X, g.Z)) throw new FormatException("Group " + g.Name + " is outside the world.");
-            if (g.Entries.Count == 0 || g.Entries.Count > PNGridMapLimits.MaxEntries) throw new FormatException("Group " + g.Name + " has 1 to " + PNGridMapLimits.MaxEntries + " entries.");
+            if (g.Entries.Count > PNGridMapLimits.MaxEntries) throw new FormatException("Group " + g.Name + " has 0 to " + PNGridMapLimits.MaxEntries + " entries.");
+            if (double.IsNaN(g.Radius) || double.IsInfinity(g.Radius) || g.Radius <= 0 || g.Radius > PNMapGroup.MaxRadius) throw new FormatException("Group " + g.Name + " radius is above 0 and at most " + PNMapGroup.MaxRadius + " metres.");
             foreach (var e in g.Entries)
                 if (e.Entity == null || e.Entity.Length > 128 || !EveId.TryParse(e.Entity, out _) || e.Count < 1 || e.Count > PNGridMapLimits.MaxCount) throw new FormatException("Group " + g.Name + " has a bad entry.");
         }
@@ -114,7 +118,7 @@ public sealed class PNGridMapMeta
             ["spawns"] = new JArray(Spawns.Select(x => new JObject { ["name"] = x.Name, ["kind"] = x.Kind, ["x"] = x.X, ["z"] = x.Z })),
             ["gates"] = new JArray(Gates.Select(x => new JObject { ["name"] = x.Name, ["to"] = x.To, ["x0"] = x.Region.X0, ["z0"] = x.Region.Z0, ["x1"] = x.Region.X1, ["z1"] = x.Region.Z1 })),
             ["zones"] = new JArray(Zones.Select(x => new JObject { ["name"] = x.Name, ["x0"] = x.Region.X0, ["z0"] = x.Region.Z0, ["x1"] = x.Region.X1, ["z1"] = x.Region.Z1, ["spawnBlock"] = x.SpawnBlock, ["rateScale"] = x.RateScale })),
-            ["groups"] = new JArray(Groups.Select(x => new JObject { ["name"] = x.Name, ["x"] = x.X, ["z"] = x.Z, ["entries"] = new JArray(x.Entries.Select(e => new JObject { ["entity"] = e.Entity, ["count"] = e.Count })) }))
+            ["groups"] = new JArray(Groups.Select(x => new JObject { ["name"] = x.Name, ["x"] = x.X, ["z"] = x.Z, ["radius"] = x.Radius, ["entries"] = new JArray(x.Entries.Select(e => new JObject { ["entity"] = e.Entity, ["count"] = e.Count })) }))
         };
     }
 
@@ -143,8 +147,13 @@ public sealed class PNGridMapMeta
         }
         foreach (var item in Items("groups"))
         {
-            var o = Obj(item, "name", "x", "z", "entries");
+            var o = Obj(item, new[] { "name", "x", "z", "entries" }, "radius");
             var group = new PNMapGroup { Name = Str(o, "name"), X = Int(o, "x"), Z = Int(o, "z") };
+            if (o["radius"] != null)
+            {
+                if (o["radius"].Type != JTokenType.Integer && o["radius"].Type != JTokenType.Float) throw new FormatException("Group radius must be a number.");
+                group.Radius = (double)o["radius"];
+            }
             if (!(o["entries"] is JArray entries)) throw new FormatException("Group entries must be an array.");
             foreach (var entry in entries)
             {
@@ -157,10 +166,12 @@ public sealed class PNGridMapMeta
         return meta;
     }
 
-    private static JObject Obj(JToken token, params string[] fields)
+    private static JObject Obj(JToken token, params string[] fields) => Obj(token, fields, new string[0]);
+    // `optional` fields may be missing; any other field not in `fields` is refused.
+    private static JObject Obj(JToken token, string[] fields, params string[] optional)
     {
         var o = token as JObject ?? throw new FormatException("A map entry is an object.");
-        foreach (var p in o.Properties()) if (Array.IndexOf(fields, p.Name) < 0) throw new FormatException("Unknown map entry field: " + p.Name);
+        foreach (var p in o.Properties()) if (Array.IndexOf(fields, p.Name) < 0 && Array.IndexOf(optional, p.Name) < 0) throw new FormatException("Unknown map entry field: " + p.Name);
         foreach (var f in fields) if (o[f] == null) throw new FormatException("Map entry field missing: " + f);
         return o;
     }

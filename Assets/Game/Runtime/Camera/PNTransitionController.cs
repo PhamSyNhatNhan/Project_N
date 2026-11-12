@@ -135,6 +135,7 @@ public sealed class PNTransitionController : MonoBehaviour, IPNTransitionSignalS
     private bool ConditionsMet()
     {
         if (local?.World == null || !PNShaderWarmup.IsDone) return false;
+        if (PNGameFlow.HoldsCover) return false;   // a solo start passes through the lobby: keep the screen until the first room is the viewed world
         var actor = local.Actor;
         if (actor == null) return !PNGameBootstrap.Config.Network.SelectPlayer;
         if (!actor.IsReady) return false;

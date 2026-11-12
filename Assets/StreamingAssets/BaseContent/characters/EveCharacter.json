@@ -9,7 +9,8 @@
           "name": "Eve",
           "description": "Kiếm sĩ nhanh nhẹn, lướt qua kẻ địch và tung loạt đạn tự dẫn.",
           "accent": [231, 185, 143],
-          "availability": "default"
+          "availability": "default",
+          "prefab": "eve"
         }
       },
       "stats": [

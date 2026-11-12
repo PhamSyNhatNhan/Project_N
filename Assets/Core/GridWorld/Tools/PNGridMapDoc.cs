@@ -61,7 +61,7 @@ public sealed class PNGridMapDoc
         foreach (var item in snapshot.Placed)
         {
             var definition = resolve(item.Definition) ?? throw new FormatException("The map places " + item.Definition + ", which this game does not register.");
-            doc.Placements.Restore(definition, item.Id, item.X, item.Z, item.Direction, item.Health);
+            doc.Placements.Restore(definition, item.Id, item.X, item.Z, item.Direction, item.Health, item.Key);
         }
         if (snapshot.Meta != null) doc.Meta = snapshot.Meta.Clone();
         doc.Dirty = false;
@@ -70,7 +70,7 @@ public sealed class PNGridMapDoc
 
     public PNGridWorldSnapshot ToSnapshot()
     {
-        var placed = Placements.All.OrderBy(x => x.Id).Select(x => new PNGridSavedPlacement { Id = x.Id, Definition = x.Definition.Id.ToString(), X = x.X, Z = x.Z, Direction = x.Direction, Health = x.Health }).ToList();
+        var placed = Placements.All.OrderBy(x => x.Id).Select(x => new PNGridSavedPlacement { Id = x.Id, Definition = x.Definition.Id.ToString(), X = x.X, Z = x.Z, Direction = x.Direction, Health = x.Health, Key = x.Key }).ToList();
         return PNGridWorldSnapshot.Build(Data, Descriptor, placed, null, Meta.IsEmpty ? null : Meta.Clone());
     }
 
@@ -223,13 +223,36 @@ public sealed class PNGridMapDoc
         return placed;
     }
 
+    // Places a thing with an interactable under an authored key (G9c). The key is checked before anything changes.
+    public PNPlacedObject Place(string definitionId, int x, int z, int direction, string key)
+    {
+        var definition = resolve(definitionId) ?? throw new ArgumentException("No such placeable: " + definitionId);
+        if (!Placements.CanPlace(definition, x, z, direction, out string reason)) throw new InvalidOperationException(reason);
+        PNPlacedObject placed = null;
+        Do("place " + definitionId, () =>
+        {
+            if (!Placements.TryPlace(definition, x, z, direction, key, out placed, out string why)) throw new InvalidOperationException(why);
+            Drain();
+        }, () => { Placements.Remove(placed.Id); Drain(); });
+        return placed;
+    }
+
+    // Gives the thing at a cell another authored key (null or empty = the generated one).
+    public void SetKey(int x, int z, string key)
+    {
+        var thing = Placements.At(x, z) ?? throw new ArgumentException("No thing at (" + x + "," + z + ").");
+        key = string.IsNullOrEmpty(key) ? null : key; var before = thing.Key; int id = thing.Id;
+        if (before == key) return;
+        Do("key of " + thing.Definition.Id, () => { if (!Placements.SetKey(id, key, out string why)) throw new InvalidOperationException(why); }, () => Placements.SetKey(id, before, out _));
+    }
+
     public bool RemoveAt(int x, int z)
     {
         var thing = Placements.At(x, z);
         if (thing == null) return false;
-        var definition = thing.Definition; int tx = thing.X, tz = thing.Z, dir = thing.Direction; PNPlacedObject current = thing;
+        var definition = thing.Definition; int tx = thing.X, tz = thing.Z, dir = thing.Direction; string key = thing.Key; PNPlacedObject current = thing;
         Do("remove " + definition.Id, () => { Placements.Remove(current.Id); Drain(); },
-            () => { if (!Placements.TryPlace(definition, tx, tz, dir, out current, out string why)) throw new InvalidOperationException(why); Drain(); });
+            () => { if (!Placements.TryPlace(definition, tx, tz, dir, key, out current, out string why)) throw new InvalidOperationException(why); Drain(); });
         return true;
     }
 
@@ -261,10 +284,10 @@ public sealed class PNGridMapDoc
     });
     public void RemoveZone(string name) => Meta2("remove zone " + name, m => { if (m.Zones.RemoveAll(z => z.Name == name) == 0) throw new ArgumentException("No zone " + name); });
 
-    public void SetGroup(string name, int x, int z, IEnumerable<(string entity, int count)> entries) => Meta2("group " + name, m =>
+    public void SetGroup(string name, int x, int z, IEnumerable<(string entity, int count)> entries, double radius = PNMapGroup.DefaultRadius) => Meta2("group " + name, m =>
     {
         m.Groups.RemoveAll(g => g.Name == name);
-        m.Groups.Add(new PNMapGroup { Name = name, X = x, Z = z, Entries = entries.Select(e => new PNMapGroupEntry { Entity = e.entity, Count = e.count }).ToList() });
+        m.Groups.Add(new PNMapGroup { Name = name, X = x, Z = z, Radius = radius, Entries = entries.Select(e => new PNMapGroupEntry { Entity = e.entity, Count = e.count }).ToList() });
     });
     public void RemoveGroup(string name) => Meta2("remove group " + name, m => { if (m.Groups.RemoveAll(g => g.Name == name) == 0) throw new ArgumentException("No group " + name); });
 

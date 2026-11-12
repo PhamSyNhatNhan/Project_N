@@ -31,6 +31,8 @@ public static class PNGridIds
     public static readonly EveId Grass = EveId.Parse("project_n:grass");
     public static readonly EveId Sand = EveId.Parse("project_n:sand");
     public static readonly EveId Stone = EveId.Parse("project_n:stone");
+    // The floor of the roguelite room maps (the violet of the first scene room).
+    public static readonly EveId RoomFloor = EveId.Parse("project_n:room_floor");
     // Nothing under the cell: no floor, cannot be walked on (the map tool erases ground to this).
     public static readonly EveId Void = EveId.Parse("project_n:void");
     public static readonly EveId FlatMap = EveId.Parse("project_n:flat");

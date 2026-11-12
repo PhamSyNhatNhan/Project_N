@@ -14,7 +14,12 @@ public sealed class PNSyncWorldBinder : IDisposable
     private readonly PNSyncService sync;
     private readonly Dictionary<EveWorldContext, List<IDisposable>> leases = new Dictionary<EveWorldContext, List<IDisposable>>();
     private readonly Dictionary<EveWorldContext, List<PNWorldObject>> bound = new Dictionary<EveWorldContext, List<PNWorldObject>>();
+    private readonly Dictionary<PNWorldObject, IDisposable> late = new Dictionary<PNWorldObject, IDisposable>();
+    private static readonly Dictionary<EveWorldContext, PNSyncWorldBinder> byWorld = new Dictionary<EveWorldContext, PNSyncWorldBinder>();
     private bool disposed;
+
+    // The binder that serves a world once it is ready (null before that and after it unloaded).
+    public static PNSyncWorldBinder Find(EveWorldContext world) => world != null && byWorld.TryGetValue(world, out var binder) ? binder : null;
 
     public PNSyncWorldBinder(PNWorldRuntime worlds, PNSyncService sync)
     {
@@ -28,7 +33,7 @@ public sealed class PNSyncWorldBinder : IDisposable
     {
         if (disposed || leases.ContainsKey(world)) return;
         var held = new List<IDisposable>(); var objects = new List<PNWorldObject>();
-        leases.Add(world, held); bound.Add(world, objects);
+        leases.Add(world, held); bound.Add(world, objects); byWorld[world] = this;
         try
         {
             var build = worlds.Get(world);
@@ -50,9 +55,34 @@ public sealed class PNSyncWorldBinder : IDisposable
 
     private void OnUnloading(EveWorldContext world) { Release(world); }
 
+    // A world object that came into being after the world was ready (a placed thing with an interactable, G9c): made addressable in the given slot and told, the way the ones found at ready were.
+    // Returns false when the world is not bound yet (then the ready scan finds the object by itself).
+    public bool AddLate(EveWorldContext world, string slotId, PNWorldObject item)
+    {
+        if (item == null) throw new ArgumentNullException(nameof(item));
+        if (disposed || !bound.TryGetValue(world, out var objects)) return false;
+        item.Validate();
+        foreach (var other in objects) if (other != null && other.Key == item.Key && other != item) throw new InvalidOperationException("Duplicate world object key '" + item.Key + "'.");
+        var target = PNSyncTarget.ForWorldObject(world.InstanceId, world.Incarnation, slotId, item.Key);
+        late[item] = sync.RegisterObject(target, item); item.Bind(target); objects.Add(item);
+        foreach (var listener in item.GetComponents<IPNWorldObjectListener>()) listener.OnBound(sync, target);
+        return true;
+    }
+
+    // The object is going away: its listeners are told and it stops being addressable.
+    public void RemoveLate(EveWorldContext world, PNWorldObject item)
+    {
+        if (item == null || !bound.TryGetValue(world, out var objects) || !objects.Remove(item)) return;
+        foreach (var listener in item.GetComponents<IPNWorldObjectListener>()) { try { listener.OnUnbound(); } catch (Exception error) { UnityEngine.Debug.LogException(error); } }
+        item.Unbind();
+        if (late.TryGetValue(item, out var lease)) { late.Remove(item); lease.Dispose(); }
+    }
+
     private void Release(EveWorldContext world)
     {
+        if (byWorld.TryGetValue(world, out var current) && current == this) byWorld.Remove(world);
         if (leases.TryGetValue(world, out var held)) { foreach (var lease in held) lease.Dispose(); leases.Remove(world); }
+        if (bound.TryGetValue(world, out var lateObjects)) foreach (var item in lateObjects) if (item != null && late.TryGetValue(item, out var lateLease)) { late.Remove(item); lateLease.Dispose(); }
         if (bound.TryGetValue(world, out var objects)) { foreach (var item in objects) if (item != null) { foreach (var listener in item.GetComponents<IPNWorldObjectListener>()) { try { listener.OnUnbound(); } catch (Exception error) { UnityEngine.Debug.LogException(error); } } item.Unbind(); } bound.Remove(world); }
         sync.RemoveWorld(world.InstanceId, world.Incarnation);
     }

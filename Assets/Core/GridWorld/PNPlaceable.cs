@@ -33,6 +33,8 @@ public sealed class PNPlaceableSettings
     public double SafetyRadius { get; }
     // Null for a thing that takes no work. Work and health are separate ways to bring a thing down; either one running out breaks it.
     [JsonIgnore] public PNPlaceableWork Work { get; }
+    // The id of the registered interactable definition this thing carries (G9c), or null. A thing with one gets a world object (key) and a PNInteractable when it is placed.
+    [JsonIgnore] public string Interactable { get; }
     [JsonIgnore] public JToken Params { get; }
 
     public PNPlaceableSettings(JToken data)
@@ -54,10 +56,15 @@ public sealed class PNPlaceableSettings
         SafetyRadius = obj["safetyRadius"] == null ? 0 : Number(obj, "safetyRadius");
         if (SafetyRadius < 0 || SafetyRadius > PNPlaceableLimits.MaxSafetyRadius) throw new FormatException("placeable safetyRadius is 0 to " + PNPlaceableLimits.MaxSafetyRadius + " metres.");
         if (obj["work"] != null) Work = new PNPlaceableWork(obj["work"]);
+        if (obj["interactable"] != null)
+        {
+            if (obj["interactable"].Type != JTokenType.String || !EveId.TryParse((string)obj["interactable"], out var interactableId)) throw new FormatException("placeable interactable must be a registered interactable definition id.");
+            Interactable = interactableId.ToString();
+        }
         if (obj["params"] != null && !(obj["params"] is JObject)) throw new FormatException("placeable params must be an object.");
         Params = obj["params"]?.DeepClone();
     }
-    private static readonly string[] Fields = { "footprint", "blocksPath", "blocksSight", "breakable", "health", "spawnBlock", "spawnRateScale", "safetyRadius", "work", "params" };
+    private static readonly string[] Fields = { "footprint", "blocksPath", "blocksSight", "breakable", "health", "spawnBlock", "spawnRateScale", "safetyRadius", "work", "interactable", "params" };
     private static int Int(JObject obj, string field, string name)
         => obj[field]?.Type == JTokenType.Integer ? checked(obj[field].Value<int>()) : throw new FormatException("placeable " + name + " must be an integer.");
     private static bool Bool(JObject obj, string field, bool fallback)
@@ -138,6 +145,8 @@ public sealed class PNPlaceableDefinition : PNInstanceDefinition
             logic?.Invoke(data, context);
             var work = (data as JObject)?["work"];
             if (work != null) new PNPlaceableWork(work).ValidateReferences(context);
+            var interactable = (data as JObject)?["interactable"];
+            if (interactable != null) context.Require<PNInteractableDefinition>(interactable, "placeable interactable");
         };
     private static PNPlaceableSettings Check(JToken data, Action<JToken> validateParams)
     {
@@ -169,6 +178,12 @@ public static class PNPlaceableIds
     public static readonly EveId Tree = EveId.Parse("project_n:placeable_tree");
     public static readonly EveId Rock = EveId.Parse("project_n:placeable_rock");
     public static readonly EveId Wall = EveId.Parse("project_n:placeable_wall");
+    public static readonly EveId Fountain = EveId.Parse("project_n:placeable_fountain");
+    // The interactables of a roguelite room (G10a): the start switch, a gate (three cells wide), the two shop stands.
+    public static readonly EveId RoomStart = EveId.Parse("project_n:placeable_room_start");
+    public static readonly EveId RoomExit = EveId.Parse("project_n:placeable_room_exit");
+    public static readonly EveId ShopHeal = EveId.Parse("project_n:placeable_shop_heal");
+    public static readonly EveId ShopRogue = EveId.Parse("project_n:placeable_shop_rogue");
 }
 
 // One placed thing: where its footprint starts (the lowest cell), which way it faces (0 to 3, a quarter turn each; an odd direction swaps the footprint's sides) and how much health is left.
@@ -182,6 +197,9 @@ public sealed class PNPlacedObject
     public int CellsX { get; }
     public int CellsZ { get; }
     public int Health { get; internal set; }
+    // The world object key a thing with an interactable is addressed by (G9c). Authored in a map (`gate_a`) or null, in which case the thing is `placed_<id>`; null for a thing without an interactable.
+    public string Key { get; internal set; }
+    public string EffectiveKey => Definition.Settings.Interactable == null ? null : Key ?? PNGridPlacements.GeneratedKeyPrefix + Id;
     // Work still to do before the thing is brought down (0 for a thing that takes no work). Not kept by a save on purpose (health is): a restored thing starts with all its work.
     public int WorkLeft { get; internal set; }
     internal PNPlacedObject(int id, PNPlaceableDefinition definition, int x, int z, int direction)
@@ -202,7 +220,10 @@ public sealed class PNGridPlacements
     private readonly Func<int, bool> buildableGround;
     private readonly Dictionary<int, PNPlacedObject> byId = new Dictionary<int, PNPlacedObject>();
     private readonly Dictionary<long, int> occupied = new Dictionary<long, int>();
+    private readonly Dictionary<string, int> byKey = new Dictionary<string, int>();
     private int nextId = 1;
+    // Keys that a thing gets by itself (`placed_<id>`); an authored key may not start with it, so the two never meet.
+    public const string GeneratedKeyPrefix = "placed_";
     public event Action<PNPlacedObject> Added;
     public event Action<PNPlacedObject> Removed;
     public int Count => byId.Count;
@@ -218,6 +239,7 @@ public sealed class PNGridPlacements
     }
     private long Key(int x, int z) => (long)z * data.Width + x;
     public PNPlacedObject Get(int id) => byId.TryGetValue(id, out var value) ? value : null;
+    public PNPlacedObject ByKey(string key) => key != null && byKey.TryGetValue(key, out var id) ? byId[id] : null;
     public PNPlacedObject At(int x, int z) => occupied.TryGetValue(Key(x, z), out var id) ? byId[id] : null;
     public IEnumerable<PNPlacedObject> InRegion(PNGridRegion region) => byId.Values.Where(o => o.X <= region.X1 && o.X + o.CellsX - 1 >= region.X0 && o.Z <= region.Z1 && o.Z + o.CellsZ - 1 >= region.Z0);
 
@@ -240,30 +262,49 @@ public sealed class PNGridPlacements
         return true;
     }
 
-    public bool TryPlace(PNPlaceableDefinition definition, int x, int z, int direction, out PNPlacedObject placed, out string reason)
+    // An authored key: only a thing with an interactable has one; a valid sync key, not the reserved `grid` object, not a generated one, not used.
+    private string KeyProblem(PNPlaceableDefinition definition, string key, int exceptId)
+    {
+        if (key == null) return null;
+        if (definition.Settings.Interactable == null) return "Only a thing with an interactable has a key.";
+        if (!PNSyncKey.IsValid(key)) return "A key is 1-" + PNSyncLimits.KeyChars + " characters of a-z, 0-9, '_', '.' or '-'.";
+        if (key == "grid" || key.StartsWith(GeneratedKeyPrefix, StringComparison.Ordinal)) return "The key " + key + " is reserved.";
+        if (byKey.TryGetValue(key, out var other) && other != exceptId) return "The key " + key + " is used.";
+        return null;
+    }
+    private void AddKey(PNPlacedObject placed)
+    {
+        var key = placed.EffectiveKey; if (key != null) byKey[key] = placed.Id;
+    }
+
+    public bool TryPlace(PNPlaceableDefinition definition, int x, int z, int direction, out PNPlacedObject placed, out string reason) => TryPlace(definition, x, z, direction, null, out placed, out reason);
+
+    public bool TryPlace(PNPlaceableDefinition definition, int x, int z, int direction, string key, out PNPlacedObject placed, out string reason)
     {
         placed = null;
         if (!CanPlace(definition, x, z, direction, out reason)) return false;
-        var candidate = new PNPlacedObject(nextId, definition, x, z, direction);
+        reason = KeyProblem(definition, key, 0); if (reason != null) return false;
+        var candidate = new PNPlacedObject(nextId, definition, x, z, direction) { Key = key };
         if (definition.Settings.BlocksPath)
         {
             var batch = new PNGridEditBatch().AddSolidRegion(candidate.Region, true);
             var result = editor.Submit(batch);
             if (!result.Accepted) { reason = result.Reason; return false; }
         }
-        nextId++; byId[candidate.Id] = candidate;
+        nextId++; byId[candidate.Id] = candidate; AddKey(candidate);
         for (int cz = z; cz < z + candidate.CellsZ; cz++) for (int cx = x; cx < x + candidate.CellsX; cx++) occupied[Key(cx, cz)] = candidate.Id;
         placed = candidate; Added?.Invoke(candidate); return true;
     }
 
     // Puts back a thing that a save kept (Docs/SandboxPlan.md G7): the cells were restored with the world, so nothing is edited, but the footprint is checked against them. The id and the health are the saved ones.
-    public PNPlacedObject Restore(PNPlaceableDefinition definition, int id, int x, int z, int direction, int health)
+    public PNPlacedObject Restore(PNPlaceableDefinition definition, int id, int x, int z, int direction, int health, string key = null)
     {
         if (definition == null) throw new ArgumentNullException(nameof(definition));
         if (id < 1 || byId.ContainsKey(id)) throw new FormatException("A saved placed thing needs a free positive id (" + id + ").");
         if (direction < 0 || direction > 3) throw new FormatException("A saved direction is 0 to 3.");
         if (byId.Count >= PNPlaceableLimits.MaxPlaced) throw new FormatException("The world holds no more placed things.");
-        var placed = new PNPlacedObject(id, definition, x, z, direction);
+        var problem = KeyProblem(definition, key, 0); if (problem != null) throw new FormatException("A saved placed thing: " + problem);
+        var placed = new PNPlacedObject(id, definition, x, z, direction) { Key = key };
         if (health < 0 || health > definition.Settings.Health) throw new FormatException("A saved health is 0 to the definition's " + definition.Settings.Health + ".");
         placed.Health = health;
         if (!data.InBounds(x, z) || !data.InBounds(x + placed.CellsX - 1, z + placed.CellsZ - 1)) throw new FormatException("A saved footprint leaves the world.");
@@ -272,9 +313,20 @@ public sealed class PNGridPlacements
             if (occupied.ContainsKey(Key(cx, cz))) throw new FormatException("A saved footprint overlaps another thing at (" + cx + "," + cz + ").");
             if (definition.Settings.BlocksPath && !data.IsSolid(cx, cz)) throw new FormatException("A saved blocking thing stands on a cell that is not solid at (" + cx + "," + cz + ").");
         }
-        byId[id] = placed; if (id >= nextId) nextId = id + 1;
+        if (placed.EffectiveKey != null && byKey.ContainsKey(placed.EffectiveKey)) throw new FormatException("A saved placed thing's key " + placed.EffectiveKey + " is used.");
+        byId[id] = placed; AddKey(placed); if (id >= nextId) nextId = id + 1;
         for (int cz = z; cz < z + placed.CellsZ; cz++) for (int cx = x; cx < x + placed.CellsX; cx++) occupied[Key(cx, cz)] = id;
         Added?.Invoke(placed); return placed;
+    }
+
+    // Gives a thing with an interactable another authored key (null = back to the generated one). Used by the map tool; the thing's world object is made when the thing is placed, so a live world does not rename.
+    public bool SetKey(int id, string key, out string reason)
+    {
+        reason = null;
+        if (!byId.TryGetValue(id, out var placed)) { reason = "No such thing."; return false; }
+        reason = KeyProblem(placed.Definition, key, id); if (reason != null) return false;
+        var old = placed.EffectiveKey; if (old != null) byKey.Remove(old);
+        placed.Key = key; AddKey(placed); return true;
     }
 
     // Takes `amount` of health; at zero the thing is broken. Returns true when it was broken.
@@ -320,7 +372,7 @@ public sealed class PNGridPlacements
             var result = editor.Submit(new PNGridEditBatch().AddSolidRegion(placed.Region, false));
             if (!result.Accepted) return false;   // the queue is full: keep the thing and try again later
         }
-        byId.Remove(placed.Id);
+        byId.Remove(placed.Id); var effectiveKey = placed.EffectiveKey; if (effectiveKey != null) byKey.Remove(effectiveKey);
         for (int cz = placed.Z; cz < placed.Z + placed.CellsZ; cz++) for (int cx = placed.X; cx < placed.X + placed.CellsX; cx++) occupied.Remove(Key(cx, cz));
         Removed?.Invoke(placed); return true;
     }

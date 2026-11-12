@@ -52,7 +52,12 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         worlds.RegisterBase(EveId.Parse("base:roguelite_lobby"),EveId.Parse("project_n:roguelite_lobby"),"project_n",compatible:(a,b)=>true);
         // A roguelite room map: one scene, a world of its own for every room played. Policy Continue (not Discard): a new room world is empty when it becomes ready and the team is only
         // transferred in afterwards, so an empty-world discard would remove it first; the run director unloads the room the team has left.
-        worlds.Register(new PNWorldDefinition(EveId.Parse("project_n:map_star_test_01"),PNWorldDefinition.HashContent("project_n:map_star_test_01/v1/"+PNScenes.RoomStarTest01),typeof(PNSceneWorldProvider),()=>new PNSceneWorldProvider(PNScenes.RoomStarTest01)));
+        // G10a: the room is grid data (PNRoomMaps), no longer a scene; the old scene PNRoomStarTest01 stays in the project until the Recast removal (G10b). The world has only the grid feature: a room world is not saved,
+        // spawns nothing by itself and despawns nothing (the room director does the enemies).
+        PNRoomMaps.EnsureRegistered();
+        var roomDescriptor=PNRoomMaps.Descriptor();
+        worlds.Register(new PNWorldDefinition(EveId.Parse("project_n:map_star_test_01"),PNWorldDefinition.HashContent("project_n:map_star_test_01/v2/"+roomDescriptor.ToJson().ToString(Newtonsoft.Json.Formatting.None)),typeof(PNGridWorldProvider),()=>new PNGridWorldProvider(roomDescriptor),
+            new PNWorldPolicy(PNEmptyWorldPolicy.Continue,null,null,null,default(EveId),new[]{PNGridIds.GridWorldFeature})));
         worlds.RegisterBase(EveId.Parse("base:map_star_test_01"),EveId.Parse("project_n:map_star_test_01"),"project_n",compatible:(a,b)=>true);
         worlds.Register(new PNWorldDefinition(EveId.Parse("project_n:generated_world"),PNWorldDefinition.HashContent("project_n:generated_world/v1/empty-main"),typeof(PNGeneratedWorldProvider),()=>new PNGeneratedWorldProvider()));
         worlds.RegisterBase(EveId.Parse("base:generated_world"),EveId.Parse("project_n:generated_world"),"project_n",compatible:(a,b)=>true);
@@ -106,6 +111,7 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         hub.SyncCommands().Register(new PNSyncCommandDefinition(PNRogueCommandHandler.Command,typeof(PNRogueCommandHandler),()=>new PNRogueCommandHandler(),PNRogueCommandHandler.CommandBytes,PNSyncTargets.Session));
         hub.SyncCommands().Register(new PNSyncCommandDefinition(PNInteractable.Command,typeof(PNInteractCommandHandler),()=>new PNInteractCommandHandler(),PNInteractable.CommandBytes,PNSyncTargets.WorldObject));
         PNRoomInteractions.Register(hub);
+        PNPlaceableContent.RegisterInteractable(hub);
         // Placing and breaking things in a grid world (Docs/SandboxPlan.md G3): both commands go to the world's grid object and the host decides.
         hub.SyncCommands().Register(new PNSyncCommandDefinition(PNGridCommands.Place,typeof(PNGridPlaceCommandHandler),()=>new PNGridPlaceCommandHandler(),PNGridCommands.CommandBytes,PNSyncTargets.WorldObject));
         hub.SyncCommands().Register(new PNSyncCommandDefinition(PNGridCommands.Break,typeof(PNGridBreakCommandHandler),()=>new PNGridBreakCommandHandler(),PNGridCommands.CommandBytes,PNSyncTargets.WorldObject));

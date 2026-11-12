@@ -18,8 +18,35 @@ public enum PNAggroMode { Normal, Ignored }
 //       visual: id of a Visual appearance (Docs/VisualPlan.md): the character is drawn as a rig puppet instead of its prefab's own sprite. Absent = unchanged.
 //       build: "short" | "normal" | "tall": replaces the appearance's build (project_n:build_short ...); needs visual.
 //       vision: number > 0, metres an enemy of this character sees a hostile from (the shared enemy targeting reads it; Docs/SandboxPlan.md G5).
+//       shadow: the shadow on the ground under the feet (not the paper shadow between rig parts). Absent or true = the default shadow (sized from the capsule); false = none (a ghost, a thing that sinks);
+//               { "scale": number in [0.1, 5], "opacity": number in [0, 1] } (both optional, unknown fields rejected) = the default shadow scaled and fainter. A body in the air needs nothing: the shadow follows the height.
 //     Absent block = every default. Damageable <=> the character declares a project_n:health stat.
 // VI: Khối `body` trong dữ liệu character: thứ đó là gì khi được sinh. Có Health <=> nhận sát thương được. `loot` chưa có nơi dùng.
+// The ground shadow of a body (G10a follow-up): on/off plus a scale and an opacity multiplier over the size and look the shadow gets from the capsule.
+public sealed class PNBodyShadow
+{
+    public const float MinScale = .1f, MaxScale = 5f;
+    public static readonly PNBodyShadow Default = new PNBodyShadow(true, 1f, 1f), None = new PNBodyShadow(false, 1f, 1f);
+    public bool Enabled { get; }
+    public float Scale { get; }
+    public float Opacity { get; }
+    public PNBodyShadow(bool enabled, float scale, float opacity)
+    {
+        if (float.IsNaN(scale) || float.IsInfinity(scale) || scale < MinScale || scale > MaxScale) throw new FormatException("body shadow scale must be a number in [" + MinScale + ", " + MaxScale + "].");
+        if (float.IsNaN(opacity) || float.IsInfinity(opacity) || opacity < 0f || opacity > 1f) throw new FormatException("body shadow opacity must be a number in [0, 1].");
+        Enabled = enabled; Scale = scale; Opacity = opacity;
+    }
+    public static PNBodyShadow Parse(JToken token)
+    {
+        if (token == null) return Default;
+        if (token.Type == JTokenType.Boolean) return (bool)token ? Default : None;
+        if (!(token is JObject obj)) throw new FormatException("body shadow must be true, false or an object.");
+        PNBuffContentBatch.Fields(obj, "scale", "opacity");
+        double scale = obj["scale"] != null ? PNBuffContentBatch.Number(obj, "scale") : 1d, opacity = obj["opacity"] != null ? PNBuffContentBatch.Number(obj, "opacity") : 1d;
+        return new PNBodyShadow(true, (float)scale, (float)opacity);
+    }
+}
+
 public sealed class PNBodySettings
 {
     public const int MaxPrefabLength = 128;
@@ -35,9 +62,12 @@ public sealed class PNBodySettings
     // Metres an enemy of this character sees a hostile from (0 = not declared). The shared enemy targeting (PNEnemyTargeting) reads it; a behavior that needs it and finds 0 refuses to start.
     public float Vision { get; }
     public const float MaxVision = 200f;
+    // The ground shadow under the feet (default: on).
+    public PNBodyShadow Shadow { get; }
 
-    public PNBodySettings(string prefab, PNDamageMode damageMode, PNHealthBarMode healthBar, EveId? loot, PNAggroMode aggro = PNAggroMode.Normal, EveId? visual = null, string build = "", float vision = 0f)
+    public PNBodySettings(string prefab, PNDamageMode damageMode, PNHealthBarMode healthBar, EveId? loot, PNAggroMode aggro = PNAggroMode.Normal, EveId? visual = null, string build = "", float vision = 0f, PNBodyShadow shadow = null)
     {
+        Shadow = shadow ?? PNBodyShadow.Default;
         if (float.IsNaN(vision) || float.IsInfinity(vision) || vision < 0f || vision > MaxVision) throw new FormatException("body vision must be a number in [0, " + MaxVision + "].");
         Vision = vision;
         prefab = prefab ?? "";
@@ -82,7 +112,7 @@ public sealed class PNBodySettings
         var token = root["body"];
         if (token == null) return Default;
         var obj = PNBuffContentBatch.Object(token);
-        PNBuffContentBatch.Fields(obj, "prefab", "damageMode", "healthBar", "aggro", "loot", "visual", "build", "vision");
+        PNBuffContentBatch.Fields(obj, "prefab", "damageMode", "healthBar", "aggro", "loot", "visual", "build", "vision", "shadow");
         var mode = PNDamageMode.Normal;
         if (obj["damageMode"] != null)
             switch (PNBuffContentBatch.String(obj, "damageMode"))
@@ -126,7 +156,7 @@ public sealed class PNBodySettings
             if (!(value > 0d)) throw new FormatException("body vision must be greater than 0.");
             vision = (float)value;
         }
-        return new PNBodySettings(PNBuffContentBatch.OptionalString(obj, "prefab"), mode, bar, loot, aggro, visual, PNBuffContentBatch.OptionalString(obj, "build"), vision);
+        return new PNBodySettings(PNBuffContentBatch.OptionalString(obj, "prefab"), mode, bar, loot, aggro, visual, PNBuffContentBatch.OptionalString(obj, "build"), vision, PNBodyShadow.Parse(obj["shadow"]));
     }
 
     // Whole check for one character: block fields plus the rules that need its stats and its playable block.

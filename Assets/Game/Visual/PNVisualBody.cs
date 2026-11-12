@@ -4,7 +4,7 @@ using EveEngine;
 using UnityEngine;
 
 // EN: Puts a rig puppet on an entity whose character declares `body.visual` (Docs/VisualPlan.md P4): the prefab's own sprite stays authored but is switched off, a PNVisualActor
-//     child draws the body instead, the capsule takes the build's size (feet stay where they were), the ground shadow follows the build, and the movement/hurt/death of the
+//     child draws the body instead, the capsule takes the build's size (feet stay where they were), and the movement/hurt/death of the
 //     entity drive the puppet's states (position and replicated health, so a replica needs nothing extra on the wire). A character without `body.visual` is untouched. The factory calls Begin after configuring an entity and Clear when it returns to the pool.
 // VI: Gắn con rối rig lên entity có `body.visual`: tắt sprite cũ, vẽ bằng PNVisualActor, capsule theo build, bóng theo build, chuyển động/bị đánh/chết của entity điều khiển trạng thái.
 [DisallowMultipleComponent]
@@ -12,11 +12,10 @@ public sealed class PNVisualBody : MonoBehaviour
 {
     [SerializeField] private Transform visual;          // the authored sprite object, switched off while a puppet is drawn
     [SerializeField] private CapsuleCollider capsule;
-    [SerializeField] private Transform shadow;
     [SerializeField, Min(0f)] private float walkSpeed = .08f, runSpeed = 1.1f;   // m/s of the entity; below walkSpeed it stands
 
-    private PNVisualActor actor; private PNStat stat; private Vector3 lastPosition; private bool hasLast, dead, savedCapsule, savedShadow, hasHealth; private double lastHealth;
-    private float baseHeight, baseRadius; private Vector3 baseCenter, baseShadowScale; private string locomotion = "";
+    private PNVisualActor actor; private PNStat stat; private Vector3 lastPosition; private bool hasLast, dead, savedCapsule, hasHealth; private double lastHealth;
+    private float baseHeight, baseRadius; private Vector3 baseCenter; private string locomotion = "";
     // Strings and the Lorica break (all derived from replicated data: the buff presentation snapshot and the health, so a replica needs nothing on the wire).
     private PNBuffManager buffs; private bool broken, pullPending;
     public const float StringLowerSeconds = .8f, EntranceLowerSeconds = .9f, BreakPollSeconds = .1f;
@@ -65,7 +64,6 @@ public sealed class PNVisualBody : MonoBehaviour
             capsule.height = Mathf.Max(actor.CapsuleHeight, actor.CapsuleRadius * 2f); capsule.radius = actor.CapsuleRadius;
             capsule.center = new Vector3(baseCenter.x, feet.y + capsule.height * .5f, baseCenter.z);
         }
-        if (shadow != null) { baseShadowScale = shadow.localScale; savedShadow = true; shadow.localScale = new Vector3(baseShadowScale.x * actor.ShadowScale, baseShadowScale.y * actor.ShadowScale, baseShadowScale.z); }
         stat = GetComponent<PNStat>();
         dead = false; hasLast = false; hasHealth = false; locomotion = "";
         actor.Play("idle");
@@ -107,8 +105,7 @@ public sealed class PNVisualBody : MonoBehaviour
         if (actor != null) { DestroyObject(actor.gameObject); actor = null; }
         if (visual != null) visual.gameObject.SetActive(true);
         if (savedCapsule && capsule != null) { capsule.height = baseHeight; capsule.radius = baseRadius; capsule.center = baseCenter; }
-        if (savedShadow && shadow != null) shadow.localScale = baseShadowScale;
-        savedCapsule = savedShadow = false; hasLast = false; hasHealth = false; dead = false; locomotion = ""; buffs = null; broken = pullPending = false; holdTimer = 0f;
+        savedCapsule = false; hasLast = false; hasHealth = false; dead = false; locomotion = ""; buffs = null; broken = pullPending = false; holdTimer = 0f;
     }
 
     private static void DestroyObject(GameObject go) { if (Application.isPlaying) Destroy(go); else DestroyImmediate(go); }

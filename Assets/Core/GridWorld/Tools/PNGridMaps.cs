@@ -32,7 +32,7 @@ public sealed class PNGridMapEntry
             foreach (var s in Meta.Spawns) doc.SetSpawn(s.Name, s.Kind, s.X, s.Z);
             foreach (var g in Meta.Gates) doc.SetGate(g.Name, g.Region, g.To);
             foreach (var z in Meta.Zones) doc.SetZone(z.Name, z.Region, z.SpawnBlock, z.RateScale);
-            foreach (var g in Meta.Groups) doc.SetGroup(g.Name, g.X, g.Z, g.Entries.Select(e => (e.Entity, e.Count)));
+            foreach (var g in Meta.Groups) doc.SetGroup(g.Name, g.X, g.Z, g.Entries.Select(e => (e.Entity, e.Count)), g.Radius);
         }
         return doc.ToSnapshot();
     }

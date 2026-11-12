@@ -305,13 +305,13 @@ public sealed class PNVisualPartDefinition : EveIIdentified
 
 public sealed class PNVisualBuildDefinition : EveIIdentified
 {
-    public EveId Id { get; } public float CapsuleHeight { get; } public float CapsuleRadius { get; } public float Shadow { get; }
+    public EveId Id { get; } public float CapsuleHeight { get; } public float CapsuleRadius { get; }
     private readonly Dictionary<string, float[]> groups;
     public IReadOnlyDictionary<string, float[]> ScaleGroups => groups;
-    public PNVisualBuildDefinition(EveId id, IDictionary<string, float[]> scaleGroups, float capsuleHeight, float capsuleRadius, float shadow)
+    public PNVisualBuildDefinition(EveId id, IDictionary<string, float[]> scaleGroups, float capsuleHeight, float capsuleRadius)
     {
         if (!id.IsValid) throw new FormatException("build needs a valid id.");
-        Id = id; CapsuleHeight = PNVisualLimits.InRange(capsuleHeight, .25f, 4f, "build capsule height"); CapsuleRadius = PNVisualLimits.InRange(capsuleRadius, .25f, 4f, "build capsule radius"); Shadow = PNVisualLimits.InRange(shadow, .25f, 4f, "build shadow");
+        Id = id; CapsuleHeight = PNVisualLimits.InRange(capsuleHeight, .25f, 4f, "build capsule height"); CapsuleRadius = PNVisualLimits.InRange(capsuleRadius, .25f, 4f, "build capsule radius");
         groups = new Dictionary<string, float[]>();
         if (scaleGroups != null)
             foreach (var pair in scaleGroups)

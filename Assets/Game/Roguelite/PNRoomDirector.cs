@@ -16,7 +16,9 @@ public sealed class PNRoomDirector : IDisposable
     private struct PendingSpawn { public PNRoomSpawn Spawn; public Vector3 Position; public string Slot; }
     private readonly PNRunDirector runs;
     private readonly PNGameSession game;
-    private readonly Dictionary<string, KeyValuePair<PNRoomSpawnGroup, string>> groups = new Dictionary<string, KeyValuePair<PNRoomSpawnGroup, string>>();
+    // A place enemies may appear: the content slot it is in and how to pick a spot (from the run's Spawn stream).
+    private struct GroupPlace { public string Slot; public Func<PNRunRandom, Vector3> Pick; }
+    private readonly Dictionary<string, GroupPlace> groups = new Dictionary<string, GroupPlace>();
     private readonly Dictionary<string, PNInteractable> interactables = new Dictionary<string, PNInteractable>();
     private readonly Queue<PendingSpawn> pending = new Queue<PendingSpawn>();
     private readonly List<EveEntityLoader> enemies = new List<EveEntityLoader>();
@@ -36,9 +38,18 @@ public sealed class PNRoomDirector : IDisposable
     public PNRoomDirector(PNRunDirector runs, PNGameSession game, EveWorldContext world, PNRoomDefinition definition, string slot)
     {
         this.runs = runs; this.game = game; World = world; Definition = definition; Slot = slot; Flow = new PNRoomFlow(definition);
+        // The layout of the room has two sources: spawn group components in a scene map, and the map block of a grid map (named points with a radius, G10a).
         foreach (var content in game.Worlds.Get(world).Slots)
             foreach (var group in content.Roots.Where(x => x != null).SelectMany(x => x.GetComponentsInChildren<PNRoomSpawnGroup>(true)))
-                groups[group.Group] = new KeyValuePair<PNRoomSpawnGroup, string>(group, content.Id);
+            { var captured = group; groups[group.Group] = new GroupPlace { Slot = content.Id, Pick = random => captured.Pick(random) }; }
+        var grid = PNGridWorldController.Find(world);
+        if (grid?.Meta != null)
+            foreach (var group in grid.Meta.Groups)
+            {
+                if (groups.ContainsKey(group.Name)) continue;
+                var data = grid.Data; var centre = new Vector3((group.X + .5f) * data.CellSize, 0f, (group.Z + .5f) * data.CellSize); double radius = group.Radius;
+                groups[group.Name] = new GroupPlace { Slot = PNGridWorldController.SlotId, Pick = random => PickInDisc(random, centre, radius) };
+            }
         foreach (var content in game.Worlds.Get(world).Slots)
             foreach (var item in content.Roots.Where(x => x != null).SelectMany(x => x.GetComponentsInChildren<PNInteractable>(true)))
                 interactables[item.Key] = item;
@@ -135,14 +146,14 @@ public sealed class PNRoomDirector : IDisposable
         var lease = PNWorldNavigation.Find(World);
         foreach (var spawn in Definition.Waves[index].Spawns)
             for (int n = 0; n < spawn.Count; n++)
-                pending.Enqueue(new PendingSpawn { Spawn = spawn, Position = Place(spawn.Group, lease), Slot = groups[spawn.Group].Value });
+                pending.Enqueue(new PendingSpawn { Spawn = spawn, Position = Place(spawn.Group, lease), Slot = groups[spawn.Group].Slot });
         DrainSpawns();
     }
 
     // A place of the group on the navigation mesh (the group's own point when the map has no navigation). Eight tries, then the map is at fault.
     private Vector3 Place(string group, PNWorldNavigationLease lease)
     {
-        var place = groups[group].Key;
+        var place = groups[group];
         for (int attempt = 0; attempt < 8; attempt++)
         {
             var point = place.Pick(runs.State.Random);
@@ -150,6 +161,13 @@ public sealed class PNRoomDirector : IDisposable
             if (lease.TryProject(point, 1.5f, out var projected)) return projected;
         }
         throw new InvalidOperationException("Spawn group '" + group + "' of room " + Definition.Id + " has no place on the navigation mesh.");
+    }
+
+    // Uniform over a disc (the square root keeps the density even), drawn from the Spawn stream like PNRoomSpawnGroup's circle.
+    private static Vector3 PickInDisc(PNRunRandom random, Vector3 centre, double radius)
+    {
+        double angle = random.NextDouble(PNRunStream.Spawn) * 2d * Math.PI, distance = radius * Math.Sqrt(random.NextDouble(PNRunStream.Spawn));
+        return new Vector3(centre.x + (float)(Math.Cos(angle) * distance), centre.y, centre.z + (float)(Math.Sin(angle) * distance));
     }
 
     private void DrainSpawns()

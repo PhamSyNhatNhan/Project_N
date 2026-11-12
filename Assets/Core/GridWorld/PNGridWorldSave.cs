@@ -29,6 +29,8 @@ public sealed class PNGridSavedPlacement
 {
     public int Id, X, Z, Direction, Health;
     public string Definition;
+    // The authored world object key of a thing with an interactable (G9c); null = the generated one.
+    public string Key;
 }
 
 // Where a player stood, by the player's key (`owner:<id>` for the owner id of its identity).
@@ -212,6 +214,13 @@ public sealed class PNGridWorldSnapshot
         return json;
     }
 
+    private static JObject PlacedJson(PNGridSavedPlacement x)
+    {
+        var json = new JObject { ["id"] = x.Id, ["def"] = x.Definition, ["x"] = x.X, ["z"] = x.Z, ["dir"] = x.Direction, ["hp"] = x.Health };
+        if (x.Key != null) json["key"] = x.Key;
+        return json;
+    }
+
     private JObject ToJsonCore()
     {
         return new JObject
@@ -219,7 +228,7 @@ public sealed class PNGridWorldSnapshot
             ["format"] = PNGridSaveLimits.Format,
             ["palette"] = new JArray(Palette),
             ["chunks"] = new JArray(Blobs.Select(Convert.ToBase64String)),
-            ["placed"] = new JArray(Placed.Select(x => new JObject { ["id"] = x.Id, ["def"] = x.Definition, ["x"] = x.X, ["z"] = x.Z, ["dir"] = x.Direction, ["hp"] = x.Health })),
+            ["placed"] = new JArray(Placed.Select(PlacedJson)),
             ["players"] = new JArray(Players.Select(x => new JObject { ["key"] = x.Key, ["pos"] = new JArray(x.X, x.Y, x.Z) }))
         };
     }
@@ -257,9 +266,10 @@ public sealed class PNGridWorldSnapshot
         foreach (var item in Items("placed"))
         {
             if (!(item is JObject o)) throw new FormatException("A placed thing is an object.");
-            foreach (var property in o.Properties()) if (property.Name != "id" && property.Name != "def" && property.Name != "x" && property.Name != "z" && property.Name != "dir" && property.Name != "hp") throw new FormatException("Unknown placed field: " + property.Name);
+            foreach (var property in o.Properties()) if (property.Name != "id" && property.Name != "def" && property.Name != "x" && property.Name != "z" && property.Name != "dir" && property.Name != "hp" && property.Name != "key") throw new FormatException("Unknown placed field: " + property.Name);
             if (o["def"]?.Type != JTokenType.String) throw new FormatException("A placed thing needs its definition id.");
-            placed.Add(new PNGridSavedPlacement { Id = Int(o["id"], "id"), Definition = (string)o["def"], X = Int(o["x"], "x"), Z = Int(o["z"], "z"), Direction = Int(o["dir"], "direction"), Health = Int(o["hp"], "health") });
+            if (o["key"] != null && o["key"].Type != JTokenType.String) throw new FormatException("A placed thing's key is a string.");
+            placed.Add(new PNGridSavedPlacement { Key = (string)o["key"], Id = Int(o["id"], "id"), Definition = (string)o["def"], X = Int(o["x"], "x"), Z = Int(o["z"], "z"), Direction = Int(o["dir"], "direction"), Health = Int(o["hp"], "health") });
         }
         var players = new List<PNGridSavedPlayer>();
         foreach (var item in Items("players"))

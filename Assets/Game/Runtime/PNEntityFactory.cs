@@ -162,6 +162,7 @@ public sealed class PNEntityFactory : IPNWorldEntityFactory
         ApplyModules(loader,request);
         if(loader.GetComponent<PNEnemyStat>()!=null)PNLoricaPresentation.Ensure(loader.gameObject);
         if(loader.TryGetComponent<PNVisualBody>(out var visualBody))visualBody.Begin(session.Registry.Characters.Get(EveId.Parse(request.Character)),session.Registry);   // a character with body.visual is drawn as a rig puppet
+        PNGroundShadow.Ensure(loader.gameObject,body.Shadow);   // the shadow on the ground under the feet: every character gets one unless its body.shadow is false
         var life=loader.GetComponent<PNEntityLifetime>();
         // Only the authority removes an entity by time; a client entity is removed when the host's removal reaches it.
         if(lifetime.HasValue&&session.Role!=EveSessionRole.Client)

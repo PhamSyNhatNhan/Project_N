@@ -380,7 +380,7 @@ public static partial class PNVisualEditorChecks
                 + "'visualRigs':[{'id':'bendtest:fox','pixelsPerMeter':1000,'capsule':{'height':0.3,'radius':0.1},'bones':[{'id':'root','at':[0,0]},{'id':'body','parent':'root','at':[0,-150]},{'id':'tail','parent':'body','at':[-38,6]}],"
                 + "'slots':[{'id':'body','bone':'body','layer':10},{'id':'tail','bone':'tail','layer':-5}],'sockets':[]}],"
                 + "'visualParts':[{'id':'bendtest:body','image':'body.png','pivot':[40,30],'tint':'none'},{'id':'bendtest:tail','image':'tail.png','pivot':[199,30],'tint':'none','segments':12,'axis':'x'}],"
-                + "'visualBuilds':[{'id':'bendtest:normal','scaleGroups':{},'capsule':{'height':1,'radius':1},'shadow':1}],"
+                + "'visualBuilds':[{'id':'bendtest:normal','scaleGroups':{},'capsule':{'height':1,'radius':1}}],"
                 + "'visualMotions':[" + motions.ToString().TrimEnd(',') + "],"
                 + "'visualMotionSets':[{'id':'bendtest:set','rig':'bendtest:fox','states':{" + states.ToString().TrimEnd(',') + "}}],"
                 + "'visualAppearances':[{'id':'bendtest:look','rig':'bendtest:fox','motionSet':'bendtest:set','build':'bendtest:normal','slots':{'body':'bendtest:body','tail':'bendtest:tail'}}]}}}").Replace("'", "\"");

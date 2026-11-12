@@ -173,11 +173,11 @@ public sealed partial class PNBuffContentBatch
 
     private PNVisualBuildDefinition ParseBuild(JObject obj, EveContentExtensionDocument document)
     {
-        Fields(obj, "id", "scaleGroups", "capsule", "shadow");
+        Fields(obj, "id", "scaleGroups", "capsule");
         var id = Owned(String(obj, "id"), document); var capsule = Object(obj["capsule"]); Fields(capsule, "height", "radius");
         var groups = new Dictionary<string, float[]>();
         if (obj["scaleGroups"] != null) foreach (var p in Object(obj["scaleGroups"]).Properties()) groups.Add(p.Name, Pair(p.Value, "scale group"));
-        return new PNVisualBuildDefinition(id, groups, Float(capsule, "height"), Float(capsule, "radius"), Float(obj, "shadow", 1f));
+        return new PNVisualBuildDefinition(id, groups, Float(capsule, "height"), Float(capsule, "radius"));
     }
 
     private static PNVisualCurve ParseCurve(JToken token, string what)

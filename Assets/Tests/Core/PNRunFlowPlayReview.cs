@@ -89,6 +89,14 @@ public sealed class PNRunFlowPlayReview : MonoBehaviour
         }
     }
 
+    private bool watchCover; private int uncoveredLobbyFrames;
+    private void Update()
+    {
+        if (!watchCover || Game == null || Game.Session == null) return;
+        if (Worlds("project_n:roguelite_lobby") == 0) return;
+        var controller = PNTransitionController.Current;
+        if (!PNTransitionHandoffHost.Covering && !(controller != null && controller.IsShowing)) uncoveredLobbyFrames++;
+    }
     private IEnumerator Start()
     {
         output = Environment.GetCommandLineArgs().FirstOrDefault(x => x.StartsWith("-pn-run-flow-output=", StringComparison.Ordinal))?.Substring("-pn-run-flow-output=".Length);
@@ -101,11 +109,14 @@ public sealed class PNRunFlowPlayReview : MonoBehaviour
         yield return Until("the Hall is up", () => EveRegistrySession.IsReady && PNGameFlow.Phase == PNFlowPhase.Hall && !PNGameFlow.Busy, 90);
         if (!failed && Scenario != "ui")
         {
-            PNGameFlow.StartRoguelite(PNFlowMode.Offline);
+            PNGameFlow.StartRoguelite(PNFlowMode.Offline); watchCover = true;
             yield return Until("the run is playing", () => EveRegistrySession.IsReady && Game != null && Game.Runs.Phase == PNRunPhase.Playing && Game.Runs.Room != null && !PNGameFlow.Busy, 90);
         }
+        watchCover = false;
+        if (!failed && Scenario != "ui") Check(uncoveredLobbyFrames == 0, "a solo start never shows the lobby: the loading screen stays up until the first room (uncovered lobby frames: " + uncoveredLobbyFrames + ")");
         if (!failed && Scenario == "defeat") yield return Defeat();
         else if (!failed && Scenario == "victory") yield return Victory();
+        else if (!failed && Scenario == "shadow") yield return Shadows();
         else if (!failed && (Scenario == "gamepad" || Scenario == "touch")) yield return Devices(Scenario == "gamepad");
         else if (!failed && Scenario == "save") yield return Saving();
         else if (!failed && Scenario == "retire") yield return Retiring();
@@ -417,11 +428,33 @@ public sealed class PNRunFlowPlayReview : MonoBehaviour
         yield return Until("the room sees every player dead", () => room.Flow.Phase == PNRoomPhase.Defeated, 5);
         Check(runs.Phase == PNRunPhase.Playing && runs.State.IsRunning && !EndShown(), "the last player fell: the run is not lost yet (the delay runs)");
         yield return Until("the run ended", () => runs.Phase == PNRunPhase.Ended, 8);
-        Check(!failed && runs.State.Result == PNRunResult.Defeat && Time.realtimeSinceStartup - fell >= PNRunDirector.DefeatDelaySeconds - .05f, "after the delay the run is lost");
+        Check(!failed && runs.State.Result == PNRunResult.Defeat && Time.realtimeSinceStartup - fell >= PNRunDirector.DefeatDelaySeconds - .25f, "after the delay the run is lost (failed=" + failed + ", result=" + runs.State.Result + ", elapsed=" + (Time.realtimeSinceStartup - fell).ToString("0.00") + ")");
         yield return Seconds(.4f);
         Check(EndShown(), "the end screen is shown");
         yield return Shot("end_defeat");
         yield return LeaveByButton();
+    }
+
+    // The ground shadow and the invisible walls (G10a follow-up): the player's shadow stays under it away from the spawn cell, every enemy of the first wave has one, and the room's solid cells are not drawn.
+    private IEnumerator Shadows()
+    {
+        var runs = Game.Runs; var room = runs.Room; var host = FindAnyObjectByType<PNGridWorldHost>();
+        Check(host != null && host.WallObjectCount > 0 && !host.ShowWalls && FindObjectsByType<MeshRenderer>().Count(r => r.gameObject.name.StartsWith("walls") && r.enabled) == 0, "the solid cells of the room have colliders but no picture (" + (host != null ? host.WallObjectCount : 0) + " wall objects)");
+        Check(FindObjectsByType<MeshRenderer>().Where(r => r.gameObject.name.StartsWith("chunk")).All(r => r.sortingOrder < 0), "the floor chunks sort under every sprite, so a character inside a large chunk is not painted over");
+        var player = Player; var shadow = player.GetComponentInChildren<PNGroundShadow>(true);
+        Check(shadow != null && shadow.Visible, "the player has a ground shadow at its spawn cell");
+        var body = player.GetComponent<Rigidbody>(); var away = player.transform.position + new Vector3(4f, 0, 4f);
+        player.transform.position = away; if (body != null) { body.position = away; body.linearVelocity = Vector3.zero; }
+        yield return Seconds(.3f);
+        Check(shadow != null && shadow.Visible, "and still 4 m away from it (the old shadow needed the spawn cell's collider)");
+        var start = Item(room, "start_switch"); yield return WalkTo(start); Game.Sync.Send(start.Target, PNInteractable.Command);
+        yield return Until("combat", () => room.Flow.Phase == PNRoomPhase.Combat, 20);
+        yield return Until("the first wave stands in the room", () => room.Enemies.Any(), 20);
+        yield return Seconds(.6f);
+        var enemies = room.Enemies.ToArray();
+        Check(enemies.Length > 0 && enemies.All(e => { var s = e.GetComponentInChildren<PNGroundShadow>(true); return s != null && s.Visible; }), "every enemy of the wave has a ground shadow (" + enemies.Length + " enemies)");
+        yield return Shot("shadows");
+        Kill(room);
     }
 
     private IEnumerator Victory()

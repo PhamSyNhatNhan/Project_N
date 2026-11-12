@@ -73,6 +73,7 @@ public sealed partial class PNCameraDirector : MonoBehaviour, IPNViewCameraServi
     private readonly Dictionary<CinemachineVirtualCameraBase, Admission> admitted = new Dictionary<CinemachineVirtualCameraBase, Admission>();
     private readonly Dictionary<Behaviour, bool> suppressed = new Dictionary<Behaviour, bool>();
     private GameObject fallbackObject;
+    public const float DefaultFallbackDistance = 5.5f;
     private CinemachineCamera fallback;
     private OutputChannels reserved;
     private EveWorldContext viewed;
@@ -343,7 +344,9 @@ public sealed partial class PNCameraDirector : MonoBehaviour, IPNViewCameraServi
             fallback.Lens = LensSettings.FromCamera(output);
             fallback.Lens.ModeOverride = output.orthographic ? LensSettings.OverrideModes.Orthographic : LensSettings.OverrideModes.Perspective;
             var composer = fallbackObject.AddComponent<CinemachinePositionComposer>();
-            composer.CameraDistance = actor != null ? Mathf.Max(1f, Vector3.Distance(output.transform.position, actor.position)) : 10f;
+            // A fixed distance, the one the shipped scene rigs use (Hall, Lobby: 5.5). It used to be the distance from the output camera to the actor at that moment, which is only right when the world sits where the
+            // camera already is: a grid world's player spawns far from the previous world's camera (G10a: ~20 m, the character looked 3-4 times smaller).
+            composer.CameraDistance = DefaultFallbackDistance;
         }
         return new List<CinemachineVirtualCameraBase> { fallback };
     }

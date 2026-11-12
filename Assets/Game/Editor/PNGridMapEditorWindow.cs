@@ -311,9 +311,9 @@ public sealed class PNGridMapEditorWindow : EditorWindow
         var spawn = meta.Spawns.FirstOrDefault(s => Math.Abs(s.X - x) <= 1 && Math.Abs(s.Z - z) <= 1);
         if (spawn != null) { selKind = "spawn"; selName = spawn.Name; selA = spawn.X; selB = spawn.Z; selSpawnKind = spawn.Kind; ShowTab(Tab.Selection); return; }
         var group = meta.Groups.FirstOrDefault(g => Math.Abs(g.X - x) <= 1 && Math.Abs(g.Z - z) <= 1);
-        if (group != null) { selKind = "group"; selName = group.Name; selA = group.X; selB = group.Z; selText = string.Join(", ", group.Entries.Select(e => e.Entity + "*" + e.Count)); ShowTab(Tab.Selection); return; }
+        if (group != null) { selKind = "group"; selName = group.Name; selA = group.X; selB = group.Z; selText = string.Join(", ", group.Entries.Select(e => e.Entity + "*" + e.Count)); selRate = group.Radius; ShowTab(Tab.Selection); return; }
         var thing = Doc.Placements.At(x, z);
-        if (thing != null) { selKind = "thing"; selName = thing.Definition.Id.ToString(); selA = thing.X; selB = thing.Z; selC = thing.Direction; selD = thing.Health; ShowTab(Tab.Selection); return; }
+        if (thing != null) { selKind = "thing"; selName = thing.Definition.Id.ToString(); selA = thing.X; selB = thing.Z; selC = thing.Direction; selD = thing.Health; selText = thing.Key ?? ""; ShowTab(Tab.Selection); return; }
         var gate = meta.Gates.FirstOrDefault(g => g.Region.Contains(x, z));
         if (gate != null) { selKind = "gate"; selName = gate.Name; selA = gate.Region.X0; selB = gate.Region.Z0; selC = gate.Region.X1; selD = gate.Region.Z1; selTo = gate.To ?? ""; ShowTab(Tab.Selection); return; }
         var zone = meta.Zones.FirstOrDefault(zn => zn.Region.Contains(x, z));
@@ -331,6 +331,8 @@ public sealed class PNGridMapEditorWindow : EditorWindow
         foreach (var zone in Doc.Meta.Zones) if (zone.Region.Contains(x, z)) yield return "In zone " + zone.Name + (zone.SpawnBlock ? " (spawn block)" : " (rate x" + zone.RateScale + ")");
         foreach (var gate in Doc.Meta.Gates) if (gate.Region.Contains(x, z)) yield return "In gate " + gate.Name;
     }
+
+    private bool ThingHasInteractable => selKind == "thing" && Doc != null && Doc.Placements.At(selA, selB)?.Definition.Settings.Interactable != null;
 
     private void DeleteSelection()
     {
@@ -353,7 +355,8 @@ public sealed class PNGridMapEditorWindow : EditorWindow
             case "spawn": Try(() => Doc.SetSpawn(selName, selSpawnKind, selA, selB)); break;
             case "gate": Try(() => Doc.SetGate(selName, new PNGridRegion(Math.Min(selA, selC), Math.Min(selB, selD), Math.Max(selA, selC), Math.Max(selB, selD)), selTo)); break;
             case "zone": Try(() => Doc.SetZone(selName, new PNGridRegion(Math.Min(selA, selC), Math.Min(selB, selD), Math.Max(selA, selC), Math.Max(selB, selD)), selBlock, selRate)); break;
-            case "group": Try(() => Doc.SetGroup(selName, selA, selB, ParseGroup(selText).ToList())); break;
+            case "group": Try(() => Doc.SetGroup(selName, selA, selB, ParseGroup(selText).ToList(), selRate)); break;
+            case "thing": Try(() => Doc.SetKey(selA, selB, selText.Trim())); break;
         }
     }
 
@@ -800,11 +803,19 @@ public sealed class PNGridMapEditorWindow : EditorWindow
                 break;
             case "group":
                 Int("X", selA, v => selA = v); Int("Z", selB, v => selB = v);
+                var radius = new Slider("Radius (m)", .5f, 50) { value = (float)selRate, showInputField = true }; Skin(radius); radius.RegisterValueChangedCallback(e => selRate = e.newValue); c.Add(radius);
                 var ent = new TextField("Entities") { value = selText }; Skin(ent); ent.RegisterValueChangedCallback(e => selText = e.newValue); c.Add(ent); c.Add(Text("e.g. project_n:slime*3, project_n:bat*2", true)); break;
-            case "thing": c.Add(Text("at (" + selA + ", " + selB + ")   direction " + selC + "   health " + selD, true)); break;
+            case "thing":
+                c.Add(Text("at (" + selA + ", " + selB + ")   direction " + selC + "   health " + selD, true));
+                if (ThingHasInteractable)
+                {
+                    var key = new TextField("Key") { value = selText }; Skin(key); key.RegisterValueChangedCallback(e => selText = e.newValue); c.Add(key);
+                    c.Add(Text("The name the game finds this thing by (a-z, 0-9, _ . -). Empty = placed_<id>.", true));
+                }
+                break;
         }
         var row = new VisualElement(); row.style.flexDirection = FlexDirection.Row; row.style.marginTop = 8; c.Add(row);
-        var apply = Chip("Apply", () => ApplySelection()); apply.SetEnabled(selKind != "thing"); row.Add(apply);
+        var apply = Chip("Apply", () => ApplySelection()); apply.SetEnabled(selKind != "thing" || ThingHasInteractable); row.Add(apply);
         row.Add(Chip("Delete (Del)", DeleteSelection));
     }
 

@@ -220,7 +220,7 @@ public sealed class PNGridWorldSaveService : MonoBehaviour
 
     private Job Prepare()
     {
-        var placed = Controller.Placements.All.Select(x => new PNGridSavedPlacement { Id = x.Id, Definition = x.Definition.Id.ToString(), X = x.X, Z = x.Z, Direction = x.Direction, Health = x.Health }).ToArray();
+        var placed = Controller.Placements.All.Select(x => new PNGridSavedPlacement { Id = x.Id, Definition = x.Definition.Id.ToString(), X = x.X, Z = x.Z, Direction = x.Direction, Health = x.Health, Key = x.Key }).ToArray();
         CapturePlayers();
         var kept = players.OrderBy(x => x.Key, StringComparer.Ordinal).Select(x => new PNGridSavedPlayer { Key = x.Key, X = x.Value.x, Y = x.Value.y, Z = x.Value.z }).ToArray();
         var definition = World.Session.Registry.Get<PNWorldDefinition>().Get(World.DefinitionId);

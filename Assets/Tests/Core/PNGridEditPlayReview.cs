@@ -22,10 +22,26 @@ public sealed class PNGridEditReviewRuntime : EveRuntime
     protected override IEnumerable<EveIContentModule> CreateContentModules()
     {
         var modules = new List<EveIContentModule> { new PNContentModule(), new PNGameplayContentModule() };
-        if (Large) modules.Add(new PNGridEditReviewWorlds());
+        if (Large) modules.Add(new PNGridEditReviewWorlds()); else modules.Add(new PNGridWorkReviewContent());
         return modules;
     }
     protected override IEnumerable<EveContentDocument> ReadContentDocuments() => Documents;
+}
+
+// A character that owns three work skills, so the work Action runs through a real PNSkill (CreateAction with a position) in the small pass: an axe, a pickaxe of power 49 and one of power 50.
+public sealed class PNGridWorkReviewContent : EveIContentModule
+{
+    public static readonly EveId Worker = EveId.Parse("review:work_worker"), Axe = EveId.Parse("review:work_axe"), WeakPick = EveId.Parse("review:work_pick_49"), Pick = EveId.Parse("review:work_pick_50");
+    private static EveSkillDefinition Skill(EveId id, string type, int power, int amount, string radius)
+        => new EveSkillDefinition(id, JObject.Parse("{\"action\":{\"id\":\"project_n:work_action\",\"perform\":{\"types\":[{\"id\":\"" + type + "\",\"power\":" + power + "}],\"amount\":" + amount + ",\"radius\":" + radius + "}}}"));
+    public void Register(EveRegistryHub hub)
+    {
+        var skills = hub.GetOrCreate<EveSkillDefinition>();
+        skills.Register(Skill(Axe, "project_n:axe", 5, 10, "0.3"));
+        skills.Register(Skill(WeakPick, "project_n:pickaxe", 49, 60, "0.3"));
+        skills.Register(Skill(Pick, "project_n:pickaxe", 50, 30, "0.3"));
+        hub.GetOrCreate<EveCharacterDefinition>().Register(new EveCharacterDefinition(Worker, new[] { new EveInitialStat(PNContentModule.Health, 2000f, 2000f) }, new[] { Axe, WeakPick, Pick }));
+    }
 }
 
 public sealed class PNGridEditReviewWorlds : EveIContentModule
@@ -272,6 +288,86 @@ public sealed class PNGridEditPlayReview : MonoBehaviour
         else Note("the dead-player case was not exercised (the stat could not be killed in the fixture)");
         playerLoader.Unload(); playerIdentity.ResetIdentity(); actors.Remove(playerRoot); Destroy(playerRoot);
         yield return null;
+
+        // ---- work on placed things: the registered work Action through a real skill (a player, then a monster) ----
+        {
+            Check(PNGridCommands.ApplyPlace(session.Registry, controller, near, Place("project_n:placeable_tree", 10, 14)) && PNGridCommands.ApplyPlace(session.Registry, controller, near, Place("project_n:placeable_rock", 12, 14))
+                && PNGridCommands.ApplyPlace(session.Registry, controller, near, Place("project_n:placeable_wall", 16, 14)) && PNGridCommands.ApplyPlace(session.Registry, controller, near, Place("project_n:placeable_tree", 10, 17)), "a tree, a rock, a wall and a second tree are placed");
+            PumpAndFlush();
+            var tree = controller.Placements.At(10, 14); var rock = controller.Placements.At(12, 14); var wall2 = controller.Placements.At(16, 14); var tree2 = controller.Placements.At(10, 17);
+            Check(tree.WorkLeft == 30 && rock.WorkLeft == 60 && wall2.WorkLeft == 20 && wall2.Health == 40 && data.IsSolid(10, 14) && data.IsSolid(13, 15), "the work things start with all their work and block the way");
+            GameObject MakeWorker(string name, bool isPlayer)
+            {
+                var root = new GameObject(name) { layer = 7 }; root.SetActive(false); actors.Add(root);
+                UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(root, world.PhysicsOwner); root.transform.position = near;
+                var identity = root.AddComponent<EveEntityIdentity>(); identity.Assign(new EveEntityId(nextEntity++), PNGridWorkReviewContent.Worker, 0); identity.BindWorld(world, "main");
+                root.AddComponent<EveTimeScale>();
+                if (isPlayer) root.AddComponent<PNPlayerStat>().AsPlayer(); else root.AddComponent<PNStat>();
+                root.AddComponent<PNSkill>(); root.AddComponent<EveEntityLoader>().Load(session.Registry); root.SetActive(true);
+                return root;
+            }
+            var player = MakeWorker("Work review player", true); var monster = MakeWorker("Work review monster", false);
+            yield return Until(() => player.GetComponent<EveEntityLoader>().IsReady && monster.GetComponent<EveEntityLoader>().IsReady, 20, "the work player and the work monster are loaded");
+            Check(PNEntityRoles.IsPlayer(player.GetComponent<EveEntityLoader>()) && !PNEntityRoles.IsPlayer(monster.GetComponent<EveEntityLoader>()), "one of them is a player and one is not");
+            PNWorkAction Work(GameObject who, EveId skillId, Vector3 point)
+            {
+                var action = (PNWorkAction)who.GetComponent<PNSkill>().CreateAction(skillId, out var context, null, null, point);
+                action.Start(context); action.Perform(context); action.Exit(context); return action;
+            }
+            Vector3 Centre(PNPlacedObject o) => new Vector3((o.X + o.CellsX / 2f) * data.CellSize, 0, (o.Z + o.CellsZ / 2f) * data.CellSize);
+            var a1 = Work(player, PNGridWorkReviewContent.Axe, Centre(tree));
+            Check(a1.Worked == 1 && a1.Broken == 0 && tree.WorkLeft == 20 && rock.WorkLeft == 60, "an axe hit takes 10 off the tree and touches nothing else in its radius");
+            var a2 = Work(player, PNGridWorkReviewContent.Pick, Centre(tree));
+            Check(a2.Worked == 0 && tree.WorkLeft == 20, "a pickaxe does nothing to a tree");
+            var a3 = Work(player, PNGridWorkReviewContent.WeakPick, Centre(rock));
+            Check(a3.Worked == 0 && rock.WorkLeft == 60 && controller.Placements.At(12, 14) == rock, "a pickaxe of power 49 does nothing to a rock that needs 50, however much work it carries");
+            var a4 = Work(player, PNGridWorkReviewContent.Pick, Centre(rock));
+            Check(a4.Worked == 1 && a4.Broken == 0 && rock.WorkLeft == 30, "a pickaxe of power 50 works the rock");
+            var a5 = Work(player, PNGridWorkReviewContent.Pick, Centre(rock));
+            Check(a5.Broken == 1 && controller.Placements.At(12, 14) == null, "the second hit breaks the rock and takes it out of the list");
+            PumpAndFlush();
+            Check(!data.IsSolid(12, 14) && !data.IsSolid(13, 15), "the rock's four cells are free after the pump");
+            yield return Until(() => host.PendingChunks == 0, 3, "the chunk is rebuilt after the rock broke");
+            var m1 = Work(monster, PNGridWorkReviewContent.Axe, Centre(tree2));
+            Check(m1.Worked == 0 && tree2.WorkLeft == 30, "a monster's work is refused by a tree that does not allow monsters");
+            var m2 = Work(monster, PNGridWorkReviewContent.Axe, Centre(wall2));
+            Check(m2.Worked == 1 && wall2.WorkLeft == 10 && wall2.Health == 40, "a monster works a wall that allows it, and the wall's health is untouched");
+            var p6 = Work(player, PNGridWorkReviewContent.Axe, Centre(wall2));
+            Check(p6.Broken == 1 && controller.Placements.At(16, 14) == null, "the player's next hit breaks the wall");
+            PNGridCommands.ApplyBreak(controller, near, new JObject { ["x"] = 10, ["z"] = 17 });
+            Check(controller.Placements.At(10, 17) == tree2 && tree2.WorkLeft == 30, "a break command (damage) does nothing to a thing that has no health");
+            foreach (var who in new[] { player, monster }) { who.GetComponent<EveEntityLoader>().Unload(); who.GetComponent<EveEntityIdentity>().ResetIdentity(); actors.Remove(who); Destroy(who); }
+            foreach (var left in controller.Placements.All.Where(p => p.Definition.Id == PNPlaceableIds.Tree || p.Definition.Id == PNPlaceableIds.Wall).Select(p => p.Id).ToArray()) controller.Placements.Remove(left);
+            PumpAndFlush();
+            yield return null;
+        }
+
+        // ---- placed things with an interactable (G9c): a world object with a key, addressable by the sync layer, gone with the thing ----
+        {
+            var fountainDef = session.Registry.Instances().GetEffectiveKind<PNPlaceableDefinition>(PNPlaceableIds.Fountain);
+            Check(fountainDef != null && fountainDef.Settings.Interactable == "project_n:rest_heal", "the sample fountain is registered with the rest-heal interactable");
+            var open = new List<Vector2Int>();   // two free cells (the maze world has walls)
+            for (int cz = 8; cz < 60 && open.Count < 2; cz++) for (int cx = 2; cx < 60 && open.Count < 2; cx++)
+                if (controller.Placements.CanPlace(fountainDef, cx, cz, 0, out _) && (open.Count == 0 || Mathf.Abs(open[0].x - cx) + Mathf.Abs(open[0].y - cz) > 3)) open.Add(new Vector2Int(cx, cz));
+            Check(open.Count == 2, "two free cells exist for the fountains");
+            Check(controller.Placements.TryPlace(fountainDef, open[0].x, open[0].y, 0, "review_fountain", out var keyed, out string keyedWhy), "a fountain is placed under an authored key: " + keyedWhy);
+            Check(PNGridCommands.ApplyPlace(session.Registry, controller, near, Place("project_n:placeable_fountain", open[1].x, open[1].y)), "a fountain is placed by the place command");
+            PumpAndFlush();
+            var generated = controller.Placements.At(open[1].x, open[1].y);
+            var pk = controller.InteractableOf(keyed.Id); var pg = controller.InteractableOf(generated.Id);
+            Check(pk != null && pk.Key == "review_fountain" && pg != null && pg.Key == "placed_" + generated.Id, "each fountain has a PNInteractable under its key (authored, then generated)");
+            Check(pk.IsBound && pg.IsBound && pk.Target.Kind == PNSyncTargetKind.WorldObject && !pk.Target.Equals(pg.Target), "both were made addressable as world objects after the world was ready");
+            Check(pk.DefinitionId == "project_n:rest_heal" && !pk.Available, "the interactable names the registered definition and starts closed");
+            pk.SetAvailable(true);
+            Check(pk.Available && !pg.Available, "the host opens one of them");
+            Check(!data.IsSolid(open[0].x, open[0].y) && !data.IsSolid(open[1].x, open[1].y) && pk.GetComponentInChildren<Collider>() == null, "a fountain does not block the way and its picture has no collider");
+            var keyedGo = pk.gameObject; int keyedId = keyed.Id;
+            Check(controller.Placements.Remove(keyedId) && controller.InteractableOf(keyedId) == null && keyedGo == null, "removing the fountain removes its world object");
+            Check(controller.Placements.TryPlace(fountainDef, open[0].x, open[0].y, 0, "review_fountain", out var again, out _) && controller.InteractableOf(again.Id) != null && controller.InteractableOf(again.Id).IsBound, "the freed key can be used again and is bound again");
+            controller.Placements.Remove(again.Id); controller.Placements.Remove(generated.Id);
+            PumpAndFlush();
+            yield return null;
+        }
 
         // ---- markers: a thing that does not block the way ----
         Check(PNGridCommands.ApplyPlace(session.Registry, controller, near, Place("project_n:placeable_marker", 16, 12)), "a marker is placed");
