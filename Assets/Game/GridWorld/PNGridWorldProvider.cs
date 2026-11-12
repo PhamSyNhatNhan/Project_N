@@ -72,7 +72,7 @@ public sealed class PNGridWorldProvider : IPNWorldProvider, IPNPortableWorldProv
             restored.Finish(data);
         }
 
-        var host = PNGridWorldHost.Create(data, definitions.Select(x => new Color32(x.Red, x.Green, x.Blue, 255)).ToArray());
+        var host = PNGridWorldHost.Create(data, definitions.Select(x => new Color32(x.Red, x.Green, x.Blue, x.Visible ? (byte)255 : (byte)0)).ToArray());
         context.Own(host.Dispose);   // registered before the chunk objects exist, so a failed or cancelled load cannot leak them
         context.SetGridWorld(data, descriptor);
         if (!replica) context.SetNavigation(new PNGridNavigationSource(data, definitions.Select(x => x.Walkable).ToArray(), PNNavigationProfile.GroundSmall));

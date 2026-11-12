@@ -85,6 +85,7 @@ public sealed class PNGridWorldHost : MonoBehaviour
             if (Data.HeightRaw(x, z) != level) flat = false;
             if (Data.IsSolid(x, z)) continue;
             float y = Data.Height(x, z); var color = groundColors[Data.GroundAt(x, z)];
+            if (color.a == 0) continue;   // a ground that is nothing (`project_n:void`): no floor
             AddQuad(new Vector3(x * cell, y, z * cell), new Vector3(x * cell, y, (z + 1) * cell), new Vector3((x + 1) * cell, y, (z + 1) * cell), new Vector3((x + 1) * cell, y, z * cell), Vector3.up, color);
         }
         var chunk = chunkObjects[index];

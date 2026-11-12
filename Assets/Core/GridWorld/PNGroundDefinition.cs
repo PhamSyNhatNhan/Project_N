@@ -13,12 +13,14 @@ public sealed class PNGroundDefinition : EveIIdentified
     public byte Green { get; }
     public byte Blue { get; }
     public string Description { get; }
+    // False for a ground that is nothing: no floor is drawn over it (the colour is only what a tool shows for it).
+    public bool Visible { get; }
 
-    public PNGroundDefinition(EveId id, bool walkable, byte red, byte green, byte blue, string description = "")
+    public PNGroundDefinition(EveId id, bool walkable, byte red, byte green, byte blue, string description = "", bool visible = true)
     {
         if (!id.IsValid || id.ToString().Length > MaxText) throw new ArgumentException("A ground type needs a valid id of at most " + MaxText + " characters.", nameof(id));
         if (description != null && description.Length > MaxDescription) throw new ArgumentException("A ground description is at most " + MaxDescription + " characters.", nameof(description));
-        Id = id; Walkable = walkable; Red = red; Green = green; Blue = blue; Description = description ?? "";
+        Id = id; Walkable = walkable; Red = red; Green = green; Blue = blue; Description = description ?? ""; Visible = visible;
     }
 }
 
@@ -29,6 +31,8 @@ public static class PNGridIds
     public static readonly EveId Grass = EveId.Parse("project_n:grass");
     public static readonly EveId Sand = EveId.Parse("project_n:sand");
     public static readonly EveId Stone = EveId.Parse("project_n:stone");
+    // Nothing under the cell: no floor, cannot be walked on (the map tool erases ground to this).
+    public static readonly EveId Void = EveId.Parse("project_n:void");
     public static readonly EveId FlatMap = EveId.Parse("project_n:flat");
     public static readonly EveId TestMazeMap = EveId.Parse("project_n:test_maze");
     public static readonly EveId SandboxTestFlat = EveId.Parse("project_n:sandbox_test_flat");

@@ -29,5 +29,6 @@ namespace EveEngine
         public static EveRegistry<PNWorldFeatureDefinition> WorldFeatures(this EveRegistryHub hub) => hub.Get<PNWorldFeatureDefinition>();
         public static EveRegistry<PNEntityModuleDefinition> EntityModules(this EveRegistryHub hub) => hub.Get<PNEntityModuleDefinition>();
         public static EveRegistry<PNGroundDefinition> Grounds(this EveRegistryHub hub) => hub.Get<PNGroundDefinition>();
+        public static EveRegistry<PNWorkTypeDefinition> WorkTypes(this EveRegistryHub hub) => hub.Get<PNWorkTypeDefinition>();
     }
 }

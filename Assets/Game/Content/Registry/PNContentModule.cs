@@ -154,6 +154,11 @@ public class PNContentModule : EveIContentModule, EveIContentFinalizeModule, Eve
         hub.Grounds().Register(new PNGroundDefinition(PNGridIds.Grass, true, 112, 160, 96, "Grass."));
         hub.Grounds().Register(new PNGroundDefinition(PNGridIds.Sand, true, 214, 196, 138, "Sand."));
         hub.Grounds().Register(new PNGroundDefinition(PNGridIds.Stone, false, 120, 120, 128, "Bare stone that cannot be walked on."));
+        hub.Grounds().Register(new PNGroundDefinition(PNGridIds.Void, false, 30, 32, 40, "Nothing: no floor, cannot be walked on.", false));
+        // Work types of placeable things (Docs/SandboxPlan.md): the vocabulary a work packet and a placeable's `work.types` share. Named after the tool, like Terraria; a mod registers more.
+        hub.GetOrCreate<PNWorkTypeDefinition>(); hub.NameRegistry<PNWorkTypeDefinition>("work_types");
+        hub.WorkTypes().Register(new PNWorkTypeDefinition(PNWorkIds.Pickaxe, "Digs and breaks stone and ore."));
+        hub.WorkTypes().Register(new PNWorkTypeDefinition(PNWorkIds.Axe, "Chops wood."));
     }
 
     public virtual void FinalizeContent(EveRegistryHub hub) { }

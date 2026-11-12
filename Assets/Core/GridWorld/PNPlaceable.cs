@@ -18,7 +18,7 @@ public static class PNPlaceableLimits
 }
 
 // EN: The `data` payload of a placeable. Required: footprint ({"width","depth"} in cells, 1 to 8). Optional: blocksPath (default true), blocksSight (false), breakable (true), health (10, 1 to 100000, needs
-//     breakable), spawnBlock (false: monsters do not spawn within safetyRadius), spawnRateScale (1, 0 to 4: scales the spawn rate within safetyRadius), safetyRadius (0, metres, 0 to 32), params (for the logic class).
+//     breakable), spawnBlock (false: monsters do not spawn within safetyRadius), spawnRateScale (1, 0 to 4: scales the spawn rate within safetyRadius), safetyRadius (0, metres, 0 to 32), work ({"types","left","minPower","enemy"}, see PNPlaceableWork: a thing that can be brought down by work packets), params (for the logic class).
 //     blocksSight, spawnBlock, spawnRateScale and safetyRadius are data for the spawner and the sight rules of later steps; this step only stores and validates them.
 public sealed class PNPlaceableSettings
 {
@@ -31,6 +31,8 @@ public sealed class PNPlaceableSettings
     public bool SpawnBlock { get; }
     public double SpawnRateScale { get; }
     public double SafetyRadius { get; }
+    // Null for a thing that takes no work. Work and health are separate ways to bring a thing down; either one running out breaks it.
+    [JsonIgnore] public PNPlaceableWork Work { get; }
     [JsonIgnore] public JToken Params { get; }
 
     public PNPlaceableSettings(JToken data)
@@ -51,10 +53,11 @@ public sealed class PNPlaceableSettings
         if (SpawnRateScale < 0 || SpawnRateScale > PNPlaceableLimits.MaxSpawnRateScale) throw new FormatException("placeable spawnRateScale is 0 to " + PNPlaceableLimits.MaxSpawnRateScale + ".");
         SafetyRadius = obj["safetyRadius"] == null ? 0 : Number(obj, "safetyRadius");
         if (SafetyRadius < 0 || SafetyRadius > PNPlaceableLimits.MaxSafetyRadius) throw new FormatException("placeable safetyRadius is 0 to " + PNPlaceableLimits.MaxSafetyRadius + " metres.");
+        if (obj["work"] != null) Work = new PNPlaceableWork(obj["work"]);
         if (obj["params"] != null && !(obj["params"] is JObject)) throw new FormatException("placeable params must be an object.");
         Params = obj["params"]?.DeepClone();
     }
-    private static readonly string[] Fields = { "footprint", "blocksPath", "blocksSight", "breakable", "health", "spawnBlock", "spawnRateScale", "safetyRadius", "params" };
+    private static readonly string[] Fields = { "footprint", "blocksPath", "blocksSight", "breakable", "health", "spawnBlock", "spawnRateScale", "safetyRadius", "work", "params" };
     private static int Int(JObject obj, string field, string name)
         => obj[field]?.Type == JTokenType.Integer ? checked(obj[field].Value<int>()) : throw new FormatException("placeable " + name + " must be an integer.");
     private static bool Bool(JObject obj, string field, bool fallback)
@@ -122,12 +125,20 @@ public sealed class PNPlaceableDefinition : PNInstanceDefinition
 
     // validateParams checks the logic class's own `params` object (null = the logic takes none).
     public PNPlaceableDefinition(EveId id, Type logicType, Func<IPNPlaceableLogic> create, JToken data, Action<JToken> validateParams = null, Action<JToken, PNContentReferenceContext> references = null)
-        : base(id, RequireLogic(logicType), data, (payload, hub) => Check(payload, validateParams), input => { }, references)
+        : base(id, RequireLogic(logicType), data, (payload, hub) => Check(payload, validateParams), input => { }, WithWork(references))
     {
         this.create = create ?? throw new ArgumentNullException(nameof(create));
         this.validateParams = validateParams; this.references = references;
         Settings = Check(data, validateParams);
     }
+    // The work types a thing names must be registered, besides whatever its logic class references.
+    private static Action<JToken, PNContentReferenceContext> WithWork(Action<JToken, PNContentReferenceContext> logic)
+        => (data, context) =>
+        {
+            logic?.Invoke(data, context);
+            var work = (data as JObject)?["work"];
+            if (work != null) new PNPlaceableWork(work).ValidateReferences(context);
+        };
     private static PNPlaceableSettings Check(JToken data, Action<JToken> validateParams)
     {
         var settings = new PNPlaceableSettings(data);
@@ -155,6 +166,9 @@ public static class PNPlaceableIds
     public static readonly EveId Vanish = EveId.Parse("project_n:placeable_vanish");
     public static readonly EveId LeaveGround = EveId.Parse("project_n:placeable_leave_ground");
     public static readonly EveId Marker = EveId.Parse("project_n:placeable_marker");
+    public static readonly EveId Tree = EveId.Parse("project_n:placeable_tree");
+    public static readonly EveId Rock = EveId.Parse("project_n:placeable_rock");
+    public static readonly EveId Wall = EveId.Parse("project_n:placeable_wall");
 }
 
 // One placed thing: where its footprint starts (the lowest cell), which way it faces (0 to 3, a quarter turn each; an odd direction swaps the footprint's sides) and how much health is left.
@@ -168,11 +182,13 @@ public sealed class PNPlacedObject
     public int CellsX { get; }
     public int CellsZ { get; }
     public int Health { get; internal set; }
+    // Work still to do before the thing is brought down (0 for a thing that takes no work). Not kept by a save on purpose (health is): a restored thing starts with all its work.
+    public int WorkLeft { get; internal set; }
     internal PNPlacedObject(int id, PNPlaceableDefinition definition, int x, int z, int direction)
     {
         Id = id; Definition = definition; X = x; Z = z; Direction = direction;
         bool turned = (direction & 1) == 1; CellsX = turned ? definition.Settings.Depth : definition.Settings.Width; CellsZ = turned ? definition.Settings.Width : definition.Settings.Depth;
-        Health = definition.Settings.Health;
+        Health = definition.Settings.Health; WorkLeft = definition.Settings.Work?.Left ?? 0;
     }
     public bool Covers(int x, int z) => x >= X && x < X + CellsX && z >= Z && z < Z + CellsZ;
     public PNGridRegion Region => new PNGridRegion(X, Z, X + CellsX - 1, Z + CellsZ - 1);
@@ -267,6 +283,23 @@ public sealed class PNGridPlacements
         if (amount <= 0 || !byId.TryGetValue(id, out var placed) || !placed.Definition.Settings.Breakable) return false;
         placed.Health = Math.Max(0, placed.Health - amount);
         return placed.Health == 0 && Break(id);
+    }
+
+    // The work gate: a packet of work on the thing standing on a cell. Refused when the thing takes no work, a monster is not allowed, or no work type of the packet is accepted with enough power; otherwise the packet's
+    // amount comes off the thing's work and it breaks (logic class and all) when none is left. Health is not touched: work and damage are separate ways down.
+    public PNWorkOutcome Work(int x, int z, PNWorkPacket packet)
+    {
+        if (packet == null) throw new ArgumentNullException(nameof(packet));
+        var placed = data.InBounds(x, z) ? At(x, z) : null; return placed == null ? PNWorkOutcome.None : Work(placed.Id, packet);
+    }
+    public PNWorkOutcome Work(int id, PNWorkPacket packet)
+    {
+        if (packet == null) throw new ArgumentNullException(nameof(packet));
+        if (!byId.TryGetValue(id, out var placed)) return PNWorkOutcome.None;
+        var work = placed.Definition.Settings.Work;
+        if (work == null || !work.Accepts(packet)) return PNWorkOutcome.Refused;
+        placed.WorkLeft = Math.Max(0, placed.WorkLeft - packet.Amount);
+        return placed.WorkLeft == 0 && Break(id) ? PNWorkOutcome.Broken : PNWorkOutcome.Worked;
     }
 
     // Breaks a thing: it leaves, its cells are freed and the logic class runs. An unbreakable thing can still be taken away with Remove.

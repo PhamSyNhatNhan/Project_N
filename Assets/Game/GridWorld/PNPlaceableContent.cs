@@ -19,7 +19,14 @@ public static class PNPlaceableContent
         // A 1x1 marker that does not block the way (a bodies walk over it) and keeps monsters from spawning near it.
         instances.Register(new PNPlaceableDefinition(PNPlaceableIds.Marker, typeof(PNPlaceableVanishLogic), () => new PNPlaceableVanishLogic(),
             new JObject { ["footprint"] = new JObject { ["width"] = 1, ["depth"] = 1 }, ["blocksPath"] = false, ["health"] = 5, ["spawnBlock"] = true, ["safetyRadius"] = 6 }));
-        foreach (var id in new[] { PNPlaceableIds.Vanish, PNPlaceableIds.LeaveGround, PNPlaceableIds.Marker })
+        // Work samples (Docs/SandboxPlan.md, work of placeables): a tree only an axe brings down, a rock that needs a pickaxe of power 50, and a wall that takes both work and damage (a monster may work it).
+        instances.Register(new PNPlaceableDefinition(PNPlaceableIds.Tree, typeof(PNPlaceableVanishLogic), () => new PNPlaceableVanishLogic(),
+            new JObject { ["footprint"] = new JObject { ["width"] = 1, ["depth"] = 1 }, ["breakable"] = false, ["work"] = new JObject { ["types"] = new JArray(PNWorkIds.Axe.ToString()), ["left"] = 30 } }));
+        instances.Register(new PNPlaceableDefinition(PNPlaceableIds.Rock, typeof(PNPlaceableVanishLogic), () => new PNPlaceableVanishLogic(),
+            new JObject { ["footprint"] = new JObject { ["width"] = 2, ["depth"] = 2 }, ["breakable"] = false, ["work"] = new JObject { ["types"] = new JArray(PNWorkIds.Pickaxe.ToString()), ["left"] = 60, ["minPower"] = 50 } }));
+        instances.Register(new PNPlaceableDefinition(PNPlaceableIds.Wall, typeof(PNPlaceableVanishLogic), () => new PNPlaceableVanishLogic(),
+            new JObject { ["footprint"] = new JObject { ["width"] = 1, ["depth"] = 1 }, ["health"] = 40, ["work"] = new JObject { ["types"] = new JArray(PNWorkIds.Pickaxe.ToString(), PNWorkIds.Axe.ToString()), ["left"] = 20, ["enemy"] = true } }));
+        foreach (var id in new[] { PNPlaceableIds.Vanish, PNPlaceableIds.LeaveGround, PNPlaceableIds.Marker, PNPlaceableIds.Tree, PNPlaceableIds.Rock, PNPlaceableIds.Wall })
             instances.RegisterBase<PNPlaceableDefinition>(new EveId("base", id.Path), id, "project_n", compatible: (original, replacement) => true);
     }
 }
