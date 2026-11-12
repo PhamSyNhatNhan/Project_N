@@ -219,6 +219,19 @@ namespace EveEngine
             return id;
         }
 
+        // EN: Puts the body at the point without a movement command (the world moved something under it, e.g. a wall grew on it). Unlike TeleportToPoint it works while movement is locked or the body is held
+        //     (stunned, frozen), because being unable to walk does not mean being unable to be moved; the running command is cancelled, velocity is cleared, and PoseRelocated fires (a network adapter tells the owner/host).
+        // VI: Đặt thân tới điểm mà không qua lệnh di chuyển (world đổi dưới chân, ví dụ tường mọc lên). Khác TeleportToPoint, chạy được cả khi bị khóa/giữ (choáng, đóng băng); hủy lệnh đang chạy, xóa vận tốc, phát PoseRelocated.
+        public virtual void RelocateToPoint(Vector2 target)
+        {
+            RequireFinite(target, nameof(target));
+            if (loadContext == null || loader == null || !loader.IsReady || !HasBody) throw new InvalidOperationException("EveMove is not loaded.");
+            if (mode != EveMoveMode.None) EndCommand(EveMoveEndReason.Cancelled);
+            ApplyVelocity(Vector2.zero);
+            PlanarPosition = target;
+            NotifyPoseRelocated();
+        }
+
         public virtual bool CancelCommand()
         {
             if (mode == EveMoveMode.None) return false;
@@ -306,9 +319,14 @@ namespace EveEngine
             int relocatedCommand = commandId;
             ApplyVelocity(Vector2.zero);
             PlanarPosition = targetPosition;
+            NotifyPoseRelocated();
+            if(mode==EveMoveMode.Teleport && commandId==relocatedCommand)EndCommand(EveMoveEndReason.Completed);
+        }
+
+        private void NotifyPoseRelocated()
+        {
             foreach(Action observer in PoseRelocated?.GetInvocationList() ?? Array.Empty<Delegate>())
                 try { observer(); } catch(Exception error) { Debug.LogException(error,this); }
-            if(mode==EveMoveMode.Teleport && commandId==relocatedCommand)EndCommand(EveMoveEndReason.Completed);
         }
 
         private int BeginCommand(EveMoveMode newMode, Vector2 direction, Vector2 target, float speed, float duration, float distance)

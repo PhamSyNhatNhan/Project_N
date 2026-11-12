@@ -98,10 +98,29 @@ public sealed class PNGridWorldProvider : IPNWorldProvider, IPNPortableWorldProv
             // The despawn service (step G4) for worlds that have the feature; a world without it keeps every enemy.
             if (context.Features.Has(PNDespawnIds.Feature)) context.Own(PNDespawnService.Create(context.World, context.PhysicsScene).Dispose);
         }
+        AddPlayerSpawn(context, data, host);   // a client's copy has it too: the client side of a transfer looks the entry up in its own copy of the world
         // AddSlot wants the root to be in the scene it names as the source: the world's own physics scene.
         UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(host.gameObject, context.PhysicsScene);
         context.AddSlot("main", context.PhysicsScene, new[] { host.gameObject });
         host.gameObject.SetActive(true);
+    }
+
+    // The entry for players (G8b-2): a transfer or a mode puts a player into a grid world through the slot `main` and the spawn entry `player`, like any other world. One spawn point, on the free ground nearest to the middle of the
+    // world; skipped when no ground collider exists yet, the default character is not registered, or no free spot is near the middle (a map with a tool-placed entry replaces this in G9).
+    public const string PlayerSpawnEntry = "player", PlayerSpawnCharacter = "project_n:eve_2", PlayerSpawnSceneKey = "project_n:grid_world";
+    private static void AddPlayerSpawn(PNWorldBuildContext context, PNGridWorldData data, PNGridWorldHost host)
+    {
+        var session = context.World.Session;
+        if (!session.Registry.Characters.TryGet(EveId.Parse(PlayerSpawnCharacter), out _)) { Debug.LogWarning("Grid world: no player spawn point (character " + PlayerSpawnCharacter + " is not registered)."); return; }
+        if (!PNGridBodies.FindFreeSpot(data, data.Width * data.CellSize / 2f, data.Depth * data.CellSize / 2f, out float x, out float z)) { Debug.LogWarning("Grid world: no player spawn point (no free ground near the middle)."); return; }
+        var prefab = PNEntityPrefabs.For(session, PlayerSpawnCharacter, null);
+        if (prefab == null) { Debug.LogWarning("Grid world: no player spawn point (" + PlayerSpawnCharacter + " names no prefab)."); return; }
+        var point = new GameObject("PN Player Spawn").AddComponent<PNPlayerSpawnPoint>();
+        point.transform.SetParent(host.transform, false); point.transform.position = new Vector3(x, .05f, z);
+        // The "ground" a spawn point names is a collider of its own (a thin trigger on the Ignore Raycast layer): the chunk colliders are replaced whenever a chunk is rebuilt, so none of them can be held.
+        var box = point.gameObject.AddComponent<BoxCollider>(); box.isTrigger = true; point.gameObject.layer = 2;
+        box.center = new Vector3(0, -.05f, 0); box.size = new Vector3(1f, .1f, 1f);
+        point.Prefab = prefab; point.Ground = box; point.Character = PlayerSpawnCharacter; point.SceneKey = PlayerSpawnSceneKey; point.SpawnEntry = PlayerSpawnEntry;
     }
 }
 #endif

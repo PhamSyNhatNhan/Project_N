@@ -77,16 +77,16 @@ public sealed class PNGridEditPlayReview : MonoBehaviour
     private EveWorldContext world;
     private PNGridWorldController controller;
     private string output;
-    private bool large;
+    private bool large, bodies;
     private int errors, checks;
     private float previousTimeScale; private int previousFrameRate, previousVSync; private bool previousBackground;
     private static readonly System.Reflection.FieldInfo RouteField = typeof(PNEnemyNavigationRequest).GetField("Route", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
 
-    public static void Begin(string directory, bool large = false)
+    public static void Begin(string directory, bool large = false, bool bodies = false)
     {
         if (!Application.isPlaying) throw new InvalidOperationException("Start the grid edit review in Play Mode.");
         var root = new GameObject("Grid Edit Review"); DontDestroyOnLoad(root);
-        var review = root.AddComponent<PNGridEditPlayReview>(); review.large = large; review.Go(directory);
+        var review = root.AddComponent<PNGridEditPlayReview>(); review.large = large; review.bodies = bodies; review.Go(directory);
     }
 
     private void Go(string directory)
@@ -95,7 +95,7 @@ public sealed class PNGridEditPlayReview : MonoBehaviour
         previousTimeScale = Time.timeScale; previousFrameRate = Application.targetFrameRate; previousVSync = QualitySettings.vSyncCount; previousBackground = Application.runInBackground;
         Application.targetFrameRate = 60; QualitySettings.vSyncCount = 0; Application.runInBackground = true;
         Application.logMessageReceived += Logged;
-        StartCoroutine(Drive(large ? RunLarge() : RunSmall()));
+        StartCoroutine(Drive(bodies ? RunBodies() : large ? RunLarge() : RunSmall()));
     }
 
     private void Check(bool ok, string name) { checks += ok ? 1 : 0; evidence.Add((ok ? "PASS " : "FAIL ") + name); if (!ok) throw new Exception(name); }
@@ -132,7 +132,7 @@ public sealed class PNGridEditPlayReview : MonoBehaviour
         Application.targetFrameRate = previousFrameRate; QualitySettings.vSyncCount = previousVSync; Application.runInBackground = previousBackground;
         bool pass = failure == null && errors == 0 && EveRegistrySession.State == EveSessionState.Stopped;
         evidence.Add($"RESULT {(pass ? "PASS" : "FAIL")} checks={checks} errors={errors} session={EveRegistrySession.State}");
-        File.WriteAllLines(Path.Combine(output, large ? "results-large.txt" : "results.txt"), evidence);
+        File.WriteAllLines(Path.Combine(output, bodies ? "results-bodies.txt" : large ? "results-large.txt" : "results.txt"), evidence);
         Finished?.Invoke(pass, output); Destroy(gameObject);
     }
 
@@ -469,6 +469,58 @@ public sealed class PNGridEditPlayReview : MonoBehaviour
         Note($"256 clustered placements: {total:F2} ms, {regions.Count} region(s)");
         Check(placed == 256 && regions.Count == 1 && taken == 256 && !lease.TryProject(new Vector3(769.25f, 0, 769.25f), .1f, out _) && lease.TryProject(new Vector3(763.25f, 0, 769.25f), .1f, out _), "256 clustered things are one region");
         // a route across the world still works with all of it in place
+        yield return Unload2();
+    }
+
+    // G8b: a body in the way. A blocking placement over it is refused, a blast over it moves it to the nearest free spot, and the settle hold is released.
+    private IEnumerator RunBodies()
+    {
+        StartSession("bodies");
+        yield return CreateWorld(PNGridIds.SandboxTestMaze, 60);
+        var build = worlds.Get(world); controller = PNGridWorldController.Find(world);
+        var data = controller.Data; var wall = Def(PNPlaceableIds.Vanish); var marker = Def(PNPlaceableIds.Marker);
+        Check(controller != null && wall != null && marker != null, "the world has a controller and the placeables resolve");
+        var spawnPoints = build.Slots[0].Roots[0].GetComponentsInChildren<PNPlayerSpawnPoint>(true);
+        Check(spawnPoints.Length == 1 && spawnPoints[0].SpawnEntry == "player", "the world has one player spawn point (entry `player`)");
+        spawnPoints[0].Validate(); Check(true, "and it validates (prefab, ground)");
+        Check(PNGridBodies.FindFreeSpot(data, 24f, 20f, out float sx, out float sz), "a free spot exists for the body");
+
+        var root = new GameObject("Grid body review") { layer = 7 }; root.SetActive(false); actors.Add(root);
+        UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(root, world.PhysicsOwner); root.transform.position = new Vector3(sx, .02f, sz);
+        var identity = root.AddComponent<EveEntityIdentity>(); identity.Assign(new EveEntityId(nextEntity++), EveId.Parse("project_n:starkeeper"), 0); identity.BindWorld(world, "main");
+        root.AddComponent<PNEnemyStat>(); var rigidbody = root.AddComponent<Rigidbody>(); rigidbody.constraints = RigidbodyConstraints.FreezeRotation;
+        var capsule = root.AddComponent<CapsuleCollider>(); capsule.radius = .2f; capsule.height = 1.4f; capsule.center = Vector3.up * .7f;
+        root.AddComponent<EveTimeScale>().MinScale = 0;
+        var move = root.AddComponent<PNEnemyMove>(); move.GroundLayers = 1 << 13; move.CanJump = false;
+        var loader = root.AddComponent<EveEntityLoader>(); loader.Load(session.Registry); root.SetActive(true);
+        float deadline = Time.realtimeSinceStartup + 20; while (!loader.IsReady && Time.realtimeSinceStartup < deadline) yield return null;
+        Check(loader.IsReady, "the body is loaded");
+        yield return null; yield return null;
+        move.Body.position = new Vector3(sx, .02f, sz); move.transform.position = move.Body.position; Physics.SyncTransforms();
+        yield return new WaitForFixedUpdate();
+
+        int cx = Mathf.FloorToInt(sx / data.CellSize), cz = Mathf.FloorToInt(sz / data.CellSize);
+        Check(controller.BodyInRegion(new PNGridRegion(cx, cz, cx, cz)), "the body is found in the cell it stands on");
+        Check(!controller.BodyInRegion(new PNGridRegion(cx + 20, cz + 20, cx + 20, cz + 20)), "and not in a cell far away");
+        bool placed = controller.Placements.TryPlace(wall, cx, cz, 0, out _, out string reason);
+        Check(!placed && reason != null && reason.Contains("Something stands there"), "a blocking placeable over the body is refused: " + reason);
+        Check(controller.Placements.TryPlace(marker, cx, cz, 0, out _, out string markerReason), "a marker that blocks nothing is allowed over the body: " + markerReason);
+
+        move.CanMove = false; Check(!move.CanMove, "the body is locked (stunned): a teleport command would refuse it");
+        var region = new PNGridRegion(cx - 4, cz - 4, cx + 4, cz + 4);
+        var group = controller.Editor.SubmitGroup(PNGridEditBatch.SolidRegionBatches(region, true));
+        Check(group.Accepted && controller.Editor.Settling && data.Settling, "the blast is accepted as a group and updates are held");
+        for (int i = 0; i < 30 && controller.Editor.QueuedCells > 0; i++) { PumpAndFlush(); yield return null; }
+        PumpAndFlush(); yield return null; yield return new WaitForFixedUpdate(); yield return null;
+        Check(controller.Editor.QueuedCells == 0 && !controller.Editor.Settling && !data.Settling, "the blast is applied and the hold is released");
+        Check(controller.PushedOut >= 1, "the body was pushed out (" + controller.PushedOut + ")");
+        var at = move.Body.position;
+        int bx = Mathf.FloorToInt(at.x / data.CellSize), bz = Mathf.FloorToInt(at.z / data.CellSize);
+        Check(!move.CanMove, "and it is still locked (relocation is not a movement command)");
+        Check(PNGridBodies.FootprintFree(data, at.x, at.z), "it now stands on free cells (" + bx + "," + bz + ") from (" + cx + "," + cz + ")");
+        Check(Vector2.Distance(new Vector2(at.x, at.z), new Vector2(sx, sz)) < 4f, "and close to where it was");
+        loader.Unload(); identity.ResetIdentity(); actors.Remove(root); Destroy(root);
+        yield return null;
         yield return Unload2();
     }
 

@@ -190,6 +190,8 @@ public sealed class PNGridPlacements
     public event Action<PNPlacedObject> Added;
     public event Action<PNPlacedObject> Removed;
     public int Count => byId.Count;
+    // Set by the live world: true when a body stands inside the region. A thing that blocks the way is not placed on top of one (G8b); a restored save is not asked.
+    public Func<PNGridRegion, bool> BlockedByBody { get; set; }
     public IEnumerable<PNPlacedObject> All => byId.Values;
 
     // `buildableGround(paletteIndex)` says whether something may be put down on that ground type.
@@ -218,6 +220,7 @@ public sealed class PNGridPlacements
             if (occupied.ContainsKey(Key(cx, cz))) { reason = "Cell (" + cx + "," + cz + ") is taken."; return false; }
             if (!buildableGround(data.GroundAt(cx, cz))) { reason = "Cell (" + cx + "," + cz + ") is not buildable ground."; return false; }
         }
+        if (definition.Settings.BlocksPath && BlockedByBody != null && BlockedByBody(new PNGridRegion(x, z, x + w - 1, z + d - 1))) { reason = "Something stands there."; return false; }
         return true;
     }
 

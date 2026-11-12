@@ -10,7 +10,7 @@ using System.Collections.Generic;
 public static class PNGridEditLimits
 {
     // Cells in one batch, extent of one batch (cells along either side), cells applied per tick, cells waiting in the queue, the side of a clustering tile, and the largest raw height.
-    public const int MaxBatchCells = 4096, MaxBatchExtent = 129, MaxCellsPerTick = 1024, MaxQueuedCells = 65536, ClusterTile = 8, MaxHeightRaw = 4000;
+    public const int MaxBatchCells = 4096, MaxBatchExtent = 129, MaxCellsPerTick = 1024, MaxCellsPerTickTimed = 4096, MaxQueuedCells = 65536, ClusterTile = 8, MaxHeightRaw = 4000;
 }
 
 public enum PNGridEditKind : byte { Solid = 0, Ground = 1, Height = 2 }
@@ -33,6 +33,17 @@ public sealed class PNGridEditBatch
     public PNGridEditBatch AddHeight(int x, int z, int raw) { edits.Add(new PNGridEdit(PNGridEditKind.Height, x, z, raw)); return this; }
     public PNGridEditBatch AddSolidRegion(PNGridRegion region, bool value)
     { for (int z = region.Z0; z <= region.Z1; z++) for (int x = region.X0; x <= region.X1; x++) AddSolid(x, z, value); return this; }
+
+    // A large region as the batches the gateway accepts (tiles of at most 64 x 64 cells, in row-major tile order); a region that does not fit the queue (65 536 cells) is for the caller to cut further.
+    public static List<PNGridEditBatch> SolidRegionBatches(PNGridRegion region, bool value)
+    {
+        var batches = new List<PNGridEditBatch>();
+        if (!region.IsValid) return batches;
+        const int Tile = 64;
+        for (int z = region.Z0; z <= region.Z1; z += Tile) for (int x = region.X0; x <= region.X1; x += Tile)
+            batches.Add(new PNGridEditBatch().AddSolidRegion(new PNGridRegion(x, z, Math.Min(x + Tile - 1, region.X1), Math.Min(z + Tile - 1, region.Z1)), value));
+        return batches;
+    }
 }
 
 public readonly struct PNGridEditSubmit
@@ -99,10 +110,46 @@ public sealed class PNGridEditor
     // Validates the whole batch first; a batch with any bad edit is refused as a whole (nothing is queued). Cells that the world edge or a value limit rule out are bad.
     public PNGridEditSubmit Submit(PNGridEditBatch batch)
     {
+        var check = Validate(batch, 0);
+        if (!check.Accepted || batch.Count == 0) return check;
+        foreach (var e in batch.Edits) queue.Enqueue(e);
+        WantSettle();
+        return check;
+    }
+
+    // Several batches as ONE group (G8b): every batch is checked first and none is queued unless all are accepted. Clients are sent the result when the whole group has been applied (or after
+    // PNGridChunkLimits.SettleSeconds, whichever comes first), so a structure built from many batches appears as one piece.
+    public PNGridEditSubmit SubmitGroup(IReadOnlyList<PNGridEditBatch> batches)
+    {
+        if (batches == null) throw new ArgumentNullException(nameof(batches));
+        int total = 0;
+        foreach (var batch in batches)
+        {
+            var check = Validate(batch, total);
+            if (!check.Accepted) return check;
+            total += batch.Count;
+        }
+        foreach (var batch in batches) foreach (var e in batch.Edits) queue.Enqueue(e);
+        if (total > 0) WantSettle();
+        return new PNGridEditSubmit(true, total, null);
+    }
+
+    // Groups held open by a caller that submits its batches over several frames (a mod building a large structure): updates to clients wait until EndGroup (or the settle bound).
+    private int groups;
+    private bool settling;
+    public bool Settling => settling;
+    public void BeginGroup() { groups++; WantSettle(); }
+    public void EndGroup() { if (groups > 0) groups--; ReleaseSettle(); }
+    private void WantSettle() { if (!settling && (queue.Count > 0 || groups > 0)) { settling = true; data.BeginSettle(); } }
+    private void ReleaseSettle() { if (settling && queue.Count == 0 && groups == 0) { settling = false; data.EndSettle(); } }
+
+    // `pending` counts cells of earlier batches of the same group that are checked but not queued yet.
+    private PNGridEditSubmit Validate(PNGridEditBatch batch, int pending)
+    {
         if (batch == null) throw new ArgumentNullException(nameof(batch));
         if (batch.Count == 0) return new PNGridEditSubmit(true, 0, null);
         if (batch.Count > PNGridEditLimits.MaxBatchCells) return Refuse("A batch holds at most " + PNGridEditLimits.MaxBatchCells + " cells.");
-        if (queue.Count + batch.Count > PNGridEditLimits.MaxQueuedCells) return Refuse("The edit queue is full.");
+        if (queue.Count + pending + batch.Count > PNGridEditLimits.MaxQueuedCells) return Refuse("The edit queue is full.");
         int x0 = int.MaxValue, z0 = int.MaxValue, x1 = int.MinValue, z1 = int.MinValue;
         foreach (var e in batch.Edits)
         {
@@ -119,18 +166,21 @@ public sealed class PNGridEditor
             if (e.X < x0) x0 = e.X; if (e.X > x1) x1 = e.X; if (e.Z < z0) z0 = e.Z; if (e.Z > z1) z1 = e.Z;
         }
         if (x1 - x0 + 1 > PNGridEditLimits.MaxBatchExtent || z1 - z0 + 1 > PNGridEditLimits.MaxBatchExtent) return Refuse("A batch spans at most " + PNGridEditLimits.MaxBatchExtent + " cells on a side.");
-        foreach (var e in batch.Edits) queue.Enqueue(e);
         return new PNGridEditSubmit(true, batch.Count, null);
     }
     private static PNGridEditSubmit Refuse(string reason) => new PNGridEditSubmit(false, 0, reason);
 
     // Applies up to `budget` queued edits (never more than PNGridEditLimits.MaxCellsPerTick) and returns the clusters of cells that changed in `regions`; the clearance field is already recomputed for them.
     // Returns the number of edits taken from the queue.
-    public int Tick(int budget, List<PNGridRegion> regions)
+    public int Tick(int budget, List<PNGridRegion> regions) => Tick(budget, regions, 0, 0);
+
+    // With a `deadline` (a Stopwatch tick count) the edits are applied until it passes, at least `minimum` of them and at most `budget` (up to MaxCellsPerTickTimed): a blast or a mod's structure takes as many cells
+    // as the frame can spare instead of a fixed number. The clock is looked at every 128 edits.
+    public int Tick(int budget, List<PNGridRegion> regions, long deadline, int minimum)
     {
         if (regions == null) throw new ArgumentNullException(nameof(regions));
-        budget = Math.Min(budget, PNGridEditLimits.MaxCellsPerTick);
-        if (budget <= 0 || queue.Count == 0) return 0;
+        budget = Math.Min(budget, deadline != 0 ? PNGridEditLimits.MaxCellsPerTickTimed : PNGridEditLimits.MaxCellsPerTick);
+        if (budget <= 0 || queue.Count == 0) { ReleaseSettle(); return 0; }
         applied.Clear(); int taken = 0; bool solidChanged = false;
         while (taken < budget && queue.Count > 0)
         {
@@ -152,11 +202,13 @@ public sealed class PNGridEditor
                     data.SetHeightRaw(e.X, e.Z, (short)e.Value); break;
             }
             applied.Add((e.X, e.Z));
+            if (deadline != 0 && taken >= minimum && (taken & 127) == 0 && System.Diagnostics.Stopwatch.GetTimestamp() > deadline) break;
         }
         AppliedCells += taken;
         var found = PNGridClusters.Group(applied);
         if (solidChanged) foreach (var region in found) data.RecomputeClearance(region);
         regions.AddRange(found);
+        ReleaseSettle();
         return taken;
     }
 }

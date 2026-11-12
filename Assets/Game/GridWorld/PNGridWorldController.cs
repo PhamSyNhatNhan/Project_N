@@ -11,7 +11,9 @@ using UnityEngine;
 // VI: Phía chạy của việc sửa world lưới (G3), mỗi world một cái, ở authority: giữ cổng sửa ô và danh sách vật đặt, áp một số ô mỗi frame, đưa vùng đổi cho lease điều hướng; host mesh tự dựng lại theo phiên bản mảnh.
 public sealed class PNGridWorldController : MonoBehaviour
 {
+    // The edits applied per frame: at least this many, and more while the frame's edit budget (EditBudgetMilliseconds) lasts, up to PNGridEditLimits.MaxCellsPerTickTimed (G8b).
     public const int CellsPerFrame = 512;
+    public const double EditBudgetMilliseconds = 1.5;
     // Regions handed to the graph per frame: a graph update costs about 0.2 to 0.4 ms per region plus a constant 1.2 to 2.3 ms (measured on a 2048 x 2048 world, the machine varies), so a burst of far-apart edits is spread over frames.
     public const int NavRegionsPerFrame = 8;
     private readonly Queue<PNGridRegion> navPending = new Queue<PNGridRegion>();
@@ -31,6 +33,9 @@ public sealed class PNGridWorldController : MonoBehaviour
     public PNGridWorldHost Host { get; private set; }
     public int TicksWithEdits { get; private set; }
     public int CellsPerFrameLimit { get; set; } = CellsPerFrame;
+    // The time one frame may spend applying edits (0 turns the time budget off and applies exactly CellsPerFrameLimit).
+    public double EditBudget { get; set; } = EditBudgetMilliseconds;
+    public int LastTaken { get; private set; }
 
     public static PNGridWorldController Find(EveWorldContext world) => world != null && controllers.TryGetValue(world, out var value) ? value : null;
 
@@ -44,6 +49,7 @@ public sealed class PNGridWorldController : MonoBehaviour
         controller.Editor = new PNGridEditor(host.Data);
         controller.Placements = new PNGridPlacements(host.Data, controller.Editor, index => index >= 0 && index < buildable.Length && buildable[index]);
         controller.Placements.Added += controller.OnAdded; controller.Placements.Removed += controller.OnRemoved;
+        controller.Placements.BlockedByBody = controller.BodyInRegion;
         controllers[world] = controller; return controller;
     }
 
@@ -57,14 +63,59 @@ public sealed class PNGridWorldController : MonoBehaviour
     public int Pump()
     {
         regions.Clear();
-        int taken = Editor.Tick(CellsPerFrameLimit, regions);
+        int taken = EditBudget > 0
+            ? Editor.Tick(PNGridEditLimits.MaxCellsPerTickTimed, regions, System.Diagnostics.Stopwatch.GetTimestamp() + (long)(EditBudget * System.Diagnostics.Stopwatch.Frequency / 1000.0), CellsPerFrameLimit)
+            : Editor.Tick(CellsPerFrameLimit, regions);
+        LastTaken = taken;
         if (taken > 0) TicksWithEdits++;
         foreach (var region in regions) navPending.Enqueue(region);
+        if (regions.Count > 0) PushOutOfSolid(regions);
         if (navPending.Count == 0) return taken;
         navSlice.Clear();
         while (navPending.Count > 0 && navSlice.Count < NavRegionsPerFrame) navSlice.Add(navPending.Dequeue());
         PNWorldNavigation.Find(World)?.ApplyGridChanges(navSlice);
         return taken;
+    }
+
+    // ---- bodies and solid cells (G8b) ----
+    public int PushedOut { get; private set; }
+    private static readonly List<Transform> bodies = new List<Transform>();
+
+    // The things that walk in this world (the ones with a PNMove): players, enemies, summons. A projectile or a prop does not count.
+    private List<Transform> Bodies()
+    {
+        bodies.Clear();
+        foreach (var entity in World.Session.Entities.Snapshot(World))
+            if (entity != null && entity.IsReady && entity.GetComponent<PNMove>() != null) bodies.Add(entity.transform);
+        return bodies;
+    }
+    // True when a body's footprint touches the region (a thing is not put down on someone).
+    public bool BodyInRegion(PNGridRegion region)
+    {
+        foreach (var body in Bodies()) if (PNGridBodies.Overlaps(PNGridBodies.Footprint(Data, body.position.x, body.position.z), region)) return true;
+        return false;
+    }
+
+    // After edits were applied: a body whose footprint is now inside solid cells is moved to the nearest free spot with PNMove.RelocateToPoint (works while the body is stunned or held, cancels the running command).
+    // A body that a CLIENT owns is left to that client (PNGridChunkReceiver moves it when the walls reach its copy of the world, the way Minecraft and Terraria let the owner's machine free the owner); the host's
+    // copy of it follows from its reports. Returns how many bodies were moved.
+    public int PushOutOfSolid(List<PNGridRegion> changed)
+    {
+        if (changed == null || changed.Count == 0) return 0;
+        int moved = 0;
+        foreach (var body in Bodies().ToArray())
+        {
+            var f = PNGridBodies.Footprint(Data, body.position.x, body.position.z); bool touched = false;
+            foreach (var region in changed) if (PNGridBodies.Overlaps(f, region.Expand(1))) { touched = true; break; }
+            if (!touched || PNGridBodies.FootprintFree(Data, body.position.x, body.position.z)) continue;
+            if (!PNGridBodies.FindFreeSpot(Data, body.position.x, body.position.z, out float spotX, out float spotZ)) continue;
+            var move = body.GetComponent<PNMove>();
+            if (move.NetworkRole == PNMoveNetworkRole.RemoteOwnerHost) continue;
+            try { move.RelocateToPoint(new Vector2(spotX, spotZ)); moved++; }
+            catch (Exception error) { Debug.LogWarning("Could not move " + body.name + " out of a new wall: " + error.Message, body); }
+        }
+        PushedOut += moved;
+        return moved;
     }
 
     private void OnAdded(PNPlacedObject placed)

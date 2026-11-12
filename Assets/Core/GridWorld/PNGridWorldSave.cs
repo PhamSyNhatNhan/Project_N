@@ -106,6 +106,21 @@ public sealed class PNGridChunkCopy
         }
     }
 
+    // Adler-32 of the chunk's raw bytes as they are now (ground, height, solid; the same layout the blob checksums). A client compares it with the host's after it applied a delta.
+    public static uint Checksum(PNGridWorldData data, int index)
+    {
+        var copy = Capture(data, index % data.ChunksX, index / data.ChunksX);
+        try
+        {
+            uint a = 1, b = 0;
+            foreach (var value in copy.Ground) { a = (a + (byte)value) % 65521; b = (b + a) % 65521; a = (a + (byte)(value >> 8)) % 65521; b = (b + a) % 65521; }
+            foreach (var value in copy.Height) { a = (a + (byte)value) % 65521; b = (b + a) % 65521; a = (a + (byte)(value >> 8)) % 65521; b = (b + a) % 65521; }
+            foreach (var value in copy.Solid) { a = (a + value) % 65521; b = (b + a) % 65521; }
+            return b << 16 | a;
+        }
+        finally { copy.Release(); }
+    }
+
     private static uint Adler(byte[] data)
     {
         uint a = 1, b = 0;

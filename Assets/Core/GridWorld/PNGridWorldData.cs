@@ -100,6 +100,10 @@ public sealed class PNGridWorldData
     private readonly byte[] solid;
     private readonly byte[] clearance;
     private readonly int[] chunkVersion;
+    // Content revision per chunk (step G8b): moves by one for every change of a cell OF that chunk (ground, height, solid) and not for the neighbour touch that only makes a mesh rebuild; the chunk channel compares it.
+    private readonly int[] chunkRevision;
+    private readonly int[] journalFloor;
+    private PNGridChunkJournal[] journals;
 
     public PNGridWorldData(PNGridWorldDescriptor descriptor, IReadOnlyList<string> palette)
     {
@@ -122,6 +126,7 @@ public sealed class PNGridWorldData
         solid = new byte[Width * Depth];
         clearance = new byte[Width * Depth];
         chunkVersion = new int[ChunksX * ChunksZ];
+        chunkRevision = new int[chunkVersion.Length]; journalFloor = new int[chunkVersion.Length];
         RecomputeClearance(new PNGridRegion(0, 0, Width - 1, Depth - 1));
     }
 
@@ -142,6 +147,8 @@ public sealed class PNGridWorldData
         if (type >= Palette.Count) throw new ArgumentOutOfRangeException(nameof(type), "Ground type is not in the palette.");
         int i = gz * GroundColumns + gx; if (ground[i] == type) return;
         ground[i] = type;
+        int gc = PNGridWorldLimits.ChunkCells / GroundFactor;
+        Mutated((gz / gc) * ChunksX + gx / gc, PNGridJournalKind.Ground, (gz % gc) * gc + gx % gc);
         Touch(new PNGridRegion(gx * GroundFactor, gz * GroundFactor, (gx + 1) * GroundFactor - 1, (gz + 1) * GroundFactor - 1));
     }
     public string GroundId(int x, int z) => Palette[GroundAt(x, z)];
@@ -152,7 +159,7 @@ public sealed class PNGridWorldData
     public void SetHeightRaw(int x, int z, short raw)
     {
         Require(x, z); int i = Index(x, z); if (height[i] == raw) return;
-        height[i] = raw; Touch(PNGridRegion.Cell(x, z));
+        height[i] = raw; MutatedCell(x, z, PNGridJournalKind.Height); Touch(PNGridRegion.Cell(x, z));
     }
     // True while every cell is at height 0 (the navigation of the first release only supports a flat floor).
     public bool IsFlat()
@@ -168,6 +175,7 @@ public sealed class PNGridWorldData
     {
         Require(x, z); int i = Index(x, z); if ((solid[i] != 0) == value) return;
         solid[i] = value ? (byte)1 : (byte)0; SolidCount += value ? 1 : -1;
+        MutatedCell(x, z, PNGridJournalKind.Solid);
         Touch(PNGridRegion.Cell(x, z)); if (recomputeClearance) RecomputeClearance(PNGridRegion.Cell(x, z));
     }
     public void FillSolid(PNGridRegion region, bool value)
@@ -177,7 +185,7 @@ public sealed class PNGridWorldData
         for (int z = r.Z0; z <= r.Z1; z++) for (int x = r.X0; x <= r.X1; x++)
         {
             int i = Index(x, z); if ((solid[i] != 0) == value) continue;
-            solid[i] = value ? (byte)1 : (byte)0; SolidCount += value ? 1 : -1; any = true;
+            solid[i] = value ? (byte)1 : (byte)0; SolidCount += value ? 1 : -1; any = true; MutatedCell(x, z, PNGridJournalKind.Solid);
         }
         if (!any) return;
         Touch(r); RecomputeClearance(r);
@@ -268,12 +276,61 @@ public sealed class PNGridWorldData
             for (int x = 0; x < c; x++) SolidCount += solidIn[z * c + x] - solid[at + x];
             Array.Copy(heightIn, z * c, height, at, c); Array.Copy(solidIn, z * c, solid, at, c);
         }
+        int chunk = cz * ChunksX + cx; chunkRevision[chunk]++; journalFloor[chunk] = chunkRevision[chunk];
         Touch(ChunkRegion(cx, cz));
     }
 
     // Every user of the data (the mesh, a save, the network) keeps the version it last used per chunk and compares it with this; nobody has to coordinate who clears a dirty flag.
     public int ChunkVersion(int cx, int cz) => chunkVersion[ChunkIndex(cx, cz)];
     public int ChunkVersionAt(int index) => chunkVersion[index];
+
+    // ---- content revision and the journal of changed cells (G8b) ----
+    // Revision of the CONTENT of a chunk (what `ExportChunk` returns). Two reads with the same revision see the same cells.
+    public int ChunkRevisionAt(int index) => chunkRevision[index];
+    // The oldest revision a delta may start from (a whole-chunk import cuts the journal).
+    public int JournalFloorAt(int index) => journalFloor[index];
+    // Starts recording which cells change (the host does it when the first client subscribes). Changes before this call are not in the journal, so a delta never reaches back past it.
+    public void EnableJournal()
+    {
+        if (journals != null) return;
+        journals = new PNGridChunkJournal[chunkVersion.Length];
+        for (int i = 0; i < chunkRevision.Length; i++) journalFloor[i] = chunkRevision[i];
+    }
+    public bool JournalEnabled => journals != null;
+    // True when the journal holds every change from revision `from` (exclusive) up to the current one.
+    public bool JournalCovers(int index, int from) => journals != null && from >= journalFloor[index] && from <= chunkRevision[index] && chunkRevision[index] - from <= PNGridChunkJournal.Capacity;
+    // The distinct changed cells after revision `from`, as (kind, local index) keys sorted; empty when the journal does not cover.
+    public bool TryChangedCells(int index, int from, List<int> keys)
+    {
+        keys.Clear();
+        if (!JournalCovers(index, from)) return false;
+        var journal = journals[index];
+        for (int r = from + 1; r <= chunkRevision[index]; r++) keys.Add(journal.At(r));
+        keys.Sort();
+        int w = 0;
+        for (int i = 0; i < keys.Count; i++) if (i == 0 || keys[i] != keys[i - 1]) keys[w++] = keys[i];
+        keys.RemoveRange(w, keys.Count - w);
+        return true;
+    }
+    // ---- holding updates back while a batch of edits is being applied (G8b) ----
+    private int settleDepth; private long settleSince;
+    // The edit gateway calls these: updates to clients wait (for at most PNGridChunkLimits.SettleSeconds) while edits are queued or a group is open, so a blast reaches them in one piece.
+    public void BeginSettle() { if (settleDepth++ == 0) settleSince = System.Diagnostics.Stopwatch.GetTimestamp(); }
+    public void EndSettle() { if (settleDepth > 0) settleDepth--; }
+    public bool Settling => settleDepth > 0;
+    public bool HoldsUpdates(long now) => settleDepth > 0 && now - settleSince < (long)(PNGridChunkLimits.SettleSeconds * System.Diagnostics.Stopwatch.Frequency);
+
+    private void MutatedCell(int x, int z, PNGridJournalKind kind)
+    {
+        int c = PNGridWorldLimits.ChunkCells;
+        Mutated((z / c) * ChunksX + x / c, kind, (z % c) * c + x % c);
+    }
+    private void Mutated(int chunk, PNGridJournalKind kind, int local)
+    {
+        int revision = ++chunkRevision[chunk];
+        if (journals == null) return;
+        (journals[chunk] ?? (journals[chunk] = new PNGridChunkJournal())).Set(revision, PNGridChunkJournal.Key(kind, local));
+    }
 
     // A change to a cell also changes the chunks beside it (a wall mesh looks at its neighbours), so the region is grown by one cell.
     private void Touch(PNGridRegion region)
@@ -282,4 +339,18 @@ public sealed class PNGridWorldData
         int c = PNGridWorldLimits.ChunkCells;
         for (int cz = r.Z0 / c; cz <= r.Z1 / c; cz++) for (int cx = r.X0 / c; cx <= r.X1 / c; cx++) chunkVersion[cz * ChunksX + cx]++;
     }
+}
+
+public enum PNGridJournalKind : byte { Solid = 0, Ground = 1, Height = 2 }
+
+// The last cells that changed in one chunk, a ring of PNGridChunkJournal.Capacity entries indexed by revision. Each entry is a key (kind and local index); the value is read from the world when a delta is built.
+public sealed class PNGridChunkJournal
+{
+    public const int Capacity = 256;
+    private readonly int[] keys = new int[Capacity];
+    public static int Key(PNGridJournalKind kind, int local) => (int)kind << 16 | local;
+    public static PNGridJournalKind KindOf(int key) => (PNGridJournalKind)(key >> 16);
+    public static int LocalOf(int key) => key & 0xffff;
+    public void Set(int revision, int key) => keys[revision & (Capacity - 1)] = key;
+    public int At(int revision) => keys[revision & (Capacity - 1)];
 }

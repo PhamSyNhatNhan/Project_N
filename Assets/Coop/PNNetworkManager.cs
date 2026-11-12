@@ -197,6 +197,7 @@ namespace ProjectN.Coop
             RoomId=Guid.NewGuid();RoomIncarnation=1;
             var interest=GetComponent<PNWorldInterestManagement>()??gameObject.AddComponent<PNWorldInterestManagement>();interest.Manager=this;
             NetworkServer.RegisterHandler<PNWorldLoaded>(ReceiveWorldLoaded);
+            NetworkServer.RegisterHandler<PNGridChunkResync>(ReceiveGridResync);
             NetworkServer.RegisterHandler<PNWorldApplied>(ReceiveWorldApplied);
             NetworkServer.RegisterHandler<PNPlayReady>(ReceivePlayReady);
             NetworkServer.RegisterHandler<PNHeartbeat>(ReceiveHeartbeat);

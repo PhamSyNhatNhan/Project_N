@@ -344,6 +344,7 @@ namespace ProjectN.Coop
             foreach(var entry in clientWorlds.Values.ToArray())
             {
                 if(entry.World==null)continue;
+                if(entry.Loaded)PumpGridResync(entry);
                 if(entry.World.State==EveWorldState.Failed||!entry.Loaded&&Time.realtimeSinceStartupAsDouble-entry.Started>60){NetworkClient.Send(new PNWorldLoaded{Ticket=entry.Offer.Ticket,Success=false});CloseClientWorld(entry);continue;}
                 if(!entry.Loaded&&entry.World.State==EveWorldState.Ready){entry.World.SetPaused(entry.Offer.Paused);entry.Loaded=true;NetworkClient.Send(new PNWorldLoaded{Ticket=entry.Offer.Ticket,Success=true});}
                 if(!entry.Loaded||entry.AwaitingConfirmation||entry.ConfirmedRevision==entry.FenceRevision||entry.Count<0||entry.Count!=entry.Incoming.Count||entry.Digest!=BindingDigest(null,entry.World.InstanceId)||!entry.Incoming.Values.All(TargetApplied))continue;

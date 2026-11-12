@@ -15,6 +15,11 @@ public sealed class PNGridChunkReceiver : MonoBehaviour
     private EveWorldContext world;
     private PNGridWorldData data;
     private PNGridChunkInbox inbox;
+    // Bodies this machine owns are freed from solid cells here, when chunks have been applied and every so often after (a held body, which the host does not let move, is tried again later).
+    public const float RecheckSeconds = .25f;
+    private float nextRecheck;
+    private readonly System.Collections.Generic.List<PNMove> owned = new System.Collections.Generic.List<PNMove>();
+    public int PushedOut { get; private set; }
 
     public PNGridChunkInbox Inbox => inbox;
     public int Applied { get; private set; }
@@ -35,13 +40,38 @@ public sealed class PNGridChunkReceiver : MonoBehaviour
         try { done = inbox.Apply(data, ChunksPerFrame, deadline); }
         catch (FormatException error) { if (world.State != EveWorldState.Disposed) world.Fail(error); return 0; }
         Applied += done;
+        if (done > 0) { PushOwnedOut(); nextRecheck = Time.unscaledTime + RecheckSeconds; }
         return done;
+    }
+
+    // A body owned by this machine whose footprint is inside solid cells of this copy of the world is moved to the nearest free spot (PNMove.RelocateToPoint; its owner report carries the new place to the host).
+    public int PushOwnedOut()
+    {
+        if (world == null || world.State == EveWorldState.Disposed || !world.Session.LocalOwnerId.HasValue) return 0;
+        long local = world.Session.LocalOwnerId.Value; int moved = 0;
+        owned.Clear();
+        foreach (var entity in world.Session.Entities.Snapshot(world))
+        {
+            if (entity == null || !entity.IsReady) continue;
+            var identity = entity.GetComponent<EveEntityIdentity>(); var move = entity.GetComponent<PNMove>();
+            if (identity != null && move != null && identity.OwnerId == local) owned.Add(move);
+        }
+        foreach (var move in owned)
+        {
+            var at = move.transform.position;
+            if (PNGridBodies.FootprintFree(data, at.x, at.z)) continue;
+            if (!PNGridBodies.FindFreeSpot(data, at.x, at.z, out float x, out float z)) continue;
+            try { move.RelocateToPoint(new Vector2(x, z)); moved++; }
+            catch (Exception error) { UnityEngine.Debug.LogWarning("Could not move " + move.name + " out of a wall: " + error.Message, move); }
+        }
+        PushedOut += moved; return moved;
     }
 
     private void Update()
     {
         if (world == null || !world.CanExecute) return;
         Pump();
+        if (Time.unscaledTime >= nextRecheck) { nextRecheck = Time.unscaledTime + RecheckSeconds; PushOwnedOut(); }
     }
 }
 #endif

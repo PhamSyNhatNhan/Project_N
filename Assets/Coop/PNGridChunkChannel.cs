@@ -20,12 +20,32 @@ namespace ProjectN.Coop
         public PNGridChunkItem[] Items;
     }
 
+    // Client -> host (G8b): the chunks whose copy disagreed with the host's checksum (or whose base revision did not match); the host sends each again whole.
+    public struct PNGridChunkResync : NetworkMessage
+    {
+        public PNWorldTicket Ticket;
+        public int[] Indices;
+    }
+
     public static class PNGridChunkWire
     {
+        public static void WriteGridChunkResync(this NetworkWriter w,PNGridChunkResync m)
+        {
+            m.Ticket.Validate();if(m.Indices==null||m.Indices.Length<1||m.Indices.Length>PNGridChunkLimits.MaxResyncPerPacket)throw new FormatException("Grid resync count.");
+            w.WriteByte(1);w.WriteWorldTicket(m.Ticket);w.WriteByte((byte)m.Indices.Length);foreach(int i in m.Indices){if(i<0)throw new FormatException("Grid resync index.");w.WriteInt(i);}
+        }
+        public static PNGridChunkResync ReadGridChunkResync(this NetworkReader r)
+        {
+            if(r.Remaining>PNWorldWire.ControlBytes)throw new FormatException("Grid resync bound.");
+            if(r.ReadByte()!=1)throw new FormatException("Grid resync schema.");
+            var m=new PNGridChunkResync{Ticket=r.ReadWorldTicket()};int count=r.ReadByte();if(count<1||count>PNGridChunkLimits.MaxResyncPerPacket)throw new FormatException("Grid resync count.");
+            m.Indices=new int[count];for(int i=0;i<count;i++){m.Indices[i]=r.ReadInt();if(m.Indices[i]<0)throw new FormatException("Grid resync index.");}
+            if(r.Remaining!=0)throw new FormatException("Grid resync length.");return m;
+        }
         public static void WriteGridChunkPacket(this NetworkWriter w,PNGridChunkPacket p)
         {
             Validate(p);w.WriteByte(1);w.WriteWorldTicket(p.Ticket);w.WriteByte((byte)(p.Final?1:0));w.WriteByte((byte)p.Items.Length);
-            foreach(var item in p.Items){w.WriteInt(item.Index);w.WriteInt(item.Version);w.WriteUShort((ushort)item.Blob.Length);w.WriteBytes(item.Blob,0,item.Blob.Length);}
+            foreach(var item in p.Items){w.WriteInt(item.Index);w.WriteInt(item.Version);w.WriteInt(item.IsDelta?item.Base:-1);w.WriteUShort((ushort)item.Blob.Length);w.WriteBytes(item.Blob,0,item.Blob.Length);}
         }
         public static PNGridChunkPacket ReadGridChunkPacket(this NetworkReader r)
         {
@@ -36,9 +56,9 @@ namespace ProjectN.Coop
             p.Items=new PNGridChunkItem[count];int total=0;
             for(int i=0;i<count;i++)
             {
-                int index=r.ReadInt(),version=r.ReadInt(),size=r.ReadUShort();
-                total+=size;if(index<0||version<0||size<6||size>PNGridSaveLimits.MaxChunkBlobBytes||total>PNGridChunkLimits.PacketBytes)throw new FormatException("Grid chunk item.");
-                p.Items[i]=new PNGridChunkItem{Index=index,Version=version,Blob=r.ReadBytes(size)};
+                int index=r.ReadInt(),version=r.ReadInt(),baseRevision=r.ReadInt(),size=r.ReadUShort();
+                total+=size;if(index<0||version<0||baseRevision<-1||baseRevision>=version||size<6||size>PNGridSaveLimits.MaxChunkBlobBytes||total>PNGridChunkLimits.PacketBytes)throw new FormatException("Grid chunk item.");
+                p.Items[i]=new PNGridChunkItem{Index=index,Version=version,Base=Math.Max(baseRevision,0),IsDelta=baseRevision>=0,Blob=r.ReadBytes(size)};
             }
             if(r.Remaining!=0)throw new FormatException("Grid chunk packet length.");
             return p;
@@ -46,7 +66,7 @@ namespace ProjectN.Coop
         public static void Validate(PNGridChunkPacket p)
         {
             p.Ticket.Validate();if(p.Items==null||p.Items.Length<1||p.Items.Length>PNGridChunkLimits.MaxChunksPerPacket)throw new FormatException("Grid chunk count.");
-            int total=0;foreach(var item in p.Items){if(item.Index<0||item.Version<0||item.Blob==null||item.Blob.Length<6||item.Blob.Length>PNGridSaveLimits.MaxChunkBlobBytes)throw new FormatException("Grid chunk item.");total+=item.Blob.Length;}
+            int total=0;foreach(var item in p.Items){if(item.Index<0||item.Version<0||item.IsDelta&&(item.Base<0||item.Base>=item.Version)||item.Blob==null||item.Blob.Length<6||item.Blob.Length>PNGridSaveLimits.MaxChunkBlobBytes)throw new FormatException("Grid chunk item.");total+=item.Blob.Length;}
             if(total>PNGridChunkLimits.PacketBytes)throw new FormatException("Grid chunk packet size.");
         }
     }
@@ -57,6 +77,9 @@ namespace ProjectN.Coop
         // Per-peer counters for tests and the log: chunks and bytes the host sent, per world and peer.
         public (long Chunks,long Bytes,bool InitialDone,int Held)? GridChunkStats(int connection,Guid world)
             =>worldPeers.TryGetValue((connection,world),out var e)&&e.Chunks!=null?(e.Chunks.ChunksSent,e.Chunks.BytesSent,e.Chunks.InitialDone,e.Chunks.HasHeldPacket?1:0):((long,long,bool,int)?)null;
+        // The same peer's G8b counters: deltas and whole chunks sent.
+        public (int Deltas,int Fulls)? GridChunkKinds(int connection,Guid world)
+            =>worldPeers.TryGetValue((connection,world),out var e)&&e.Chunks!=null?(e.Chunks.DeltasSent,e.Chunks.FullsSent):((int,int)?)null;
         public PNGridChunkInbox ClientGridInbox(Guid world)=>PNGridChunkInboxes.Find(subscribedSession,world);
 
         // Where this client's players stand in the world: the chunks around them are what it needs first. Before the client has an actor, the world's other actors, then the world's middle.
@@ -105,6 +128,22 @@ namespace ProjectN.Coop
                 NetworkClient.Send(new PNWorldLoaded{Ticket=offer.Ticket,Success=false});return false;
             }
             PNGridChunkInboxes.Get(subscribedSession,offer.Ticket.World).Declare(offer.Descriptor,offer.Ticket.Subscription);return true;
+        }
+        // The client's side: the chunks whose copy is wrong are asked for again (once each until the whole chunk arrives).
+        private static readonly List<int> gridResync=new List<int>();
+        private void PumpGridResync(WorldSubscription entry)
+        {
+            var inbox=PNGridChunkInboxes.Find(subscribedSession,entry.Offer.Ticket.World);
+            if(inbox==null||inbox.ResyncWaiting==0)return;
+            gridResync.Clear();inbox.TakeResyncs(gridResync);
+            if(gridResync.Count>0)NetworkClient.Send(new PNGridChunkResync{Ticket=entry.Offer.Ticket,Indices=gridResync.ToArray()},Channels.Reliable);
+        }
+        // The host's side: each chunk named goes out whole again.
+        private void ReceiveGridResync(NetworkConnectionToClient connection,PNGridChunkResync value)
+        {
+            if(!MatchTicket(value.Ticket)||!worldPeers.TryGetValue((connection.connectionId,value.Ticket.World),out var entry)||!entry.Offer.Ticket.Equals(value.Ticket)||entry.Chunks==null)return;
+            try{foreach(int index in value.Indices)entry.Chunks.MarkLost(index);}
+            catch(Exception error){LastFailure=error.Message;connection.Disconnect();}
         }
         private void ForgetGridInbox(Guid world)=>PNGridChunkInboxes.Remove(subscribedSession,world);
         private void ReceiveGridChunks(PNGridChunkPacket packet)
