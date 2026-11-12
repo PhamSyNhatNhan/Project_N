@@ -327,7 +327,7 @@ public sealed partial class PNEnemyMoveSkillPlayReview
         var buffed = PNEntitySpawner.Enqueue(scheduler, spawnFactory, buffedRequest, l => PNEntitySpawner.AssignNew(session, l, buffedRequest), failed: error => Check(false, "E01 spawn failed: " + error.Message));
         yield return Until(() => buffed.Loader?.IsReady == true, 5, "E01 runtime enemy published");
         var buffedLoader = buffed.Loader; yield return null; yield return null;
-        Check(buffedLoader.GetComponent<PNBuffManager>().Buffs.Snapshot().Count == 1 && buffedLoader.GetComponent<PNEntityRole>().DropsLoot && buffedLoader.GetComponent<PNEntityLifetime>().Armed, "E01 the role's spawn Buff is applied once the enemy is published, with its role flags and lifetime");
+        Check(buffedLoader.GetComponent<PNBuffManager>().Buffs.Snapshot().Count == 1 && buffedLoader.GetComponent<PNEntityRole>().Entity == "project_n:enemy" && buffedLoader.GetComponent<PNEntityLifetime>().Armed, "E01 the role's spawn Buff is applied once the enemy is published, with its role flags and lifetime");
         yield return Until(() => buffed.IsReturned, 4, "E01 the lifetime retires the enemy through the scheduler");
         var reused = Buffed(null);
         var again = PNEntitySpawner.Enqueue(scheduler, spawnFactory, reused, l => PNEntitySpawner.AssignNew(session, l, reused), failed: error => Check(false, "E01 respawn failed: " + error.Message));

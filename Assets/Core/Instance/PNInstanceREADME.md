@@ -22,7 +22,7 @@ thêm là các lớp con khác. Mọi kind nằm trong **một registry tên `in
 | Type | Role |
 |---|---|
 | `PNInstanceDefinition` | Abstract base: `Id`, `Kind`, `ImplementationType` (a component for area/projectile, a recipe class for entity), `Payload`, validators, `EntryFields`, `Derive(id, data, entry)`; under Unity `HasPoolTemplate` and `CreatePoolTemplate()` (optional: kinds not built from one component keep the default). |
-| `PNEntityDefinition` | Kind `entity` (RulesVersion 100): `Settings` from the payload (owner, persist, followsOwner, lifetime, countsForClear, dropsLoot, prefab, spawnBuffs). |
+| `PNEntityDefinition` | Kind `entity` (RulesVersion 100): `Settings` from the payload (owner, persist, followsOwner, lifetime, prefab, spawnBuffs, despawn; room clear and loot are the world's since RulesVersion 142). |
 | `PNAreaDefinition` / `PNProjectileDefinition` | Kinds `area` / `projectile`. The projectile adds `Destroyable` (JSON entry field `destroyable`) and `Settings<T>()`. |
 | `PNInstances` | `Create(hub)` (once, in `PNGameplayContentModule`), `hub.Instances()`, kind-checked `GetKind<T>` / `GetEffectiveKind<T>` / `TryGetKind<T>`, `RegisterBase<T>` (override must be the same kind). |
 

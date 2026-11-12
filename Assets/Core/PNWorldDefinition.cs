@@ -81,8 +81,10 @@ public sealed class PNWorldBuildContext
     // A world built from cell data (Docs/SandboxPlan.md G1/G2) hands its cells and its navigation source over here instead of a baked cache in a scene. Set once, while the world is loading.
     public PNGridWorldData GridWorld { get; private set; }
     public IPNNavigationSource Navigation { get; private set; }
-    public void SetGridWorld(PNGridWorldData data)
-    { if(!IsCurrent||GridWorld!=null)throw new InvalidOperationException("The grid world is set once, while the world loads.");GridWorld=data??throw new ArgumentNullException(nameof(data)); }
+    // The descriptor the cells were built from, without a restore token (G8: the host offers it to clients, which build an empty world of the same shape and receive the chunks).
+    public PNGridWorldDescriptor GridDescriptor { get; private set; }
+    public void SetGridWorld(PNGridWorldData data,PNGridWorldDescriptor descriptor=null)
+    { if(!IsCurrent||GridWorld!=null)throw new InvalidOperationException("The grid world is set once, while the world loads.");GridWorld=data??throw new ArgumentNullException(nameof(data));GridDescriptor=descriptor?.WithoutRestore(); }
     public void SetNavigation(IPNNavigationSource source)
     { if(!IsCurrent||Navigation!=null)throw new InvalidOperationException("Navigation is set once, while the world loads.");Navigation=source??throw new ArgumentNullException(nameof(source)); }
     public PNWorldBuildContext(EveWorldContext world,Scene scene,PNWorldFeatures features=null) { World=world;PhysicsScene=scene;Features=features??PNWorldFeatures.Empty; }

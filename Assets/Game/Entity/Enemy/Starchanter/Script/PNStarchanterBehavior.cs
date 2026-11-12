@@ -17,11 +17,16 @@ public sealed class PNStarchanterBehavior : PNEnemyBehavior
     [SerializeField, Min(.1f)] private float attackRange = 1.2f, strikeWindup = .25f;
     private PNEnemyNavigationRequest walk; private float scan, approach, windupLeft; private PNStat ally, strikeTarget; private bool approaching;
     private readonly RaycastHit[] hits = new RaycastHit[8];
-    public override void Enter() { walk = null; scan = 0; approach = 0; windupLeft = 0; ally = null; strikeTarget = null; approaching = false; }
+    private PNEnemyTargeting targeting;
+    private readonly List<PNStat> everyone = new List<PNStat>();
+    // The shared targeting supplies the sight (cells in a grid world, the `Wall` ray elsewhere); the range here is the registered boost `seek`, asked per scan, so the object's own range is never used.
+    public override void Enter() { walk = null; scan = 0; approach = 0; windupLeft = 0; ally = null; strikeTarget = null; approaching = false; targeting = new PNEnemyTargeting(Context, 8f); }
+    // Every entity of the world from the world's chunk index (the heal picks among all allies of the world, so the list is not cut by range).
     private List<PNStat> Entities()
     {
         var world = Context.Owner.GetComponent<EveEntityIdentity>().World;
-        return world.Session.Entities.Snapshot(world).Select(e => e.GetComponent<PNStat>()).Where(s => s != null).ToList();
+        everyone.Clear(); PNWorldEntityIndex.For(world).All(everyone);
+        return everyone;
     }
     private JToken Perform(EveId id) => Context.Owner.GetData(id).Action.Perform;
     public override void Tick(float dt)
@@ -64,11 +69,7 @@ public sealed class PNStarchanterBehavior : PNEnemyBehavior
         else CancelWalk();
     }
     private float Radius() => Perform(PNStarchanterCombatContent.Boost)["radius"].Value<float>();
-    private bool Sight(PNStat s)
-    {
-        var from = Context.Owner.transform.position + Vector3.up * .2f; var d = s.transform.position + Vector3.up * .2f - from; if (d.sqrMagnitude < 1e-6f) return true;
-        return Context.Owner.gameObject.scene.GetPhysicsScene().Raycast(from, d.normalized, hits, d.magnitude, LayerMask.GetMask("Wall"), QueryTriggerInteraction.Ignore) == 0;
-    }
+    private bool Sight(PNStat s) => targeting.Sight(s);
     private void WindUp(float dt, PNAbilityCooldown strike)
     {
         windupLeft -= dt;

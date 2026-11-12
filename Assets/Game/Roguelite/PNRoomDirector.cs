@@ -176,6 +176,8 @@ public sealed class PNRoomDirector : IDisposable
         if (disposed) return;
         var stat = loader.GetComponent<PNStat>();
         enemies.Add(loader);
+        // Only a marked enemy counts for the clear (the module gives the marker in a world with the feature `project_n:room_clear`, i.e. every room); an unmarked one would leave the room unclearable.
+        if (loader.GetComponent<PNRoomClearMarker>() == null) { runs.Fail("An enemy of room " + Definition.Id + " has no room-clear marker: the world lacks the feature " + PNRunFeatures.RoomClear + "."); return; }
         // The floor's Buffs (the run's difficulty) go on every enemy of the floor, with the enemy itself as their source.
         var buffs = loader.GetComponent<PNBuffManager>();
         if (buffs != null) foreach (var id in runs.EnemyBuffs()) buffs.Buffs.Apply(new PNBuffApplyRequest(id, PNCombatSource.Capture(stat)));

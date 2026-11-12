@@ -12,17 +12,17 @@ public static class PNEntityGameplayContent
     public static readonly EveId Summon = EveId.Parse("project_n:summon");
     public static readonly EveId Prop = EveId.Parse("project_n:prop");
 
-    private static JObject Payload(string owner, bool persist, bool followsOwner, bool countsForClear, bool dropsLoot)
-        => new JObject { ["owner"] = owner, ["persist"] = persist, ["followsOwner"] = followsOwner, ["lifetime"] = JValue.CreateNull(), ["countsForClear"] = countsForClear, ["dropsLoot"] = dropsLoot };
+    private static JObject Payload(string owner, bool persist, bool followsOwner)
+        => new JObject { ["owner"] = owner, ["persist"] = persist, ["followsOwner"] = followsOwner, ["lifetime"] = JValue.CreateNull() };
 
     public static void Register(EveRegistryHub hub)
     {
         var instances = hub.Instances();
-        instances.Register(new PNEntityDefinition(Player, typeof(PNPlayerEntityRecipe), () => new PNPlayerEntityRecipe(), Payload("peer", true, true, false, false)));
-        instances.Register(new PNEntityDefinition(Enemy, typeof(PNHostEntityRecipe), () => new PNHostEntityRecipe(), Payload("host", true, false, true, true)));
-        instances.Register(new PNEntityDefinition(Npc, typeof(PNHostEntityRecipe), () => new PNHostEntityRecipe(), Payload("host", true, false, false, false)));
-        instances.Register(new PNEntityDefinition(Summon, typeof(PNHostEntityRecipe), () => new PNHostEntityRecipe(), Payload("host", false, false, false, false)));
-        instances.Register(new PNEntityDefinition(Prop, typeof(PNHostEntityRecipe), () => new PNHostEntityRecipe(), Payload("host", true, false, false, false)));
+        instances.Register(new PNEntityDefinition(Player, typeof(PNPlayerEntityRecipe), () => new PNPlayerEntityRecipe(), Payload("peer", true, true)));
+        instances.Register(new PNEntityDefinition(Enemy, typeof(PNHostEntityRecipe), () => new PNHostEntityRecipe(), Payload("host", true, false)));
+        instances.Register(new PNEntityDefinition(Npc, typeof(PNHostEntityRecipe), () => new PNHostEntityRecipe(), Payload("host", true, false)));
+        instances.Register(new PNEntityDefinition(Summon, typeof(PNHostEntityRecipe), () => new PNHostEntityRecipe(), Payload("host", false, false)));
+        instances.Register(new PNEntityDefinition(Prop, typeof(PNHostEntityRecipe), () => new PNHostEntityRecipe(), Payload("host", true, false)));
         // One public alias per identity: the player role keeps only the old template name below.
         foreach (var id in new[] { Enemy, Npc, Summon, Prop })
             instances.RegisterBase<PNEntityDefinition>(new EveId("base", id.Path), id, "project_n", compatible: (original, replacement) => true);

@@ -122,6 +122,10 @@ namespace ProjectN.Coop
         public PNNetworkProfile Profile=new PNNetworkProfile();
         public IPNSessionPolicy Policy;
         public string ModeId="roguelite",LastFailure;
+        private string failureKey,failureKeyText;
+        // The localization key of LastFailure, only while LastFailure is still the very text set with it.
+        public string FailureKey=>ReferenceEquals(LastFailure,failureKeyText)?failureKey:null;
+        private void SetKeyedFailure(string key,string text){LastFailure=text;failureKey=key;failureKeyText=text;}
         public double AdmittedAt;
         public int PublishedCount=>bindings.Values.Count(x=>x.Candidate.Loader!=null&&x.Candidate.Loader.IsReady);
         private readonly Dictionary<uint,Binding> bindings=new Dictionary<uint,Binding>();
@@ -207,6 +211,7 @@ namespace ProjectN.Coop
             clientStartedAt=Time.realtimeSinceStartupAsDouble;
             NetworkClient.RegisterHandler<PNWorldOffer>(ReceiveWorldOffer);
             NetworkClient.RegisterHandler<PNWorldFence>(ReceiveWorldFence);
+            NetworkClient.RegisterHandler<PNGridChunkPacket>(ReceiveGridChunks);
             NetworkClient.RegisterHandler<PNWorldApplied>(ReceiveWorldConfirmation);
             NetworkClient.RegisterHandler<PNWorldTransferNotice>(ReceiveTransferNotice);
             EnsureTransitionSource();

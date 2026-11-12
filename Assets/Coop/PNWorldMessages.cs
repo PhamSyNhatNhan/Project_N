@@ -24,7 +24,9 @@ namespace ProjectN.Coop
     public struct PNWorldOffer : NetworkMessage
     {public PNWorldTicket Ticket;public string Definition,ContentHash;public bool Active,DefaultWorld,Paused;
         // The features of this world instance as the HOST fixed them (Docs/EntityModulePlan.md E4): sorted, unique, at most PNEntityModuleLimits.MaxFeaturesPerWorld. A client never works its own set out.
-        public string[] Features;}
+        public string[] Features;
+        // G8: for a grid world, the JSON descriptor (size, cell size, map, seed; never a restore token) the client builds its empty replica from. Empty for every other world.
+        public string Descriptor;}
     public struct PNWorldLoaded : NetworkMessage
     {public PNWorldTicket Ticket;public bool Success;}
     public struct PNWorldFence : NetworkMessage
@@ -49,6 +51,10 @@ namespace ProjectN.Coop
         {if(value.World!=Guid.Empty)value.Validate();else if(value.Incarnation!=0||value.Membership!=0||value.Subscription!=0)throw new FormatException("Partial world scope.");w.WriteGuid(value.World);w.WriteULong(value.Incarnation);w.WriteULong(value.Membership);w.WriteULong(value.Subscription);}
         public static PNWorldBindingScope ReadWorldBindingScope(this NetworkReader r)
         {var v=new PNWorldBindingScope{World=r.ReadGuid(),Incarnation=r.ReadULong(),Membership=r.ReadULong(),Subscription=r.ReadULong()};if(v.World!=Guid.Empty)v.Validate();else if(v.Incarnation!=0||v.Membership!=0||v.Subscription!=0)throw new FormatException("Partial world scope.");return v;}
+        private static void OptionalText(NetworkWriter w,string value,int maximum)
+        {var bytes=string.IsNullOrEmpty(value)?Array.Empty<byte>():Utf8.GetBytes(value);if(bytes.Length>maximum)throw new FormatException("World string bound.");w.WriteUShort((ushort)bytes.Length);if(bytes.Length>0)w.WriteBytes(bytes,0,bytes.Length);}
+        private static string OptionalText(NetworkReader r,int maximum)
+        {int size=r.ReadUShort();if(size>maximum)throw new FormatException("World string bound.");if(size==0)return string.Empty;var b=r.ReadBytesSegment(size);return Utf8.GetString(b.Array,b.Offset,b.Count);}
         private static void WriteFeatures(NetworkWriter w,string[] features)
         {
             features=features??Array.Empty<string>();Features(features);w.WriteByte((byte)features.Length);
@@ -71,9 +77,9 @@ namespace ProjectN.Coop
             }
         }
         public static void WriteWorldOffer(this NetworkWriter w,PNWorldOffer v)
-        {v.Ticket.Validate();_ = EveId.Parse(v.Definition);Hash(v.ContentHash);w.WriteWorldTicket(v.Ticket);Text(w,v.Definition,128);Text(w,v.ContentHash,64);w.WriteByte((byte)((v.Active?1:0)|(v.DefaultWorld?2:0)|(v.Paused?4:0)));WriteFeatures(w,v.Features);}
+        {v.Ticket.Validate();_ = EveId.Parse(v.Definition);Hash(v.ContentHash);w.WriteWorldTicket(v.Ticket);Text(w,v.Definition,128);Text(w,v.ContentHash,64);w.WriteByte((byte)((v.Active?1:0)|(v.DefaultWorld?2:0)|(v.Paused?4:0)));WriteFeatures(w,v.Features);OptionalText(w,v.Descriptor,PNGridChunkLimits.DescriptorBytes);}
         public static PNWorldOffer ReadWorldOffer(this NetworkReader r)
-        {Control(r);var v=new PNWorldOffer{Ticket=r.ReadWorldTicket(),Definition=Text(r,128),ContentHash=Text(r,64)};int flags=r.ReadByte();if(flags>7)throw new FormatException("World offer flags.");_ = EveId.Parse(v.Definition);Hash(v.ContentHash);v.Active=(flags&1)!=0;v.DefaultWorld=(flags&2)!=0;v.Paused=(flags&4)!=0;v.Features=ReadFeatures(r);return v;}
+        {Control(r);var v=new PNWorldOffer{Ticket=r.ReadWorldTicket(),Definition=Text(r,128),ContentHash=Text(r,64)};int flags=r.ReadByte();if(flags>7)throw new FormatException("World offer flags.");_ = EveId.Parse(v.Definition);Hash(v.ContentHash);v.Active=(flags&1)!=0;v.DefaultWorld=(flags&2)!=0;v.Paused=(flags&4)!=0;v.Features=ReadFeatures(r);v.Descriptor=OptionalText(r,PNGridChunkLimits.DescriptorBytes);return v;}
         public static void WriteWorldLoaded(this NetworkWriter w,PNWorldLoaded v){w.WriteWorldTicket(v.Ticket);w.WriteByte((byte)(v.Success?1:0));}
         public static PNWorldLoaded ReadWorldLoaded(this NetworkReader r){Control(r);var t=r.ReadWorldTicket();byte ok=r.ReadByte();if(ok>1)throw new FormatException("World load flags.");return new PNWorldLoaded{Ticket=t,Success=ok==1};}
         public static void WriteWorldFence(this NetworkWriter w,PNWorldFence v)

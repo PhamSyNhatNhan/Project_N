@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using EveEngine;
 using Newtonsoft.Json.Linq;
 
@@ -36,8 +37,12 @@ public sealed class PNGridWorldDescriptor
     public float CellSize { get; }
     public string Map { get; }
     public long Seed { get; }
+    // Optional, never saved: the token of a decoded save waiting in PNGridRestoreStaging. A world created with it is filled from that save instead of by its map (Docs/SandboxPlan.md G7).
+    public string Restore { get; }
+    public PNGridWorldDescriptor WithRestore(string token) => new PNGridWorldDescriptor(Width, Depth, CellSize, Map, Seed, token);
+    public PNGridWorldDescriptor WithoutRestore() => Restore == null ? this : new PNGridWorldDescriptor(Width, Depth, CellSize, Map, Seed);
 
-    public PNGridWorldDescriptor(int width, int depth, float cellSize, string map, long seed)
+    public PNGridWorldDescriptor(int width, int depth, float cellSize, string map, long seed, string restore = null)
     {
         if (width < PNGridWorldLimits.MinCells || width > PNGridWorldLimits.MaxCells || width % PNGridWorldLimits.ChunkCells != 0 ||
             depth < PNGridWorldLimits.MinCells || depth > PNGridWorldLimits.MaxCells || depth % PNGridWorldLimits.ChunkCells != 0)
@@ -47,23 +52,30 @@ public sealed class PNGridWorldDescriptor
         float factor = PNGridWorldLimits.GroundMeters / cellSize;
         if (Math.Abs(factor - Math.Round(factor)) > 1e-4f) throw new ArgumentException("The cell size must divide the ground cell (" + PNGridWorldLimits.GroundMeters + " m) evenly.");
         if (string.IsNullOrEmpty(map) || map.Length > PNGridWorldLimits.MaxMapIdLength || !EveId.TryParse(map, out _)) throw new ArgumentException("A map id of the form namespace:name is required.");
-        Width = width; Depth = depth; CellSize = cellSize; Map = map; Seed = seed;
+        if (restore != null && (restore.Length == 0 || restore.Length > 64 || restore.Any(c => !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f')))) throw new ArgumentException("A restore token is 1 to 64 lowercase hexadecimal characters.");
+        Width = width; Depth = depth; CellSize = cellSize; Map = map; Seed = seed; Restore = restore;
     }
 
-    public JObject ToJson() => new JObject { ["width"] = Width, ["depth"] = Depth, ["cell"] = CellSize, ["map"] = Map, ["seed"] = Seed };
+    public JObject ToJson()
+    {
+        var json = new JObject { ["width"] = Width, ["depth"] = Depth, ["cell"] = CellSize, ["map"] = Map, ["seed"] = Seed };
+        if (Restore != null) json["restore"] = Restore;
+        return json;
+    }
 
     public static PNGridWorldDescriptor Parse(JToken token)
     {
         if (!(token is JObject obj)) throw new FormatException("A grid world descriptor is a JSON object.");
         foreach (var property in obj.Properties())
-            if (property.Name != "width" && property.Name != "depth" && property.Name != "cell" && property.Name != "map" && property.Name != "seed")
+            if (property.Name != "width" && property.Name != "depth" && property.Name != "cell" && property.Name != "map" && property.Name != "seed" && property.Name != "restore")
                 throw new FormatException("Unknown grid world descriptor field: " + property.Name);
         foreach (var required in new[] { "width", "depth", "cell", "map", "seed" })
             if (obj[required] == null || obj[required].Type == JTokenType.Null) throw new FormatException("Grid world descriptor field missing: " + required);
         if (obj["width"].Type != JTokenType.Integer || obj["depth"].Type != JTokenType.Integer || obj["seed"].Type != JTokenType.Integer ||
             (obj["cell"].Type != JTokenType.Float && obj["cell"].Type != JTokenType.Integer) || obj["map"].Type != JTokenType.String)
             throw new FormatException("Grid world descriptor field has the wrong type.");
-        try { return new PNGridWorldDescriptor((int)obj["width"], (int)obj["depth"], (float)obj["cell"], (string)obj["map"], (long)obj["seed"]); }
+        if (obj["restore"] != null && obj["restore"].Type != JTokenType.String) throw new FormatException("Grid world descriptor field has the wrong type.");
+        try { return new PNGridWorldDescriptor((int)obj["width"], (int)obj["depth"], (float)obj["cell"], (string)obj["map"], (long)obj["seed"], (string)obj["restore"]); }
         catch (ArgumentException error) { throw new FormatException(error.Message); }
         catch (OverflowException error) { throw new FormatException(error.Message); }
     }
@@ -223,6 +235,42 @@ public sealed class PNGridWorldData
         ChunkIndex(cx, cz);
         return new PNGridRegion(cx * PNGridWorldLimits.ChunkCells, cz * PNGridWorldLimits.ChunkCells, (cx + 1) * PNGridWorldLimits.ChunkCells - 1, (cz + 1) * PNGridWorldLimits.ChunkCells - 1);
     }
+    // ---- chunk copies for a save (Docs/SandboxPlan.md G7) ----
+    // Ground cells along one side of a chunk.
+    public int GroundPerChunk => PNGridWorldLimits.ChunkCells / GroundFactor;
+    public int GroundCellsPerChunk => GroundPerChunk * GroundPerChunk;
+    public const int CellsPerChunk = PNGridWorldLimits.ChunkCells * PNGridWorldLimits.ChunkCells;
+
+    // Copies one chunk into the three arrays (row by row, z then x): the ground types of its coarse cells, the floor heights and the solid flags (0 or 1) of its cells. Nothing else is touched.
+    public void ExportChunk(int cx, int cz, ushort[] groundOut, short[] heightOut, byte[] solidOut)
+    {
+        ChunkIndex(cx, cz); int g = GroundPerChunk, c = PNGridWorldLimits.ChunkCells;
+        if (groundOut == null || heightOut == null || solidOut == null || groundOut.Length != g * g || heightOut.Length != c * c || solidOut.Length != c * c) throw new ArgumentException("A chunk copy needs arrays of " + g * g + ", " + c * c + " and " + c * c + " entries.");
+        for (int gz = 0; gz < g; gz++) Array.Copy(ground, (cz * g + gz) * GroundColumns + cx * g, groundOut, gz * g, g);
+        for (int z = 0; z < c; z++)
+        {
+            int at = Index(cx * c, cz * c + z);
+            Array.Copy(height, at, heightOut, z * c, c); Array.Copy(solid, at, solidOut, z * c, c);
+        }
+    }
+
+    // Replaces one chunk from a copy (a restored save). The clearance field is NOT recomputed: call RecomputeClearance once over the whole world after the last chunk. The chunk's version moves on, so the mesh and any other user rebuild.
+    public void ImportChunk(int cx, int cz, ushort[] groundIn, short[] heightIn, byte[] solidIn)
+    {
+        ChunkIndex(cx, cz); int g = GroundPerChunk, c = PNGridWorldLimits.ChunkCells;
+        if (groundIn == null || heightIn == null || solidIn == null || groundIn.Length != g * g || heightIn.Length != c * c || solidIn.Length != c * c) throw new ArgumentException("A chunk copy needs arrays of " + g * g + ", " + c * c + " and " + c * c + " entries.");
+        for (int i = 0; i < groundIn.Length; i++) if (groundIn[i] >= Palette.Count) throw new FormatException("Ground type " + groundIn[i] + " is not in the palette.");
+        for (int i = 0; i < solidIn.Length; i++) if (solidIn[i] > 1) throw new FormatException("A solid flag is 0 or 1.");
+        for (int gz = 0; gz < g; gz++) Array.Copy(groundIn, gz * g, ground, (cz * g + gz) * GroundColumns + cx * g, g);
+        for (int z = 0; z < c; z++)
+        {
+            int at = Index(cx * c, cz * c + z);
+            for (int x = 0; x < c; x++) SolidCount += solidIn[z * c + x] - solid[at + x];
+            Array.Copy(heightIn, z * c, height, at, c); Array.Copy(solidIn, z * c, solid, at, c);
+        }
+        Touch(ChunkRegion(cx, cz));
+    }
+
     // Every user of the data (the mesh, a save, the network) keeps the version it last used per chunk and compares it with this; nobody has to coordinate who clears a dirty flag.
     public int ChunkVersion(int cx, int cz) => chunkVersion[ChunkIndex(cx, cz)];
     public int ChunkVersionAt(int index) => chunkVersion[index];

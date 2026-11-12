@@ -60,7 +60,7 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         {
             var gridDescriptor=new PNGridWorldDescriptor(width,depth,.5f,mapId.ToString(),1);
             worlds.Register(new PNWorldDefinition(worldId,PNWorldDefinition.HashContent(worldId+"/v1/"+gridDescriptor.ToJson().ToString(Newtonsoft.Json.Formatting.None)),typeof(PNGridWorldProvider),()=>new PNGridWorldProvider(gridDescriptor),
-                new PNWorldPolicy(PNEmptyWorldPolicy.Continue,null,null,null,default(EveId),new[]{PNGridIds.GridWorldFeature})));
+                new PNWorldPolicy(PNEmptyWorldPolicy.Continue,null,null,null,default(EveId),new[]{PNGridIds.GridWorldFeature,PNDespawnIds.Feature,PNGridSaveIds.Feature})));
         }
         var modes=hub.GetOrCreate<PNModeDefinition>();
         var rogueliteListing=new PNModeListing("Roguelite","Vượt qua các căn phòng, một mình hoặc cùng bạn bè trong mạng LAN.",new[]{231,185,143},"",0,
@@ -99,6 +99,9 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         hub.SyncStates().Register(new PNSyncStateDefinition(PNRogueEntityView.State,1,PNRogueEntityView.StateBytes,PNSyncTargets.Entity));
         // What a player carries in a world that has Roguelite Buff (before the entity modules the factory added these to every player everywhere): the buff manager, the numbers block and the sync binding that block needs.
         hub.EntityModules().Register(new PNEntityModuleDefinition(EveId.Parse("project_n:rogue_buff_player"),PNEntityModuleRoles.Player,null,new[]{PNRunFeatures.RogueBuff},new[]{typeof(PNSyncEntity),typeof(PNRogueEntityView),typeof(PNRogueBuffManager)}));
+        // The two things an enemy owes a room (G6), answered by the world's features instead of flags on the role: the clear marker the room director counts and the loot source.
+        hub.EntityModules().Register(new PNEntityModuleDefinition(EveId.Parse("project_n:room_clear_enemy"),PNEntityModuleRoles.None,new[]{PNEntityGameplayContent.Enemy},new[]{PNRunFeatures.RoomClear},new[]{typeof(PNRoomClearMarker)}));
+        hub.EntityModules().Register(new PNEntityModuleDefinition(EveId.Parse("project_n:loot_enemy"),PNEntityModuleRoles.None,new[]{PNEntityGameplayContent.Enemy},new[]{PNRunFeatures.Loot},new[]{typeof(PNLootSource)}));
         hub.SyncCommands().Register(new PNSyncCommandDefinition(PNRogueCommandHandler.Command,typeof(PNRogueCommandHandler),()=>new PNRogueCommandHandler(),PNRogueCommandHandler.CommandBytes,PNSyncTargets.Session));
         hub.SyncCommands().Register(new PNSyncCommandDefinition(PNInteractable.Command,typeof(PNInteractCommandHandler),()=>new PNInteractCommandHandler(),PNInteractable.CommandBytes,PNSyncTargets.WorldObject));
         PNRoomInteractions.Register(hub);

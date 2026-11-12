@@ -81,6 +81,7 @@ namespace ProjectN.Composition
         // IPNLobbyDriver: lobby state, admission lock and LAN discovery for the roguelite flow.
         public bool IsIdle=>manager==null&&!releaseScheduled;
         public string LastFailure=>manager?.LastFailure??lastFailure;
+        public string LastFailureKey=>manager?.FailureKey;
         public string RunId=>manager?.RunId;
         // IPNPlayerDirectory: who is who in the room (host side; a client knows only itself).
         public string PlayerIdOf(long owner)=>manager?.PlayerIdOf(owner);

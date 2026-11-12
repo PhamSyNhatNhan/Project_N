@@ -9,7 +9,8 @@
         "body": {
           "prefab": "starreaper",
           "visual": "project_n:starreaper",
-          "build": "short"
+          "build": "short",
+          "vision": 7
         }
       },
       "stats": [

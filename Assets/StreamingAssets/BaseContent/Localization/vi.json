@@ -90,6 +90,7 @@
   "project_n:error.starting": "Đang bắt đầu.",
   "project_n:error.host_only": "Chỉ chủ phòng bắt đầu trong sảnh.",
   "project_n:error.no_room": "Chưa có phòng.",
+  "project_n:error.map_too_large_mobile": "Map quá lớn cho thiết bị di động (tối đa 512 x 512 ô).",
   "project_n:error.not_ready": "Chưa đủ người sẵn sàng.",
   "project_n:error.join_failed": "Không thể vào phòng hoặc bắt đầu.",
   "project_n:error.return_failed": "Không thể về Hall.",

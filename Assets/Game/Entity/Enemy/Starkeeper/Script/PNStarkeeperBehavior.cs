@@ -12,30 +12,15 @@ public sealed class PNStarkeeperBehavior : PNEnemyBehavior
     public override IEnumerable<EveId> SkillIds => new[] { PNStarkeeperCombatContent.StarSweep, PNStarkeeperCombatContent.StarPoint };
     [SerializeField, Min(.1f)] private float aggroRange = 6f, sweepRange = 1.4f, pointMin = 1.5f, pointMax = 4f;
     private PNStat target; private PNEnemyNavigationRequest walk; private float scan; private int last;
-    private readonly RaycastHit[] hits = new RaycastHit[16];
-    public override void Enter() { target = null; walk = null; scan = 0; last = 0; }
-    private bool Valid(PNStat s) => s != null && s.IsReady && !s.IsDead && Context.Stat.Targets(s) && PNTargetSelector.IsAggroEligible(s) && PNWorldGameplay.CanTarget(Context.Owner, s);
-    private bool Sight(PNStat s)
-    {
-        var from = Context.Owner.transform.position + Vector3.up * .2f; var d = s.transform.position + Vector3.up * .2f - from;
-        return Context.Owner.gameObject.scene.GetPhysicsScene().Raycast(from, d.normalized, hits, d.magnitude, LayerMask.GetMask("Wall"), QueryTriggerInteraction.Ignore) == 0;
-    }
+    private PNEnemyTargeting targeting;
+    // The sight range is the character's registered `body.vision`; `aggroRange` is the default of an entity that has no role data.
+    public override void Enter() { target = null; walk = null; scan = 0; last = 0; targeting = new PNEnemyTargeting(Context, aggroRange) { Planar = false }; }
     public override void Tick(float dt)
     {
         scan -= dt;
         if (Context.Owner.IsExecutingEnemyAction) { CancelWalk(); return; }
-        if (!Valid(target) || !Sight(target) || Vector3.Distance(target.transform.position, Context.Owner.transform.position) > aggroRange) target = null;
-        if (target == null && scan <= 0)
-        {
-            scan = .2f; var world = Context.Owner.GetComponent<EveEntityIdentity>().World; var best = default(PNTargetScore);
-            foreach (var e in world.Session.Entities.Snapshot(world))
-            {
-                var s = e.GetComponent<PNStat>(); if (!Valid(s)) continue;
-                float distance = Vector3.Distance(s.transform.position, Context.Owner.transform.position); if (distance > aggroRange || !Sight(s)) continue;
-                var score = new PNTargetScore { Distance = distance, Aggro = PNTargetSelector.AggroOf(s), EntityId = s.EntityId.Value };
-                if (target == null || PNTargetRanking.Better(score, best, PNTargetRule.Aggro)) { target = s; best = score; }
-            }
-        }
+        if (!targeting.Keep(target)) target = null;
+        if (target == null && scan <= 0) { scan = .2f; target = targeting.Acquire(); }
         if (target == null) { CancelWalk(); return; }
         var delta = target.transform.position - Context.Owner.transform.position; delta.y = 0; float dist = delta.magnitude;
         var sweep = Context.Abilities.GetCooldown(EveId.Parse(PNStarkeeperCombatContent.StarSweep + "_ready"));

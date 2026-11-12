@@ -135,7 +135,7 @@ public static class PNEntitySpawnEditorChecks
             var fallback = new GameObject("spawn point prefab"); fixtures.Add(fallback);
             Check(ReferenceEquals(PNEntityPrefabs.For(session, "project_n:eve_2", fallback), eve2), "a character that names a prefab spawns from the catalog");
             Check(ReferenceEquals(PNEntityPrefabs.For(session, "project_n:eve", fallback), fallback) && ReferenceEquals(PNEntityPrefabs.For(session, "", fallback), fallback), "a character that names none spawns from the spawn point's prefab");
-            var data = new JObject { ["owner"] = "host", ["persist"] = true, ["followsOwner"] = false, ["lifetime"] = JValue.CreateNull(), ["countsForClear"] = false, ["dropsLoot"] = false, ["prefab"] = "mymod:golem" };
+            var data = new JObject { ["owner"] = "host", ["persist"] = true, ["followsOwner"] = false, ["lifetime"] = JValue.CreateNull(), ["prefab"] = "mymod:golem" };
             var entity = new PNEntityDefinition(EveId.Parse("test:golem_entity"), typeof(PNHostEntityRecipe), () => new PNHostEntityRecipe(), data);
             Check(ReferenceEquals(PNEntityPrefabs.For(session, "project_n:eve", fallback, entity), eve2), "an entity that names a prefab wins over the character's");
             data["prefab"] = "mymod:missing";
@@ -220,10 +220,10 @@ public static class PNEntitySpawnEditorChecks
 
             // Role flags kept on the object (E6): the role component carries every flag, the unused ones included.
             var propRole = crate.Loader.GetComponent<PNEntityRole>();
-            Check(propRole != null && propRole.Entity == "project_n:prop" && propRole.Owner == PNEntityOwner.Host && propRole.Persist && !propRole.FollowsOwner && !propRole.CountsForClear && !propRole.DropsLoot
+            Check(propRole != null && propRole.Entity == "project_n:prop" && propRole.Owner == PNEntityOwner.Host && propRole.Persist && !propRole.FollowsOwner
                 && propRole.Loot == EveId.Parse("mymod:crate_loot") && !propRole.Lifetime.HasValue && crate.Loader.GetComponent<PNEntityLifetime>() == null, "a prop carries its role flags, the character's loot id and no lifetime");
             var enemyRole = Spawn(Prop("project_n:enemy", position: new Vector3(7, 1, 7))).Loader.GetComponent<PNEntityRole>();
-            Check(enemyRole.CountsForClear && enemyRole.DropsLoot && enemyRole.Owner == PNEntityOwner.Host, "the enemy role keeps counts-for-clear and drops-loot (read by nothing yet)");
+            Check(enemyRole.Owner == PNEntityOwner.Host && enemyRole.GetComponent<PNRoomClearMarker>() == null && enemyRole.GetComponent<PNLootSource>() == null, "the enemy role in a world without the run features carries neither the room-clear marker nor the loot source (G6)");
             var eveRole = eve.Loader.GetComponent<PNEntityRole>();
             Check(eveRole != null && eveRole.Owner == PNEntityOwner.Peer && eveRole.Persist && eveRole.FollowsOwner && eveRole.Entity == "base:scene_spawn", "the player carries the peer-owned role under its old template name");
 

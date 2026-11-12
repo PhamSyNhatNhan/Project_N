@@ -15,41 +15,24 @@ public sealed class PNStarreaperBehavior : PNEnemyBehavior
     public override IEnumerable<EveId> SkillIds => new[] { PNStarreaperCombatContent.Afterimage, PNStarreaperCombatContent.Rain, PNStarreaperCombatContent.Pierce };
     [SerializeField, Min(.1f)] private float standDistance = 2.5f, vision = 7f, pause = .35f;
     private PNStat target; private PNEnemyNavigationRequest walk; private float rest, scan;
+    private PNEnemyTargeting targeting;
     private readonly RaycastHit[] hits = new RaycastHit[8];
-    public override void Enter() { target = null; walk = null; rest = scan = 0; }
+    // The sight range is the character's registered `body.vision`; `vision` is the default of an entity that has no role data.
+    public override void Enter() { target = null; walk = null; rest = scan = 0; targeting = new PNEnemyTargeting(Context, vision); }
     private JToken Perform(EveId id) => Context.Owner.GetData(id).Action.Perform;
-    private bool Valid(PNStat s) => s != null && s.IsReady && !s.IsDead && Context.Stat.Targets(s) && PNTargetSelector.IsAggroEligible(s) && PNWorldGameplay.CanTarget(Context.Owner, s);
-    private bool Sight(PNStat s)
-    {
-        var from = Context.Owner.transform.position + Vector3.up * .2f; var d = s.transform.position + Vector3.up * .2f - from; if (d.sqrMagnitude < 1e-6f) return true;
-        return Context.Owner.gameObject.scene.GetPhysicsScene().Raycast(from, d.normalized, hits, d.magnitude, LayerMask.GetMask("Wall"), QueryTriggerInteraction.Ignore) == 0;
-    }
     public override void Tick(float dt)
     {
         rest -= dt; scan -= dt;
         if (Context.Owner.IsExecutingEnemyAction) { CancelWalk(); return; }
         var self = Context.Stat; if (self == null || !self.IsReady || self.IsDead) { CancelWalk(); return; }
-        if (!Valid(target) || !Sight(target) || Flat(target.transform.position) > vision) target = null;
-        if (target == null && scan <= 0) { scan = .2f; target = Acquire(); }
+        if (!targeting.Keep(target)) target = null;
+        if (target == null && scan <= 0) { scan = .2f; target = targeting.Acquire(); }
         if (target == null) { CancelWalk(); return; }
         var delta = target.transform.position - self.transform.position; delta.y = 0; float distance = delta.magnitude;
         if (rest <= 0 && TryCasts(delta, distance)) return;
         if (distance > standDistance)
         { if (walk == null || walk.IsTerminal) walk = Context.GoTo(target.transform.position, standDistance * .9f); else Context.UpdateGoal(walk, target.transform.position); }
         else { CancelWalk(); Face(delta); }
-    }
-    private PNStat Acquire()
-    {
-        PNStat best = null; var score = default(PNTargetScore);
-        var world = Context.Owner.GetComponent<EveEntityIdentity>().World;
-        foreach (var e in world.Session.Entities.Snapshot(world))
-        {
-            var s = e.GetComponent<PNStat>(); if (!Valid(s)) continue;
-            float distance = Flat(s.transform.position); if (distance > vision || !Sight(s)) continue;
-            var candidate = new PNTargetScore { Distance = distance, Aggro = PNTargetSelector.AggroOf(s), EntityId = s.EntityId.Value };
-            if (best == null || PNTargetRanking.Better(candidate, score, PNTargetRule.Aggro)) { best = s; score = candidate; }
-        }
-        return best;
     }
     private float Flat(Vector3 point) { var d = point - Context.Owner.transform.position; d.y = 0; return d.magnitude; }
     private PNAbilityCooldown Cooldown(EveId id) => Context.Abilities.GetCooldown(EveId.Parse(id + "_ready"));

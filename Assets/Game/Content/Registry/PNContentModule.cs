@@ -140,8 +140,14 @@ public class PNContentModule : EveIContentModule, EveIContentFinalizeModule, Eve
         hub.GetOrCreate<PNEntityModuleDefinition>(); hub.NameRegistry<PNEntityModuleDefinition>("entity_modules");
         // The world feature a run with Roguelite Buff gives its rooms (Docs/EntityModulePlan.md): the vocabulary lives here, the module that answers to it in the gameplay module.
         hub.WorldFeatures().Register(new PNWorldFeatureDefinition(PNRunFeatures.RogueBuff, "Worlds of a run that has Roguelite Buff."));
+        // Rooms of a run count their enemies for the clear and let them drop loot (G6); the sandbox declares neither.
+        hub.WorldFeatures().Register(new PNWorldFeatureDefinition(PNRunFeatures.RoomClear, "Worlds whose enemies count for a room clear."));
+        hub.WorldFeatures().Register(new PNWorldFeatureDefinition(PNRunFeatures.Loot, "Worlds whose enemies drop loot."));
         // Grid worlds (Docs/SandboxPlan.md G1): the feature they all have and the ground types they can be painted with (colour is the placeholder look).
         hub.WorldFeatures().Register(new PNWorldFeatureDefinition(PNGridIds.GridWorldFeature, "Worlds built from grid cell data."));
+        // Worlds whose enemies are removed when no player is near for a while (Docs/SandboxPlan.md G4); a roguelite room does not have it.
+        hub.WorldFeatures().Register(new PNWorldFeatureDefinition(PNDespawnIds.Feature, "Worlds that remove enemies far from every living player."));
+        hub.WorldFeatures().Register(new PNWorldFeatureDefinition(PNGridSaveIds.Feature, "Grid worlds that save their ground, placed things and player places, and can be restored from that save."));
         hub.GetOrCreate<PNGroundDefinition>(); hub.NameRegistry<PNGroundDefinition>("grounds");
         hub.Grounds().Register(new PNGroundDefinition(PNGridIds.Grass, true, 112, 160, 96, "Grass."));
         hub.Grounds().Register(new PNGroundDefinition(PNGridIds.Sand, true, 214, 196, 138, "Sand."));

@@ -13,15 +13,15 @@ VI: Mọi thứ sinh ra như một nhân vật (người chơi, quái, NPC, tri�
 | Type | Where | Role |
 |---|---|---|
 | `PNEntityDefinition` | Core | Kind `entity`. `Settings` (`PNEntitySettings`) from the payload; `ImplementationType` is a recipe class (`IPNEntityRecipe`), not a component; `Recipe` is its one shared instance and `IsPlayer` comes from it. |
-| `PNEntitySettings` | Core | Payload `data`. Required: `owner` (`peer`/`host`), `persist`, `followsOwner`, `lifetime` (seconds > 0 or `null`), `countsForClear`, `dropsLoot`. Optional: `prefab` (catalog key overriding the character's), `spawnBuffs` (up to 16 Buff ids). Unknown fields are rejected. |
-| `PNBodySettings` | Core | The `body` block of a character: `prefab`, `damageMode` (`normal`/`hits`), `healthBar` (`auto`/`hidden`), `aggro` (`normal`/`ignored`: the enemy Aggro rule never chooses it), `loot` (id; no consumer yet). `Read(character)` also checks the rules that need stats. |
+| `PNEntitySettings` | Core | Payload `data`. Required: `owner` (`peer`/`host`), `persist`, `followsOwner`, `lifetime` (seconds > 0 or `null`). Optional: `prefab` (catalog key overriding the character's), `spawnBuffs` (up to 16 Buff ids), `despawn` (`{exempt, near, far, seconds, leash}`, every field optional: the role's override of the world's despawn settings, see the despawn service in `Assets/Game/Entity/Lifetime/PNDespawnService.cs`). Unknown fields are rejected. |
+| `PNBodySettings` | Core | The `body` block of a character: `prefab`, `damageMode` (`normal`/`hits`), `healthBar` (`auto`/`hidden`), `aggro` (`normal`/`ignored`: the enemy Aggro rule never chooses it), `loot` (id; no consumer yet), `vision` (metres, > 0 and <= 200, optional: how far the enemy sees; read by `PNEnemyTargeting` as `PNEntityRole.Vision`, a behavior's own serialized value is only the fallback). `Read(character)` also checks the rules that need stats. |
 | `PNEntityRecipe`, `PNPlayerEntityRecipe`, `PNHostEntityRecipe` | Game | What the factory runs while the object is inactive (`Configure`: input owners, ground binding) and after publication (`Published`: local-player binding). |
 | `PNEntityGameplayContent` | Game | The built-in roles: `project_n:player` (alias `base:scene_spawn`, the old template name), `enemy`, `npc`, `summon`, `prop` (aliases `base:<name>`). |
 | `PNEntityFactory` | Game | `Get` / `Configure` / `Published` / `Return`, pools per (world, prefab), spawn point cache per (world, slot), `ResolvePrefab`, `Scheduler`. |
 | `PNEntitySpawner` | Core | The one way to start a spawn: `Enqueue(scheduler, factory, request, configure, published, failed, ...)`; `AssignNew` gives a host/offline runtime entity its id and character. |
 | `PNEntityPrefabCatalog`, `PNEntityPrefabs` | Game | Prefab by namespaced key: the asset `Resources/PNEntities/PNEntityPrefabs` plus what code mods register. |
 | `PNEntityPrefabReferences`, `IPNEntityPrefabSource` | Core | Keys content refers to, existence check at content load, one coop hash entry per key. |
-| `PNEntityRole`, `PNEntityLifetime` | Core | Components set by the factory: the role flags on the object; removal after N seconds of entity time. |
+| `PNEntityRole`, `PNEntityLifetime` | Core | Components set by the factory: the role flags on the object (including `Despawn` and `Vision`); removal after N seconds of entity time. `PNEntityLifetime.Hold(owner)` returns a `PNHold` that keeps the entity from despawning until it is disposed or the owner (a UnityEngine.Object) is destroyed (at most 64 holds). |
 
 ## Roles and flags
 
@@ -34,7 +34,10 @@ VI: Mọi thứ sinh ra như một nhân vật (người chơi, quái, NPC, tri�
 | `lifetime` / request `Lifetime` | Removed through `scheduler.RetirePublished` after that many seconds of entity time (authority only). |
 | `spawnBuffs` | Applied by the authority right after publication (the Buff manager resolves them on its next advance). |
 | `prefab` | Overrides the character's prefab key. |
-| `followsOwner`, `countsForClear`, `dropsLoot`, `loot` | **No effect yet.** Kept on `PNEntityRole` for summons, floor clear and loot, which do not exist. |
+| `despawn` | Only read by the despawn service of a world that has the feature `project_n:despawn` (sandbox test worlds today; the roguelite does not). `exempt` keeps the entity forever, `near`/`far`/`seconds` replace the world's 25 m / 35 m / 10 s, `leash` makes it walk back to where it was first seen. An enemy that carries `PNRoomClearMarker` is never removed by it. |
+| `followsOwner`, `loot` | **No effect yet.** Kept on `PNEntityRole`; `loot` is the character's `body.loot` id. |
+| room clear, loot (RulesVersion 142) | **The world decides, not the role** (Docs/SandboxPlan.md G6). `countsForClear` and `dropsLoot` are no longer fields (a role that names them is refused). A world that has the feature `project_n:room_clear` gets `PNRoomClearMarker` on enemies through the entity module `project_n:room_clear_enemy`, and `project_n:loot` gets `PNLootSource` through `project_n:loot_enemy`. Every room of a run has both (`PNRunFeatures.Implied`); the sandbox has neither, so its enemies are neither counted for a clear nor drop loot. `PNRoomDirector` counts only marked enemies and fails the run if a room enemy has no marker; no loot system reads `PNLootSource` yet. |
+| `persist` and the world | The role's `persist` stays (a summon is `false`). Whether the ordinary enemies of a world are saved is the world's: a roguelite keeps today's checkpoint, the sandbox save (G7) will filter them at save time. |
 
 ## Prefab resolution
 

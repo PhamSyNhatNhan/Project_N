@@ -90,6 +90,7 @@
   "project_n:error.starting": "Starting.",
   "project_n:error.host_only": "Only the host can start from the lobby.",
   "project_n:error.no_room": "No room is open.",
+  "project_n:error.map_too_large_mobile": "This map is too large for a mobile device (at most 512 x 512 cells).",
   "project_n:error.not_ready": "Not everyone is ready.",
   "project_n:error.join_failed": "Could not join or start.",
   "project_n:error.return_failed": "Could not return to the Hall.",

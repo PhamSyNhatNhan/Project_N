@@ -9,7 +9,8 @@
         "body": {
           "prefab": "starkeeper",
           "visual": "project_n:starkeeper",
-          "build": "normal"
+          "build": "normal",
+          "vision": 6
         }
       },
       "stats": [

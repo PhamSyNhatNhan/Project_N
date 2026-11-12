@@ -9,7 +9,8 @@
         "body": {
           "prefab": "starweaver",
           "visual": "project_n:starweaver",
-          "build": "short"
+          "build": "short",
+          "vision": 6
         }
       },
       "stats": [

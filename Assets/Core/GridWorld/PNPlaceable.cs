@@ -237,6 +237,27 @@ public sealed class PNGridPlacements
         placed = candidate; Added?.Invoke(candidate); return true;
     }
 
+    // Puts back a thing that a save kept (Docs/SandboxPlan.md G7): the cells were restored with the world, so nothing is edited, but the footprint is checked against them. The id and the health are the saved ones.
+    public PNPlacedObject Restore(PNPlaceableDefinition definition, int id, int x, int z, int direction, int health)
+    {
+        if (definition == null) throw new ArgumentNullException(nameof(definition));
+        if (id < 1 || byId.ContainsKey(id)) throw new FormatException("A saved placed thing needs a free positive id (" + id + ").");
+        if (direction < 0 || direction > 3) throw new FormatException("A saved direction is 0 to 3.");
+        if (byId.Count >= PNPlaceableLimits.MaxPlaced) throw new FormatException("The world holds no more placed things.");
+        var placed = new PNPlacedObject(id, definition, x, z, direction);
+        if (health < 0 || health > definition.Settings.Health) throw new FormatException("A saved health is 0 to the definition's " + definition.Settings.Health + ".");
+        placed.Health = health;
+        if (!data.InBounds(x, z) || !data.InBounds(x + placed.CellsX - 1, z + placed.CellsZ - 1)) throw new FormatException("A saved footprint leaves the world.");
+        for (int cz = z; cz < z + placed.CellsZ; cz++) for (int cx = x; cx < x + placed.CellsX; cx++)
+        {
+            if (occupied.ContainsKey(Key(cx, cz))) throw new FormatException("A saved footprint overlaps another thing at (" + cx + "," + cz + ").");
+            if (definition.Settings.BlocksPath && !data.IsSolid(cx, cz)) throw new FormatException("A saved blocking thing stands on a cell that is not solid at (" + cx + "," + cz + ").");
+        }
+        byId[id] = placed; if (id >= nextId) nextId = id + 1;
+        for (int cz = z; cz < z + placed.CellsZ; cz++) for (int cx = x; cx < x + placed.CellsX; cx++) occupied[Key(cx, cz)] = id;
+        Added?.Invoke(placed); return placed;
+    }
+
     // Takes `amount` of health; at zero the thing is broken. Returns true when it was broken.
     public bool Damage(int id, int amount)
     {

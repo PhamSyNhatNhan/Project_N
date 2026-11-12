@@ -52,7 +52,7 @@ Manager không làm gì khi không có authority, ngoài run, hoặc run không 
 
 ## Gắn vào người chơi: feature của world
 
-Run có khối `rogue` cho các phòng nó tạo feature `project_n:rogue_buff` (`PNRunFeatures.Of`; **suy ra từ khối, không khai tay**). Mô-đun `project_n:rogue_buff_player` (`PNGameplayContentModule`) đòi feature đó và gắn ba component; `PNEntityFactory` chỉ áp mô-đun khớp, không biết Roguelite Buff. Host gửi tập feature trong `PNWorldOffer`, client không tự tính. Chi tiết và cách viết mô-đun mới: `Docs/EntityModulePlan.md`.
+Mọi run cho các phòng nó tạo hai feature `project_n:room_clear` và `project_n:loot` (G6: quái được đếm để dọn phòng và rơi vật phẩm do world quyết, qua mô-đun `project_n:room_clear_enemy` / `project_n:loot_enemy`). Run có khối `rogue` cho các phòng nó tạo thêm feature `project_n:rogue_buff` (`PNRunFeatures.Of`; **suy ra từ khối, không khai tay**). Mô-đun `project_n:rogue_buff_player` (`PNGameplayContentModule`) đòi feature đó và gắn ba component; `PNEntityFactory` chỉ áp mô-đun khớp, không biết Roguelite Buff. Host gửi tập feature trong `PNWorldOffer`, client không tự tính. Chi tiết và cách viết mô-đun mới: `Docs/EntityModulePlan.md`.
 
 ## Đồng bộ (coop)
 

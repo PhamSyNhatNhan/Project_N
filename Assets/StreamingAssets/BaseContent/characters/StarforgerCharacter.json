@@ -9,7 +9,8 @@
         "body": {
           "prefab": "starforger",
           "visual": "project_n:starforger",
-          "build": "tall"
+          "build": "tall",
+          "vision": 7
         }
       },
       "stats": [

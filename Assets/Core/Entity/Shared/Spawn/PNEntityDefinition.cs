@@ -18,9 +18,9 @@ public enum PNEntityOwner { Peer, Host }
 // EN: The `data` payload of an entity definition. Every field is required except the ones marked optional.
 //       owner: "peer" | "host" (who controls it; no effect yet - being a player is the recipe's IsPlayer)          persist: bool (written into the world checkpoint)      followsOwner: bool (goes along when the owner changes world)
 //       lifetime: number > 0 (seconds) or null (no limit)
-//       countsForClear: bool and dropsLoot: bool are read and kept, nothing consumes them yet (no clear condition / loot system exists)
 //       prefab (optional): catalog key that overrides the character's prefab        spawnBuffs (optional): Buff ids applied right after publication
-// VI: Payload `data` của entity. Mọi trường bắt buộc trừ khi ghi tuỳ chọn; countsForClear và dropsLoot chưa có tác dụng.
+//       despawn (optional): {exempt, near, far, seconds, leash} role override of the world's despawn service and the home leash (Docs/SandboxPlan.md G4)
+// VI: Payload `data` của entity. Mọi trường bắt buộc trừ khi ghi tuỳ chọn. (countsForClear / dropsLoot không còn: world khai feature `project_n:room_clear` / `project_n:loot`, G6.)
 public sealed class PNEntitySettings
 {
     public const double MaxLifetimeSeconds = 86400d;
@@ -29,12 +29,12 @@ public sealed class PNEntitySettings
     public bool Persist { get; }
     public bool FollowsOwner { get; }
     public double? Lifetime { get; }
-    public bool CountsForClear { get; }
-    public bool DropsLoot { get; }
     public string Prefab { get; }
     public IReadOnlyList<EveId> SpawnBuffs { get; }
+    // Optional (null = the world's despawn settings, no exemption, no home): see PNDespawnOverride.
+    public PNDespawnOverride Despawn { get; }
 
-    public PNEntitySettings(PNEntityOwner owner, bool persist, bool followsOwner, double? lifetime, bool countsForClear, bool dropsLoot, string prefab, IReadOnlyList<EveId> spawnBuffs)
+    public PNEntitySettings(PNEntityOwner owner, bool persist, bool followsOwner, double? lifetime, string prefab, IReadOnlyList<EveId> spawnBuffs, PNDespawnOverride despawn = null)
     {
         if (!Enum.IsDefined(typeof(PNEntityOwner), owner)) throw new FormatException("entity owner must be peer or host.");
         if (lifetime.HasValue && (double.IsNaN(lifetime.Value) || double.IsInfinity(lifetime.Value) || lifetime.Value <= 0d || lifetime.Value > MaxLifetimeSeconds))
@@ -45,14 +45,25 @@ public sealed class PNEntitySettings
         if (buffs.Count > MaxSpawnBuffs) throw new FormatException("entity spawnBuffs allows at most " + MaxSpawnBuffs + " Buffs.");
         var seen = new HashSet<EveId>();
         foreach (var id in buffs) if (!id.IsValid || !seen.Add(id)) throw new FormatException("entity spawnBuffs must be valid and unique.");
-        Owner = owner; Persist = persist; FollowsOwner = followsOwner; Lifetime = lifetime; CountsForClear = countsForClear; DropsLoot = dropsLoot; Prefab = prefab; SpawnBuffs = buffs.AsReadOnly();
+        Owner = owner; Persist = persist; FollowsOwner = followsOwner; Lifetime = lifetime; Prefab = prefab; SpawnBuffs = buffs.AsReadOnly(); Despawn = despawn;
+    }
+
+    // {"exempt": bool, "near": m, "far": m, "seconds": s, "leash": m}: every field optional, nothing else allowed.
+    private static PNDespawnOverride ParseDespawn(JToken token)
+    {
+        if (token == null) return null;
+        var obj = token as JObject ?? throw new FormatException("entity despawn must be an object.");
+        PNBuffContentBatch.Fields(obj, "exempt", "near", "far", "seconds", "leash");
+        float? Optional(string name) => obj[name] == null ? (float?)null : (float)PNBuffContentBatch.Number(obj, name);
+        bool exempt = obj["exempt"] != null && PNBuffContentBatch.Bool(obj, "exempt");
+        return new PNDespawnOverride(exempt, Optional("near"), Optional("far"), Optional("seconds"), Optional("leash") ?? 0f);
     }
 
     public static PNEntitySettings Parse(JToken data)
     {
         var obj = PNBuffContentBatch.Object(data);
-        PNBuffContentBatch.Fields(obj, "owner", "persist", "followsOwner", "lifetime", "countsForClear", "dropsLoot", "prefab", "spawnBuffs");
-        foreach (var required in new[] { "owner", "persist", "followsOwner", "lifetime", "countsForClear", "dropsLoot" })
+        PNBuffContentBatch.Fields(obj, "owner", "persist", "followsOwner", "lifetime", "prefab", "spawnBuffs", "despawn");
+        foreach (var required in new[] { "owner", "persist", "followsOwner", "lifetime" })
             if (obj[required] == null) throw new FormatException("entity " + required + " is required.");
         PNEntityOwner owner;
         switch (PNBuffContentBatch.String(obj, "owner"))
@@ -74,7 +85,7 @@ public sealed class PNEntitySettings
             }
         }
         return new PNEntitySettings(owner, PNBuffContentBatch.Bool(obj, "persist"), PNBuffContentBatch.Bool(obj, "followsOwner"), lifetime,
-            PNBuffContentBatch.Bool(obj, "countsForClear"), PNBuffContentBatch.Bool(obj, "dropsLoot"), PNBuffContentBatch.OptionalString(obj, "prefab"), buffs);
+            PNBuffContentBatch.OptionalString(obj, "prefab"), buffs, ParseDespawn(obj["despawn"]));
     }
 }
 

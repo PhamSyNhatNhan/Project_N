@@ -17,6 +17,7 @@ public enum PNAggroMode { Normal, Ignored }
 //       loot: id of a loot table. Read and checked only; nothing consumes it yet.
 //       visual: id of a Visual appearance (Docs/VisualPlan.md): the character is drawn as a rig puppet instead of its prefab's own sprite. Absent = unchanged.
 //       build: "short" | "normal" | "tall": replaces the appearance's build (project_n:build_short ...); needs visual.
+//       vision: number > 0, metres an enemy of this character sees a hostile from (the shared enemy targeting reads it; Docs/SandboxPlan.md G5).
 //     Absent block = every default. Damageable <=> the character declares a project_n:health stat.
 // VI: Khối `body` trong dữ liệu character: thứ đó là gì khi được sinh. Có Health <=> nhận sát thương được. `loot` chưa có nơi dùng.
 public sealed class PNBodySettings
@@ -31,9 +32,14 @@ public sealed class PNBodySettings
     public PNAggroMode Aggro { get; }
     public EveId? Visual { get; }
     public string Build { get; }
+    // Metres an enemy of this character sees a hostile from (0 = not declared). The shared enemy targeting (PNEnemyTargeting) reads it; a behavior that needs it and finds 0 refuses to start.
+    public float Vision { get; }
+    public const float MaxVision = 200f;
 
-    public PNBodySettings(string prefab, PNDamageMode damageMode, PNHealthBarMode healthBar, EveId? loot, PNAggroMode aggro = PNAggroMode.Normal, EveId? visual = null, string build = "")
+    public PNBodySettings(string prefab, PNDamageMode damageMode, PNHealthBarMode healthBar, EveId? loot, PNAggroMode aggro = PNAggroMode.Normal, EveId? visual = null, string build = "", float vision = 0f)
     {
+        if (float.IsNaN(vision) || float.IsInfinity(vision) || vision < 0f || vision > MaxVision) throw new FormatException("body vision must be a number in [0, " + MaxVision + "].");
+        Vision = vision;
         prefab = prefab ?? "";
         if (prefab.Length > 0) ValidateKey(prefab, "body prefab");
         if (!Enum.IsDefined(typeof(PNDamageMode), damageMode)) throw new FormatException("body damageMode is unknown.");
@@ -76,7 +82,7 @@ public sealed class PNBodySettings
         var token = root["body"];
         if (token == null) return Default;
         var obj = PNBuffContentBatch.Object(token);
-        PNBuffContentBatch.Fields(obj, "prefab", "damageMode", "healthBar", "aggro", "loot", "visual", "build");
+        PNBuffContentBatch.Fields(obj, "prefab", "damageMode", "healthBar", "aggro", "loot", "visual", "build", "vision");
         var mode = PNDamageMode.Normal;
         if (obj["damageMode"] != null)
             switch (PNBuffContentBatch.String(obj, "damageMode"))
@@ -113,7 +119,14 @@ public sealed class PNBodySettings
             if (!EveId.TryParse(PNBuffContentBatch.String(obj, "visual"), out var visualId)) throw new FormatException("body visual must be a namespaced id.");
             visual = visualId;
         }
-        return new PNBodySettings(PNBuffContentBatch.OptionalString(obj, "prefab"), mode, bar, loot, aggro, visual, PNBuffContentBatch.OptionalString(obj, "build"));
+        float vision = 0f;
+        if (obj["vision"] != null)
+        {
+            double value = PNBuffContentBatch.Number(obj, "vision");
+            if (!(value > 0d)) throw new FormatException("body vision must be greater than 0.");
+            vision = (float)value;
+        }
+        return new PNBodySettings(PNBuffContentBatch.OptionalString(obj, "prefab"), mode, bar, loot, aggro, visual, PNBuffContentBatch.OptionalString(obj, "build"), vision);
     }
 
     // Whole check for one character: block fields plus the rules that need its stats and its playable block.

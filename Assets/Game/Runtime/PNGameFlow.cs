@@ -273,8 +273,8 @@ public sealed class PNGameFlow : MonoBehaviour
         double until = Time.realtimeSinceStartupAsDouble + ConnectTimeout;
         while (failure == null && !(EveRegistrySession.IsReady && PNLocalWorldContext.Current?.World != null && (mode == PNFlowMode.Offline || PNGameBootstrap.IsPlaying)))
         {
-            if (Time.realtimeSinceStartupAsDouble > until) failure = PNGameBootstrap.LobbyDriver?.LastFailure ?? "Không kết nối được tới phòng.";
-            else if (mode != PNFlowMode.Offline && !PNGameBootstrap.IsRoomOpen) failure = PNGameBootstrap.LobbyDriver?.LastFailure ?? "Phòng không khả dụng.";
+            if (Time.realtimeSinceStartupAsDouble > until) failure = LobbyFailure() ?? "Không kết nối được tới phòng.";
+            else if (mode != PNFlowMode.Offline && !PNGameBootstrap.IsRoomOpen) failure = LobbyFailure() ?? "Phòng không khả dụng.";
             else yield return null;
         }
         EndLoading();
@@ -358,9 +358,18 @@ public sealed class PNGameFlow : MonoBehaviour
         bool ended = state == EveSessionState.Stopped || state == EveSessionState.Failed || (state == EveSessionState.Ready && CurrentMode != PNFlowMode.Offline && !PNGameBootstrap.IsRoomOpen);
         if (!ended) return;
         expectSession = false;
-        string reason = PNGameBootstrap.LobbyDriver?.LastFailure;
+        string reason = LobbyFailure();
         // Only a reason (a failure) is worth telling; "the run ended" or "the room closed" is already plain from the Hall appearing.
         ReturnToHall(CurrentMode == PNFlowMode.Offline || string.IsNullOrEmpty(reason) ? null : "Phòng đã đóng: " + reason);
+    }
+
+    // The lobby driver's last failure, translated when it carries a localization key.
+    private static string LobbyFailure()
+    {
+        var driver = PNGameBootstrap.LobbyDriver;
+        if (driver == null) return null;
+        string key = driver.LastFailureKey;
+        return key != null ? PNLocalization.Text(key, null, driver.LastFailure) : driver.LastFailure;
     }
 
     // While one play is torn down and the next one starts there is no UI of ours, only the freshly loaded scene. This cover stays up from the

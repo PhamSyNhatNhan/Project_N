@@ -15,6 +15,7 @@ public class PNEnemyMeleeBehavior : PNEnemyStateMachineBehavior
     private PNEnemyNavigationRequest walk;
     private float timer;
     private readonly RaycastHit[] sightHits = new RaycastHit[32];
+    private readonly List<PNStat> near = new List<PNStat>();
     protected virtual EveId AttackSkillId => PNEnemyGameplayContent.Strike;
     protected virtual PNEnemyActionExecution Execution => PNEnemyActionExecution.Instant;
     public override IEnumerable<EveId> SkillIds => new[] { AttackSkillId };
@@ -39,19 +40,21 @@ public class PNEnemyMeleeBehavior : PNEnemyStateMachineBehavior
     private void Acquire(float delta)
     {
         timer -= delta; if (timer > 0) return; timer = retryDelay;
-        float range = aggroRange * aggroRange; target = null; var best = default(PNTargetScore);
+        // Aggro rule (PNTargetRule.Aggro) over the shared enemy targeting: within aggroRange, the smallest distance minus the candidate's aggro stat; ties go to the lower entity ID.
+        // This behavior has no line-of-sight test when it acquires (the attack checks its own), so the sight of the shared object is not asked.
+        target = null; var best = default(PNTargetScore);
         var world = GetComponentInParent<EveEntityIdentity>()?.World;
         if (world == null) return;
-        // Aggro rule (PNTargetRule.Aggro): within aggroRange, the smallest distance minus the candidate's aggro stat; ties go to the lower entity ID.
-        foreach (var candidate in world.Session.Entities.Snapshot(world))
+        near.Clear(); PNWorldEntityIndex.For(world).Near(Context.Owner.transform.position, aggroRange, near);
+        foreach (var stat in near)
         {
-            var stat = candidate.GetComponent<PNStat>();
             if (!CanTarget(stat)) continue;
-            float distance = (stat.transform.position - Context.Owner.transform.position).sqrMagnitude;
-            if (distance >= range) continue;
-            var score = new PNTargetScore { Distance = Mathf.Sqrt(distance), Aggro = PNTargetSelector.AggroOf(stat), EntityId = stat.EntityId.Value };
+            float distance = (stat.transform.position - Context.Owner.transform.position).magnitude;
+            if (distance >= aggroRange) continue;
+            var score = new PNTargetScore { Distance = distance, Aggro = PNTargetSelector.AggroOf(stat), EntityId = stat.EntityId.Value };
             if (target == null || PNTargetRanking.Better(score, best, PNTargetRule.Aggro)) { best = score; target = stat; }
         }
+        near.Clear();
         if (target != null) ChangeState("Chase");
     }
     private bool CanTarget(PNStat value) => value != null && value != Context.Stat && value.IsReady && !value.IsDead && PNTargetSelector.IsAggroEligible(value) &&
