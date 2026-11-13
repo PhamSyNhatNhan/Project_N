@@ -8,10 +8,9 @@ metadata, not an enum, stat modifier, Ability or automatic combat mechanic.
 | Original ID | Public alias | Display name |
 | --- | --- | --- |
 | project_n:normal | base:normal | Normal |
-| project_n:elite | base:elite | Elite |
 | project_n:boss | base:boss | Boss |
 
-Miniboss uses Boss. All three public bindings are locked against overrides. Trusted
+Miniboss uses Boss. Elite is NOT a type: it was removed in RulesVersion 152 and replaced by the Sidus state (below); `enemyTypeId: "base:elite"` is rejected like any unknown ID. Both public bindings are locked against overrides. Trusted
 code modules can register additional `PNEnemyTypeDefinition` entries during startup;
 registrations seal with the session and participate in compatibility fingerprints.
 
@@ -22,7 +21,7 @@ registrations seal with the session and participate in compatibility fingerprint
   "schemaVersion": 1,
   "characters": [{
     "id": "my_mod:enemy",
-    "data": { "enemyTypeId": "base:elite" },
+    "data": { "enemyTypeId": "base:boss" },
     "stats": [{ "statId": "base:health", "base": 1000 }],
     "skill": []
   }]
@@ -54,7 +53,7 @@ spawn a different enemy. Direct `Initialize(PNStatSet)` has no character metadat
 therefore defaults to registered Normal. All paths require the classification registry.
 
 ```csharp
-hub.EnemyTypes().Get(EveId.Parse("base:elite"));
+hub.EnemyTypes().Get(EveId.Parse("base:boss"));
 hub.EnemyTypes().Register(new PNEnemyTypeDefinition(EveId.Parse("my_mod:champion"), "Champion"));
 // Register only in a content module's Register hook, before sealing.
 var typeId = enemy.EnemyTypeId;
@@ -66,13 +65,19 @@ Scaling is deferred until gameplay work. Shield/break and Buff rules remain unde
 Player classification is not inferred from character metadata: only PNEnemyStat
 exposes this API. Dummy JSON explicitly declares Normal; authored scenes are unchanged.
 
+## Sidus (a state, not a type)
+
+`PNEnemyStat.LockSidus(owner)` returns an `IDisposable` lease (null when the enemy is not ready or is a boss) and `IsSidus` is true while at least one lease is held; `CanBeSidus` is
+ready and classified normal. Same shape as the Lorica lock: each lease returns only itself, disposing twice is safe, `Unload` clears them. The lease is held by the Sidus Buff
+(`Assets/Game/Buff/PNSidusBuffs.cs`, see PNBuffREADME "Sidus Buffs") so the state ends with the Buff. Authority only: a client replica holds no lease. Design: `Docs/SidusPlan.md`.
+
 ## Verification
 
 Standalone coverage: `Tests/EveEngine/PNEnemyTypeTests.cs` in the smoke suite, including
 aliases, locking, custom definitions, invalid data/dependencies, atomic JSON rejection,
 defensive copies, compatibility hashes, entity loading and cleanup.
 Native: `PNEnemyTypeEditorChecks.Run()` uses a disposable preview scene and real base
-content; it verifies Dummy, Elite, Boss, legacy fallback, entity isolation, unchanged
+content; it verifies Dummy, Boss, legacy fallback, entity isolation, unchanged
 stats/player behavior, idempotent Load, unload/reload and invalid initialization.
 
 Executable RulesVersion is `project_n:42`; DLL Mod API remains 2 (additive APIs).

@@ -25,7 +25,7 @@ public class PNContentModule : EveIContentModule, EveIContentFinalizeModule, Eve
         hub.GetOrCreate<PNBuffDefinition>(); hub.NameRegistry<PNBuffDefinition>("buffs");
         hub.GetOrCreate<PNBuffPresenterDefinition>(); hub.NameRegistry<PNBuffPresenterDefinition>("buff_presenters");
         var buffTags = hub.GetOrCreate<PNBuffTagDefinition>(); hub.NameRegistry<PNBuffTagDefinition>("buff_tags");
-        foreach (var name in new[] { "buff", "debuff", "neutral", "stun", "silence", "dot", "fire", "ice", "lightning", "vulnerability", "stat", "timescale" })
+        foreach (var name in new[] { "buff", "debuff", "neutral", "stun", "silence", "dot", "fire", "ice", "lightning", "vulnerability", "stat", "timescale", "sidus" })
         {
             var id = EveId.Parse("project_n:" + name); buffTags.Register(new PNBuffTagDefinition(id));
             buffTags.RegisterBase(new EveId("base", name), id, "project_n");
@@ -50,7 +50,6 @@ public class PNContentModule : EveIContentModule, EveIContentFinalizeModule, Eve
         hub.GetOrCreate<PNSkillOperationDefinition>();
         var enemyTypes = hub.GetOrCreate<PNEnemyTypeDefinition>();
         enemyTypes.Register(new PNEnemyTypeDefinition(PNContentIds.NormalEnemy, "Normal"));
-        enemyTypes.Register(new PNEnemyTypeDefinition(PNContentIds.EliteEnemy, "Elite"));
         enemyTypes.Register(new PNEnemyTypeDefinition(PNContentIds.BossEnemy, "Boss"));
         foreach (var type in enemyTypes.Snapshot().Values)
             enemyTypes.RegisterBase(new EveId("base", type.Id.Path), type.Id, "project_n");

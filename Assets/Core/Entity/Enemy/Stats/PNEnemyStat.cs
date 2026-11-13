@@ -36,8 +36,28 @@ public class PNEnemyStat : PNStat
 
     public override void Unload()
     {
-        enemyType = null; loricaLocks.Clear(); Lorica = PNLoricaSettings.Default;
+        enemyType = null; loricaLocks.Clear(); sidusLocks.Clear(); Lorica = PNLoricaSettings.Default;
         base.Unload();
+    }
+
+    // ---- Sidus: a state, not an enemy type (Docs/SidusPlan.md). Held by leases like the Lorica lock; the Buff that grants it owns the lease. Only a ready enemy classified normal can hold it. --------------
+    private readonly List<SidusLock> sidusLocks = new List<SidusLock>();
+    // True while at least one Sidus lease is held. Authority only: a client replica holds no lease (the Buff there is presentation).
+    public bool IsSidus => sidusLocks.Count > 0;
+    // True when this enemy can be Sidus at all: ready and registered as normal (a boss never is).
+    public bool CanBeSidus => IsReady && enemyType != null && enemyType.Id == PNContentIds.NormalEnemy;
+    // Takes a Sidus lease; null when the enemy cannot be Sidus (not ready, or a boss). Dispose returns only this lease; safe to repeat.
+    public IDisposable LockSidus(string owner)
+    {
+        if (string.IsNullOrWhiteSpace(owner)) throw new ArgumentException("Lock owner required.", nameof(owner));
+        if (!CanBeSidus) return null;
+        var result = new SidusLock(this, owner); sidusLocks.Add(result); return result;
+    }
+    private sealed class SidusLock : IDisposable
+    {
+        private PNEnemyStat owner; public readonly string Owner;
+        public SidusLock(PNEnemyStat stat, string name) { owner = stat; Owner = name; }
+        public void Dispose() { var stat = owner; owner = null; stat?.sidusLocks.Remove(this); }
     }
 
     // ---- Lorica: a resource that shares every hit with health, breaks into a stun and then refills (docs: Docs/EnemyLoricaDesign.md) --------------

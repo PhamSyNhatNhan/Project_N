@@ -24,19 +24,18 @@ public static class PNEnemyTypeEditorChecks
             var documents = new PNGameContentSource(Path.Combine(Application.streamingAssetsPath, "BaseContent"),
                 Path.Combine(Application.persistentDataPath, "Mods"), Array.Empty<string>()).ReadDocuments().ToArray();
             var fixtures = new EveContentDocument("native_enemy_types.json", @"{schemaVersion:1,characters:[
-                {id:'test:elite',data:{enemyTypeId:'base:elite'},stats:[{statId:'base:health',base:100,initialCurrent:100}]},
                 {id:'test:boss',data:{enemyTypeId:'base:boss'},stats:[{statId:'base:health',base:100,initialCurrent:100}]},
                 {id:'test:old',stats:[{statId:'base:health',base:100,initialCurrent:100}]}
             ]}", "test", dependencies: new[] { "project_n" });
             var modules = new EveIContentModule[] { new PNContentModule(), new PNGameplayContentModule() };
             var hub = new EveContentBootstrap().Build(modules, documents.Concat(new[] { fixtures }));
-            check(hub.EnemyTypes().Count == 3 && hub.EnemyTypes().IsSealed, "Three sealed registered types");
+            check(hub.EnemyTypes().Count == 2 && hub.EnemyTypes().IsSealed, "Two sealed registered types");
             check(hub.EnemyTypes().BindingSnapshot().All(binding => !binding.AllowsOverride), "Original types locked");
             EveRegistrySession.Begin(); started = true;
             EveRegistrySession.Start(hub, EveSessionRole.Offline,
                 EveContentCompatibility.Create(hub, documents.Concat(new[] { fixtures }), "test:native_enemy_types"));
-            var characters = new[] { "project_n:dummy", "test:elite", "test:boss", "test:old" };
-            var expected = new[] { PNContentIds.NormalEnemy, PNContentIds.EliteEnemy, PNContentIds.BossEnemy, PNContentIds.NormalEnemy };
+            var characters = new[] { "project_n:dummy", "test:boss", "test:old" };
+            var expected = new[] { PNContentIds.NormalEnemy, PNContentIds.BossEnemy, PNContentIds.NormalEnemy };
             PNEnemyStat first = null;
             for (int i = 0; i < characters.Length; i++)
             {
@@ -80,7 +79,7 @@ public static class PNEnemyTypeEditorChecks
             finally { EditorSceneManager.ClosePreviewScene(preview); }
         }
         check(SceneManager.GetActiveScene() == active && active.isDirty == dirty, "Authored scene untouched");
-        return "PASS " + checks + " native enemy type checks: real Dummy JSON, Normal/Elite/Boss, legacy fallback, entity isolation, idempotent Load, unload/reload, invalid IDs and player parity; scene unchanged.";
+        return "PASS " + checks + " native enemy type checks: real Dummy JSON, Normal/Boss, legacy fallback, entity isolation, idempotent Load, unload/reload, invalid IDs and player parity; scene unchanged.";
     }
 }
 #endif

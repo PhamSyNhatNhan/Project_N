@@ -20,7 +20,6 @@ public static class PNContentIds
     public static readonly EveId SummonDamage = EveId.Parse("project_n:summon_damage");
     public static readonly EveId SummonScale = EveId.Parse("project_n:summon_scale");
     public static readonly EveId NormalEnemy = EveId.Parse("project_n:normal");
-    public static readonly EveId EliteEnemy = EveId.Parse("project_n:elite");
     public static readonly EveId BossEnemy = EveId.Parse("project_n:boss");
     public static readonly EveId Heal = EveId.Parse("project_n:heal");
     public static readonly EveId Health = EveId.Parse("project_n:health");
