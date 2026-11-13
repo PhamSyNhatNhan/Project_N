@@ -24,6 +24,7 @@ public static class PNArenaMapChecks
             Check(descriptor.Width == 128 && descriptor.Depth == 128 && descriptor.Map == PNArenaMaps.ArenaMapId, "the descriptor is the 128 x 128 arena map");
             var grounds = session.Registry.Get<PNGroundDefinition>().Snapshot().Values.OrderBy(x => x.Id.ToString(), StringComparer.Ordinal).ToArray();
             var data = new PNGridWorldData(descriptor, grounds.Select(x => x.Id.ToString()).ToArray());
+            PNArenaMaps.EnsureRegistered();   // the static map registry is empty after a domain reload until the content module (or this call) fills it
             var entry = PNGridMaps.Get(PNArenaMaps.ArenaMapId); Check(entry != null, "the arena map is registered");
             var known = session.Registry.Instances();
             var restored = entry.Build(descriptor, data.Palette, grounds.Select(x => x.Walkable).ToArray(), id => EveId.TryParse(id, out var parsed) ? known.GetEffectiveKind<PNPlaceableDefinition>(parsed) : null);

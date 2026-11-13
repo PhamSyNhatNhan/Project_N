@@ -2,14 +2,14 @@
 using UnityEngine;
 
 // Authored on an entry scene to say which world definition that scene is and which mode a standalone start uses.
-// A scene without the marker keeps the original contract: base:scene_world and the configured mode.
+// A scene without the marker (or with an empty definition) makes no world: the session reports an error.
 [DisallowMultipleComponent]
 public sealed class PNEntrySceneMarker : MonoBehaviour
 {
-    [SerializeField] private string worldDefinition = "base:scene_world";
+    [SerializeField] private string worldDefinition = "";
     // Used only when the scene is the startup scene, the role is Offline and no --pn-mode was given.
     [SerializeField] private string modeId = "";
-    public string WorldDefinition => string.IsNullOrWhiteSpace(worldDefinition) ? "base:scene_world" : worldDefinition;
+    public string WorldDefinition => worldDefinition ?? "";
     public string ModeId => modeId ?? "";
     public static PNEntrySceneMarker Find(UnityEngine.SceneManagement.Scene scene)
     {

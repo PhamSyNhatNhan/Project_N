@@ -56,11 +56,6 @@ public sealed class PNWorldRuntime : IPNWorldRuntime,IPNWorldPopulation
         creatorFeatures.Add(instance,creator);creatorOrder.Enqueue(instance);
         while(creatorOrder.Count>MaximumRememberedCreators)creatorFeatures.Remove(creatorOrder.Dequeue());
     }
-    private Scene entryScene;
-    private EveId entryDefinition=EveId.Parse("base:scene_world");
-    public EveId EntryDefinition=>entryDefinition;
-    public void SetEntryScene(Scene scene,EveId definition=default)
-    { if(entryScene.IsValid())throw new InvalidOperationException("Entry scene already recorded.");entryScene=scene;if(definition.IsValid)entryDefinition=definition; }
     private int activeLoads;
     public PNWorldRuntime(EveSessionContext session,EveEntityPreparationScheduler scheduler)
     {
@@ -74,24 +69,6 @@ public sealed class PNWorldRuntime : IPNWorldRuntime,IPNWorldPopulation
         return entry.Build;
     }
     public bool RestoredPopulation(EveWorldContext world)=>entries.TryGetValue(world.InstanceId,out var entry)&&ReferenceEquals(entry.Build.World,world)&&entry.DeferReady;
-    // Existing scene entry is a borrowed content slot. Scan only once at the boundary;
-    // factory/enrollment never search globally after the world has been registered.
-    public EveWorldContext Adopt(Scene scene,Guid instance=default,ulong incarnation=1) => Adopt(scene,instance,incarnation,0,null);
-    private EveWorldContext Adopt(Scene scene,Guid instance,ulong incarnation,ulong subscription,IEnumerable<EveId> supplied)
-    {
-        var definition=session.Registry.Get<PNWorldDefinition>().Get(entryDefinition);
-        var features=Compose(definition,null,supplied);
-        var world=subscription==0?session.Worlds.Create(instance==Guid.Empty?Guid.NewGuid():instance,incarnation,definition.Id,definition.ContentHash):session.Worlds.CreateReplica(instance,incarnation,definition.Id,definition.ContentHash,subscription);
-        var owner=CreateOwner(world);world.RegisterCleanup(()=>UnloadScene(owner));
-        world.ConfigurePhysics(owner,Application.isPlaying);world.BeginLoading();
-        var build=new PNWorldBuildContext(world,owner,features);
-        entries.Add(world.InstanceId,new Entry{Build=build});
-        var roots=scene.GetRootGameObjects().Where(x=>x.GetComponent<EveRuntime>()==null&&x.GetComponent<PNRoomResource>()==null&&!x.GetComponentsInChildren<PNFactoryEntity>(true).Any()).ToArray();
-        world.RegisterCleanup(()=>{foreach(var root in roots)if(root!=null&&root.scene==owner&&scene.IsValid()&&scene.isLoaded)SceneManager.MoveGameObjectToScene(root,scene);});
-        build.AddSlot("main",scene,roots,false);
-        PNWorldNavigation.Prepare(build);
-        world.CompleteLoading();DefaultWorld=world;PublishStaged(world);return world;
-    }
     public EveWorldContext Create(EveId definition,Guid instance=default,ulong incarnation=1)=>Create(definition,instance,incarnation,0);
     // The creator's features (for example the run's) join the mode's and the definition's. Not available to a client: its worlds are replicas.
     public EveWorldContext Create(EveId definition,Guid instance,ulong incarnation,IEnumerable<EveId> features)
@@ -148,17 +125,11 @@ public sealed class PNWorldRuntime : IPNWorldRuntime,IPNWorldPopulation
     public EveWorldContext CreateReplica(EveId definition,Guid instance,ulong incarnation,ulong subscription,bool defaultWorld,IEnumerable<EveId> features)
     {
         if(session.Role!=EveSessionRole.Client)throw new InvalidOperationException("Replica worlds belong to clients.");
-        if(defaultWorld&&!entryScene.IsValid())
-        {
-            // G13: no entry scene was adopted (its world is made from a definition), so the host's default world is built like any other replica and marked as the default.
-            if(DefaultWorld!=null)throw new InvalidOperationException("The play already has a default world.");
-            return Create(definition,instance,incarnation,subscription,false,null,null,features??Array.Empty<EveId>(),true);
-        }
         if(defaultWorld)
         {
-            var selected=session.Registry.Get<PNWorldDefinition>().Get(entryDefinition);
-            if(definition!=selected.Id||!entryScene.IsValid()||!entryScene.isLoaded)throw new InvalidOperationException("Default world does not match the recorded entry content.");
-            return Adopt(entryScene,instance,incarnation,subscription,features??Array.Empty<EveId>());
+            // The host's default world is built like any other replica and marked as the default.
+            if(DefaultWorld!=null)throw new InvalidOperationException("The play already has a default world.");
+            return Create(definition,instance,incarnation,subscription,false,null,null,features??Array.Empty<EveId>(),true);
         }
         return Create(definition,instance,incarnation,subscription,false,null,null,features??Array.Empty<EveId>());
     }

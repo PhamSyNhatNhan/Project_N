@@ -94,7 +94,7 @@ Scenes live in `Assets/Game/Scenes/` (`Shared/PNHall`, `Roguelite/PNLobby`, `Tes
   replica is matched against that definition, so host and client must have loaded the same entry scene before connecting.
 - **Modes.** `project_n:hall` (`PNHallPolicy`, offline home) and `project_n:roguelite`; `PNPlayConfig.ModeExplicit` is true only
   when `--pn-mode` was given.
-- **Run (2026-11-04).** Every start goes lobby -> first room of a run (`PNRunDirector`, `Assets/Game/Roguelite/PNRunFlowREADME.md`); a solo start goes on by itself, `-pn-legacy-run` keeps the old straight start into ErMode. Map worlds (`project_n:map_*`) report the Run phase.
+- **Run (2026-11-04).** Every start goes lobby -> first room of a run (`PNRunDirector`, `Assets/Game/Roguelite/PNRunFlowREADME.md`); a solo start goes on by itself, Map worlds (`project_n:map_*`) report the Run phase.
 - **Coordinator.** `PNGameFlow` (static API on a persistent component): `StartRoguelite(Offline|Host|Join, address)`,
   `ReturnToHall(notice)`, `CanStartRun/StartRun`. Every scene change first ends the current play and waits for Stopped and an idle
   room driver, then loads the scene (single mode) and begins the play. Offline goes straight to the run scene; Host/Join go to

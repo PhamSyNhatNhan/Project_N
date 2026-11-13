@@ -66,10 +66,13 @@ namespace ProjectN.Coop.Tests
         private IEnumerator Host()
         {
             yield return Wait(()=>Has("client1-lobby")&&Has("client2-lobby"));if(failed)yield break;
-            try{PNGameBootstrap.BeginPlay();a=manager.Worlds.DefaultWorld.InstanceId;Mark("world-a",a.ToString());}catch(Exception error){Fail(error);yield break;}
+            try{PNGameBootstrap.BeginPlay();}catch(Exception error){Fail(error);yield break;}
+            // G13/G14: the default world is made from the entry marker's definition and is the default only once it is ready (the scene is no longer adopted), so wait for it.
+            yield return Wait(()=>manager.Worlds.DefaultWorld!=null&&manager.Worlds.DefaultWorld.State==EveWorldState.Ready);if(failed)yield break;
+            try{a=manager.Worlds.DefaultWorld.InstanceId;Mark("world-a",a.ToString());}catch(Exception error){Fail(error);yield break;}
             yield return Wait(()=>Has("client1-a")&&Has("client2-a"));if(failed)yield break;
             EveWorldContext second=null;
-            try{Check(EveRegistrySession.Context.Worlds.Snapshot().Count==1,"one initial world");second=manager.Worlds.Create(EveId.Parse("base:scene_world"));b=second.InstanceId;Mark("world-b",b.ToString());}catch(Exception error){Fail(error);yield break;}
+            try{Check(EveRegistrySession.Context.Worlds.Snapshot().Count==1,"one initial world");second=manager.Worlds.Create(EveId.Parse("base:test_arena"));b=second.InstanceId;Mark("world-b",b.ToString());}catch(Exception error){Fail(error);yield break;}
             yield return Wait(()=>second.State==EveWorldState.Ready&&Shells().Any(x=>x.Metadata.World==b));if(failed)yield break;
             var peer2=NetworkServer.connections.Values.Single(c=>c.authenticationData is PNPeer p&&p.Owner==2);
             try

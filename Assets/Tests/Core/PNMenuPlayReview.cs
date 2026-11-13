@@ -79,6 +79,20 @@ public sealed class PNMenuPlayReview : MonoBehaviour
     private IEnumerator Run(string kind, Action<Exception> fail)
     {
         bool failed = false; Action<Exception> Fail = e => { failed = true; fail(e); };
+        if (kind == "arena")
+        {
+            // G14: the Player's first scene is the ErMode shell (the test arena); the play starts by itself, so the menu is skipped. The arena map places the dummy and the Star creatures beside the entry.
+            yield return Until("arena play ready", () => EveRegistrySession.IsReady && PNLocalWorldContext.Current?.World != null && PNLocalWorldContext.Current.Actor != null && !PNGameFlow.Busy, 90, Fail);
+            if (failed) yield break;
+            yield return Seconds(3f);
+            Log("arena: world=" + PNLocalWorldContext.Current.World.DefinitionId + " role=" + EveRegistrySession.Context.Role + " phase=" + PNGameFlow.Phase);
+            if (Arg("-pn-menu-play-starkeeper") != null) yield return PNStarkeeperPlayReview.Case(output, Fail, () => failed);
+            if (Arg("-pn-menu-play-starchanter") != null) yield return PNStarchanterPlayReview.Case(output, Fail, () => failed);
+            if (Arg("-pn-menu-play-starreaper") != null) yield return PNStarreaperPlayReview.Case(output, Fail, () => failed);
+            if (Arg("-pn-menu-play-starforger") != null) yield return PNStarforgerPlayReview.Case(output, Fail, () => failed);
+            if (Arg("-pn-menu-play-creature") != null) yield return PNCreaturePlayReview.Case(output, Fail, () => failed);
+            yield break;
+        }
         PNUiRuntime ui = null;
         yield return Until("Hall ready with UI", () =>
         {

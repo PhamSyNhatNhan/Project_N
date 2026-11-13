@@ -29,6 +29,10 @@ public static class PNStarchanterPlayReview
         if (chanterSkill == null || keeperSkill == null || player == null || !chanterSkill.IsReady) { File.WriteAllLines(path, lines); fail(new Exception("Starchanter / Starkeeper / player never became ready (chanter=" + (chanterSkill != null) + " keeper=" + (keeperSkill != null) + " player=" + (player != null) + ")")); yield break; }
         var weaver = UnityEngine.Object.FindFirstObjectByType<PNStarweaverSkill>();
         if (weaver != null) { PNEntityHosts.Find(EveRegistrySession.Context)?.Retire(weaver.GetComponent<EveEntityLoader>()); Log("Starweaver retired"); }
+        // G14: the arena also places a Starreaper and a Starforger beside the entry; they would be allies and attackers in a review about the chanter and the keeper only.
+        // The Starchanter counts every other entity on its layer as an ally and strikes only when it has none, so the arena's dummy goes too (any PNStat that is neither the player, the chanter nor the keeper).
+        foreach (var other in UnityEngine.Object.FindObjectsByType<PNStat>(FindObjectsSortMode.None).Where(x => x.GetComponent<PNPlayerStat>() == null && x.gameObject != chanterSkill.gameObject && x.gameObject != keeperSkill.gameObject).ToList())
+        { var loader = other.GetComponent<EveEntityLoader>(); if (loader == null) continue; PNEntityHosts.Find(EveRegistrySession.Context)?.Retire(loader); Log("retired " + other.name); }
         var chanter = chanterSkill.GetComponent<PNStat>(); var keeper = keeperSkill.GetComponent<PNStat>(); var chanterBuffs = chanterSkill.GetComponent<PNBuffManager>(); var keeperBuffs = keeperSkill.GetComponent<PNBuffManager>();
         var health = PNContentIds.Health; var speedId = PNSupportBuffContent.SpeedBoost; var guardId = PNSupportBuffContent.BlockHits;
         void KeepPlayer() { if (player.IsReady && !player.IsDead) player.SetCurrent(health, player.GetMax(health)); }

@@ -63,9 +63,6 @@ public sealed class PNGameFlow : MonoBehaviour
     private static void SayKey(string key){messageKey=key;messageLocaleRevision=-1;NoticeSequence++;Raise();}
     private static bool Refuse(string key,out string reason){startErrorKey=key;reason=PNLocalization.Text(key);return false;}
 
-    // ErMode is the developers' test arena, a grid world `project_n:test_arena` since G14 (the mob Player reviews use the star creatures its map places beside the entry). A solo start goes through the lobby into the first room of a run like every
-    // other start; this switch keeps the old straight-to-arena solo start for those reviews.
-    public static bool LegacyArena { get { return Array.IndexOf(Environment.GetCommandLineArgs(), "-pn-legacy-run") >= 0; } }
     // A test sets this to replay a known run (the same seed offers the same rooms); -pn-run-seed=<n> does the same for a Player.
     public static ulong? DebugSeed;
     private static ulong RunSeed()
@@ -253,14 +250,14 @@ public sealed class PNGameFlow : MonoBehaviour
     }
     private IEnumerator Launch(string modeId, PNFlowMode mode, string address)
     {
-        BeginLoading(modeId, mode == PNFlowMode.Offline && LegacyArena ? "project_n:test_arena" : "project_n:roguelite_lobby"); message = null; messageKey=null; Raise();
+        BeginLoading(modeId, "project_n:roguelite_lobby"); message = null; messageKey=null; Raise();
         string failure = null;
         var network = PNGameBootstrap.Config.Network; var preparation = PNGameBootstrap.Config.Preparation;
         var end = EndCurrent();
         while (true) { bool more; try { more = end.MoveNext(); } catch (Exception error) { failure = error.Message; break; } if (!more) break; yield return end.Current; }
         if (failure == null)
         {
-            var load = LoadScene(mode == PNFlowMode.Offline && LegacyArena ? PNScenes.Run : PNScenes.Lobby);
+            var load = LoadScene(PNScenes.Lobby);
             while (true) { bool more; try { more = load.MoveNext(); } catch (Exception error) { failure = error.Message; break; } if (!more) break; yield return load.Current; }
         }
         if (failure == null)
@@ -280,7 +277,7 @@ public sealed class PNGameFlow : MonoBehaviour
             else yield return null;
         }
         // Alone in the roguelite nobody waits in the lobby: the run starts by itself, and the loading cover stays up until its first room is there (the lobby used to show for a moment between the two covers).
-        bool solo = failure == null && mode == PNFlowMode.Offline && !LegacyArena && modeId == "roguelite";
+        bool solo = failure == null && mode == PNFlowMode.Offline && modeId == "roguelite";
         coverHold = solo;
         if (!solo) EndLoading();
         if (failure != null) { Debug.LogWarning("Roguelite start failed: " + failure); yield return Return(null,"project_n:error.join_failed"); yield break; }
@@ -399,7 +396,7 @@ public sealed class PNGameFlow : MonoBehaviour
     public static void PrepareStart(string modeId = "roguelite", bool offline = false)
     {
         preCoverUntil = Time.realtimeSinceStartupAsDouble + 3;
-        usingHandoff = PNTransitionHandoffHost.Raise(StripPrefix(modeId), offline && LegacyArena ? "project_n:test_arena" : "project_n:roguelite_lobby");
+        usingHandoff = PNTransitionHandoffHost.Raise(StripPrefix(modeId), "project_n:roguelite_lobby");
         if (!usingHandoff) ShowCover();
     }
     // Shipped modes keep their short selection name; others use the full id (the same rule StartMode applies).

@@ -65,34 +65,18 @@ public sealed class PNGameSession : MonoBehaviour
         service.Lifetimes=new PNWorldLifetimeController(session,service.Worlds,(PNEntityFactory)service.Factory,service.Scheduler);
         service.Saves=new PNWorldSaveService(session,service.Worlds,service.Lifetimes,System.IO.Path.Combine(Application.persistentDataPath,"WorldSaves"));
         if(!PNCameraDirector.LegacyRequested)service.Transitions=PNTransitionController.Attach(runtime.gameObject,session,service.Local,service.Transfers,service.CameraDirector);
-        var scenes=UnityEngine.Object.FindObjectsByType<PNPlayerSpawnPoint>().Select(x=>x.gameObject.scene).Distinct().ToArray();
-        if(scenes.Length==1){var entryMarker=PNEntrySceneMarker.Find(scenes[0]);service.Worlds.SetEntryScene(scenes[0],entryMarker!=null?EveId.Parse(entryMarker.WorldDefinition):default);if(session.Role!=EveSessionRole.Client)service.Presentation.RegisterWorld(service.Worlds.Adopt(scenes[0]));}
-        else if(scenes.Length>1)throw new InvalidOperationException("Scene entry requires explicit world selection for multiple scenes.");
-        else StartEntryWorld(service,session,runtime);
-        if(session.Role==EveSessionRole.Offline && UnityEngine.Object.FindObjectsByType<PNPlayerSpawnPoint>().Length>0)
-        {
-            var requests=service.Factory.SceneEntities();
-            if(PNGameBootstrap.Config.Network.SelectPlayer)
-            {
-                // Alone, the character is the one picked in the menu (the profile's last), when it is registered, playable and allowed.
-                var player=service.Factory.Player(0);var picked=PickedCharacter(session);
-                if(picked!=null)player.Character=picked;
-                requests=requests.Concat(new[]{player});
-            }
-            foreach(var request in requests)
-                {
-                    PNEntitySpawner.Enqueue(service.Scheduler,service.Factory,request,failed:error=>{Debug.LogException(error,service);if(session.IsActive)runtime.EndSession();});
-                }
-        }
+        // A scene authored with its own player spawn point was adopted as a world until G14; every world is now made from a definition (a shell scene only holds the runtime, the marker and the camera).
+        if(UnityEngine.Object.FindObjectsByType<PNPlayerSpawnPoint>().Length>0)throw new InvalidOperationException("The entry scene holds a player spawn point: scenes are no longer adopted as worlds. Make the scene a shell with a PNEntrySceneMarker and move the spawn into a grid map.");
+        StartEntryWorld(service,session,runtime);
         return service;
     }
     // G13: an entry scene that holds no player spawn point is a shell (EveRuntime, marker, camera): the first world of the play is made from the definition the marker names, becomes the default world when it
     // is ready, and the entities of the world and (offline) the player are made then, at the world's own `player` entry. A host's players are enrolled by the room manager from the same ready event; a client
-    // is offered the host's default world. A scene with a spawn point (ErMode, test scenes) keeps the adoption above.
+    // is offered the host's default world. A scene with a spawn point is refused (G14 removed the adoption of scenes as worlds).
     private static void StartEntryWorld(PNGameSession service,EveSessionContext session,EveRuntime runtime)
     {
         var marker=UnityEngine.Object.FindObjectsByType<PNEntrySceneMarker>(FindObjectsInactive.Include,FindObjectsSortMode.None).FirstOrDefault();
-        if(marker==null)return;
+        if(marker==null||string.IsNullOrWhiteSpace(marker.WorldDefinition)){Debug.LogError("The entry scene has no PNEntrySceneMarker naming its world definition: no world is made.");return;}
         var definition=EveId.Parse(marker.WorldDefinition);
         // The shell scene holds the camera (and the rest of the presentation) of the entry world; no world owns that scene, so it is handed to the default world when it is ready, as an adopted scene would be.
         var shell=marker.gameObject.scene;

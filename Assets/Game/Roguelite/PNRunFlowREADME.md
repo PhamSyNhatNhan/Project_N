@@ -19,7 +19,7 @@ draw the room - create its map world - wait for Ready - **replacement transfer**
 
 ## Start
 
-Every start goes lobby -> run. A solo start loads the lobby, waits for the player and starts by itself (`PNGameFlow.Launch`/`StartRun`); a host starts when the room is ready. `-pn-legacy-run` keeps the old solo start straight into the ErMode arena (the mob Player reviews use it); `-pn-run-seed=<n>` fixes the seed. Map worlds report the `Run` phase.
+Every start goes lobby -> run. A solo start loads the lobby, waits for the player and starts by itself (`PNGameFlow.Launch`/`StartRun`); a host starts when the room is ready. `-pn-run-seed=<n>` fixes the seed. Map worlds report the `Run` phase.
 
 ## Map, save and continue (2026-11-04, `Docs/RunSavePlan.md`)
 

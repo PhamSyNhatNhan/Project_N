@@ -227,7 +227,8 @@ public sealed partial class PNEnemyMoveSkillPlayReview : MonoBehaviour
         scheduler = new EveEntityPreparationScheduler(session, PNGameBootstrap.Config.Preparation); worlds = new PNWorldRuntime(session, scheduler);
         gameObject.AddComponent<PNWorldPhysicsLoop>().Bind(session);
         a = worlds.Create(EveId.Parse("project_n:enemy_review_a")); b = worlds.Create(EveId.Parse("project_n:enemy_review_b"));
-        yield return Until(() => a.CanExecute && b.CanExecute, 15, "E0 real PNWorldRuntime prepares both local worlds and navigation before Ready");
+        yield return Until(() => (a.CanExecute && b.CanExecute) || a.Failure != null || b.Failure != null, 15, "E0 real PNWorldRuntime prepares both local worlds and navigation before Ready");
+        Check(a.Failure == null && b.Failure == null, "E0 worlds did not fail: " + (a.Failure ?? b.Failure));
         Check(a.PhysicsOwner.GetPhysicsScene() != b.PhysicsOwner.GetPhysicsScene(), "E0 worlds have distinct native physics scenes");
         Check(PNWorldNavigation.ForSession(session).GraphCount == 2, "E0 one navigation owner has two graph leases");
         enemy = Enemy(a, new Vector3(-4, .02f, 0)); move = enemy.GetComponent<PNEnemyMove>(); target = Target(a, new Vector3(4, 0, 0));

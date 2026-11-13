@@ -46,8 +46,6 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         // What a run keeps of a player between rooms (health ratio, dead flag); named by the run's transfer request, never by a world policy.
         stateProviders.Register(new PNWorldStateDefinition(PNRunActorStateProvider.Id,PNRunActorStateProvider.Schema,1024,typeof(PNRunActorStateProvider),()=>new PNRunActorStateProvider()));
         stateProviders.RegisterBase(EveId.Parse("base:run_actor_state"),PNRunActorStateProvider.Id,"project_n",compatible:(a,b)=>a.Schema==b.Schema);
-        worlds.Register(new PNWorldDefinition(EveId.Parse("project_n:scene_world"),PNWorldDefinition.HashContent("project_n:scene_world/v1/Assets/Game/Scenes/Test/ErMode/ErMode.unity"),typeof(PNSceneWorldProvider),()=>new PNSceneWorldProvider("Assets/Game/Scenes/Test/ErMode/ErMode.unity")));
-        worlds.RegisterBase(EveId.Parse("base:scene_world"),EveId.Parse("project_n:scene_world"),"project_n",compatible:(a,b)=>true);
         // G13: the Hall and the Lobby are grid worlds (PNHallMaps); the scenes PNHall / PNLobby are only the shell (runtime, entry marker, camera).
         PNHallMaps.EnsureRegistered();
         var hallDescriptor=PNHallMaps.HallDescriptor();var lobbyDescriptor=PNHallMaps.LobbyDescriptor();
@@ -58,7 +56,7 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         worlds.Register(new PNWorldDefinition(EveId.Parse("project_n:roguelite_lobby"),PNWorldDefinition.HashContent("project_n:roguelite_lobby/v2/"+lobbyDescriptor.ToJson().ToString(Newtonsoft.Json.Formatting.None)),typeof(PNGridWorldProvider),()=>new PNGridWorldProvider(lobbyDescriptor),
             new PNWorldPolicy(PNEmptyWorldPolicy.Discard,null,null,null,default(EveId),new[]{PNGridIds.GridWorldFeature}),ShellView));
         worlds.RegisterBase(EveId.Parse("base:roguelite_lobby"),EveId.Parse("project_n:roguelite_lobby"),"project_n",compatible:(a,b)=>true);
-        // G14: the developers' test arena is a grid world (PNArenaMaps); the scene ErMode becomes its shell. The old project_n:scene_world stays until the arena has replaced it everywhere.
+        // G14: the developers' test arena is a grid world (PNArenaMaps); the scene ErMode becomes its shell.
         PNArenaMaps.EnsureRegistered();
         var arenaDescriptor=PNArenaMaps.Descriptor();
         worlds.Register(new PNWorldDefinition(EveId.Parse("project_n:test_arena"),PNWorldDefinition.HashContent("project_n:test_arena/v1/"+arenaDescriptor.ToJson().ToString(Newtonsoft.Json.Formatting.None)),typeof(PNGridWorldProvider),()=>new PNGridWorldProvider(arenaDescriptor),
