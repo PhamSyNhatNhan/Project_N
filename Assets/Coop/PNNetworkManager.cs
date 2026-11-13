@@ -213,6 +213,7 @@ namespace ProjectN.Coop
             NetworkClient.RegisterHandler<PNWorldOffer>(ReceiveWorldOffer);
             NetworkClient.RegisterHandler<PNWorldFence>(ReceiveWorldFence);
             NetworkClient.RegisterHandler<PNGridChunkPacket>(ReceiveGridChunks);
+            NetworkClient.RegisterHandler<PNGridPlacementPacket>(ReceiveGridPlacements);
             NetworkClient.RegisterHandler<PNWorldApplied>(ReceiveWorldConfirmation);
             NetworkClient.RegisterHandler<PNWorldTransferNotice>(ReceiveTransferNotice);
             EnsureTransitionSource();

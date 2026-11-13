@@ -1,12 +1,12 @@
 #if UNITY_5_3_OR_NEWER
 using UnityEngine;
 
-// EN: The soft shadow on the ground under a body's feet. It is NOT the paper shadow between rig parts (PNVisualPaperSettings). It replaces ErModeCharacterShadow, which only shadowed what one ground collider
+// EN: The soft shadow on the ground under a body's feet. It is NOT the paper shadow between rig parts (PNVisualPaperSettings). It replaces PNCharacterShadow, which only shadowed what one ground collider
 //     (named by the spawn point) was under: a grid world has no such collider (chunk colliders are rebuilt), so the shadow went out as soon as the body left the spawn cell.
 //     Ground: a collider the owner binds (BindGround, the Hall's scene floor) is tried first; when it is not hit, or none is bound, a ray goes down through the PHYSICS SCENE of the body, against the ground layer
 //     (13: scene floors and grid chunks), triggers ignored. The shadow shrinks and fades with the height of the capsule's bottom over the ground, so a body in the air needs no setting.
 //     `PNGroundShadow.Ensure` gives every spawned character one (size from the capsule) unless its prefab has a shadow already or its `body.shadow` is false; `body.shadow` scale/opacity multiply the result.
-//     Serialized names match ErModeCharacterShadow, so the prefabs that had it keep their values. The sprite is one shared soft ellipse.
+//     Serialized names match PNCharacterShadow, so the prefabs that had it keep their values. The sprite is one shared soft ellipse.
 // VI: Bóng mềm dưới chân (không phải bóng giấy giữa các lớp). Tự dò mặt đất bằng tia trong physics scene của thân (layer 13); collider gắn sẵn (Hall) được thử trước. Thu nhỏ và mờ dần theo độ cao.
 [ExecuteAlways]
 [RequireComponent(typeof(SpriteRenderer))]

@@ -88,6 +88,7 @@ public sealed class PNGridWorldProvider : IPNWorldProvider, IPNPortableWorldProv
         var controller = PNGridWorldController.Create(context.World, host, definitions.Select(x => x.Walkable).ToArray());
         context.Own(controller.Dispose);
         controller.Meta = meta;
+        context.SetGridPlacements(controller.Placements);
         host.gameObject.AddComponent<PNWorldObject>().Configure(PNGridCommands.ObjectKey);
         if (replica && mapEntry != null)
         {

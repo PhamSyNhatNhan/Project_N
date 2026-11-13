@@ -60,7 +60,7 @@ public static class PNTimeScaleVisualEditorChecks
             portraitRoot.SetActive(false); var floorComparison=Capture("FloorDepthDoesNotChangeColor"); portraitRoot.SetActive(true);
             Check(floorComparison.Zip(reference, (a,b)=>Math.Abs(a.r-b.r)+Math.Abs(a.g-b.g)+Math.Abs(a.b-b.b)).Max() <= 3, "Adding floor depth preserves original sprite colors and grid");
             // Eve is spawned from its prefab at run time and the scene Dummy (with its shadow) is inactive, so no shadow sprite exists in the authored
-            // scene. Enable a copy of the scene Dummy's ErModeCharacterShadow ([ExecuteAlways]: it builds its sprite on enable) in the preview scene to get
+            // scene. Enable a copy of the scene Dummy's PNCharacterShadow ([ExecuteAlways]: it builds its sprite on enable) in the preview scene to get
             // the same transparent shadow sprite, shared material, colour, rotation and scale.
             var shadowCopy = UnityEngine.Object.Instantiate(original.GetRootGameObjects().SelectMany(x=>x.GetComponentsInChildren<SpriteRenderer>(true)).First(x=>x.name=="Dummy Ground Shadow").gameObject);
             shadowCopy.transform.SetParent(null); SceneManager.MoveGameObjectToScene(shadowCopy, scene); shadowCopy.SetActive(true);

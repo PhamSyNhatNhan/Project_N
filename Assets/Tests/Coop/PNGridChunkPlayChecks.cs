@@ -149,6 +149,51 @@ namespace ProjectN.Coop.Tests
             Verdict("the client saw the block go and a new one stand", Has("c1-verified-3") && Read("c1-verified-3") == "ok", Has("c1-verified-3") ? Read("c1-verified-3") : "missing");
             Mark("edits-done", px + " " + pz);
 
+            // ---- G9c part 2: the placed things reach the client as a list (a marker that keeps the way open, a fountain with an interactable), their health follows, a broken or removed one goes
+            {
+                var placements = controller.Placements;
+                bool PlaceFree(EveId def, out PNPlacedObject made)
+                {
+                    made = null;
+                    for (int z = 8; z < data.Depth - 8; z += 3) for (int x = 8; x < data.Width - 8; x += 3)
+                    {
+                        if (data.IsSolid(x, z) || placements.At(x, z) != null || Math.Abs(x - px) <= 2 && Math.Abs(z - pz) <= 2) continue;
+                        if (PNGridCommands.ApplyPlace(registry, controller, new Vector3((x + .5f) * cell, 0, (z + .5f) * cell), new JObject { ["def"] = def.ToString(), ["x"] = x, ["z"] = z, ["dir"] = 0 })) { made = placements.At(x, z); return made != null; }
+                    }
+                    return false;
+                }
+                bool madeMarker = PlaceFree(PNPlaceableIds.Marker, out var marker), madeFountain = PlaceFree(PNPlaceableIds.Fountain, out var fountain);
+                Verdict("PL: the host places a marker and a fountain", madeMarker && madeFountain, madeMarker + " " + madeFountain);
+                if (madeMarker && madeFountain)
+                {
+                    Mark("pl-added", marker.Id + " " + marker.X + " " + marker.Z + " " + fountain.Id + " " + fountain.X + " " + fountain.Z + " " + fountain.EffectiveKey + " " + marker.Health);
+                    yield return Wait("c1 has the placed things", () => Has("c1-pl-added"), 90);
+                    Verdict("PL: the client has the marker and the fountain (list, key, world object)", Has("c1-pl-added") && Read("c1-pl-added") == "ok", Has("c1-pl-added") ? Read("c1-pl-added") : "missing");
+                    placements.Damage(marker.Id, 2);
+                    Mark("pl-health", marker.Id + " " + marker.Health);
+                    yield return Wait("c1 has the health", () => Has("c1-pl-health"), 90);
+                    Verdict("PL: the client sees the marker's health go down", Has("c1-pl-health") && Read("c1-pl-health") == "ok", Has("c1-pl-health") ? Read("c1-pl-health") : "missing");
+                    placements.Break(marker.Id);
+                    Mark("pl-gone", marker.Id.ToString());
+                    yield return Wait("c1 lost the marker", () => Has("c1-pl-gone"), 90);
+                    Verdict("PL: the client sees the broken marker gone", Has("c1-pl-gone") && Read("c1-pl-gone") == "ok", Has("c1-pl-gone") ? Read("c1-pl-gone") : "missing");
+                    bool madeSecond = PlaceFree(PNPlaceableIds.Fountain, out var second);
+                    Verdict("PL: the host places a second fountain", madeSecond);
+                    if (madeSecond)
+                    {
+                        Mark("pl-added2", second.Id + " " + second.X + " " + second.Z + " " + second.EffectiveKey);
+                        yield return Wait("c1 has the second fountain", () => Has("c1-pl-added2"), 90);
+                        Verdict("PL: the client has the second fountain", Has("c1-pl-added2") && Read("c1-pl-added2") == "ok", Has("c1-pl-added2") ? Read("c1-pl-added2") : "missing");
+                        placements.Remove(second.Id);
+                        Mark("pl-gone2", second.Id + " " + second.EffectiveKey);
+                        yield return Wait("c1 lost the second fountain", () => Has("c1-pl-gone2"), 90);
+                        Verdict("PL: the client sees the removed fountain gone with its world object", Has("c1-pl-gone2") && Read("c1-pl-gone2") == "ok", Has("c1-pl-gone2") ? Read("c1-pl-gone2") : "missing");
+                    }
+                    // the first fountain stays for the clients that come later
+                    Mark("pl-final", fountain.Id + " " + fountain.X + " " + fountain.Z + " " + fountain.EffectiveKey);
+                }
+            }
+
             // ---- G8b: single edits are deltas, a blast and a build arrive whole and in step, a wrong copy asks for the chunk again
             var editor = controller.Editor;
             var k0 = Manager.GridChunkKinds(first.connectionId, gridId); var s0 = Manager.GridChunkStats(first.connectionId, gridId);
@@ -365,12 +410,17 @@ namespace ProjectN.Coop.Tests
             yield return JoinLobby(role + "-lobby");
             yield return Wait("grid world offered", () => Has("grid-world"), 120);
             gridId = Guid.Parse(Read("grid-world"));
-            if (role == "late") { yield return Receive(role, "hash-late", "late-grid-ready", "late-verified", null); }
+            if (role == "late") { yield return Receive(role, "hash-late", "late-grid-ready", "late-verified", null); yield return VerifyPlacement("pl-final", "late-pl-final", PlacementFinal); }
             else
             {
                 yield return Receive(role, "hash-1", "c1-grid-ready", "c1-verified-1", null);
                 yield return VerifyEdit("hash-2", "c1-verified-2", true);
                 yield return VerifyEdit("hash-3", "c1-verified-3", true);
+                yield return VerifyPlacement("pl-added", "c1-pl-added", PlacementAdded);
+                yield return VerifyPlacement("pl-health", "c1-pl-health", PlacementHealth);
+                yield return VerifyPlacement("pl-gone", "c1-pl-gone", PlacementGone);
+                yield return VerifyPlacement("pl-added2", "c1-pl-added2", PlacementFountain);
+                yield return VerifyPlacement("pl-gone2", "c1-pl-gone2", PlacementFountainGone);
                 yield return VerifyCells("hash-4", "c1-verified-4", false);
                 yield return VerifyCells("hash-5", "c1-verified-5", false);
                 yield return VerifyCells("hash-6", "c1-verified-6", false);
@@ -385,10 +435,60 @@ namespace ProjectN.Coop.Tests
                 yield return new WaitForSeconds(2f);
                 yield return JoinLobby("c1-lobby-2");
                 yield return Receive(role, "hash-rejoin", "c1-grid-ready-2", "c1-verified-rejoin", null);
+                yield return VerifyPlacement("pl-final", "c1-pl-final-2", PlacementFinal);
             }
             if (role == "c1") yield return OwnBody();
             if (role == "c1") yield return Wait("host done", () => Has("host-done"), 120);
         }
+
+        // ---- G9c part 2, the client's side: the list of placed things in its copy of the world. Each check returns "ok" or what is wrong; the wait polls it while the stream catches up.
+        private IEnumerator VerifyPlacement(string hostMark, string okMark, Func<string[], PNGridWorldController, string> check)
+        {
+            yield return Wait(hostMark, () => Has(hostMark), 180);
+            string verdict = "no mark from the host";
+            if (Has(hostMark))
+            {
+                var parts = Read(hostMark).Split(' '); verdict = "no controller";
+                yield return Wait("placement " + hostMark, () => { var c = PNGridWorldController.Find(Replica()); if (c == null) return false; verdict = check(parts, c); return verdict == "ok"; }, 30);
+            }
+            Verdict(role + ": " + hostMark + " is in the client's list", verdict == "ok", verdict);
+            Mark(okMark, verdict);
+        }
+        private static string Fountain(PNGridWorldController c, int id, int x, int z, string key)
+        {
+            var placed = c.Placements.Get(id);
+            if (placed == null) return "fountain " + id + " is not in the list";
+            if (placed.Definition.Id != PNPlaceableIds.Fountain || placed.X != x || placed.Z != z) return "fountain " + id + " is " + placed.Definition.Id + " at " + placed.X + "," + placed.Z;
+            if (placed.EffectiveKey != key || c.Placements.ByKey(key) != placed) return "key is " + placed.EffectiveKey + ", expected " + key;
+            var interactable = c.InteractableOf(id);
+            if (interactable == null) return "no interactable for " + id;
+            var worldObject = interactable.GetComponent<PNWorldObject>();
+            return worldObject == null || !worldObject.IsBound || worldObject.Key != key ? "its world object is not bound" : "ok";
+        }
+        private static string PlacementAdded(string[] p, PNGridWorldController c)
+        {
+            int markerId = int.Parse(p[0]), mx = int.Parse(p[1]), mz = int.Parse(p[2]), fountainId = int.Parse(p[3]), fx = int.Parse(p[4]), fz = int.Parse(p[5]), health = int.Parse(p[7]);
+            var marker = c.Placements.Get(markerId);
+            if (marker == null) return "marker " + markerId + " is not in the list";
+            if (marker.Definition.Id != PNPlaceableIds.Marker || marker.X != mx || marker.Z != mz || marker.Health != health) return "marker is " + marker.Definition.Id + " at " + marker.X + "," + marker.Z + " health " + marker.Health;
+            if (c.Placements.At(mx, mz) != marker) return "the marker does not hold its cell";
+            return Fountain(c, fountainId, fx, fz, p[6]);
+        }
+        private static string PlacementHealth(string[] p, PNGridWorldController c)
+        {
+            var marker = c.Placements.Get(int.Parse(p[0]));
+            return marker == null ? "marker is gone" : marker.Health == int.Parse(p[1]) ? "ok" : "health is " + marker.Health + ", expected " + p[1];
+        }
+        private static string PlacementGone(string[] p, PNGridWorldController c) => c.Placements.Get(int.Parse(p[0])) == null ? "ok" : "marker " + p[0] + " is still in the list";
+        private static string PlacementFountain(string[] p, PNGridWorldController c) => Fountain(c, int.Parse(p[0]), int.Parse(p[1]), int.Parse(p[2]), p[3]);
+        private static string PlacementFountainGone(string[] p, PNGridWorldController c)
+        {
+            int id = int.Parse(p[0]);
+            if (c.Placements.Get(id) != null) return "fountain " + id + " is still in the list";
+            if (c.Placements.ByKey(p[1]) != null || c.InteractableOf(id) != null) return "its key or interactable is still there";
+            return "ok";
+        }
+        private static string PlacementFinal(string[] p, PNGridWorldController c) => Fountain(c, int.Parse(p[0]), int.Parse(p[1]), int.Parse(p[2]), p[3]);
 
         private PNMove OwnMove()
         {

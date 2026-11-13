@@ -71,6 +71,51 @@ namespace ProjectN.Coop
         }
     }
 
+    // Host -> client (G9c part 2): the placed things of a grid world, as the difference to what the client was told (Add, Remove, Health). Every packet repeats the ticket of the offer; an old one is dropped.
+    public struct PNGridPlacementPacket : NetworkMessage
+    {
+        public PNWorldTicket Ticket;
+        public PNGridPlacementItem[] Items;
+    }
+
+    public static class PNGridPlacementWire
+    {
+        // The most a packet can hold: the ticket and counts, plus 64 Add items of the longest definition and key.
+        public const int PacketBytes=64*(1+4+2+PNGridPlacementLimits.DefinitionChars+4+4+1+4+2+PNSyncLimits.KeyChars)+256;
+        public static void WriteGridPlacementPacket(this NetworkWriter w,PNGridPlacementPacket p)
+        {
+            p.Ticket.Validate();if(p.Items==null||p.Items.Length<1||p.Items.Length>PNGridPlacementLimits.MaxItemsPerPacket)throw new FormatException("Grid placement count.");
+            w.WriteByte(1);w.WriteWorldTicket(p.Ticket);w.WriteByte((byte)p.Items.Length);
+            foreach(var item in p.Items)
+            {
+                PNGridPlacementItem.Validate(item);w.WriteByte((byte)item.Kind);w.WriteInt(item.Id);
+                if(item.Kind==PNGridPlacementKind.Remove)continue;
+                if(item.Kind==PNGridPlacementKind.Health){w.WriteInt(item.Health);continue;}
+                w.WriteString(item.Definition);w.WriteInt(item.X);w.WriteInt(item.Z);w.WriteByte((byte)item.Direction);w.WriteInt(item.Health);w.WriteString(item.Key??string.Empty);
+            }
+        }
+        public static PNGridPlacementPacket ReadGridPlacementPacket(this NetworkReader r)
+        {
+            if(r.Remaining>PacketBytes+PNWorldWire.ControlBytes)throw new FormatException("Grid placement packet bound.");
+            if(r.ReadByte()!=1)throw new FormatException("Grid placement packet schema.");
+            var p=new PNGridPlacementPacket{Ticket=r.ReadWorldTicket()};int count=r.ReadByte();if(count<1||count>PNGridPlacementLimits.MaxItemsPerPacket)throw new FormatException("Grid placement count.");
+            p.Items=new PNGridPlacementItem[count];
+            for(int i=0;i<count;i++)
+            {
+                var item=new PNGridPlacementItem{Kind=(PNGridPlacementKind)r.ReadByte(),Id=r.ReadInt()};
+                if(item.Kind==PNGridPlacementKind.Health)item.Health=r.ReadInt();
+                else if(item.Kind==PNGridPlacementKind.Add)
+                {
+                    item.Definition=r.ReadString();item.X=r.ReadInt();item.Z=r.ReadInt();item.Direction=r.ReadByte();item.Health=r.ReadInt();item.Key=r.ReadString();
+                    if(item.Key.Length==0)item.Key=null;
+                }
+                PNGridPlacementItem.Validate(item);p.Items[i]=item;
+            }
+            if(r.Remaining!=0)throw new FormatException("Grid placement packet length.");
+            return p;
+        }
+    }
+
     public sealed partial class PNNetworkManager
     {
         private static readonly List<(float X,float Z)> gridFocus=new List<(float,float)>();
@@ -116,6 +161,37 @@ namespace ProjectN.Coop
                 entry.Connection.Send(packet,Channels.Reliable);sender.Commit();packets++;bytes+=size;
                 if(Stopwatch.GetTimestamp()>deadline)return;
             }
+        }
+        // The host's side (G9c part 2): the difference between the placed things and what this client was told, up to a few packets per frame, inside the shared send budget.
+        private void PumpGridPlacements(WorldSubscription entry)
+        {
+            var sender=entry.Placements;if(sender==null)return;
+            CollectGridFocus(entry);int packets=0;long now=Stopwatch.GetTimestamp();
+            while(packets<PNGridPlacementLimits.PacketsPerFrame)
+            {
+                if(!sender.Collect(gridFocus,PNGridPlacementLimits.MaxItemsPerPacket,now,out var items))return;
+                var packet=new PNGridPlacementPacket{Ticket=entry.Offer.Ticket,Items=items.ToArray()};
+                using(var writer=NetworkWriterPool.Get())
+                {
+                    writer.WriteGridPlacementPacket(packet);int size=writer.Position;
+                    if(size>NetworkMessages.MaxContentSize(Channels.Reliable))throw new FormatException("Grid placement packet exceeds the configured channel.");
+                    if(!TakeSendBudget(entry.Connection.connectionId,size+16))return;
+                }
+                entry.Connection.Send(packet,Channels.Reliable);sender.Commit();packets++;
+            }
+        }
+        private void ReceiveGridPlacements(PNGridPlacementPacket packet)
+        {
+            if(NetworkServer.active||!MatchTicket(packet.Ticket))return;
+            try
+            {
+                var inbox=PNGridChunkInboxes.Find(subscribedSession,packet.Ticket.World);
+                // Stale: the offer it belongs to was replaced or closed. Dropped, never a disconnect.
+                if(inbox==null||inbox.Subscription!=packet.Ticket.Subscription)return;
+                if(!clientWorlds.TryGetValue(packet.Ticket.World,out var entry)&&!waitingWorldOffers.ContainsKey(packet.Ticket.World))return;
+                inbox.Placements.Offer(packet.Items);
+            }
+            catch(Exception error){ProtocolFailure(error,false);}
         }
         // The client's side of an active offer: a grid world brings its descriptor, and a phone refuses a large one. False = the offer is not taken further.
         private bool AcceptGridOffer(PNWorldOffer offer)

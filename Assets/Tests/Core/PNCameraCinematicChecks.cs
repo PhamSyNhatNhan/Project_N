@@ -85,8 +85,8 @@ public static class PNCameraCinematicChecks
             Check(!director.YawOverridden && Mathf.Abs(Mathf.DeltaAngle(0f, director.Orientation.Yaw)) < .5f, "yaw override and yaw return to 0 after release");
 
             // ---- Edit Mode billboards ignore a yaw override (pitch-only stays the authored behaviour outside play) ----------------------------
-            var spriteObject = new GameObject("edit-mode billboard"); spriteObject.AddComponent<SpriteRenderer>(); var billboard = spriteObject.AddComponent<ErModeCharacterBillboard>();
-            typeof(ErModeCharacterBillboard).GetField("viewCamera", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).SetValue(billboard, director.ViewCamera);
+            var spriteObject = new GameObject("edit-mode billboard"); spriteObject.AddComponent<SpriteRenderer>(); var billboard = spriteObject.AddComponent<PNCharacterBillboard>();
+            typeof(PNCharacterBillboard).GetField("viewCamera", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).SetValue(billboard, director.ViewCamera);
             var editYaw = service.RequestCinematic(owner.transform, "edit-yaw", PNCinematicShot.Pose(new Vector3(0, 5, 0), new Vector3(45, 90, 0), blendIn: 0f, blendOut: 0f, allowYaw: true)); Run(5);
             Check(director.YawOverridden && billboard.AlignToCamera() && Quaternion.Angle(spriteObject.transform.rotation, Quaternion.Euler(45f, 0f, 0f)) < .01f, "Edit Mode billboard stays pitch-only even while a yaw override is reported");
             editYaw.Dispose(); Run(5);

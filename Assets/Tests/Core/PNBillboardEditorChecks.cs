@@ -20,16 +20,16 @@ public static class PNBillboardEditorChecks
             {
                 if (!(stat is EveCharacterStat) && !(stat is DummyStat)) continue;
                 var visual = stat.transform.Find("Visual");
-                if (visual == null || visual.GetComponent<ErModeCharacterBillboard>() == null)
+                if (visual == null || visual.GetComponent<PNCharacterBillboard>() == null)
                     throw new Exception("Character Visual has no billboard.");
-                var so = new SerializedObject(visual.GetComponent<ErModeCharacterBillboard>());
+                var so = new SerializedObject(visual.GetComponent<PNCharacterBillboard>());
                 if (so.FindProperty("viewCamera").objectReferenceValue == null)
                     throw new Exception("Character billboard has no camera reference.");
                 count++;
             }
         // Eve is spawned at runtime by the player factory, and since G14 the dummy comes from the arena map's `dummy` group, so the open scene authors none (a scene that does author one is checked above). Eve's billboard is checked on its prefab.
         var evePrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Game/Entity/Character/Eve/Prefab/Eve.prefab");
-        if (evePrefab == null || evePrefab.transform.Find("Visual")?.GetComponent<ErModeCharacterBillboard>() == null)
+        if (evePrefab == null || evePrefab.transform.Find("Visual")?.GetComponent<PNCharacterBillboard>() == null)
             throw new Exception("Eve prefab Visual has no billboard.");
         var preview = EditorSceneManager.NewPreviewScene();
         try
@@ -45,7 +45,7 @@ public static class PNBillboardEditorChecks
             visual.transform.localScale = new Vector3(1.2f, .8f, 1f);
             var renderer = visual.AddComponent<SpriteRenderer>();
             renderer.flipX = true;
-            var billboard = visual.AddComponent<ErModeCharacterBillboard>();
+            var billboard = visual.AddComponent<PNCharacterBillboard>();
             var cameraObject = new GameObject("Billboard probe camera");
             SceneManager.MoveGameObjectToScene(cameraObject, preview);
             var camera = cameraObject.AddComponent<Camera>();

@@ -25,9 +25,9 @@ public static class PNDummyEditorChecks
         if (original.GetComponent<SpriteRenderer>() != null || visual == null ||
             visual.GetComponent<SpriteRenderer>() == null || visual.GetComponent<SpriteRenderer>().sprite == null ||
             shadow == null || shadow.GetComponent<SpriteRenderer>() == null ||
-            shadow.GetComponent<ErModeCharacterShadow>() == null)
+            shadow.GetComponent<PNCharacterShadow>() == null)
             throw new Exception("Dummy visual/shadow hierarchy is incomplete.");
-        var shadowSettings = new SerializedObject(shadow.GetComponent<ErModeCharacterShadow>());
+        var shadowSettings = new SerializedObject(shadow.GetComponent<PNCharacterShadow>());
         if (shadowSettings.FindProperty("target").objectReferenceValue != original.transform ||
             shadowSettings.FindProperty("ground").objectReferenceValue == null)
             throw new Exception("Dummy shadow target/ground references are missing.");

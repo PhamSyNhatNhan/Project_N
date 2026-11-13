@@ -2,7 +2,7 @@
 
 ## Tieng Viet
 
-`ErModeCharacterBillboard` nam tren child `Visual` cua Eve va Dummy trong ErMode.
+`PNCharacterBillboard` nam tren child `Visual` cua Eve va Dummy trong ErMode.
 Component bu goc nghieng len/xuong cua Main Camera, khong theo yaw/roll camera.
 Root gameplay, collider, Rigidbody va child Ground Shadow khong bi thay doi.
 Sprite van doi huong bang `flipX`. Chay ca Edit Mode va Play Mode.

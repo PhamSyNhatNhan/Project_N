@@ -198,6 +198,8 @@ public sealed class PNGridChunkInbox
     private readonly List<int> resyncQueue = new List<int>();
     private readonly HashSet<int> resyncPending = new HashSet<int>();
 
+    // The placed things the host told this client about and that wait to be applied (G9c part 2).
+    public PNGridPlacementQueue Placements { get; } = new PNGridPlacementQueue();
     public string Descriptor { get; private set; }
     // The world's shape, read from the descriptor.
     public PNGridWorldDescriptor Shape { get; private set; }
@@ -220,7 +222,7 @@ public sealed class PNGridChunkInbox
         ulong prior = Subscription;
         var shape = PNGridWorldDescriptor.Parse(JToken.Parse(descriptor));
         if (shape.Restore != null) throw new FormatException("A world offered to a client carries no restore token.");
-        if (subscription > Subscription) { queue.Clear(); queuedBytes = 0; InitialComplete = false; ChunksReceived = 0; BytesReceived = 0; }
+        if (subscription > Subscription) { Placements.Clear(); queue.Clear(); queuedBytes = 0; InitialComplete = false; ChunksReceived = 0; BytesReceived = 0; }
         Subscription = subscription; Descriptor = descriptor; Shape = shape; ChunkCount = shape.Width / PNGridWorldLimits.ChunkCells * (shape.Depth / PNGridWorldLimits.ChunkCells);
         if (holding == null || holding.Length != ChunkCount || subscription > prior) { holding = new int[ChunkCount]; for (int i = 0; i < holding.Length; i++) holding[i] = -1; resyncQueue.Clear(); resyncPending.Clear(); DeltasApplied = 0; ResyncsRequested = 0; }
     }

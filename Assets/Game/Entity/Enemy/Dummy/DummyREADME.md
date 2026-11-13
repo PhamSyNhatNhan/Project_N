@@ -9,9 +9,9 @@ HP 200000000/200000000, ATK 0, DEF 0. Khong co AI, skill hay tu dong hoi HP.
 
 CapsuleCollider va Rigidbody 3D thay physics 2D cu de cung he physics voi Eve.
 Gameplay va physics nam tren object goc; SpriteRenderer nam tren child `Visual`.
-Child `Dummy Ground Shadow` dung `ErModeCharacterShadow`, theo dummy va chieu
+Child `Dummy Ground Shadow` dung `PNCharacterShadow`, theo dummy va chieu
 bong len cung ground collider voi Eve. Foot offset lay tu day sprite dummy.
-`Visual` dung `ErModeCharacterBillboard` de bu goc camera, giu diem chan co dinh;
+`Visual` dung `PNCharacterBillboard` de bu goc camera, giu diem chan co dinh;
 bong va collider khong xoay theo. Eve va Dummy dung chung component nay.
 Giu nguyen transform, sprite, material, layer Enemy va tag Enemy. Loader tu nap
 khi object duoc bat va runtime san sang; khong tu doi trang thai active/gravity.

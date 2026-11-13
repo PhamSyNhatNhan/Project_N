@@ -6,7 +6,7 @@ using UnityEngine;
 // VI: Bu goc nghieng camera cho sprite; root gameplay va bong san khong bi xoay. Toan va vong lap dung chung nam o PNCameraFacing / PNCameraFacingSystem.
 [ExecuteAlways]
 [DisallowMultipleComponent]
-public sealed class ErModeCharacterBillboard : MonoBehaviour, IPNCameraFacing
+public sealed class PNCharacterBillboard : MonoBehaviour, IPNCameraFacing
 {
     [SerializeField] private Camera viewCamera;
     [SerializeField, Min(0f)] private float footOffset;

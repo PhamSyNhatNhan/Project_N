@@ -226,6 +226,25 @@ public sealed class PNGridPlacements
     public const string GeneratedKeyPrefix = "placed_";
     public event Action<PNPlacedObject> Added;
     public event Action<PNPlacedObject> Removed;
+    // G9c part 2: counts every change a client would have to be told about (a thing added, removed, or its health changed). The removal log keeps the last RemovalLogSize removals with the revision they happened at,
+    // so a sender that was behind can tell a client which things are gone even if it never sent them (the client built them from the map).
+    public const int RemovalLogSize = 4096;
+    public int Revision { get; private set; }
+    private readonly List<(int Revision, int Id)> removalLog = new List<(int, int)>();
+    private int removalLogFloor;
+    // Appends the ids removed after `revision` to `into`. False when the log no longer reaches back that far (the caller then has to compare sets instead).
+    public bool RemovedSince(int revision, List<int> into)
+    {
+        if (revision < removalLogFloor) return false;
+        foreach (var entry in removalLog) if (entry.Revision > revision) into.Add(entry.Id);
+        return true;
+    }
+    private void Bump() { Revision++; }
+    private void LogRemoval(int id)
+    {
+        Bump(); removalLog.Add((Revision, id));
+        if (removalLog.Count > RemovalLogSize) { int drop = removalLog.Count - RemovalLogSize; removalLogFloor = removalLog[drop - 1].Revision; removalLog.RemoveRange(0, drop); }
+    }
     public int Count => byId.Count;
     // Set by the live world: true when a body stands inside the region. A thing that blocks the way is not placed on top of one (G8b); a restored save is not asked.
     public Func<PNGridRegion, bool> BlockedByBody { get; set; }
@@ -293,7 +312,7 @@ public sealed class PNGridPlacements
         }
         nextId++; byId[candidate.Id] = candidate; AddKey(candidate);
         for (int cz = z; cz < z + candidate.CellsZ; cz++) for (int cx = x; cx < x + candidate.CellsX; cx++) occupied[Key(cx, cz)] = candidate.Id;
-        placed = candidate; Added?.Invoke(candidate); return true;
+        placed = candidate; Bump(); Added?.Invoke(candidate); return true;
     }
 
     // Puts back a thing that a save kept (Docs/SandboxPlan.md G7): the cells were restored with the world, so nothing is edited, but the footprint is checked against them. The id and the health are the saved ones.
@@ -316,7 +335,42 @@ public sealed class PNGridPlacements
         if (placed.EffectiveKey != null && byKey.ContainsKey(placed.EffectiveKey)) throw new FormatException("A saved placed thing's key " + placed.EffectiveKey + " is used.");
         byId[id] = placed; AddKey(placed); if (id >= nextId) nextId = id + 1;
         for (int cz = z; cz < z + placed.CellsZ; cz++) for (int cx = x; cx < x + placed.CellsX; cx++) occupied[Key(cx, cz)] = id;
-        Added?.Invoke(placed); return placed;
+        Bump(); Added?.Invoke(placed); return placed;
+    }
+
+    // ---- the client's copy (G9c part 2) ----
+    // A client never edits: it is told what the host's list holds. These three change the list and the objects that follow it (markers, interactables) but not the cells (they arrive as chunks) and never run a logic class.
+    // Adding a thing that is already there (the client built it from the map) only brings its health up to date; a thing in the way of the new one is a stale copy and goes first.
+    public PNPlacedObject ReplicaAdd(PNPlaceableDefinition definition, int id, int x, int z, int direction, int health, string key)
+    {
+        if (definition == null) throw new ArgumentNullException(nameof(definition));
+        if (id < 1) throw new FormatException("A placed thing needs a positive id (" + id + ").");
+        if (direction < 0 || direction > 3) throw new FormatException("A direction is 0 to 3.");
+        if (health < 0 || health > definition.Settings.Health) throw new FormatException("A health is 0 to the definition's " + definition.Settings.Health + ".");
+        if (byId.TryGetValue(id, out var same))
+        {
+            if (same.Definition.Id == definition.Id && same.X == x && same.Z == z && same.Direction == direction) { ReplicaHealth(id, health); return same; }
+            Detach(same, false);
+        }
+        var problem = KeyProblem(definition, key, 0); if (problem != null) throw new FormatException("A placed thing: " + problem);
+        var placed = new PNPlacedObject(id, definition, x, z, direction) { Key = key };
+        if (!data.InBounds(x, z) || !data.InBounds(x + placed.CellsX - 1, z + placed.CellsZ - 1)) throw new FormatException("A footprint leaves the world.");
+        for (int cz = z; cz < z + placed.CellsZ; cz++) for (int cx = x; cx < x + placed.CellsX; cx++)
+            if (occupied.TryGetValue(Key(cx, cz), out var other) && byId.TryGetValue(other, out var stale)) Detach(stale, false);
+        if (placed.EffectiveKey != null && byKey.TryGetValue(placed.EffectiveKey, out var keyOwner) && byId.TryGetValue(keyOwner, out var keyStale)) Detach(keyStale, false);
+        if (byId.Count >= PNPlaceableLimits.MaxPlaced) throw new FormatException("The world holds no more placed things.");
+        placed.Health = health;
+        byId[id] = placed; AddKey(placed); if (id >= nextId) nextId = id + 1;
+        for (int cz = z; cz < z + placed.CellsZ; cz++) for (int cx = x; cx < x + placed.CellsX; cx++) occupied[Key(cx, cz)] = id;
+        Bump(); Added?.Invoke(placed); return placed;
+    }
+    public bool ReplicaRemove(int id) => byId.TryGetValue(id, out var placed) && Detach(placed, false);
+    public bool ReplicaHealth(int id, int health)
+    {
+        if (!byId.TryGetValue(id, out var placed)) return false;
+        if (health < 0 || health > placed.Definition.Settings.Health) throw new FormatException("A health is 0 to the definition's " + placed.Definition.Settings.Health + ".");
+        if (placed.Health != health) { placed.Health = health; Bump(); }
+        return true;
     }
 
     // Gives a thing with an interactable another authored key (null = back to the generated one). Used by the map tool; the thing's world object is made when the thing is placed, so a live world does not rename.
@@ -333,7 +387,7 @@ public sealed class PNGridPlacements
     public bool Damage(int id, int amount)
     {
         if (amount <= 0 || !byId.TryGetValue(id, out var placed) || !placed.Definition.Settings.Breakable) return false;
-        placed.Health = Math.Max(0, placed.Health - amount);
+        placed.Health = Math.Max(0, placed.Health - amount); Bump();
         return placed.Health == 0 && Break(id);
     }
 
@@ -365,15 +419,15 @@ public sealed class PNGridPlacements
     // Takes a thing away without running its logic (a tool or a save that rebuilds the world).
     public bool Remove(int id) => byId.TryGetValue(id, out var placed) && Detach(placed);
 
-    private bool Detach(PNPlacedObject placed)
+    private bool Detach(PNPlacedObject placed, bool editCells = true)
     {
-        if (placed.Definition.Settings.BlocksPath)
+        if (editCells && placed.Definition.Settings.BlocksPath)
         {
             var result = editor.Submit(new PNGridEditBatch().AddSolidRegion(placed.Region, false));
             if (!result.Accepted) return false;   // the queue is full: keep the thing and try again later
         }
         byId.Remove(placed.Id); var effectiveKey = placed.EffectiveKey; if (effectiveKey != null) byKey.Remove(effectiveKey);
         for (int cz = placed.Z; cz < placed.Z + placed.CellsZ; cz++) for (int cx = placed.X; cx < placed.X + placed.CellsX; cx++) occupied.Remove(Key(cx, cz));
-        Removed?.Invoke(placed); return true;
+        LogRemoval(placed.Id); Removed?.Invoke(placed); return true;
     }
 }

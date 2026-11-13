@@ -41,7 +41,38 @@ public sealed class PNGridChunkReceiver : MonoBehaviour
         catch (FormatException error) { if (world.State != EveWorldState.Disposed) world.Fail(error); return 0; }
         Applied += done;
         if (done > 0) { PushOwnedOut(); nextRecheck = Time.unscaledTime + RecheckSeconds; }
+        ApplyPlacements();
         return done;
+    }
+
+    // The placed things the host told this client about (G9c part 2): a few per frame into the world's list, which makes the markers and the world objects of interactable things. Nothing here edits cells.
+    public const int PlacementsPerFrame = 64;
+    public int PlacementsApplied { get; private set; }
+    private int ApplyPlacements()
+    {
+        var queue = inbox.Placements;
+        if (queue.Count == 0) return 0;
+        var controller = PNGridWorldController.Find(world);
+        if (controller == null) return 0;
+        var known = world.Session.Registry.Instances(); int count = 0;
+        try
+        {
+            while (count < PlacementsPerFrame && queue.TryTake(out var item))
+            {
+                count++;
+                switch (item.Kind)
+                {
+                    case PNGridPlacementKind.Add:
+                        var definition = EveId.TryParse(item.Definition, out var id) ? known.GetEffectiveKind<PNPlaceableDefinition>(id) : null;
+                        if (definition == null) throw new FormatException("The host placed " + item.Definition + ", which this game does not register.");
+                        controller.Placements.ReplicaAdd(definition, item.Id, item.X, item.Z, item.Direction, item.Health, item.Key); break;
+                    case PNGridPlacementKind.Remove: controller.Placements.ReplicaRemove(item.Id); break;
+                    case PNGridPlacementKind.Health: controller.Placements.ReplicaHealth(item.Id, item.Health); break;
+                }
+            }
+        }
+        catch (Exception error) { if (world.State != EveWorldState.Disposed) world.Fail(error); return count; }
+        PlacementsApplied += count; return count;
     }
 
     // A body owned by this machine whose footprint is inside solid cells of this copy of the world is moved to the nearest free spot (PNMove.RelocateToPoint; its owner report carries the new place to the host).

@@ -15,6 +15,7 @@ namespace ProjectN.Coop
             public EveWorldContext World;
             public NetworkConnectionToClient Connection;
             public IDisposable DescriptorLease,WorldLease,FenceLease;
+            public PNGridPlacementSender Placements;
             public bool Loaded,Closing,Sent,AwaitingConfirmation,Confirmed,InitialCaptured,InitialReady;
             public double Started;
             public ulong FenceRevision,ConfirmedRevision;
@@ -110,7 +111,7 @@ namespace ProjectN.Coop
             if(worldPeers.Values.Count(x=>x.Connection==connection)>=8)throw new InvalidOperationException("Peer world descriptor count bound.");
             var entry=new WorldSubscription{World=world,Connection=connection,Started=Time.realtimeSinceStartupAsDouble};
             var build=Worlds.Get(world);string gridDescriptor=build.GridWorld!=null&&build.GridDescriptor!=null?build.GridDescriptor.ToJson().ToString(Newtonsoft.Json.Formatting.None):string.Empty;
-            if(gridDescriptor.Length>0&&!(connection is LocalConnectionToClient))entry.Chunks=new PNGridChunkSender(build.GridWorld);
+            if(gridDescriptor.Length>0&&!(connection is LocalConnectionToClient)){entry.Chunks=new PNGridChunkSender(build.GridWorld);if(build.GridPlacements!=null)entry.Placements=new PNGridPlacementSender(build.GridPlacements,build.GridWorld);}
             entry.Offer=new PNWorldOffer{Descriptor=gridDescriptor,Ticket=WorldTicket(world,checked(++nextWorldSubscription)),Definition=world.DefinitionId.ToString(),ContentHash=world.ContentHash,Active=true,DefaultWorld=ReferenceEquals(world,Worlds.DefaultWorld),Paused=world.State==EveWorldState.Paused,Features=Worlds.Get(world).Features.Ids.Select(x=>x.ToString()).ToArray()};
             try{entry.DescriptorLease=ReserveWorld(512);entry.WorldLease=world.AcquireLease("world subscription");worldPeers.Add(key,entry);}
             catch{entry.DescriptorLease?.Dispose();entry.WorldLease?.Dispose();throw;}
@@ -130,7 +131,7 @@ namespace ProjectN.Coop
             ReleaseWorldSubscription(entry);
         }
         private void ReleaseWorldSubscription(WorldSubscription entry)
-        {entry.FenceLease?.Dispose();entry.FenceLease=null;entry.DescriptorLease?.Dispose();entry.DescriptorLease=null;entry.WorldLease?.Dispose();entry.WorldLease=null;foreach(var lease in entry.TargetLeases)lease.Dispose();entry.TargetLeases.Clear();entry.Incoming.Clear();entry.Targets=null;entry.Chunks=null;entry.Applied.Clear();entry.Granted.Clear();entry.InitialEntities.Clear();entry.AppliedEntities.Clear();}
+        {entry.FenceLease?.Dispose();entry.FenceLease=null;entry.DescriptorLease?.Dispose();entry.DescriptorLease=null;entry.WorldLease?.Dispose();entry.WorldLease=null;foreach(var lease in entry.TargetLeases)lease.Dispose();entry.TargetLeases.Clear();entry.Incoming.Clear();entry.Targets=null;entry.Chunks=null;entry.Placements=null;entry.Applied.Clear();entry.Granted.Clear();entry.InitialEntities.Clear();entry.AppliedEntities.Clear();}
         public bool CanObserveWorld(NetworkConnectionToClient connection,Guid world,ulong incarnation)
             =>IsPlaying&&connection.authenticationData is PNPeer peer&&peer.PlayRevision==PlayRevision&&worldPeers.TryGetValue((connection.connectionId,world),out var entry)&&entry.Loaded&&!entry.Closing&&entry.World.Incarnation==incarnation&&(entry.World.State==EveWorldState.Ready||entry.World.State==EveWorldState.Paused);
         public bool CanObserveActor(NetworkConnectionToClient connection,PNActorShell actor)
@@ -337,7 +338,7 @@ namespace ProjectN.Coop
                     if(entry.Connection is LocalConnectionToClient)continue;
                     if((!entry.Loaded||!entry.Confirmed)&&Time.realtimeSinceStartupAsDouble-entry.Started>60){UnsubscribeWorld(entry.Connection,entry.World.InstanceId);continue;}
                     if(entry.Chunks!=null&&(entry.World.State==EveWorldState.Ready||entry.World.State==EveWorldState.Paused))
-                        try{PumpGridChunks(entry);}catch(Exception error){LastFailure="Grid chunk channel failed: "+error.Message;UnsubscribeWorld(entry.Connection,entry.World.InstanceId);continue;}
+                        try{PumpGridChunks(entry);PumpGridPlacements(entry);}catch(Exception error){LastFailure="Grid chunk channel failed: "+error.Message;UnsubscribeWorld(entry.Connection,entry.World.InstanceId);continue;}
                     if(entry.Loaded&&(entry.World.State==EveWorldState.Ready||entry.World.State==EveWorldState.Paused))
                         try{GrantActorBatch(entry);SendWorldFence(entry);}catch(Exception error){LastFailure="World subscription failed: "+error.Message;UnsubscribeWorld(entry.Connection,entry.World.InstanceId);}
                 }

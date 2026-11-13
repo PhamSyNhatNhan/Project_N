@@ -248,7 +248,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 40d5d2dd6c02b4a42a1fe3a8781b83a7, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ErModeCharacterBillboard
+  m_EditorClassIdentifier: Assembly-CSharp::PNCharacterBillboard
   viewCamera: {fileID: 0}
   footOffset: 0.275
   footAnchor: {x: 0, y: -0.275, z: 0}

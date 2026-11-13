@@ -90,6 +90,10 @@ public sealed class PNWorldBuildContext
     public PNGridWorldDescriptor GridDescriptor { get; private set; }
     public void SetGridWorld(PNGridWorldData data,PNGridWorldDescriptor descriptor=null)
     { if(!IsCurrent||GridWorld!=null)throw new InvalidOperationException("The grid world is set once, while the world loads.");GridWorld=data??throw new ArgumentNullException(nameof(data));GridDescriptor=descriptor?.WithoutRestore(); }
+    // The placed things of that grid world (G9c part 2): the host's network layer streams them to clients. Set once by the provider after it made them.
+    public PNGridPlacements GridPlacements { get; private set; }
+    public void SetGridPlacements(PNGridPlacements placements)
+    { if(!IsCurrent||GridPlacements!=null)throw new InvalidOperationException("The grid placements are set once, while the world loads.");GridPlacements=placements??throw new ArgumentNullException(nameof(placements)); }
     public void SetNavigation(IPNNavigationSource source)
     { if(!IsCurrent||Navigation!=null)throw new InvalidOperationException("Navigation is set once, while the world loads.");Navigation=source??throw new ArgumentNullException(nameof(source)); }
     public PNWorldBuildContext(EveWorldContext world,Scene scene,PNWorldFeatures features=null) { World=world;PhysicsScene=scene;Features=features??PNWorldFeatures.Empty; }

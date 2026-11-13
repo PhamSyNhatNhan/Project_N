@@ -4,7 +4,7 @@ using UnityEngine;
 // VI: Bóng mềm trên sàn cho bản thử nhân vật giấy của ErMode.
 [ExecuteAlways]
 [RequireComponent(typeof(SpriteRenderer))]
-public sealed class ErModeCharacterShadow : MonoBehaviour, IPNSceneEntityVisual
+public sealed class PNCharacterShadow : MonoBehaviour, IPNSceneEntityVisual
 {
     public void BindGround(Collider value) { ground=value; UpdateShadow(); }
     [SerializeField] private Transform target;
