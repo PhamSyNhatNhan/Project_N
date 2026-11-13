@@ -20,6 +20,7 @@ public static class PNCameraChecksRunner
         One("Zoom", PNCameraZoomChecks.Run);
         One("Extras", PNCameraExtrasChecks.Run);
         One("Cinematic", PNCameraCinematicChecks.Run);
+        One("ArenaMap", PNArenaMapChecks.Run);
         var path = Path.Combine(Path.GetDirectoryName(Application.dataPath), ".utmp", "CameraChecks.txt");
         Directory.CreateDirectory(Path.GetDirectoryName(path));
         File.WriteAllText(path, string.Join("\n", lines));

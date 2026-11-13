@@ -58,6 +58,12 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         worlds.Register(new PNWorldDefinition(EveId.Parse("project_n:roguelite_lobby"),PNWorldDefinition.HashContent("project_n:roguelite_lobby/v2/"+lobbyDescriptor.ToJson().ToString(Newtonsoft.Json.Formatting.None)),typeof(PNGridWorldProvider),()=>new PNGridWorldProvider(lobbyDescriptor),
             new PNWorldPolicy(PNEmptyWorldPolicy.Discard,null,null,null,default(EveId),new[]{PNGridIds.GridWorldFeature}),ShellView));
         worlds.RegisterBase(EveId.Parse("base:roguelite_lobby"),EveId.Parse("project_n:roguelite_lobby"),"project_n",compatible:(a,b)=>true);
+        // G14: the developers' test arena is a grid world (PNArenaMaps); the scene ErMode becomes its shell. The old project_n:scene_world stays until the arena has replaced it everywhere.
+        PNArenaMaps.EnsureRegistered();
+        var arenaDescriptor=PNArenaMaps.Descriptor();
+        worlds.Register(new PNWorldDefinition(EveId.Parse("project_n:test_arena"),PNWorldDefinition.HashContent("project_n:test_arena/v1/"+arenaDescriptor.ToJson().ToString(Newtonsoft.Json.Formatting.None)),typeof(PNGridWorldProvider),()=>new PNGridWorldProvider(arenaDescriptor),
+            new PNWorldPolicy(PNEmptyWorldPolicy.Continue,null,null,null,default(EveId),new[]{PNGridIds.GridWorldFeature}),ShellView));
+        worlds.RegisterBase(EveId.Parse("base:test_arena"),EveId.Parse("project_n:test_arena"),"project_n",compatible:(a,b)=>true);
         // A roguelite room map: one scene, a world of its own for every room played. Policy Continue (not Discard): a new room world is empty when it becomes ready and the team is only
         // transferred in afterwards, so an empty-world discard would remove it first; the run director unloads the room the team has left.
         // G10a: the room is grid data (PNRoomMaps), no longer a scene; the old scene PNRoomStarTest01 stays in the project until the Recast removal (G10b). The world has only the grid feature: a room world is not saved,
