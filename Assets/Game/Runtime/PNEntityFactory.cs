@@ -86,6 +86,8 @@ public sealed class PNEntityFactory : IPNWorldEntityFactory
             var key=loader.GetComponent<EveSceneEntityKey>();
             yield return new PNEntityRequest {World=world,WorldIncarnation=world.Incarnation,ContentSlot=content.Id,SceneKey=key.SceneKey,EntityKey=key.EntityKey,Character=loader.GetComponent<PNStat>().CharacterDefinitionId,Position=loader.transform.position};
         }
+        // G13: the fixed monster groups of a grid world's map (the training dummies of the Hall) are made with the entities a scene authored.
+        if(slot==null||slot==PNFixedGroups.Slot)foreach(var request in PNFixedGroups.Requests(world))yield return request;
     }
     public PNEntityRequest Player(long owner)=>Player(owner,LegacyWorld(),null,null);
     public PNEntityRequest Player(long owner,EveWorldContext world,string slot,string spawn)

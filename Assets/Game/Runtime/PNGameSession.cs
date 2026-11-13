@@ -68,6 +68,7 @@ public sealed class PNGameSession : MonoBehaviour
         var scenes=UnityEngine.Object.FindObjectsByType<PNPlayerSpawnPoint>().Select(x=>x.gameObject.scene).Distinct().ToArray();
         if(scenes.Length==1){var entryMarker=PNEntrySceneMarker.Find(scenes[0]);service.Worlds.SetEntryScene(scenes[0],entryMarker!=null?EveId.Parse(entryMarker.WorldDefinition):default);if(session.Role!=EveSessionRole.Client)service.Presentation.RegisterWorld(service.Worlds.Adopt(scenes[0]));}
         else if(scenes.Length>1)throw new InvalidOperationException("Scene entry requires explicit world selection for multiple scenes.");
+        else StartEntryWorld(service,session,runtime);
         if(session.Role==EveSessionRole.Offline && UnityEngine.Object.FindObjectsByType<PNPlayerSpawnPoint>().Length>0)
         {
             var requests=service.Factory.SceneEntities();
@@ -84,6 +85,46 @@ public sealed class PNGameSession : MonoBehaviour
                 }
         }
         return service;
+    }
+    // G13: an entry scene that holds no player spawn point is a shell (EveRuntime, marker, camera): the first world of the play is made from the definition the marker names, becomes the default world when it
+    // is ready, and the entities of the world and (offline) the player are made then, at the world's own `player` entry. A host's players are enrolled by the room manager from the same ready event; a client
+    // is offered the host's default world. A scene with a spawn point (ErMode, test scenes) keeps the adoption above.
+    private static void StartEntryWorld(PNGameSession service,EveSessionContext session,EveRuntime runtime)
+    {
+        var marker=UnityEngine.Object.FindObjectsByType<PNEntrySceneMarker>(FindObjectsInactive.Include,FindObjectsSortMode.None).FirstOrDefault();
+        if(marker==null)return;
+        var definition=EveId.Parse(marker.WorldDefinition);
+        // The shell scene holds the camera (and the rest of the presentation) of the entry world; no world owns that scene, so it is handed to the default world when it is ready, as an adopted scene would be.
+        var shell=marker.gameObject.scene;
+        Action<EveWorldContext> stage=null;
+        stage=world=>
+        {
+            if(!ReferenceEquals(world,service.Worlds.DefaultWorld))return;
+            service.Worlds.WorldReady-=stage;
+            PNWorldPresentation.StageScene(session,world,shell);
+        };
+        service.Worlds.WorldReady+=stage;session.RegisterCleanup(()=>service.Worlds.WorldReady-=stage);
+        if(session.Role==EveSessionRole.Offline)
+        {
+            Action<EveWorldContext> ready=null;
+            ready=world=>
+            {
+                if(!ReferenceEquals(world,service.Worlds.DefaultWorld))return;
+                service.Worlds.WorldReady-=ready;
+                if(!(service.Factory is IPNWorldEntityFactory worldFactory))return;
+                var requests=worldFactory.SceneEntities(world).ToList();
+                if(PNGameBootstrap.Config.Network.SelectPlayer)
+                {
+                    var player=worldFactory.Player(0,world,null,null);var picked=PickedCharacter(session);
+                    if(picked!=null)player.Character=picked;
+                    requests.Add(player);
+                }
+                foreach(var request in requests)
+                    PNEntitySpawner.Enqueue(service.Scheduler,service.Factory,request,failed:error=>{Debug.LogException(error,service);if(session.IsActive)runtime.EndSession();});
+            };
+            service.Worlds.WorldReady+=ready;session.RegisterCleanup(()=>service.Worlds.WorldReady-=ready);
+        }
+        if(session.Role!=EveSessionRole.Client)service.Worlds.CreateDefault(definition);   // a client is offered the host's default world; presentation registers it when it is ready (WorldReady)
     }
     private static string PickedCharacter(EveSessionContext session)
     {

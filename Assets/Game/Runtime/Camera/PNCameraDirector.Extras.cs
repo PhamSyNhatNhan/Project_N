@@ -42,7 +42,7 @@ public sealed partial class PNCameraDirector
             {
                 if (active == cinematicRig) kind = PNCameraRigKind.Cinematic;
                 else if (active == lockRig) kind = PNCameraRigKind.LockOn;
-                else if (active == fallback) kind = PNCameraRigKind.Fallback;
+                else if (active == fallback) kind = PNCameraRigKind.World;
                 else if (active is CinemachineExternalCamera) kind = PNCameraRigKind.External;
                 else kind = PNCameraRigKind.World;
             }

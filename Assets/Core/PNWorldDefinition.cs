@@ -19,6 +19,11 @@ public sealed class PNWorldDefinition : EveIIdentified,EveIRegistrationReference
     public PNWorldPolicy Policy { get; }
     public PNWorldDefinition(EveId id,string contentHash,Type type,Func<IPNWorldProvider> factory)
         : this(id,contentHash,type,factory,new PNWorldPolicy()) { }
+    // The look of the gameplay camera in this world (Docs/CameraSinglePathPlan.md): optional overrides of the game default; presentation only, never part of the content hash.
+    public PNCameraViewLayer CameraView { get; }
+    public PNWorldDefinition(EveId id,string contentHash,Type type,Func<IPNWorldProvider> factory,PNWorldPolicy policy,PNCameraViewLayer cameraView)
+        : this(id,contentHash,type,factory,policy)
+    { CameraView=cameraView; }
     public PNWorldDefinition(EveId id,string contentHash,Type type,Func<IPNWorldProvider> factory,PNWorldPolicy policy)
     {
         if(!id.IsValid||id.ToString().Length>128||contentHash==null||contentHash.Length!=64||contentHash.Any(c=>!Uri.IsHexDigit(c))||type==null||type.IsAbstract||type.ContainsGenericParameters||!typeof(IPNWorldProvider).IsAssignableFrom(type))

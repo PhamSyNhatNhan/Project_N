@@ -23,6 +23,7 @@ public static class PNCameraZoomChecks
         PNCameraDirector director = null; int frame = 0;
         void Tick() { frame++; director.Brain.ManualUpdate(frame, .02f); }
         void Run(int frames) { for (int i = 0; i < frames; i++) { director.Advance(.02f); Tick(); } }
+        CinemachinePositionComposer RigComposer() => (director.Brain.ActiveVirtualCamera as CinemachineCamera).GetComponent<CinemachinePositionComposer>();
         try
         {
             var composerWorld = worlds.Create(EveId.Parse("fixture:world")); var poseWorld = worlds.Create(EveId.Parse("fixture:world")); var orthoWorld = worlds.Create(EveId.Parse("fixture:world")); var emptyWorld = worlds.Create(EveId.Parse("fixture:world"));
@@ -47,20 +48,20 @@ public static class PNCameraZoomChecks
             // ---- composer rig: distance zoom ------------------------------------------------------------------------------------------
             Run(5);
             Check((director.ViewCapabilities & PNCameraRigCapabilities.DistanceZoom) != 0 && (director.ViewCapabilities & PNCameraRigCapabilities.LensZoom) != 0, "composer rig reports distance and lens zoom");
-            Check(Mathf.Approximately(composer.CameraDistance, 4.5f), "no request: authored distance is untouched");
+            Check(Mathf.Approximately(RigComposer().CameraDistance, 4.5f), "no request: authored distance is untouched");
             var h = service.RequestZoom(owner, "in", PNZoomRequest.Factor(.8f)); Run(200);
-            Check(h.IsActive && Mathf.Abs(composer.CameraDistance - 4.5f * .8f) < .01f, "zoom in 0.8 moves the composer distance to 3.6");
+            Check(h.IsActive && Mathf.Abs(RigComposer().CameraDistance - 4.5f * .8f) < .01f, "zoom in 0.8 moves the composer distance to 3.6");
             var extreme = service.RequestZoom(owner, "far-in", PNZoomRequest.Factor(.1f)); Run(300);
-            Check(Mathf.Abs(composer.CameraDistance - 3f) < .01f, "extreme zoom in is clamped at the profile minimum distance (3.0)");
+            Check(Mathf.Abs(RigComposer().CameraDistance - 3f) < .01f, "extreme zoom in is clamped at the profile minimum distance (3.0)");
             extreme.Dispose(); h.Dispose(); Run(300);
-            Check(!h.IsActive && Mathf.Abs(composer.CameraDistance - 4.5f) < .005f, "releasing returns the exact authored distance (no drift)");
+            Check(!h.IsActive && Mathf.Abs(RigComposer().CameraDistance - 4.5f) < .005f, "releasing returns the exact authored distance (no drift)");
             var outReq = service.RequestZoom(owner, "out", PNZoomRequest.Factor(9f)); Run(300);
-            Check(Mathf.Abs(composer.CameraDistance - 7f) < .01f, "extreme zoom out is clamped at the profile maximum distance (7.0)");
+            Check(Mathf.Abs(RigComposer().CameraDistance - 7f) < .01f, "extreme zoom out is clamped at the profile maximum distance (7.0)");
             outReq.Dispose(); Run(300);
             Check(Mathf.Abs(service.SetBaseZoom(1.2f) - 1.2f) < 1e-5f, "player base zoom is applied"); Run(300);
-            Check(Mathf.Abs(composer.CameraDistance - 4.5f * 1.2f) < .01f, "player base scales the authored distance");
+            Check(Mathf.Abs(RigComposer().CameraDistance - 4.5f * 1.2f) < .01f, "player base scales the authored distance");
             var onTop = service.RequestZoom(owner, "mod", PNZoomRequest.Factor(.5f)); Run(300);
-            Check(Mathf.Abs(composer.CameraDistance - Mathf.Max(3f, 4.5f * 1.2f * .5f)) < .01f, "gameplay modifier multiplies the player base, then clamps");
+            Check(Mathf.Abs(RigComposer().CameraDistance - Mathf.Max(3f, 4.5f * 1.2f * .5f)) < .01f, "gameplay modifier multiplies the player base, then clamps");
             onTop.Dispose(); service.SetBaseZoom(1f); Run(300);
             var timed = service.RequestZoom(owner, "timed", PNZoomRequest.Factor(.8f, 0.5f, 0.1f)); Run(10);
             Check(timed.IsActive && director.ActiveZoomRequests == 1, "timed request is active while its duration runs");
@@ -77,20 +78,15 @@ public static class PNCameraZoomChecks
             foreach (var x in many) x.Dispose();
             Check(service.RequestZoom(null, "k", PNZoomRequest.Factor(.9f)).RefusalReason == PNCameraRefusal.OwnerGone && service.RequestZoom(owner, "", PNZoomRequest.Factor(.9f)).RefusalReason == PNCameraRefusal.InvalidParameter && service.RequestZoom(owner, "k", default).RefusalReason == PNCameraRefusal.InvalidParameter, "null owner, empty key and default request are refused with codes");
 
-            // ---- pose-only perspective: lens zoom ---------------------------------------------------------------------------------------
+            // ---- a world whose vcam has no composer: the same rig, the default distance ------------------------------------------------------
             var carry = service.RequestZoom(owner, "carry", PNZoomRequest.Factor(.8f)); Run(5);
-            local.Select(poseWorld); Run(20);
+            local.Select(poseWorld); Run(100);
             Check(!carry.IsActive && director.ActiveZoomRequests == 0, "zoom requests of the previous world end when the view changes world");
-            Check((director.ViewCapabilities & PNCameraRigCapabilities.DistanceZoom) == 0 && (director.ViewCapabilities & PNCameraRigCapabilities.LensZoom) != 0, "pose-only rig reports lens zoom without distance zoom");
-            float fovStill = director.ViewCamera.fieldOfView;
-            var lens = service.RequestZoom(owner, "lens", PNZoomRequest.Factor(.8f)); Run(200);
-            var recomposer = poseVcam.GetComponent<CinemachineRecomposer>();
-            Check(recomposer != null && Mathf.Abs(recomposer.ZoomScale - .8f) < .01f && director.ViewCamera.fieldOfView < fovStill - 1f, "pose-only rig zooms by lens scale (smaller FOV)");
-            lens.Dispose(); Run(300);
-            Check(Mathf.Abs(recomposer.ZoomScale - 1f) < .005f && Mathf.Abs(director.ViewCamera.fieldOfView - fovStill) < .1f, "lens zoom returns to the authored FOV after release");
-            var lensOut = service.RequestZoom(owner, "lens-out", PNZoomRequest.Factor(9f)); Run(300);
-            Check(Mathf.Abs(recomposer.ZoomScale - PNCameraProfile.Default.LensScaleMax) < .01f, "lens zoom out is clamped by the lens range");
-            lensOut.Dispose(); Run(300);
+            Check(Mathf.Abs(RigComposer().CameraDistance - PNCameraView.Default.Distance) < .01f && (director.ViewCapabilities & PNCameraRigCapabilities.DistanceZoom) != 0, "a world vcam without a composer gives the default distance; the one rig still zooms by distance [dist=" + RigComposer().CameraDistance + " caps=" + director.ViewCapabilities + " view=" + director.View.Distance + "]");
+            var near = service.RequestZoom(owner, "near", PNZoomRequest.Factor(.8f)); Run(200);
+            Check(Mathf.Abs(RigComposer().CameraDistance - PNCameraView.Default.Distance * .8f) < .01f, "zoom in 0.8 moves the rig distance to 0.8 of the view's");
+            near.Dispose(); Run(300);
+            Check(Mathf.Abs(RigComposer().CameraDistance - PNCameraView.Default.Distance) < .005f, "releasing returns the view's distance");
 
             // ---- orthographic camera-only world ---------------------------------------------------------------------------------------------
             local.Select(orthoWorld); Run(20);
@@ -100,12 +96,12 @@ public static class PNCameraZoomChecks
             ortho.Dispose(); Run(300);
             Check(Mathf.Abs(director.ViewCamera.orthographicSize - 2f) < .01f, "orthographic size returns to authored after release");
 
-            // ---- world with no camera: fallback composer rig ---------------------------------------------------------------------------------
+            // ---- world with no camera: the game default view ---------------------------------------------------------------------------------
             local.Select(emptyWorld); Run(20);
-            Check(director.Brain.ActiveVirtualCamera != null && director.Brain.ActiveVirtualCamera.Name.Contains("Fallback") && (director.ViewCapabilities & PNCameraRigCapabilities.DistanceZoom) != 0, "world without a camera uses the fallback rig, which can distance-zoom");
-            var fallbackZoom = service.RequestZoom(owner, "fallback", PNZoomRequest.Factor(.8f)); Run(200);
-            Check(fallbackZoom.IsActive, "zoom is accepted on the fallback rig");
-            fallbackZoom.Dispose();
+            Check(director.Brain.ActiveVirtualCamera != null && director.Brain.ActiveVirtualCamera.Name == "PN Camera Rig" && (director.ViewCapabilities & PNCameraRigCapabilities.DistanceZoom) != 0 && director.View.SameAs(PNCameraView.Default), "world without a camera takes the default view, which can distance-zoom");
+            var defaultZoom = service.RequestZoom(owner, "default", PNZoomRequest.Factor(.8f)); Run(200);
+            Check(defaultZoom.IsActive, "zoom is accepted on the default view");
+            defaultZoom.Dispose();
 
             // ---- no view -----------------------------------------------------------------------------------------------------------------------
             local.Select(null); Run(5);
@@ -116,16 +112,16 @@ public static class PNCameraZoomChecks
             local.Select(composerWorld); Run(20);
             director.SetProfileLayer(PNCameraProfileSource.World, new PNCameraProfileLayer { DistanceScaleMax = 1.1f });
             var profiled = service.RequestZoom(owner, "profile", PNZoomRequest.Factor(2f)); Run(300);
-            Check(Mathf.Abs(composer.CameraDistance - 4.5f * 1.1f) < .01f, "a world profile layer narrows the zoom range");
+            Check(Mathf.Abs(RigComposer().CameraDistance - 4.5f * 1.1f) < .01f, "a world profile layer narrows the zoom range");
             bool refusedLayer = false; try { director.SetProfileLayer(PNCameraProfileSource.Player, new PNCameraProfileLayer { DistanceScaleMax = .1f }); } catch (Exception) { refusedLayer = true; }
             Check(refusedLayer && director.Profile.DistanceScaleMax == 1.1f, "an invalid profile layer is refused and changes nothing");
             profiled.Dispose(); director.SetProfileLayer(PNCameraProfileSource.World, null); Run(300);
-            Check(Mathf.Abs(composer.CameraDistance - 4.5f) < .005f, "clearing the layer restores the default range and authored distance");
+            Check(Mathf.Abs(RigComposer().CameraDistance - 4.5f) < .005f, "clearing the layer restores the default range and authored distance");
 
             // ---- teardown returns every rig as authored ---------------------------------------------------------------------------------------------
             var pending = service.RequestZoom(owner, "pending", PNZoomRequest.Factor(.8f)); Run(100);
             director.Release();
-            Check(Mathf.Abs(composer.CameraDistance - 4.5f) < .001f && poseVcam.GetComponent<CinemachineRecomposer>() == null && !pending.IsActive, "director release returns distance and removes the added recomposer");
+            Check(Mathf.Abs(composer.CameraDistance - 4.5f) < .001f && composerVcam.GetComponent<CinemachineRecomposer>() == null && !pending.IsActive && director.Brain == null, "director release leaves the world vcam as authored and ends the zoom request");
         }
         finally { try { director?.Release(); } catch { } view.Release(); UnityEngine.Object.DestroyImmediate(host); EveRegistrySession.End(); }
         return "PASS " + rows.Count + " native camera zoom cases (edit-mode, four world kinds; not rendered-frame acceptance)\n" + string.Join("\n", rows);

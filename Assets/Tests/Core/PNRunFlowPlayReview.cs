@@ -116,10 +116,15 @@ public sealed class PNRunFlowPlayReview : MonoBehaviour
         saveStore = new PNRunSaveStore(saveFolder); PNRunSaveService.Use(saveStore);
         // Nor the real profile: a run that ends pays stella into the profile, so the review keeps its own (removed at the end).
         profileFolder = Path.Combine(Application.temporaryCachePath, "RunFlowProfile_" + Guid.NewGuid().ToString("N"));
-        PNPlayerProfileService.Load(new PNProfileStore(profileFolder)); PNStellaService.ResetStatics();
+        PNPlayerProfileService.Load(new PNProfileStore(profileFolder)); PNStellaService.ResetStatics(); PNPlayerProfileService.SetLastCharacter("project_n:eve");   // G13: the Hall player is made when the Hall world is ready (after this), so the fresh profile must name the character the checks expect
         yield return Until("the Hall is up", () => EveRegistrySession.IsReady && PNGameFlow.Phase == PNFlowPhase.Hall && !PNGameFlow.Busy, 90);
         if (!failed && Scenario != "ui")
         {
+            // G13: the Hall is a grid world and its training dummies are the fixed groups of the map.
+            yield return Until("the Hall makes its training dummies", () => UnityEngine.Object.FindObjectsByType<PNStat>().Count(x => x.CharacterDefinitionId == "project_n:dummy") == 1 && UnityEngine.Object.FindObjectsByType<PNStat>().Count(x => x.CharacterDefinitionId == "project_n:dummy_lorica") == 1, 30);
+            if (failed) { Finish(); yield break; }
+            yield return Seconds(3.5f); yield return Shot("hall");
+            { var view = PNCameraDirector.Current?.ViewCamera; var actor = PNLocalWorldContext.Current?.Actor; lines.Add("NOTE hall camera at " + (view == null ? "none" : view.transform.position + " rot " + view.transform.rotation.eulerAngles + " bg " + view.backgroundColor + " mask " + view.cullingMask) + "; actor at " + (actor == null ? "none" : actor.transform.position.ToString()) + "; viewed world " + (PNCameraDirector.Current?.ViewedWorld?.DefinitionId.ToString() ?? "none")); }   // the camera of the shell scene is the entry world's: the Hall is seen from the scene's own rig
             PNGameFlow.StartRoguelite(PNFlowMode.Offline); watchCover = true;
             yield return Until("the run is playing", () => EveRegistrySession.IsReady && Game != null && Game.Runs.Phase == PNRunPhase.Playing && Game.Runs.Room != null && !PNGameFlow.Busy, 90);
         }
@@ -147,7 +152,7 @@ public sealed class PNRunFlowPlayReview : MonoBehaviour
         Check(room.Definition.Id.ToString() == "project_n:room_star_combat_a" && room.Flow.Phase == PNRoomPhase.Waiting && room.StartAvailable, "the first room is the only room of floor 0 and waits for its switch");
         yield return Until("the lobby is gone", () => Worlds("project_n:roguelite_lobby") == 0, 20);
         Check(Worlds("project_n:map_star_test_01") == 1 && Player.LoadContext.Identity.World.DefinitionId.ToString() == "project_n:map_star_test_01", "one map world is loaded and the player stands in it");
-        Check(Player.GetComponent<PNStat>().CharacterDefinitionId == "project_n:eve" && PNLocalWorldContext.Current.Actor == Player, "the player is the picked character and the local view follows it");
+        Check(Player.GetComponent<PNStat>().CharacterDefinitionId == "project_n:eve" && PNLocalWorldContext.Current.Actor == Player, "the player is the picked character and the local view follows it (character " + Player.GetComponent<PNStat>().CharacterDefinitionId + ", local actor " + (PNLocalWorldContext.Current.Actor == null ? "none" : PNLocalWorldContext.Current.Actor.name) + ", player " + Player.name + ")");
 
         // ---- the start switch is the only open object ----
         yield return new WaitForSeconds(.2f);

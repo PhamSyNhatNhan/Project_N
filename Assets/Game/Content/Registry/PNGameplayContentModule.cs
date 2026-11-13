@@ -8,6 +8,8 @@ using Newtonsoft.Json.Linq;
 // VI: Đăng ký action và operation cụ thể của game, tách khỏi hợp đồng nền Core.
 public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeModule, EveIContentReferenceValidator, EveIContentExtension
 {
+    // The look of the Hall and the Lobby (Docs/CameraSinglePathPlan.md C4): their shell scenes no longer carry a virtual camera, the world declares it. 45 degrees, 5.5 m, FOV 38, as the scene rigs were.
+    private static readonly PNCameraViewLayer ShellView=new PNCameraViewLayer{Projection=PNCameraProjection.Perspective,FieldOfView=38f,Pitch=45f,Yaw=0f,Distance=5.5f};
     private readonly List<(EveId id,string owner,IReadOnlyCollection<string> dependencies)> motionReferences=new List<(EveId,string,IReadOnlyCollection<string>)>();
     public static readonly EveId EveSlash = EveId.Parse("project_n:eve_slash");
     public static readonly EveId SlashAction = EveId.Parse("project_n:slash_action");
@@ -46,10 +48,15 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         stateProviders.RegisterBase(EveId.Parse("base:run_actor_state"),PNRunActorStateProvider.Id,"project_n",compatible:(a,b)=>a.Schema==b.Schema);
         worlds.Register(new PNWorldDefinition(EveId.Parse("project_n:scene_world"),PNWorldDefinition.HashContent("project_n:scene_world/v1/Assets/Game/Scenes/Test/ErMode/ErMode.unity"),typeof(PNSceneWorldProvider),()=>new PNSceneWorldProvider("Assets/Game/Scenes/Test/ErMode/ErMode.unity")));
         worlds.RegisterBase(EveId.Parse("base:scene_world"),EveId.Parse("project_n:scene_world"),"project_n",compatible:(a,b)=>true);
-        worlds.Register(new PNWorldDefinition(EveId.Parse("project_n:hall_world"),PNWorldDefinition.HashContent("project_n:hall_world/v1/"+PNScenes.Hall),typeof(PNSceneWorldProvider),()=>new PNSceneWorldProvider(PNScenes.Hall)));
+        // G13: the Hall and the Lobby are grid worlds (PNHallMaps); the scenes PNHall / PNLobby are only the shell (runtime, entry marker, camera).
+        PNHallMaps.EnsureRegistered();
+        var hallDescriptor=PNHallMaps.HallDescriptor();var lobbyDescriptor=PNHallMaps.LobbyDescriptor();
+        worlds.Register(new PNWorldDefinition(EveId.Parse("project_n:hall_world"),PNWorldDefinition.HashContent("project_n:hall_world/v2/"+hallDescriptor.ToJson().ToString(Newtonsoft.Json.Formatting.None)),typeof(PNGridWorldProvider),()=>new PNGridWorldProvider(hallDescriptor),
+            new PNWorldPolicy(PNEmptyWorldPolicy.Continue,null,null,null,default(EveId),new[]{PNGridIds.GridWorldFeature}),ShellView));
         worlds.RegisterBase(EveId.Parse("base:hall_world"),EveId.Parse("project_n:hall_world"),"project_n",compatible:(a,b)=>true);
         // The lobby exists only to gather a roguelite party; once everyone moved on, it is discarded.
-        worlds.Register(new PNWorldDefinition(EveId.Parse("project_n:roguelite_lobby"),PNWorldDefinition.HashContent("project_n:roguelite_lobby/v1/"+PNScenes.Lobby),typeof(PNSceneWorldProvider),()=>new PNSceneWorldProvider(PNScenes.Lobby),new PNWorldPolicy(PNEmptyWorldPolicy.Discard)));
+        worlds.Register(new PNWorldDefinition(EveId.Parse("project_n:roguelite_lobby"),PNWorldDefinition.HashContent("project_n:roguelite_lobby/v2/"+lobbyDescriptor.ToJson().ToString(Newtonsoft.Json.Formatting.None)),typeof(PNGridWorldProvider),()=>new PNGridWorldProvider(lobbyDescriptor),
+            new PNWorldPolicy(PNEmptyWorldPolicy.Discard,null,null,null,default(EveId),new[]{PNGridIds.GridWorldFeature}),ShellView));
         worlds.RegisterBase(EveId.Parse("base:roguelite_lobby"),EveId.Parse("project_n:roguelite_lobby"),"project_n",compatible:(a,b)=>true);
         // A roguelite room map: one scene, a world of its own for every room played. Policy Continue (not Discard): a new room world is empty when it becomes ready and the team is only
         // transferred in afterwards, so an empty-world discard would remove it first; the run director unloads the room the team has left.

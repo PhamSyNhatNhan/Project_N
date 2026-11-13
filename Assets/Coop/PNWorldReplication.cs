@@ -77,9 +77,23 @@ namespace ProjectN.Coop
             {LastFailure="World "+id+": "+error.Message;world.Fail(error);foreach(var binding in bindings.Values.Where(x=>x.Metadata.World==id))SetInput(binding,false);}
             else ProtocolFailure(error,NetworkServer.active);
         }
+        private bool defaultWorldPending;
         private void WorldBecameReady(EveWorldContext world)
         {
             if(NetworkServer.active&&!(Worlds is IPNWorldPopulation population&&population.RestoredPopulation(world)))EnrollWorldEntities(world);
+            if(NetworkServer.active&&IsPlaying&&defaultWorldPending&&ReferenceEquals(world,Worlds.DefaultWorld))DefaultWorldBecameReady(world);
+        }
+        // G13: the default world was made from its definition after the play began. What BeginPlay and the peers' ready messages could not do yet is done now: the peers are given the world, and the host's and the peers' players
+        // are enrolled at the world's own entry (the world's entities were enrolled by the ready event itself).
+        private void DefaultWorldBecameReady(EveWorldContext world)
+        {
+            defaultWorldPending=false;
+            foreach(var conn in NetworkServer.connections.Values.ToArray())
+                if(conn.authenticationData is PNPeer peer&&conn.isAuthenticated&&peer.PlayRevision==PlayRevision)SubscribeWorld(conn,world);
+            if(Profile.SelectPlayer)EnrollHost(DefaultPlayerRequest(0),null);
+            foreach(var conn in NetworkServer.connections.Values.ToArray())
+                if(conn.authenticationData is PNPeer peer&&IsPlaying&&peer.Owner>0&&peer.SelectPlayer&&conn.identity!=null&&peer.PlayRevision==PlayRevision&&peer.EnrolledRevision!=PlayRevision)
+                {peer.EnrolledRevision=PlayRevision;EnrollHost(DefaultPlayerRequest(peer.Owner),conn);}
         }
         public void EnrollWorldEntities(EveWorldContext world)
         {

@@ -38,7 +38,7 @@ public static class PNCameraCinematicChecks
             var output = director.ViewCamera;
             Run(10);
             var restPos = output.transform.position; var restRot = output.transform.rotation; float restFov = output.fieldOfView;
-            Check(Vector3.Distance(restPos, vcam.transform.position) < .01f && !director.CinematicActive, "baseline: the world rig is live, no cinematic");
+            Check(!director.CinematicActive && director.Brain.ActiveVirtualCamera != null && director.Brain.ActiveVirtualCamera.Name == "PN Camera Rig", "baseline: the one gameplay rig is live, no cinematic");
 
             // ---- shot in, hold, blend out -----------------------------------------------------------------------------------------------
             var shot = PNCinematicShot.Pose(new Vector3(10, 8, -4), new Vector3(35, 0, 0), fieldOfView: 60f, blendIn: .5f, blendOut: .5f);

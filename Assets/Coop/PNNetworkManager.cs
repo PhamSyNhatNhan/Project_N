@@ -240,7 +240,7 @@ namespace ProjectN.Coop
             if(conn.identity!=null)return;
             var root=CreateShell<PNSessionShell>("Session owner "+peer.Owner);root.GetComponent<PNSessionShell>().Owner=peer.Owner;
             if(!NetworkServer.AddPlayerForConnection(conn,root,PNSessionShell.Asset)){Destroy(root);conn.Disconnect();return;}
-            if(IsPlaying&&peer.Owner>0&&peer.SelectPlayer&&peer.EnrolledRevision!=PlayRevision)
+            if(IsPlaying&&Worlds.DefaultWorld!=null&&peer.Owner>0&&peer.SelectPlayer&&peer.EnrolledRevision!=PlayRevision)
             {peer.EnrolledRevision=PlayRevision;EnrollHost(DefaultPlayerRequest(peer.Owner),conn);}
         }
         // `configure`, `published` and `failed` are the caller's own steps (a summon's component, its bookkeeping); null for players and authored entities.

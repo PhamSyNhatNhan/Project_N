@@ -4,7 +4,7 @@
     {
       "id": "project_n:dummy",
       "portraitPath": "",
-      "data": { "enemyTypeId": "base:normal" },
+      "data": { "enemyTypeId": "base:normal", "body": { "prefab": "dummy" } },
       "stats": [
         { "statId": "base:health", "base": 200000000, "initialCurrent": 200000000 },
         { "statId": "base:attack_power", "base": 0 },
@@ -19,7 +19,7 @@
     {
       "id": "project_n:dummy_lorica",
       "portraitPath": "",
-      "data": { "enemyTypeId": "base:normal" },
+      "data": { "enemyTypeId": "base:normal", "body": { "prefab": "dummy_lorica" } },
       "stats": [
         { "statId": "base:health", "base": 200000000, "initialCurrent": 200000000 },
         { "statId": "base:lorica", "base": 200 },

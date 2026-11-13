@@ -1,4 +1,5 @@
 #if UNITY_5_3_OR_NEWER
+#pragma warning disable CS0618 // the scene rigs of Hall, Lobby and ErMode still use the legacy virtual camera / FramingTransposer (read only, as a data source)
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -57,7 +58,7 @@ public sealed partial class PNCameraDirector : MonoBehaviour, IPNViewCameraServi
     private sealed class WorldCamera
     {
         public Camera Camera; public PNPresentationClaim Claim; public EveWorldContext World; public PNRenderPreset Preset;
-        public PNCameraProjection Projection; public CinemachineExternalCamera External; public bool ExternalAdded;
+        public PNCameraProjection Projection; public PNCameraViewLayer Source;
     }
     private sealed class Admission { public CinemachineVirtualCameraBase Vcam; public OutputChannels Channel; public Transform Follow, LookAt; public bool Owned; }
 
@@ -177,6 +178,7 @@ public sealed partial class PNCameraDirector : MonoBehaviour, IPNViewCameraServi
         var listener = camera.GetComponent<AudioListener>(); if (listener != null) group.Add(listener);
         var record = new WorldCamera { Camera = camera, World = world, Projection = camera.orthographic ? PNCameraProjection.Orthographic : PNCameraProjection.Perspective };
         record.Preset = PNRenderPreset.Capture(camera);
+        record.Source = CaptureView(camera, world);
         if (!brainConfigured && cameraBrain != null) CopyBrainSettings(cameraBrain);
         record.Claim = presentation.Claim(group.ToArray());
         try { foreach (var component in group) ((Behaviour)component).enabled = false; }
@@ -206,9 +208,10 @@ public sealed partial class PNCameraDirector : MonoBehaviour, IPNViewCameraServi
         for (int i = cameras.Count - 1; i >= 0; i--)
         {
             if (cameras[i].World != world) continue;
-            DropExternal(cameras[i]); cameras[i].Claim.Release(); cameras.RemoveAt(i);
+            cameras[i].Claim.Release(); cameras.RemoveAt(i);
         }
         foreach (var vcam in admitted.Keys.Where(x => x == null || WorldOfVcam(x) == world).ToArray()) Unadmit(vcam);
+        apiWorldViews.Remove(world.InstanceId);
         if (viewed == world) viewed = null;
     }
 
@@ -267,20 +270,22 @@ public sealed partial class PNCameraDirector : MonoBehaviour, IPNViewCameraServi
         if (cut && viewed != null) { ForgetWorldZoom(viewed.InstanceId); ForgetWorldExtras(viewed.InstanceId); lockOns.Clear(PNCameraHandleEnd.WorldChanged); StopLockOn(); cinematics.Clear(PNCameraHandleEnd.WorldChanged); StopCinematic(true); }
         if (cut || !ReferenceEquals(lastActor, local.Actor)) CancelAllShakes(PNCameraHandleEnd.WorldChanged);
         lastActor = local.Actor;
-        foreach (var vcam in admitted.Keys.ToArray()) if (vcam == null || target == null || vcam != lockRig && vcam != cinematicRig && WorldOfVcam(vcam) != target) Unadmit(vcam);
+        foreach (var vcam in admitted.Keys.ToArray()) if (vcam == null || target == null || vcam != fallback && vcam != lockRig && vcam != cinematicRig && WorldOfVcam(vcam) != target) Unadmit(vcam);
         viewed = target;
         if (target == null) return;
         SweepCollisions();
         if (reserved == 0) return;
         var actor = local.Actor != null ? local.Actor.transform : null;
-        var rigs = RigsOf(target);
-        if (rigs.Count == 0) rigs = ExternalRigsOf(target);
-        if (rigs.Count == 0) rigs = FallbackRig(target, actor);
-        foreach (var vcam in rigs) Admit(vcam, actor);
+        // One gameplay rig for every world (Docs/CameraSinglePathPlan.md): it follows the actor and takes its look from the resolved view of the viewed world.
+        var rig = GameplayRig();
+        Admit(rig, actor);
         var record = cameras.Find(x => x.World == target) ?? cameras.Find(x => x.World == worlds.DefaultWorld) ?? cameras.FirstOrDefault();
+        var resolved = ResolveView(target);
         if (cut && record != null) ApplyPreset(record.Preset);
-        projection = cameras.Find(x => x.World == target)?.Projection ?? record?.Projection ?? PNCameraProjection.Perspective;
+        projection = resolved.Projection;
         output.orthographic = projection == PNCameraProjection.Orthographic;
+        if (cut) viewedSince = Time.unscaledTime;
+        ApplyView(resolved, cut || !viewApplied || Time.unscaledTime - viewedSince < EntryWindow);
         if (cut) brain.ResetState();
     }
 
@@ -289,7 +294,7 @@ public sealed partial class PNCameraDirector : MonoBehaviour, IPNViewCameraServi
         if (vcam == null) return;
         if (!admitted.TryGetValue(vcam, out var admission))
         {
-            admission = new Admission { Vcam = vcam, Channel = vcam.OutputChannel, Follow = vcam.Follow, LookAt = vcam.LookAt, Owned = vcam == fallback };
+            admission = new Admission { Vcam = vcam, Channel = vcam.OutputChannel, Follow = vcam.Follow, LookAt = vcam.LookAt, Owned = false };
             admitted.Add(vcam, admission);
         }
         vcam.OutputChannel = reserved; EnsureListener(vcam);
@@ -306,58 +311,6 @@ public sealed partial class PNCameraDirector : MonoBehaviour, IPNViewCameraServi
     }
 
     private EveWorldContext WorldOfVcam(CinemachineVirtualCameraBase vcam) => vcam == null ? null : presentation.WorldOf(vcam);
-
-    private List<CinemachineVirtualCameraBase> RigsOf(EveWorldContext world)
-    {
-        var result = new List<CinemachineVirtualCameraBase>();
-        if (!world.PhysicsOwner.IsValid()) return result;
-        foreach (var root in world.PhysicsOwner.GetRootGameObjects())
-            foreach (var vcam in root.GetComponentsInChildren<CinemachineVirtualCameraBase>(true))
-                if (vcam != null && vcam != fallback && !(vcam is CinemachineExternalCamera && !cameras.Exists(x => x.External == vcam))) result.Add(vcam);
-        return result;
-    }
-
-    // A world with only a plain Camera (e.g. a mod world) is read through an ExternalCamera on that camera (it works on disabled cameras).
-    private List<CinemachineVirtualCameraBase> ExternalRigsOf(EveWorldContext world)
-    {
-        var result = new List<CinemachineVirtualCameraBase>();
-        var record = cameras.Find(x => x.World == world && x.Camera != null);
-        if (record == null) return result;
-        if (record.External == null)
-        {
-            record.External = record.Camera.GetComponent<CinemachineExternalCamera>();
-            if (record.External == null) { record.External = record.Camera.gameObject.AddComponent<CinemachineExternalCamera>(); record.ExternalAdded = true; record.External.Priority.Value = 10; }
-        }
-        result.Add(record.External);
-        return result;
-    }
-
-    private List<CinemachineVirtualCameraBase> FallbackRig(EveWorldContext world, Transform actor)
-    {
-        if (fallback == null)
-        {
-            fallbackObject = new GameObject("PN Camera Fallback Rig");
-            fallbackObject.transform.SetParent(transform, false);
-            fallbackObject.transform.SetPositionAndRotation(output.transform.position, output.transform.rotation);
-            fallback = fallbackObject.AddComponent<CinemachineCamera>();
-            fallback.Priority.Value = 10;
-            fallback.Lens = LensSettings.FromCamera(output);
-            fallback.Lens.ModeOverride = output.orthographic ? LensSettings.OverrideModes.Orthographic : LensSettings.OverrideModes.Perspective;
-            var composer = fallbackObject.AddComponent<CinemachinePositionComposer>();
-            // A fixed distance, the one the shipped scene rigs use (Hall, Lobby: 5.5). It used to be the distance from the output camera to the actor at that moment, which is only right when the world sits where the
-            // camera already is: a grid world's player spawns far from the previous world's camera (G10a: ~20 m, the character looked 3-4 times smaller).
-            composer.CameraDistance = DefaultFallbackDistance;
-        }
-        return new List<CinemachineVirtualCameraBase> { fallback };
-    }
-
-    private void DropExternal(WorldCamera record)
-    {
-        if (record.External == null) return;
-        Unadmit(record.External);
-        if (record.ExternalAdded) Kill(record.External);
-        record.External = null; record.ExternalAdded = false;
-    }
 
     // Transition mode: while an opaque transition screen fully covers the view the output renders nothing (the UI overlay camera still draws).
     public bool TransitionCovered => covered;
@@ -496,7 +449,7 @@ public sealed partial class PNCameraDirector : MonoBehaviour, IPNViewCameraServi
         if (presentation != null) presentation.RootScanned -= OnRootScanned;
         if (worlds != null) worlds.WorldUnloading -= OnWorldUnloading;
         foreach (var vcam in admitted.Keys.ToArray()) Unadmit(vcam);
-        foreach (var record in cameras) { DropExternal(record); record.Claim?.Release(); }
+        foreach (var record in cameras) record.Claim?.Release();
         cameras.Clear();
         foreach (var pair in suppressed) if (pair.Key != null) pair.Key.enabled = pair.Value;
         suppressed.Clear();

@@ -46,6 +46,8 @@ public sealed partial class PNCameraDirector
         {
             var caps = PNCameraRigCapabilities.None;
             foreach (var rig in rigZooms.Values) caps |= rig.Capabilities;
+            // An orthographic view has no distance to zoom: the size of the lens is what zooms it.
+            if (projection == PNCameraProjection.Orthographic) caps &= ~PNCameraRigCapabilities.DistanceZoom;
             return caps;
         }
     }
@@ -167,7 +169,7 @@ public sealed partial class PNCameraDirector
             if (vcam == cinematicRig) continue;
             var rig = ZoomOf(vcam);
             if (rig == null) continue;
-            bool distance = (rig.Capabilities & PNCameraRigCapabilities.DistanceZoom) != 0;
+            bool distance = (rig.Capabilities & PNCameraRigCapabilities.DistanceZoom) != 0 && projection != PNCameraProjection.Orthographic;
             if (distance)
             {
                 float value = rig.BaseDistance * distanceScale;
@@ -209,6 +211,7 @@ public sealed partial class PNCameraDirector
         if (released || output == null) return;
         if (unscaledDeltaTime < 0f) unscaledDeltaTime = deltaTime;
         AdvanceShakes(deltaTime, unscaledDeltaTime);
+        UpdateView(deltaTime);
         UpdateZoom(deltaTime, unscaledDeltaTime);
         UpdateFollowTuning();
         UpdateOrbit(deltaTime, unscaledDeltaTime);

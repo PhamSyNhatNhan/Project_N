@@ -22,6 +22,8 @@ public static class PNCameraExtrasChecks
         var local = new PNLocalWorldContext(session); var host = new GameObject("Camera extras fixture service"); var view = host.AddComponent<PNWorldPresentation>(); view.Bind(session, worlds, local);
         void Pump(Func<bool> ready) { for (int i = 0; i < 1000 && !ready(); i++) scheduler.AdvanceFrame(); if (!ready()) throw new Exception("Extras fixture did not drain."); }
         PNCameraDirector director = null; int frame = 0;
+        CinemachinePositionComposer Cmp() => (director.Brain.ActiveVirtualCamera as CinemachineCamera).GetComponent<CinemachinePositionComposer>();
+        Transform RigT() => ((CinemachineCamera)director.Brain.ActiveVirtualCamera).transform;
         void Run(int frames, float scaled = .02f, float unscaled = -1f) { for (int i = 0; i < frames; i++) { director.Advance(scaled, unscaled); frame++; director.Brain.ManualUpdate(frame, .02f); } }
         try
         {
@@ -52,32 +54,34 @@ public static class PNCameraExtrasChecks
             Check(Vector3.Distance(state.Position, output.transform.position) < .001f && Mathf.Abs(state.FieldOfView - output.fieldOfView) < .001f && !state.CinematicActive && !state.LockOnActive && !state.Blending && !state.YawOverridden, "state: pose, lens and activity flags match the view camera");
             local.Select(orthoWorld); Run(10);
             state = service.State;
-            Check(state.Rig == PNCameraRigKind.External && state.Orthographic && Mathf.Abs(state.OrthographicSize - 2f) < .01f, "state: a camera-only orthographic world reports an external rig and its size");
+            Check(state.Rig == PNCameraRigKind.World && state.Orthographic && Mathf.Abs(state.OrthographicSize - 2f) < .01f, "state: a camera-only orthographic world reports the world rig and its size");
             local.Select(emptyWorld); Run(10);
-            Check(service.State.Rig == PNCameraRigKind.Fallback, "state: a world without a rig reports the fallback rig");
+            Check(service.State.Rig == PNCameraRigKind.World && !service.State.Orthographic, "state: a world without a camera reports the same world rig on the default view");
             local.Select(null); Run(3);
             Check(service.State.Mode == PNCameraMode.Background && service.State.ViewedWorld == Guid.Empty, "state: without a local view the mode is Background");
             Check(!PNNullCameraService.Instance.State.Available && PNNullCameraService.Instance.State.Mode == PNCameraMode.None, "state: the empty service reports no camera");
             local.Select(composerWorld); Run(10);
+            var rigObject = ((CinemachineCamera)director.Brain.ActiveVirtualCamera).gameObject;
 
             // ---- real-unit zoom ------------------------------------------------------------------------------------------------------------
             var toDistance = service.RequestZoom(owner.transform, "dist", PNZoomRequest.ToDistance(3.6f)); Run(250);
-            Check(Mathf.Abs(composer.CameraDistance - 3.6f) < .02f, "zoom to 3.6 distance units sets the composer distance");
+            Check(Mathf.Abs(Cmp().CameraDistance - 3.6f) < .02f, "zoom to 3.6 distance units sets the composer distance");
             var farDistance = service.RequestZoom(owner.transform, "far", PNZoomRequest.ToDistance(100f)); Run(250);
-            Check(Mathf.Abs(composer.CameraDistance - 7f) < .02f, "a distance beyond the profile range is clamped to the maximum");
+            Check(Mathf.Abs(Cmp().CameraDistance - 7f) < .02f, "a distance beyond the profile range is clamped to the maximum");
             farDistance.Dispose(); toDistance.Dispose(); Run(300);
-            Check(Mathf.Abs(composer.CameraDistance - 4.5f) < .01f, "releasing distance requests returns the authored distance");
+            Check(Mathf.Abs(Cmp().CameraDistance - 4.5f) < .01f, "releasing distance requests returns the authored distance");
             float fovStill = output.fieldOfView;
             var toFov = service.RequestZoom(owner.transform, "fov", PNZoomRequest.ToFieldOfView(32f)); Run(250);
-            Check(Mathf.Abs(composer.CameraDistance - 4.5f) < .01f && output.fieldOfView < fovStill - 2f, "a field-of-view request on a composer rig zooms the lens and leaves the distance alone");
+            Check(Mathf.Abs(Cmp().CameraDistance - 4.5f) < .01f && output.fieldOfView < fovStill - 2f, "a field-of-view request on a composer rig zooms the lens and leaves the distance alone");
             toFov.Dispose(); Run(300);
             Check(Mathf.Abs(output.fieldOfView - fovStill) < .2f, "releasing the field-of-view request returns the authored lens");
             Check(service.RequestZoom(owner.transform, "ortho", PNZoomRequest.ToOrthographicSize(2f)).RefusalReason == PNCameraRefusal.NotSupported, "an orthographic-size request on a perspective view is refused with NotSupported");
             local.Select(poseWorld); Run(20);
-            Check(service.RequestZoom(owner.transform, "dist2", PNZoomRequest.ToDistance(3f)).RefusalReason == PNCameraRefusal.NotSupported, "a distance request on a pose-only rig is refused with NotSupported");
+            var poseDist = service.RequestZoom(owner.transform, "dist2", PNZoomRequest.ToDistance(4f)); Run(250);
+            Check(poseDist.IsActive && Mathf.Abs(Cmp().CameraDistance - 4f) < .02f, "a distance request on a world whose vcam has no composer is accepted (every world has the one composer rig) [dist=" + Cmp().CameraDistance + " caps=" + director.ViewCapabilities + " view=" + director.View.Distance + "]"); poseDist.Dispose(); Run(300);
             float poseFov = output.fieldOfView;
             var poseZoom = service.RequestZoom(owner.transform, "fov2", PNZoomRequest.ToFieldOfView(31f)); Run(250);
-            Check(Mathf.Abs(output.fieldOfView - Mathf.Max(31f, poseFov * PNCameraProfile.Default.LensScaleMin)) < .3f, "a field-of-view request zooms a pose-only rig's lens (limited by the lens range)");
+            Check(Mathf.Abs(output.fieldOfView - Mathf.Max(31f, poseFov * PNCameraProfile.Default.LensScaleMin)) < .3f, "a field-of-view request zooms the lens of a world without a composer (limited by the lens range)");
             poseZoom.Dispose(); Run(300);
             local.Select(orthoWorld); Run(20);
             Check(service.RequestZoom(owner.transform, "fov3", PNZoomRequest.ToFieldOfView(30f)).RefusalReason == PNCameraRefusal.NotSupported, "a field-of-view request on an orthographic view is refused");
@@ -175,36 +179,38 @@ public static class PNCameraExtrasChecks
             Check(service.RequestBounds(null, "b", new PNCameraBounds(Vector3.zero, Vector3.one)).RefusalReason == PNCameraRefusal.OwnerGone, "bounds need an owner");
 
             // ---- follow tuning ------------------------------------------------------------------------------------------------------------------------------
-            var authoredOffset = composer.TargetOffset; var authoredDamping = composer.Damping; var authoredLookahead = composer.Lookahead.Time; var authoredDead = composer.Composition.DeadZone.Size;
+            var authoredOffset = Cmp().TargetOffset; var authoredDamping = Cmp().Damping; var authoredLookahead = Cmp().Lookahead.Time; var authoredDead = Cmp().Composition.DeadZone.Size;
             var tuning = service.RequestFollowTuning(owner.transform, "tune", new PNFollowTuning { TargetOffset = new Vector3(0, 1.5f, 0), Damping = new Vector3(.1f, .2f, .3f), DeadZone = new Vector2(.2f, .3f), LookaheadTime = .1f }); Run(3);
-            Check(tuning.IsActive && composer.TargetOffset == new Vector3(0, 1.5f, 0) && composer.Damping == new Vector3(.1f, .2f, .3f) && composer.Composition.DeadZone.Enabled && composer.Composition.DeadZone.Size == new Vector2(.2f, .3f) && composer.Lookahead.Enabled && Mathf.Approximately(composer.Lookahead.Time, .1f), "follow tuning writes offset, damping, dead zone and lookahead on a composer rig");
+            Check(tuning.IsActive && Cmp().TargetOffset == new Vector3(0, 1.5f, 0) && Cmp().Damping == new Vector3(.1f, .2f, .3f) && Cmp().Composition.DeadZone.Enabled && Cmp().Composition.DeadZone.Size == new Vector2(.2f, .3f) && Cmp().Lookahead.Enabled && Mathf.Approximately(Cmp().Lookahead.Time, .1f), "follow tuning writes offset, damping, dead zone and lookahead on a composer rig");
             var tuning2 = service.RequestFollowTuning(owner.transform, "tune2", new PNFollowTuning { Damping = new Vector3(2f, 2f, 2f) }); Run(3);
-            Check(composer.Damping == new Vector3(2f, 2f, 2f) && composer.TargetOffset == authoredOffset, "the latest tuning wins and fields it does not set return to the authored value");
+            Check(Cmp().Damping == new Vector3(2f, 2f, 2f) && Cmp().TargetOffset == authoredOffset, "the latest tuning wins and fields it does not set return to the authored value");
             tuning2.Dispose(); tuning.Dispose(); Run(3);
-            Check(composer.TargetOffset == authoredOffset && composer.Damping == authoredDamping && Mathf.Approximately(composer.Lookahead.Time, authoredLookahead) && composer.Composition.DeadZone.Size == authoredDead, "releasing the tuning restores the authored composition");
+            Check(Cmp().TargetOffset == authoredOffset && Cmp().Damping == authoredDamping && Mathf.Approximately(Cmp().Lookahead.Time, authoredLookahead) && Cmp().Composition.DeadZone.Size == authoredDead, "releasing the tuning restores the authored composition");
             Check(Throws(() => new PNFollowTuning().Validate()) && Throws(() => new PNFollowTuning { Damping = new Vector3(-1, 0, 0) }.Validate()) && Throws(() => new PNFollowTuning { DeadZone = new Vector2(2, 0) }.Validate()) && Throws(() => new PNFollowTuning { LookaheadTime = 5f }.Validate()), "tuning data is validated");
             Check(service.RequestFollowTuning(owner.transform, "bad", new PNFollowTuning()).RefusalReason == PNCameraRefusal.InvalidParameter, "an empty tuning is refused as invalid");
             local.Select(poseWorld); Run(20);
-            Check(service.RequestFollowTuning(owner.transform, "pose", new PNFollowTuning { TargetOffset = Vector3.up }).RefusalReason == PNCameraRefusal.NotSupported, "follow tuning on a pose-only rig is refused with NotSupported");
+            var poseTune = service.RequestFollowTuning(owner.transform, "pose", new PNFollowTuning { TargetOffset = Vector3.up }); Run(3);
+            Check(poseTune.IsActive && Cmp().TargetOffset == Vector3.up, "follow tuning is accepted on every world: the rig is the director's composer rig"); poseTune.Dispose(); Run(3);
             local.Select(composerWorld); Run(20);
 
             // ---- orbit ----------------------------------------------------------------------------------------------------------------------------------------
-            var authoredRotation = composerVcam.transform.rotation;
+            var authoredRotation = RigT().rotation; var authoredEuler = authoredRotation.eulerAngles;
             var orbit = service.RequestOrbit(owner.transform, "orbit", new PNOrbitRequest(40f, 10f, 0f)); Run(5);
-            var orbitEuler = composerVcam.transform.rotation.eulerAngles;
+            var orbitEuler = RigT().rotation.eulerAngles;
             Check(orbit.IsActive && Mathf.Abs(Mathf.DeltaAngle(40f, orbitEuler.y)) < .5f && Mathf.Abs(orbitEuler.x - 55f) < .5f && director.YawOverridden && Mathf.Abs(Mathf.DeltaAngle(40f, director.Orientation.Yaw)) < 1f, "orbit turns a composer rig by the requested yaw and pitch and reports a yaw override");
             orbit.Dispose(); Run(5);
-            Check(Quaternion.Angle(composerVcam.transform.rotation, authoredRotation) < .01f && !director.YawOverridden, "releasing the orbit restores the authored rotation exactly");
+            Check(Quaternion.Angle(RigT().rotation, authoredRotation) < .01f && !director.YawOverridden, "releasing the orbit restores the authored rotation exactly");
             var eased = service.RequestOrbit(owner.transform, "eased", new PNOrbitRequest(60f, 0f, 1f, PNCameraEase.EaseIn)); Run(25);
             float halfYaw = director.OrbitYaw;
             Check(halfYaw > 0f && halfYaw < 30f, "an eased orbit is partway through after half its blend (ease-in is slow at first)");
             Run(40);
             Check(Mathf.Abs(director.OrbitYaw - 60f) < .1f, "the orbit reaches the requested yaw");
             eased.Dispose(); Run(80);
-            Check(Mathf.Abs(director.OrbitYaw) < .1f || Quaternion.Angle(composerVcam.transform.rotation, authoredRotation) < .5f, "the orbit eases back after release");
+            Check(Mathf.Abs(director.OrbitYaw) < .1f || Quaternion.Angle(RigT().rotation, authoredRotation) < .5f, "the orbit eases back after release");
             Check(Throws(() => new PNOrbitRequest(400f)) && Throws(() => new PNOrbitRequest(10f, 45f)) && Throws(() => new PNOrbitRequest(10f, 0f, -1f)), "orbit data is validated");
             local.Select(poseWorld); Run(20);
-            Check(service.RequestOrbit(owner.transform, "pose", new PNOrbitRequest(10f)).RefusalReason == PNCameraRefusal.NotSupported, "orbit on a pose-only rig is refused with NotSupported");
+            var poseOrbit = service.RequestOrbit(owner.transform, "pose", new PNOrbitRequest(10f, 0f, 0f)); Run(5);
+            Check(poseOrbit.IsActive && Mathf.Abs(Mathf.DeltaAngle(10f, RigT().rotation.eulerAngles.y)) < .5f, "orbit is accepted on every world"); poseOrbit.Dispose(); Run(5);
             local.Select(composerWorld); Run(20);
 
             // ---- teardown ----------------------------------------------------------------------------------------------------------------------------------------
@@ -213,7 +219,7 @@ public static class PNCameraExtrasChecks
             var pendingOrbit = service.RequestOrbit(owner.transform, "end", new PNOrbitRequest(20f, 0f, 0f)); Run(5);
             director.Release();
             Check(!pendingBounds.IsActive && !pendingTuning.IsActive && !pendingOrbit.IsActive && pendingBounds.EndReason == PNCameraHandleEnd.SessionEnded, "ending the session ends bounds, tuning and orbit requests with SessionEnded");
-            Check(composer.TargetOffset == authoredOffset && Quaternion.Angle(composerVcam.transform.rotation, authoredRotation) < .01f && composerVcam.GetComponent<CinemachineConfiner3D>() == null, "teardown hands the rig back as authored (offset, rotation, no confiner)");
+            Check(rigObject == null && composerVcam.transform.rotation == Quaternion.Euler(45f, 0f, 0f) && composer.CameraDistance == 4.5f && composerVcam.GetComponent<CinemachineConfiner3D>() == null, "teardown removes the director's rig and leaves the scene vcam exactly as authored");
         }
         finally { try { director?.Release(); } catch { } view.Release(); UnityEngine.Object.DestroyImmediate(host); EveRegistrySession.End(); }
         return "PASS " + rows.Count + " native camera extras cases (edit-mode; not rendered-frame acceptance)\n" + string.Join("\n", rows);

@@ -17,7 +17,7 @@ public sealed class PNWorldRuntime : IPNWorldRuntime,IPNWorldPopulation
         public IEnumerator Load;
         public double Started;
         public bool Closing;
-        public bool DeferReady,Announced;
+        public bool DeferReady,Announced,MakeDefault;
         public IPNWorldProvider Provider;
         public bool ProviderReady,ProviderUnloading,ProviderDisposed;
     }
@@ -99,6 +99,13 @@ public sealed class PNWorldRuntime : IPNWorldRuntime,IPNWorldPopulation
         if(session.Role==EveSessionRole.Client)throw new InvalidOperationException("A client does not choose world features; it is given the host's set.");
         return Create(definition,instance,incarnation,0,false,null,features==null?null:new PNWorldFeatures(features));
     }
+    // G13: the first world of a play made from its definition (host or offline): it becomes DefaultWorld when it is ready, like an adopted entry scene does at once.
+    public EveWorldContext CreateDefault(EveId definition)
+    {
+        if(session.Role==EveSessionRole.Client)throw new InvalidOperationException("A client's default world is a replica of the host's.");
+        if(DefaultWorld!=null)throw new InvalidOperationException("The play already has a default world.");
+        return Create(definition,Guid.Empty,1,0,false,null,null,null,true);
+    }
     public EveWorldContext CreateStaged(EveId definition,Guid instance,ulong incarnation)=>Create(definition,instance,incarnation,0,true);
     public bool SupportsPersistence(EveWorldContext world)=>entries.TryGetValue(world.InstanceId,out var entry)&&entry.Provider is IPNPortableWorldProvider;
     public void ValidateLoadDescriptor(EveId definition,Newtonsoft.Json.Linq.JToken descriptor)
@@ -115,7 +122,7 @@ public sealed class PNWorldRuntime : IPNWorldRuntime,IPNWorldPopulation
         var descriptor=portable.CaptureLoadDescriptor(build)??throw new InvalidOperationException("Portable provider omitted its descriptor.");
         portable.ValidateLoadDescriptor(descriptor);return descriptor.DeepClone();
     }
-    private EveWorldContext Create(EveId definition,Guid instance,ulong incarnation,ulong subscription,bool deferReady=false,Newtonsoft.Json.Linq.JToken descriptor=null,PNWorldFeatures creator=null,IEnumerable<EveId> supplied=null)
+    private EveWorldContext Create(EveId definition,Guid instance,ulong incarnation,ulong subscription,bool deferReady=false,Newtonsoft.Json.Linq.JToken descriptor=null,PNWorldFeatures creator=null,IEnumerable<EveId> supplied=null,bool makeDefault=false)
     {
         if(instance!=Guid.Empty&&entries.ContainsKey(instance))throw new InvalidOperationException("World runtime still owns that logical identity or its pending callbacks.");
         var selected=session.Registry.Get<PNWorldDefinition>().Get(definition);
@@ -124,7 +131,7 @@ public sealed class PNWorldRuntime : IPNWorldRuntime,IPNWorldPopulation
         var features=Compose(selected,creator,supplied);
         var world=subscription==0?session.Worlds.Create(id,incarnation,selected.Id,selected.ContentHash):session.Worlds.CreateReplica(instance,incarnation,selected.Id,selected.ContentHash,subscription);
         RememberCreator(world.InstanceId,creator);
-        var entry=new Entry{Build=new PNWorldBuildContext(world,default,features),Started=Time.realtimeSinceStartupAsDouble,DeferReady=deferReady};entries.Add(world.InstanceId,entry);
+        var entry=new Entry{Build=new PNWorldBuildContext(world,default,features),Started=Time.realtimeSinceStartupAsDouble,DeferReady=deferReady,MakeDefault=makeDefault};entries.Add(world.InstanceId,entry);
         try
         {
             var owner=CreateOwner(world);
@@ -141,6 +148,12 @@ public sealed class PNWorldRuntime : IPNWorldRuntime,IPNWorldPopulation
     public EveWorldContext CreateReplica(EveId definition,Guid instance,ulong incarnation,ulong subscription,bool defaultWorld,IEnumerable<EveId> features)
     {
         if(session.Role!=EveSessionRole.Client)throw new InvalidOperationException("Replica worlds belong to clients.");
+        if(defaultWorld&&!entryScene.IsValid())
+        {
+            // G13: no entry scene was adopted (its world is made from a definition), so the host's default world is built like any other replica and marked as the default.
+            if(DefaultWorld!=null)throw new InvalidOperationException("The play already has a default world.");
+            return Create(definition,instance,incarnation,subscription,false,null,null,features??Array.Empty<EveId>(),true);
+        }
         if(defaultWorld)
         {
             var selected=session.Registry.Get<PNWorldDefinition>().Get(entryDefinition);
@@ -164,7 +177,7 @@ public sealed class PNWorldRuntime : IPNWorldRuntime,IPNWorldPopulation
             entry.Load=entry.Provider.Load(entry.Build)??throw new InvalidOperationException("World provider returned no load job.");activeLoads++;
         }
         if(entry.Load.MoveNext())return false;
-        DisposeLoad(entry);Validate(entry.Build);PNWorldNavigation.Prepare(entry.Build);world.CompleteLoading();if(!entry.DeferReady)PublishStaged(world);return true;
+        DisposeLoad(entry);Validate(entry.Build);PNWorldNavigation.Prepare(entry.Build);world.CompleteLoading();if(entry.MakeDefault)DefaultWorld=world;if(!entry.DeferReady)PublishStaged(world);return true;
     }
     public void PublishStaged(EveWorldContext world)
     {

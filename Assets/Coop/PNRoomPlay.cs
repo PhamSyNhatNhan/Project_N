@@ -53,8 +53,13 @@ namespace ProjectN.Coop
                 }
                 if(NetworkServer.localConnection?.authenticationData is PNPeer localPeer&&NetworkServer.localConnection.isAuthenticated&&localPeer.PlayRevision==PlayRevision&&Worlds.DefaultWorld!=null)
                     SubscribeWorld(NetworkServer.localConnection,Worlds.DefaultWorld);
-                foreach(var request in Factory.SceneEntities())EnrollHost(request,null);
-                if(Profile.SelectPlayer)EnrollHost(DefaultPlayerRequest(0),null);
+                // G13: a default world made from its definition is not ready yet; its entities and the host's player are enrolled when it is (DefaultWorldBecameReady).
+                defaultWorldPending=Worlds.DefaultWorld==null;
+                if(!defaultWorldPending)
+                {
+                    foreach(var request in Factory.SceneEntities())EnrollHost(request,null);
+                    if(Profile.SelectPlayer)EnrollHost(DefaultPlayerRequest(0),null);
+                }
                 foreach(var conn in NetworkServer.connections.Values.ToArray())if(conn.authenticationData is PNPeer)conn.Send(PlayStatus());
                 // The host's own client sends Ready/AddPlayer only once its connection is authenticated; OnClientConnect does it
                 // right after authentication when the room was opened in the same frame (an earlier send is refused by Mirror).
@@ -117,7 +122,7 @@ namespace ProjectN.Coop
             if(IsPlaying&&peer.PlayRevision!=PlayRevision)return;
             base.OnServerReady(conn);
             if(conn.identity==null&&peer.WantsRoomShell)OnServerAddPlayer(conn);
-            if(IsPlaying&&peer.Owner>0&&peer.SelectPlayer&&conn.identity!=null&&peer.EnrolledRevision!=PlayRevision)
+            if(IsPlaying&&Worlds.DefaultWorld!=null&&peer.Owner>0&&peer.SelectPlayer&&conn.identity!=null&&peer.EnrolledRevision!=PlayRevision)
             {peer.EnrolledRevision=PlayRevision;EnrollHost(DefaultPlayerRequest(peer.Owner),conn);}
         }
         public void EndRoomPlay()

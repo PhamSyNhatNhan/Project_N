@@ -12,6 +12,8 @@ public sealed class PNModeDefinition : EveIIdentified
     private readonly Func<PNNetworkProfile, IPNSessionPolicy> factory;
     // Menu presentation only (null = not listed, like the Hall); it never takes part in selection or compatibility.
     [JsonIgnore] public PNModeListing Listing { get; }
+    // The camera look this mode asks for (Docs/CameraSinglePathPlan.md, layer Mode); null = the game default. Presentation only.
+    [JsonIgnore] public PNCameraViewLayer CameraView { get; set; }
     public PNModeDefinition(EveId id, Type implementationType, Func<PNNetworkProfile, IPNSessionPolicy> factory, PNModeListing listing)
         : this(id, implementationType, factory) { Listing = listing; }
     public PNModeDefinition(EveId id, Type implementationType, Func<PNNetworkProfile, IPNSessionPolicy> factory)
