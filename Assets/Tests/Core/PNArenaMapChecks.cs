@@ -33,7 +33,7 @@ public static class PNArenaMapChecks
             var meta = restored.Meta ?? entry.Meta; Check(meta != null, "the map carries its points");
             PNMapSpawn Point(string name) => meta.Spawns.FirstOrDefault(s => s.Name == name);
             Check(Point("player")?.Kind == PNGridMapMeta.PlayerKind && new[] { "monster_a", "monster_b", "island" }.All(n => Point(n)?.Kind == PNGridMapMeta.MonsterKind), "the entry is a player point and the three named points are monster points");
-            Check(meta.Groups.Count == 1 && meta.Groups[0].Name == "dummy" && meta.Groups[0].Entries.Count == 1, "one fixed group: the dummy");
+            Check(new[] { "dummy", "starkeeper", "starchanter", "starreaper", "starforger" }.All(n => meta.Groups.Count(g => g.Name == n && g.Entries.Count == 1 && g.Entries[0].Count == 1) == 1) && meta.Groups.Count == 5, "five fixed groups: the dummy and the four star creatures");
 
             bool Standable(int x, int z) => data.InBounds(x, z) && !data.IsSolid(x, z) && grounds[data.GroundAt(x, z)].Walkable;
             foreach (var name in new[] { "player", "monster_a", "monster_b", "island" }) Check(Standable(Point(name).X, Point(name).Z), "the point " + name + " stands on walkable, open ground");

@@ -5,8 +5,8 @@ using Newtonsoft.Json.Linq;
 
 // EN: The developers' test arena as grid data (Docs/SandboxPlan.md, step G14). It replaces the old scene world `ErMode` (a scene adopted as a world, Recast navigation) with a GENERATED map, the same cells for every machine:
 //     a 40 x 40 m floor with void all around, a wall of rocks across it with a gap at one end (a detour for the navigation reviews), and a small island of floor across a void strip that no walker can reach (the
-//     "disconnected" case). The player enters at `player`; `monster_a`, `monster_b` and `island` are fixed points a review or a spawner can look up by name (kind `monster`); the group `dummy` is a training dummy
-//     beside the entry, as the Hall has. The look is a placeholder: art comes later. Cells are 0.5 m, ground comes in 2 m blocks (4 cells); the world is 128 x 128 cells (four 32-cell chunks across).
+//     "disconnected" case). The player enters at `player`; `monster_a`, `monster_b` and `island` are fixed points a review or a spawner can look up by name (kind `monster`); the groups are a training dummy (`dummy`)
+//     and the four star creatures (`starkeeper`, `starchanter`, `starreaper`, `starforger`) beside the entry, as the old scene authored them. The look is a placeholder: art comes later. Cells are 0.5 m, ground comes in 2 m blocks (4 cells); the world is 128 x 128 cells (four 32-cell chunks across).
 // VI: Map arena thử nghiệm dạng dữ liệu ô (G14), thay world scene `ErMode`: sàn 40 x 40 m, tường đá chắn ngang có một khe ở đầu (để thử đi vòng), và một đảo nhỏ cách một dải void (vùng tách rời, không đi tới được).
 //     Điểm `player`, các điểm `monster_a`, `monster_b`, `island` (kind monster) tra theo tên; nhóm `dummy` là bia tập cạnh lối vào.
 public static class PNArenaMaps
@@ -24,10 +24,20 @@ public static class PNArenaMaps
         meta.Spawns.Add(new PNMapSpawn { Name = "monster_a", Kind = PNGridMapMeta.MonsterKind, X = 24, Z = 72 });     // beyond the wall: the walker must go round it
         meta.Spawns.Add(new PNMapSpawn { Name = "monster_b", Kind = PNGridMapMeta.MonsterKind, X = 72, Z = 24 });
         meta.Spawns.Add(new PNMapSpawn { Name = "island", Kind = PNGridMapMeta.MonsterKind, X = 108, Z = 44 });       // on the island: no path from the entry
-        var dummy = new PNMapGroup { Name = "dummy", X = 28, Z = 24, Radius = .5 };
-        dummy.Entries.Add(new PNMapGroupEntry { Entity = DummyCharacter, Count = 1 });
-        meta.Groups.Add(dummy);
+        meta.Groups.Add(Group("dummy", 16, 24, DummyCharacter));   // 4 m west of the entry
+        // The four star creatures the old ErMode scene authored beside the entry, at the same offsets (metres: 2 cells = 1 m) so the Player reviews of each keep their layout.
+        meta.Groups.Add(Group("starkeeper", 24 + 4, 24, "project_n:starkeeper"));
+        meta.Groups.Add(Group("starchanter", 24 + 7, 24 + 2, "project_n:starchanter"));
+        meta.Groups.Add(Group("starreaper", 24 + 7, 24 - 4, "project_n:starreaper"));
+        meta.Groups.Add(Group("starforger", 24 + 7, 24 - 8, "project_n:starforger"));
         return meta;
+    }
+
+    private static PNMapGroup Group(string name, int x, int z, string character)
+    {
+        var group = new PNMapGroup { Name = name, X = x, Z = z, Radius = .5 };
+        group.Entries.Add(new PNMapGroupEntry { Entity = character, Count = 1 });
+        return group;
     }
 
     public static PNGridWorldDescriptor Descriptor() => new PNGridWorldDescriptor(Cells, Cells, CellSize, ArenaMapId, 1);

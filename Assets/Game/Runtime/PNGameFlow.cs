@@ -35,7 +35,7 @@ public sealed class PNGameFlow : MonoBehaviour
             if (loading) return PNFlowPhase.Loading;
             var id = EveRegistrySession.IsReady ? PNLocalWorldContext.Current?.World?.DefinitionId.ToString() : null;
             if (id == "project_n:roguelite_lobby") return PNFlowPhase.Lobby;
-            if (id == "project_n:scene_world" || id != null && id.StartsWith("project_n:map_", StringComparison.Ordinal)) return PNFlowPhase.Run;
+            if (id == "project_n:test_arena" || id != null && id.StartsWith("project_n:map_", StringComparison.Ordinal)) return PNFlowPhase.Run;
             if (id == "project_n:hall_world") return PNFlowPhase.Hall;
             // Before the local view exists, fall back to the selected mode.
             if (!EveRegistrySession.IsReady) return PNFlowPhase.Hall;
@@ -63,7 +63,7 @@ public sealed class PNGameFlow : MonoBehaviour
     private static void SayKey(string key){messageKey=key;messageLocaleRevision=-1;NoticeSequence++;Raise();}
     private static bool Refuse(string key,out string reason){startErrorKey=key;reason=PNLocalization.Text(key);return false;}
 
-    // ErMode is the developers' test arena (the mob Player reviews use its authored spawn points). A solo start goes through the lobby into the first room of a run like every
+    // ErMode is the developers' test arena, a grid world `project_n:test_arena` since G14 (the mob Player reviews use the star creatures its map places beside the entry). A solo start goes through the lobby into the first room of a run like every
     // other start; this switch keeps the old straight-to-arena solo start for those reviews.
     public static bool LegacyArena { get { return Array.IndexOf(Environment.GetCommandLineArgs(), "-pn-legacy-run") >= 0; } }
     // A test sets this to replay a known run (the same seed offers the same rooms); -pn-run-seed=<n> does the same for a Player.
@@ -253,7 +253,7 @@ public sealed class PNGameFlow : MonoBehaviour
     }
     private IEnumerator Launch(string modeId, PNFlowMode mode, string address)
     {
-        BeginLoading(modeId, mode == PNFlowMode.Offline && LegacyArena ? "project_n:scene_world" : "project_n:roguelite_lobby"); message = null; messageKey=null; Raise();
+        BeginLoading(modeId, mode == PNFlowMode.Offline && LegacyArena ? "project_n:test_arena" : "project_n:roguelite_lobby"); message = null; messageKey=null; Raise();
         string failure = null;
         var network = PNGameBootstrap.Config.Network; var preparation = PNGameBootstrap.Config.Preparation;
         var end = EndCurrent();
@@ -399,7 +399,7 @@ public sealed class PNGameFlow : MonoBehaviour
     public static void PrepareStart(string modeId = "roguelite", bool offline = false)
     {
         preCoverUntil = Time.realtimeSinceStartupAsDouble + 3;
-        usingHandoff = PNTransitionHandoffHost.Raise(StripPrefix(modeId), offline && LegacyArena ? "project_n:scene_world" : "project_n:roguelite_lobby");
+        usingHandoff = PNTransitionHandoffHost.Raise(StripPrefix(modeId), offline && LegacyArena ? "project_n:test_arena" : "project_n:roguelite_lobby");
         if (!usingHandoff) ShowCover();
     }
     // Shipped modes keep their short selection name; others use the full id (the same rule StartMode applies).
