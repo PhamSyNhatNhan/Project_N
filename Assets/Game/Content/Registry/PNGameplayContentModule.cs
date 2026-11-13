@@ -80,6 +80,16 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
             worlds.Register(new PNWorldDefinition(worldId,PNWorldDefinition.HashContent(worldId+"/v1/"+gridDescriptor.ToJson().ToString(Newtonsoft.Json.Formatting.None)),typeof(PNGridWorldProvider),()=>new PNGridWorldProvider(gridDescriptor),
                 new PNWorldPolicy(PNEmptyWorldPolicy.Continue,null,null,null,default(EveId),new[]{PNGridIds.GridWorldFeature,PNDespawnIds.Feature,PNGridSaveIds.Feature,PNSpawnerIds.Feature})));
         }
+        // Check-only world (Docs/SandboxPlan.md "Đóng nền chung"): 1024 x 1024 cells of noise, registered only when the Player is started with `--pn-grid-large=<folder>`, so ordinary content and the RulesVersion stay as they are.
+        if(Environment.GetCommandLineArgs().Any(a=>a.StartsWith("--pn-grid-large=",StringComparison.Ordinal)))
+        {
+            const string largeMap="check:large_noise";
+            if(!PNGridMaps.Has(largeMap)) PNGridMaps.RegisterGenerated(largeMap,JArray.Parse("[{\"step\":\"noise_ground\",\"ground\":\"project_n:sand\",\"scale\":6,\"threshold\":0.5}]"),null,null);
+            var largeDescriptor=new PNGridWorldDescriptor(1024,1024,.5f,largeMap,7);
+            var largeId=EveId.Parse("project_n:check_large_grid");
+            worlds.Register(new PNWorldDefinition(largeId,PNWorldDefinition.HashContent("project_n:check_large_grid/v1"),typeof(PNGridWorldProvider),()=>new PNGridWorldProvider(largeDescriptor),
+                new PNWorldPolicy(PNEmptyWorldPolicy.Continue,null,null,null,default(EveId),new[]{PNGridIds.GridWorldFeature})));
+        }
         var modes=hub.GetOrCreate<PNModeDefinition>();
         var rogueliteListing=new PNModeListing("Roguelite","Vượt qua các căn phòng, một mình hoặc cùng bạn bè trong mạng LAN.",new[]{231,185,143},"",0,
             new[]{new PNModeStartOption("solo","Chơi đơn",PNModeStart.Offline),new PNModeStartOption("host","Tạo phòng LAN",PNModeStart.Host),new PNModeStartOption("join","Vào phòng LAN",PNModeStart.Join)});
