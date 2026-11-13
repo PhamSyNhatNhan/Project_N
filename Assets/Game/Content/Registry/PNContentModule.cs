@@ -150,12 +150,20 @@ public class PNContentModule : EveIContentModule, EveIContentFinalizeModule, Eve
         // Worlds that bring monsters to the players on their own (Docs/SandboxPlan.md G9); the service stays idle until a mode configures it.
         hub.WorldFeatures().Register(new PNWorldFeatureDefinition(PNSpawnerIds.Feature, "Worlds whose monsters are brought to the players by the spawner."));
         hub.WorldFeatures().Register(new PNWorldFeatureDefinition(PNGridSaveIds.Feature, "Grid worlds that save their ground, placed things and player places, and can be restored from that save."));
+        // Terrains and locomotions (Docs/SandboxPlan.md G12): what a ground makes, and what a body can stand on. A mod registers more of both; at most PNTerrainLayers.LayerCount terrains besides land.
+        hub.GetOrCreate<PNTerrainDefinition>(); hub.NameRegistry<PNTerrainDefinition>("terrains");
+        hub.Terrains().Register(new PNTerrainDefinition(PNTerrainIds.Land, "Ground one can walk on."));
+        hub.Terrains().Register(new PNTerrainDefinition(PNTerrainIds.Void, "Nothing under the cell: a hole, or the outside of a map."));
+        hub.Terrains().Register(new PNTerrainDefinition(PNTerrainIds.Rock, "A floor that is drawn but cannot be walked on."));
+        hub.GetOrCreate<PNLocomotionDefinition>(); hub.NameRegistry<PNLocomotionDefinition>("locomotions");
+        hub.Locomotions().Register(new PNLocomotionDefinition(PNTerrainIds.Ground, new[] { PNTerrainIds.Land }, 0, "Walking: on land only (the default)."));
+        hub.Locomotions().Register(new PNLocomotionDefinition(PNTerrainIds.Air, new[] { PNTerrainIds.Land, PNTerrainIds.Void, PNTerrainIds.Rock }, 10, "Flying: over land, holes and rock alike."));
         hub.GetOrCreate<PNGroundDefinition>(); hub.NameRegistry<PNGroundDefinition>("grounds");
-        hub.Grounds().Register(new PNGroundDefinition(PNGridIds.Grass, true, 112, 160, 96, "Grass."));
-        hub.Grounds().Register(new PNGroundDefinition(PNGridIds.Sand, true, 214, 196, 138, "Sand."));
-        hub.Grounds().Register(new PNGroundDefinition(PNGridIds.RoomFloor, true, 92, 77, 128, "Floor of the roguelite room maps."));
-        hub.Grounds().Register(new PNGroundDefinition(PNGridIds.Stone, false, 120, 120, 128, "Bare stone that cannot be walked on."));
-        hub.Grounds().Register(new PNGroundDefinition(PNGridIds.Void, false, 30, 32, 40, "Nothing: no floor, cannot be walked on.", false));
+        hub.Grounds().Register(new PNGroundDefinition(PNGridIds.Grass, PNTerrainIds.Land, 112, 160, 96, "Grass."));
+        hub.Grounds().Register(new PNGroundDefinition(PNGridIds.Sand, PNTerrainIds.Land, 214, 196, 138, "Sand."));
+        hub.Grounds().Register(new PNGroundDefinition(PNGridIds.RoomFloor, PNTerrainIds.Land, 92, 77, 128, "Floor of the roguelite room maps."));
+        hub.Grounds().Register(new PNGroundDefinition(PNGridIds.Stone, PNTerrainIds.Rock, 120, 120, 128, "Bare stone that cannot be walked on."));
+        hub.Grounds().Register(new PNGroundDefinition(PNGridIds.Void, PNTerrainIds.Void, 30, 32, 40, "Nothing: no floor, cannot be walked on.", false));
         // Work types of placeable things (Docs/SandboxPlan.md): the vocabulary a work packet and a placeable's `work.types` share. Named after the tool, like Terraria; a mod registers more.
         hub.GetOrCreate<PNWorkTypeDefinition>(); hub.NameRegistry<PNWorkTypeDefinition>("work_types");
         hub.WorkTypes().Register(new PNWorkTypeDefinition(PNWorkIds.Pickaxe, "Digs and breaks stone and ore."));
@@ -166,6 +174,7 @@ public class PNContentModule : EveIContentModule, EveIContentFinalizeModule, Eve
 
     public virtual void ValidateContent(EveRegistryHub hub)
     {
+        PNTerrainLayers.Validate(hub);
         // Covers code-registered character definitions as well as JSON.
         foreach (var character in hub.Characters.Snapshot().Values)
         {
@@ -174,6 +183,7 @@ public class PNContentModule : EveIContentModule, EveIContentFinalizeModule, Eve
             PNPlayableSettings.Parse(character.Data);
             PNCombatSettings.Parse(character.Data);
             var body = PNBodySettings.Read(character);
+            if (!hub.Get<PNLocomotionDefinition>().TryGet(body.Locomotion, out _)) throw new System.FormatException("Character " + character.Id + ": body locomotion " + body.Locomotion + " is not registered.");
             if (body.Visual.HasValue)
             {
                 var appearance = hub.Get<PNVisualAppearanceDefinition>();

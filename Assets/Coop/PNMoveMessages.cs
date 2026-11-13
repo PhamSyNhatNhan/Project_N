@@ -46,12 +46,14 @@ namespace ProjectN.Coop
         {
             w.WriteUInt(m.Revision);w.WriteLong(m.LifeRevision);w.WriteByte((byte)(m.Dead?1:0));w.WriteByte((byte)m.Rights);w.WriteFloat(m.MoveSpeed);w.WriteFloat(m.JumpSpeed);w.WriteFloat(m.Scale);w.WriteFloat(m.RawScale);
             w.WriteByte((byte)m.MotionPermissions.Count);foreach(var id in m.MotionPermissions){var bytes=Utf8.GetBytes(id);if(bytes.Length<1||bytes.Length>128)throw new FormatException("Move permission size.");w.WriteByte((byte)bytes.Length);w.WriteBytes(bytes,0,bytes.Length);}
+            var locomotion=Utf8.GetBytes(m.Locomotion);if(locomotion.Length>128)throw new FormatException("Move locomotion size.");w.WriteByte((byte)locomotion.Length);w.WriteBytes(locomotion,0,locomotion.Length);
         }
         private static MoveMirror MirrorState(NetworkReader r,MoveIdentity id)
         {
             uint rev=r.ReadUInt();long life=r.ReadLong();byte dead=r.ReadByte(),rights=r.ReadByte();float speed=r.ReadFloat(),jump=r.ReadFloat(),scale=r.ReadFloat(),raw=r.ReadFloat();int count=r.ReadByte();if(dead>1||count>64)throw new FormatException("Move mirror bounds.");
             var permissions=new string[count];for(int i=0;i<count;i++){int size=r.ReadByte();if(size<1||size>128)throw new FormatException("Move permission size.");var bytes=r.ReadBytesSegment(size);permissions[i]=Utf8.GetString(bytes.Array,bytes.Offset,bytes.Count);}
-            return new MoveMirror(id,rev,life,dead==1,(MoveRights)rights,speed,jump,scale,raw,permissions);
+            int locomotionSize=r.ReadByte();if(locomotionSize>128)throw new FormatException("Move locomotion size.");string locomotion="";if(locomotionSize>0){var seg=r.ReadBytesSegment(locomotionSize);locomotion=Utf8.GetString(seg.Array,seg.Offset,seg.Count);}
+            return new MoveMirror(id,rev,life,dead==1,(MoveRights)rights,speed,jump,scale,raw,permissions,locomotion);
         }
         public static void WriteMovePacket(this NetworkWriter w,PNMovePacket p)
         {

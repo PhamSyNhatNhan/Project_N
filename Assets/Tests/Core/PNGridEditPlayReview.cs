@@ -98,6 +98,27 @@ public sealed class PNGridEditPlayReview : MonoBehaviour
     private float previousTimeScale; private int previousFrameRate, previousVSync; private bool previousBackground;
     private static readonly System.Reflection.FieldInfo RouteField = typeof(PNEnemyNavigationRequest).GetField("Route", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
 
+#if UNITY_EDITOR
+    // Trigger file `.utmp/GridEditTrigger.txt` (output directory): the next Play Mode start runs the review and deletes the file.
+    [UnityEditor.InitializeOnLoadMethod] private static void Watch() { UnityEditor.EditorApplication.update += Poll; }
+    // With the trigger file present and the Editor idle: a disposable empty scene (never saved), then Play Mode.
+    private static void Poll()
+    {
+        if (UnityEditor.EditorApplication.isPlayingOrWillChangePlaymode || UnityEditor.EditorApplication.isCompiling || UnityEditor.EditorApplication.isUpdating) return;
+        if (!File.Exists(Path.Combine(Path.GetDirectoryName(Application.dataPath), ".utmp", "GridEditTrigger.txt"))) return;
+        UnityEditor.SceneManagement.EditorSceneManager.NewScene(UnityEditor.SceneManagement.NewSceneSetup.EmptyScene, UnityEditor.SceneManagement.NewSceneMode.Single);
+        UnityEditor.EditorApplication.isPlaying = true;
+    }
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+    private static void AutoBegin()
+    {
+        var trigger = Path.Combine(Path.GetDirectoryName(Application.dataPath), ".utmp", "GridEditTrigger.txt");
+        if (!File.Exists(trigger)) return;
+        var directory = File.ReadAllText(trigger).Trim(); File.Delete(trigger);
+        Begin(directory);
+    }
+#endif
+
     public static void Begin(string directory, bool large = false, bool bodies = false)
     {
         if (!Application.isPlaying) throw new InvalidOperationException("Start the grid edit review in Play Mode.");

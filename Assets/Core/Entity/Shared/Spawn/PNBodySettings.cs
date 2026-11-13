@@ -20,6 +20,8 @@ public enum PNAggroMode { Normal, Ignored }
 //       vision: number > 0, metres an enemy of this character sees a hostile from (the shared enemy targeting reads it; Docs/SandboxPlan.md G5).
 //       shadow: the shadow on the ground under the feet (not the paper shadow between rig parts). Absent or true = the default shadow (sized from the capsule); false = none (a ghost, a thing that sinks);
 //               { "scale": number in [0.1, 5], "opacity": number in [0, 1] } (both optional, unknown fields rejected) = the default shadow scaled and fainter. A body in the air needs nothing: the shadow follows the height.
+//       locomotion: id of a registered locomotion (registry `locomotions`: project_n:ground | project_n:air | a mod's): which terrains the body can stand on, so which terrain barriers stop it. Absent = project_n:ground.
+//               It is the body's own locomotion; a skill changes it only by pushing another one for a while (PNTraversal), never by itself.
 //     Absent block = every default. Damageable <=> the character declares a project_n:health stat.
 // VI: Khối `body` trong dữ liệu character: thứ đó là gì khi được sinh. Có Health <=> nhận sát thương được. `loot` chưa có nơi dùng.
 // The ground shadow of a body (G10a follow-up): on/off plus a scale and an opacity multiplier over the size and look the shadow gets from the capsule.
@@ -64,10 +66,14 @@ public sealed class PNBodySettings
     public const float MaxVision = 200f;
     // The ground shadow under the feet (default: on).
     public PNBodyShadow Shadow { get; }
+    // The body's own locomotion (a registered id; checked against the registry when the content is validated).
+    public EveId Locomotion { get; }
 
-    public PNBodySettings(string prefab, PNDamageMode damageMode, PNHealthBarMode healthBar, EveId? loot, PNAggroMode aggro = PNAggroMode.Normal, EveId? visual = null, string build = "", float vision = 0f, PNBodyShadow shadow = null)
+    public PNBodySettings(string prefab, PNDamageMode damageMode, PNHealthBarMode healthBar, EveId? loot, PNAggroMode aggro = PNAggroMode.Normal, EveId? visual = null, string build = "", float vision = 0f, PNBodyShadow shadow = null, EveId? locomotion = null)
     {
         Shadow = shadow ?? PNBodyShadow.Default;
+        if (locomotion.HasValue && !locomotion.Value.IsValid) throw new FormatException("body locomotion needs a valid id.");
+        Locomotion = locomotion ?? PNTerrainIds.Ground;
         if (float.IsNaN(vision) || float.IsInfinity(vision) || vision < 0f || vision > MaxVision) throw new FormatException("body vision must be a number in [0, " + MaxVision + "].");
         Vision = vision;
         prefab = prefab ?? "";
@@ -112,7 +118,7 @@ public sealed class PNBodySettings
         var token = root["body"];
         if (token == null) return Default;
         var obj = PNBuffContentBatch.Object(token);
-        PNBuffContentBatch.Fields(obj, "prefab", "damageMode", "healthBar", "aggro", "loot", "visual", "build", "vision", "shadow");
+        PNBuffContentBatch.Fields(obj, "prefab", "damageMode", "healthBar", "aggro", "loot", "visual", "build", "vision", "shadow", "locomotion");
         var mode = PNDamageMode.Normal;
         if (obj["damageMode"] != null)
             switch (PNBuffContentBatch.String(obj, "damageMode"))
@@ -156,7 +162,13 @@ public sealed class PNBodySettings
             if (!(value > 0d)) throw new FormatException("body vision must be greater than 0.");
             vision = (float)value;
         }
-        return new PNBodySettings(PNBuffContentBatch.OptionalString(obj, "prefab"), mode, bar, loot, aggro, visual, PNBuffContentBatch.OptionalString(obj, "build"), vision, PNBodyShadow.Parse(obj["shadow"]));
+        EveId? locomotion = null;
+        if (obj["locomotion"] != null)
+        {
+            if (!EveId.TryParse(PNBuffContentBatch.String(obj, "locomotion"), out var locomotionId)) throw new FormatException("body locomotion must be a namespaced id.");
+            locomotion = locomotionId;
+        }
+        return new PNBodySettings(PNBuffContentBatch.OptionalString(obj, "prefab"), mode, bar, loot, aggro, visual, PNBuffContentBatch.OptionalString(obj, "build"), vision, PNBodyShadow.Parse(obj["shadow"]), locomotion);
     }
 
     // Whole check for one character: block fields plus the rules that need its stats and its playable block.

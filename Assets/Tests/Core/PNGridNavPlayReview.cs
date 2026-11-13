@@ -50,6 +50,18 @@ public sealed class PNGridNavPlayReview : MonoBehaviour
     private float previousTimeScale; private int previousFrameRate, previousVSync; private bool previousBackground;
     private int checks;
 
+#if UNITY_EDITOR
+    // Trigger file `.utmp/GridNavTrigger.txt` (holds the output directory): the next Play Mode start runs the review and deletes the file.
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+    private static void AutoBegin()
+    {
+        var trigger = Path.Combine(Path.GetDirectoryName(Application.dataPath), ".utmp", "GridNavTrigger.txt");
+        if (!File.Exists(trigger)) return;
+        var directory = File.ReadAllText(trigger).Trim(); File.Delete(trigger);
+        Begin(directory);
+    }
+#endif
+
     public static void Begin(string directory)
     {
         if (!Application.isPlaying) throw new InvalidOperationException("Start the grid navigation review in Play Mode.");
@@ -155,7 +167,7 @@ public sealed class PNGridNavPlayReview : MonoBehaviour
         var build = worlds.Get(world);
         Check(build.Features.Has(PNGridIds.GridWorldFeature) && build.GridWorld != null && build.Navigation != null && build.Slots.Count == 1 && build.Slots[0].Id == "main", "the world has the grid_world feature, its cells, its navigation source and one slot `main`");
         var data = build.GridWorld;
-        Check(data.Width == 96 && data.Depth == 64 && data.ChunkCount == 6 && data.SolidCount > 100 && data.Palette.Count == 3, "the cell data is the 96 x 64 maze with the three registered ground types");
+        Check(data.Width == 96 && data.Depth == 64 && data.ChunkCount == 6 && data.SolidCount > 100 && data.Palette.Count == 5, "the cell data is the 96 x 64 maze with the five registered ground types (grass, room floor, sand, stone, void)");
         var host = build.Slots[0].Roots[0].GetComponent<PNGridWorldHost>();
         Check(host != null && host.gameObject.activeInHierarchy && host.ChunkObjectCount == 6 && host.PendingChunks == 0, "the host has one object per chunk and nothing is out of date");
         Check(host.WallObjectCount >= 4 && host.WallObjectCount <= 6, "chunks with solid cells have a wall object (" + host.WallObjectCount + " of 6)");
@@ -192,6 +204,9 @@ public sealed class PNGridNavPlayReview : MonoBehaviour
         foreach (var character in Characters) yield return WalkRoutes(character);
         Time.timeScale = previousTimeScale;
         Check(incomplete.Count == 0, "every enemy reaches every route on the grid navigation" + (incomplete.Count == 0 ? "" : " (not: " + string.Join(", ", incomplete) + ")"));
+
+        // ---- G12b: navigation by locomotion ----
+        yield return LocomotionRoutes(data, lease);
 
         // ---- cleanup ----
         yield return Unload(host);
@@ -252,6 +267,69 @@ public sealed class PNGridNavPlayReview : MonoBehaviour
         yield return null;
         if (reached == Routes.Length) { checks++; evidence.Add("PASS " + character + " reaches all " + Routes.Length + " routes on the grid navigation"); }
         else incomplete.Add(character + " " + reached + "/" + Routes.Length);
+    }
+
+    // G12b: the same navigation for a body of another locomotion. Rock (stone ground: drawn, not walkable) is painted over the goal and across the open field; a walker finds no way to a goal on rock and detours around
+    // the band, a body with the air locomotion pushed walks straight over both, and when the push ends the fall rule puts it back on land.
+    private IEnumerator LocomotionRoutes(PNGridWorldData data, PNWorldNavigationLease lease)
+    {
+        var controller = PNGridWorldController.Find(world);
+        Check(controller != null && lease.Source != null && lease.Source.GroundMask == 1u, "the world has its edit gateway and the walker's tag mask is land only");
+        int rock = data.Palette.ToList().IndexOf("project_n:stone");
+        var air = session.Registry.Locomotions().Get(PNTerrainIds.Air);
+        uint airMask = lease.Source.MaskOf(air);
+        Check(rock > 0 && airMask != 1u && (airMask & 1u) != 0, "stone is rock for the navigation, and the air mask holds land and more");
+        int updates = lease.GridUpdates;
+        var batch = new PNGridEditBatch();
+        for (int x = 0; x <= 20; x++) batch.AddGround(x, 28, rock);   // a band of rock across the open field (z 14 m, x 0..10.5 m)
+        for (int x = 15; x <= 17; x++) for (int z = 53; z <= 55; z++) batch.AddGround(x, z, rock);   // a block of rock around the goal (8, 27) = cell (16, 54)
+        Check(controller.Editor.Submit(batch).Accepted, "painting rock over the field and the goal is accepted");
+        controller.Pump(); AstarPath.active.FlushWorkItems();
+        Check(lease.GridUpdates > updates && !lease.TryProject(new Vector3(8.25f, 0, 27.25f), .1f, out _) && lease.TryProject(new Vector3(8.25f, 0, 27.25f), .1f, out _, airMask), "the graph tags the rock: a walker cannot be put on it, a flyer can");
+        foreach (var flying in new[] { false, true })
+        {
+            var start = new Vector3(3, .02f, 3);
+            var root = new GameObject("Grid locomotion review " + (flying ? "air" : "ground")) { layer = 7 }; root.SetActive(false); actors.Add(root);
+            UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(root, world.PhysicsOwner); root.transform.position = start;
+            var identity = root.AddComponent<EveEntityIdentity>(); identity.Assign(new EveEntityId(nextEntity++), EveId.Parse("project_n:starkeeper"), 0); identity.BindWorld(world, "main");
+            root.AddComponent<PNEnemyStat>(); var rigidbody = root.AddComponent<Rigidbody>(); rigidbody.constraints = RigidbodyConstraints.FreezeRotation;
+            var capsule = root.AddComponent<CapsuleCollider>(); capsule.radius = .2f; capsule.height = 1.4f; capsule.center = Vector3.up * .7f;
+            root.AddComponent<EveTimeScale>().MinScale = 0;
+            var traversal = PNTraversal.Begin(root, session.Registry, PNTerrainIds.Ground);
+            var move = root.AddComponent<PNEnemyMove>(); move.GroundLayers = 1 << 13; move.CanJump = false;
+            var loader = root.AddComponent<EveEntityLoader>(); loader.Load(session.Registry); root.SetActive(true);
+            yield return Until(() => loader.IsReady, 20, "the " + (flying ? "flying" : "walking") + " body is loaded");
+            yield return null; yield return null;
+            int handle = flying ? traversal.Push(PNTerrainIds.Air) : 0;
+            Check(traversal.Effective == (flying ? PNTerrainIds.Air : PNTerrainIds.Ground), "the body moves with the " + (flying ? "air" : "ground") + " locomotion");
+            var goal = new Vector3(8, 0, 27);
+            Time.timeScale = TimeScale;
+            var navigation = move.GoTo(goal, .15f); float t0 = Time.time; Vector3[] route = null;
+            while (!navigation.IsTerminal && Time.time - t0 < 90f) { var current = (Vector3[])RouteField.GetValue(navigation); if (current != null) route = (Vector3[])current.Clone(); yield return null; }
+            Time.timeScale = previousTimeScale;
+            float length = 0; if (route != null) for (int i = 1; i < route.Length; i++) length += Vector3.Distance(route[i - 1], route[i]);
+            float distance = Vector2.Distance(new Vector2(move.Body.position.x, move.Body.position.z), new Vector2(goal.x, goal.z));
+            Note((flying ? "air" : "ground") + " body: " + navigation.Status + " " + navigation.EndReason + ", route " + length.ToString("F1") + " m, ends " + distance.ToString("F2") + " m from the goal");
+            if (!flying) { Check(navigation.Status == PNEnemyNavigationStatus.NoPath, "a walker is given no path to a goal on rock"); }
+            else
+            {
+                Check(navigation.Status == PNEnemyNavigationStatus.Arrived && distance <= .5f, "a flyer walks over the rock band and reaches the goal on rock");
+                Check(traversal.Falls == 0, "and does not fall while the air push is on");
+                int revision = traversal.LocomotionRevision;
+                traversal.Pop(handle);
+                Check(traversal.LocomotionRevision != revision && traversal.Effective == PNTerrainIds.Ground, "the locomotion revision changes when the push ends");
+                // what a client owner does with the locomotion in the host's Move mirror: take it as the one in force, and drop it again when the host sends none
+                traversal.MirrorLocomotion("project_n:air");
+                Check(traversal.Effective == PNTerrainIds.Air && traversal.Own == PNTerrainIds.Ground, "a mirrored locomotion becomes the one in force");
+                traversal.MirrorLocomotion("");
+                Check(traversal.Effective == PNTerrainIds.Ground, "and an empty mirror gives the body its own again");
+                yield return Until(() => traversal.Falls > 0, 4, "the body standing on rock without the push is put back on land");
+                var landed = traversal.transform.position;
+                Check(lease.TryProject(landed, .3f, out _), "and it stands on a cell a walker can stand on (" + landed.x.ToString("F1") + ", " + landed.z.ToString("F1") + ")");
+            }
+            loader.Unload(); identity.ResetIdentity(); actors.Remove(root); Destroy(root);
+            yield return null;
+        }
     }
 
     private IEnumerator Unload(PNGridWorldHost host)

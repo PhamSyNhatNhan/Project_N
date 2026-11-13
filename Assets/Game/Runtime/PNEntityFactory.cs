@@ -162,6 +162,7 @@ public sealed class PNEntityFactory : IPNWorldEntityFactory
         ApplyModules(loader,request);
         if(loader.GetComponent<PNEnemyStat>()!=null)PNLoricaPresentation.Ensure(loader.gameObject);
         if(loader.TryGetComponent<PNVisualBody>(out var visualBody))visualBody.Begin(session.Registry.Characters.Get(EveId.Parse(request.Character)),session.Registry);   // a character with body.visual is drawn as a rig puppet
+        PNTraversal.Begin(loader.gameObject,session.Registry,body.Locomotion);   // what the body can stand on (G12): its own locomotion, pushes on top, the fall rule
         PNGroundShadow.Ensure(loader.gameObject,body.Shadow);   // the shadow on the ground under the feet: every character gets one unless its body.shadow is false
         var life=loader.GetComponent<PNEntityLifetime>();
         // Only the authority removes an entity by time; a client entity is removed when the host's removal reaches it.
@@ -217,7 +218,7 @@ public sealed class PNEntityFactory : IPNWorldEntityFactory
     {
         if(loader==null){borrowed.Remove(loader);authored.Remove(loader);detached.Remove(loader);authoredOrigins.Remove(loader);foreach(var root in resources.Keys.Where(x=>x==null).ToArray())DisposeResources(root);return;}
         if(loader.State!=EveEntityLoadState.Idle)throw new InvalidOperationException("Cleanup must complete before return.");
-        loader.gameObject.SetActive(false);loader.GetComponent<PNSummon>()?.Clear();{if(loader.TryGetComponent<PNVisualBody>(out var visualBody))visualBody.Clear();}loader.GetComponent<EveEntityIdentity>().ResetIdentity();
+        loader.gameObject.SetActive(false);loader.GetComponent<PNSummon>()?.Clear();loader.GetComponent<PNTraversal>()?.Clear();{if(loader.TryGetComponent<PNVisualBody>(out var visualBody))visualBody.Clear();}loader.GetComponent<EveEntityIdentity>().ResetIdentity();
         if(borrowed.TryGetValue(loader,out var pool)){pool.Release(loader.gameObject);borrowed.Remove(loader);}
         else if(detached.Remove(loader)){DisposeResources(loader.gameObject);DestroyReturned(loader.gameObject);}
         else

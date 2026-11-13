@@ -15,7 +15,7 @@ namespace ProjectN.Coop.Tests
             void Reject(Action run,string name){try{run();}catch{checks++;return;}throw new Exception("Expected rejection: "+name);}
             var s=new PNMoveStream{Scope=new PNWorldBindingScope{World=Guid.NewGuid(),Incarnation=2,Membership=3,Subscription=4},Session=Guid.NewGuid(),NetId=5,Entity=42,Generation=3,Nonce=12};
             var state=new MovementState(new MoveVector(2,3,4),new MoveVector(0,4,0),-1,false,1);
-            var mirror=new MoveMirror(s.Identity,3,2,false,MoveRights.All,5,7,.5f,1,new[]{"base:voluntary_motion"});
+            var mirror=new MoveMirror(s.Identity,3,2,false,MoveRights.All,5,7,.5f,1,new[]{"base:voluntary_motion"},"project_n:air");
             var correction=new MoveCorrection(s.Identity,2,2,3,state,new MoveRecovery(new MoveVector(0,8,0),default,true),MoveCorrectionReason.Constraint,20,7);
             for(byte kind=0;kind<5;kind++)
             {
@@ -23,6 +23,7 @@ namespace ProjectN.Coop.Tests
                 var writer=new NetworkWriter();writer.Write(p);var bytes=writer.ToArray();var reader=new NetworkReader(bytes);var q=reader.Read<PNMovePacket>();
                 Check(q.Kind==kind&&q.Request==7&&q.Stream.Equals(s)&&q.Revision==9&&q.Life==2&&reader.Remaining==0,"actual Weaver packet "+kind);
                 Check(bytes.Length<(kind<=2?PNMoveWire.ControlBytes:PNMoveWire.PoseBytes),"bounded packet "+kind);
+                if(kind<=2)Check(q.Mirror.Locomotion=="project_n:air"&&q.Mirror.SameValues(mirror),"the locomotion crosses the wire in the mirror "+kind);
                 var body=kind<=1?q.Correction.State:kind<=3?q.Pose.State:q.Report.State;
                 Check(body.Facing==-1&&body.VerticalView==1&&body.Position.Near(state.Position),"pose fields "+kind);
                 bytes[0]=9;Reject(()=>new NetworkReader(bytes).Read<PNMovePacket>(),"schema "+kind);

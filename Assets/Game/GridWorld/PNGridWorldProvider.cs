@@ -72,10 +72,15 @@ public sealed class PNGridWorldProvider : IPNWorldProvider, IPNPortableWorldProv
             restored.Finish(data);
         }
 
-        var host = PNGridWorldHost.Create(data, definitions.Select(x => new Color32(x.Red, x.Green, x.Blue, x.Visible ? (byte)255 : (byte)0)).ToArray());
+        var barrierLayers = PNTerrainLayers.Assign(context.World.Session.Registry.Get<PNTerrainDefinition>().Snapshot().Values.Select(x => x.Id));
+        var host = PNGridWorldHost.Create(data, definitions.Select(x => new Color32(x.Red, x.Green, x.Blue, x.Visible ? (byte)255 : (byte)0)).ToArray(), definitions.Select(x => x.Terrain).ToArray(), barrierLayers);
         context.Own(host.Dispose);   // registered before the chunk objects exist, so a failed or cancelled load cannot leak them
         context.SetGridWorld(data, descriptor);
-        if (!replica) context.SetNavigation(new PNGridNavigationSource(data, definitions.Select(x => x.Walkable).ToArray(), PNNavigationProfile.GroundSmall));
+        if (!replica)
+        {
+            var terrainTags = PNTerrainLayers.Tags(context.World.Session.Registry.Get<PNTerrainDefinition>().Snapshot().Values.Select(x => x.Id));
+            context.SetNavigation(new PNGridNavigationSource(data, definitions.Select(x => x.Walkable).ToArray(), PNNavigationProfile.GroundSmall, 0, 0, definitions.Select(x => (byte)terrainTags[x.Terrain]).ToArray(), terrainTags));
+        }
 
         var build = host.BuildAll(16);
         while (build.MoveNext()) yield return null;

@@ -15,6 +15,7 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
     public static readonly EveId LockMovementOperation = EveId.Parse("project_n:lock_movement");
     public static readonly EveId DamageAction = EveId.Parse("project_n:damage_action");
     public static readonly EveId WorkAction = EveId.Parse("project_n:work_action");
+    public static readonly EveId LocomotionAction = EveId.Parse("project_n:locomotion_action");
     public static readonly EveId SlashHitOperation = EveId.Parse("project_n:slash_hit");
     public static readonly EveId HealOperation = EveId.Parse("project_n:heal");
     public static readonly EveId EveAttackEntry = EveId.Parse("project_n:eve_attack_entry");
@@ -130,6 +131,8 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
 #if UNITY_5_3_OR_NEWER
         // Work on placed things of a grid world (Docs/SandboxPlan.md): the registered way for a skill to bring things down. Not wired into any existing skill.
         hub.Actions().Register(new PNSkillActionDefinition(WorkAction, typeof(PNWorkAction), ValidateEffectAction, PNSkillContextRequirements.Position));
+        // Puts a locomotion on the skill body for a while (Docs/SandboxPlan.md G12): the registered way for a skill to fly or cross a hole. Not wired into any existing skill.
+        hub.Actions().Register(new PNSkillActionDefinition(LocomotionAction, typeof(PNLocomotionAction), ValidateEffectAction, PNSkillContextRequirements.None));
 #endif
         hub.Actions().Register(new PNSkillActionDefinition(SweepAction, typeof(EveSweepAction), ValidateEffectAction, PNSkillContextRequirements.Direction));
         hub.Actions().Register(new PNSkillActionDefinition(MotionAction,typeof(PNMotionAction), ValidateEffectAction, PNSkillContextRequirements.Direction));
@@ -209,6 +212,7 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         else if (typeof(PNAreaAction).IsAssignableFrom(implementation)) PNAreaAction.Validate(data.Perform, hub);
         else if (typeof(PNProjectileAction).IsAssignableFrom(implementation)) PNProjectileAction.Validate(data.Perform, hub);
         else if (typeof(PNWorkAction).IsAssignableFrom(implementation)) PNWorkAction.Validate(data.Perform, hub);
+        else if (typeof(PNLocomotionAction).IsAssignableFrom(implementation)) PNLocomotionAction.Validate(data.Perform, hub);
 #endif
         else if (typeof(PNMotionAction).IsAssignableFrom(implementation)) hub.ControlPermissions().Get(PNMotionSettings.Parse(data.Perform).PermissionId);
         else if (typeof(EveSweepAction).IsAssignableFrom(implementation))

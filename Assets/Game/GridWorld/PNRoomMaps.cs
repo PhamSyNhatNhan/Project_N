@@ -3,19 +3,19 @@ using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json.Linq;
 
-// EN: The map of the roguelite rooms as grid data (Docs/SandboxPlan.md, step G10a). It replaces the scene PNRoomStarTest01 with the same room: a 24 x 24 m floor with a one-cell wall all around, the player entry
+// EN: The map of the roguelite rooms as grid data (Docs/SandboxPlan.md, step G10a). It replaces the scene PNRoomStarTest01 with the same room: a 24 x 24 m floor with a ring of void all around (G12: the border is terrain, not solid cells; a walker is stopped by the barrier the world builds there, a flyer is not), the player entry
 //     in the south, the three spawn places `north`, `center` and `south` (named points with a radius), and the seven interactables as placeables with a key: `start_switch`, the gates `gate_a`/`gate_b`/`gate_c`, the
 //     `fountain` and the two shop stands. It is a GENERATED map (a registered step, the same cells for every machine and every start), so it never goes stale when the ground types change, and a client that builds
 //     its own copy of the placements gets the same keys as the host. The look is a placeholder: art comes later.
-//     Cells are 0.5 m; a grid world is a whole number of 32-cell chunks, so the world is 128 x 128 cells with the room 10 m from the corner (the Lobby's floor sits around the world's origin): the wall ring is cell 20
-//     and cell 69 on each side (the 48 cells between them are the 24 m of floor), and the ground outside the ring is nothing. Things and places are written for a ring at cell 7 and shifted by `Shift`.
+//     Cells are 0.5 m; a grid world is a whole number of 32-cell chunks, so the world is 128 x 128 cells with the room 10 m from the corner (the Lobby's floor sits around the world's origin). Ground comes in 2 m blocks
+//     (4 cells), so the floor is cells Inset+1 .. Last-1 (24..71, the 48 cells = 24 m) and the ring cells Inset (23) and Last (72) and everything outside are void. Things and places are written for a floor starting at cell 8 and shifted by `Shift`.
 // VI: Map phòng roguelite dưới dạng dữ liệu ô, thay cảnh PNRoomStarTest01: sàn 24 x 24 m có tường một ô, điểm vào ở phía nam, ba chỗ sinh quái (điểm có tên cộng bán kính) và bảy vật tương tác là vật đặt có khóa.
 //     Map SINH (bước đã đăng ký) nên luôn khớp loại đất hiện có và client dựng cùng khóa với host.
 public static class PNRoomMaps
 {
     public const string StarRoomMapId = "project_n:star_room_01", StepName = "star_room";
     // The room sits well away from the world's corner: the Lobby scene keeps a floor of 12 x 8 m around the origin, and it must not show through the room (the world's origin is the same point for every world).
-    public const int Cells = 128, Inset = 20, Last = Inset + 49, Shift = Inset - 7;
+    public const int Cells = 128, Inset = 23, Last = Inset + 49, Shift = Inset - 7;
     public const float CellSize = .5f;
 
     // The room's things: placeable, key, origin cell. Positions follow the old scene (metres from the room's middle, 1 m = 2 cells).
@@ -60,17 +60,10 @@ public static class PNRoomMaps
         for (int gz = 0; gz < data.GroundRows; gz++) for (int gx = 0; gx < data.GroundColumns; gx++)
         {
             int x = gx * data.GroundFactor, z = gz * data.GroundFactor;
-            bool inside = x >= Inset && x <= Last && z >= Inset && z <= Last;
+            bool inside = x > Inset && x < Last && z > Inset && z < Last;   // ground comes in 2 m blocks (4 cells): the floor is cells Inset+1 .. Last-1, the ring cells Inset and Last and everything outside are void
             edits.Add(new PNGridEdit(PNGridEditKind.Ground, x, z, inside || nothing < 0 ? floor : nothing));
         }
         doc.Edit("room floor", edits);
-        edits = new List<PNGridEdit>();
-        for (int i = Inset; i <= Last; i++)
-        {
-            edits.Add(new PNGridEdit(PNGridEditKind.Solid, i, Inset, 1)); edits.Add(new PNGridEdit(PNGridEditKind.Solid, i, Last, 1));
-            if (i > Inset && i < Last) { edits.Add(new PNGridEdit(PNGridEditKind.Solid, Inset, i, 1)); edits.Add(new PNGridEdit(PNGridEditKind.Solid, Last, i, 1)); }
-        }
-        doc.Edit("room walls", edits);
         foreach (var thing in Things) doc.Place(thing.placeable, thing.x + Shift, thing.z + Shift, 0, thing.key);
     }
 }

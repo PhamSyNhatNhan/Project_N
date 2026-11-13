@@ -24,10 +24,21 @@ public sealed class PNRunFlowPlayReview : MonoBehaviour
     public static bool Finished { get; private set; }
     // null = the room-to-room walk; "defeat" = the last player falls; "victory" = clear the run and take the last gate.
     public static string Scenario;
+    public static string OutputOverride;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void Boot()
     {
+#if UNITY_EDITOR
+        // Editor trigger file `.utmp/RunFlowTrigger.txt`: line 1 = output directory, line 2 = scenario (empty = room walk). The next Play Mode start runs it and deletes the file.
+        var trigger = Path.Combine(Path.GetDirectoryName(Application.dataPath), ".utmp", "RunFlowTrigger.txt");
+        if (File.Exists(trigger))
+        {
+            var rows = File.ReadAllLines(trigger); File.Delete(trigger);
+            OutputOverride = rows.Length > 0 ? rows[0].Trim() : null; Scenario = rows.Length > 1 && rows[1].Trim().Length > 0 ? rows[1].Trim() : null;
+            Begin(); return;
+        }
+#endif
         if (Array.IndexOf(Environment.GetCommandLineArgs(), "-pn-run-flow-review") < 0) return;
         const string flag = "-pn-run-flow-scenario=";
         var named = Environment.GetCommandLineArgs().FirstOrDefault(x => x.StartsWith(flag, StringComparison.Ordinal));
@@ -99,7 +110,7 @@ public sealed class PNRunFlowPlayReview : MonoBehaviour
     }
     private IEnumerator Start()
     {
-        output = Environment.GetCommandLineArgs().FirstOrDefault(x => x.StartsWith("-pn-run-flow-output=", StringComparison.Ordinal))?.Substring("-pn-run-flow-output=".Length);
+        output = OutputOverride ?? Environment.GetCommandLineArgs().FirstOrDefault(x => x.StartsWith("-pn-run-flow-output=", StringComparison.Ordinal))?.Substring("-pn-run-flow-output=".Length);
         // A review never touches the real saved run: it writes to its own folder, removed at the end.
         saveFolder = Path.Combine(Application.temporaryCachePath, "RunFlowSave_" + Guid.NewGuid().ToString("N"));
         saveStore = new PNRunSaveStore(saveFolder); PNRunSaveService.Use(saveStore);
@@ -117,6 +128,7 @@ public sealed class PNRunFlowPlayReview : MonoBehaviour
         if (!failed && Scenario == "defeat") yield return Defeat();
         else if (!failed && Scenario == "victory") yield return Victory();
         else if (!failed && Scenario == "shadow") yield return Shadows();
+        else if (!failed && Scenario == "terrain") yield return Terrain();
         else if (!failed && (Scenario == "gamepad" || Scenario == "touch")) yield return Devices(Scenario == "gamepad");
         else if (!failed && Scenario == "save") yield return Saving();
         else if (!failed && Scenario == "retire") yield return Retiring();
@@ -435,11 +447,11 @@ public sealed class PNRunFlowPlayReview : MonoBehaviour
         yield return LeaveByButton();
     }
 
-    // The ground shadow and the invisible walls (G10a follow-up): the player's shadow stays under it away from the spawn cell, every enemy of the first wave has one, and the room's solid cells are not drawn.
+    // The ground shadow and the room border (G10a follow-up, G12): the room is edged by barriers of the void, not by drawn walls; the player's shadow stays under it away from the spawn cell and every enemy of the first wave has one.
     private IEnumerator Shadows()
     {
         var runs = Game.Runs; var room = runs.Room; var host = FindAnyObjectByType<PNGridWorldHost>();
-        Check(host != null && host.WallObjectCount > 0 && !host.ShowWalls && FindObjectsByType<MeshRenderer>().Count(r => r.gameObject.name.StartsWith("walls") && r.enabled) == 0, "the solid cells of the room have colliders but no picture (" + (host != null ? host.WallObjectCount : 0) + " wall objects)");
+        Check(host != null && host.WallObjectCount == 0 && host.BarrierObjectCount > 0 && !host.ShowWalls, "the room has no solid cell but a ring of void: barriers on the void layer instead (" + (host != null ? host.BarrierObjectCount : 0) + " barrier objects, " + (host != null ? host.WallObjectCount : 0) + " wall objects)");
         Check(FindObjectsByType<MeshRenderer>().Where(r => r.gameObject.name.StartsWith("chunk")).All(r => r.sortingOrder < 0), "the floor chunks sort under every sprite, so a character inside a large chunk is not painted over");
         var player = Player; var shadow = player.GetComponentInChildren<PNGroundShadow>(true);
         Check(shadow != null && shadow.Visible, "the player has a ground shadow at its spawn cell");
@@ -455,6 +467,59 @@ public sealed class PNRunFlowPlayReview : MonoBehaviour
         Check(enemies.Length > 0 && enemies.All(e => { var s = e.GetComponentInChildren<PNGroundShadow>(true); return s != null && s.Visible; }), "every enemy of the wave has a ground shadow (" + enemies.Length + " enemies)");
         yield return Shot("shadows");
         Kill(room);
+    }
+
+    // Terrains and locomotions (G12): the room's edge is a ring of void with barriers. A walker pushed at the edge stays on the floor; the same body with the air locomotion pushed crosses it, and when the push ends over the void the
+    // fall rule puts it back on the floor without damage. A walker gets no locomotion change from anything but a push.
+    private IEnumerator Terrain()
+    {
+        var player = Player; var body = player.GetComponent<Rigidbody>(); var traversal = player.GetComponent<PNTraversal>();
+        var controller = PNGridWorldController.Find(player.GetComponent<EveEntityIdentity>().World);
+        Check(traversal != null && controller != null && controller.Host != null, "the player has a traversal and its world is a grid world");
+        if (failed) yield break;
+        var host = controller.Host; float cell = controller.Data.CellSize, edge = PNRoomMaps.Last * cell, middle = (PNRoomMaps.Inset + PNRoomMaps.Last) * .5f * cell;
+        var stat = player.GetComponent<PNStat>(); double health = stat.GetCurrent(PNContentIds.Health);
+        Check(traversal.Effective == PNTerrainIds.Ground && traversal.Own == PNTerrainIds.Ground && host.BarrierObjectCount > 0 && host.BarrierLayers.ContainsKey(PNTerrainIds.Void), "a player walks (ground) and the world has barrier objects on the void layer (" + host.BarrierObjectCount + ")");
+        int voidLayer = host.BarrierLayers[PNTerrainIds.Void];
+        Check((body.excludeLayers.value & (1 << voidLayer)) == 0, "a walker does not ignore the barrier layer of the void");
+        yield return TeleportNearEdge(player, body, edge - 1.5f, middle);
+        yield return PushEast(player, body, edge, middle, 1.4f);
+        Check(player.transform.position.x > edge - 1.5f + .5f && player.transform.position.x < edge && traversal.Falls == 0, "a walker driven at the edge reaches it and stays on the floor (x=" + player.transform.position.x.ToString("0.00") + ", edge " + edge + ")");
+        yield return Shot("terrain_walker");
+        int handle = traversal.Push(PNTerrainIds.Air);
+        Check(traversal.Effective == PNTerrainIds.Air && traversal.Own == PNTerrainIds.Ground && (body.excludeLayers.value & (1 << voidLayer)) != 0, "pushing air makes the player fly and ignore the void barrier; its own locomotion stays ground");
+        yield return TeleportNearEdge(player, body, edge - 1.5f, middle);
+        yield return PushEast(player, body, edge, middle, 1.4f);
+        float crossed = player.transform.position.x;
+        Check(crossed > edge + .3f && traversal.Falls == 0 && traversal.CanStandOn(PNTerrainIds.Void), "the same push as a flyer crosses the edge over the void without falling (x=" + crossed.ToString("0.00") + ")");
+        yield return Shot("terrain_air");
+        body.linearVelocity = Vector3.zero;
+        traversal.Pop(handle);
+        yield return Until("the fall rule puts the body back", () => traversal.Falls > 0, 3);
+        yield return Seconds(.3f);
+        Check(traversal.Effective == PNTerrainIds.Ground && player.transform.position.x < edge && traversal.Falls == 1, "when the push ends over the void the body is put back on the floor (x=" + player.transform.position.x.ToString("0.00") + ", falls " + traversal.Falls + ")");
+        Check(Math.Abs(stat.GetCurrent(PNContentIds.Health) - health) < .001, "and the fall costs no health");
+        Check((body.excludeLayers.value & (1 << voidLayer)) == 0, "the barrier is solid again once the push is off");
+        int a = traversal.Push(PNTerrainIds.Air), b = traversal.Push(PNTerrainIds.Air);
+        Check(traversal.PushCount == 2 && traversal.Pop(a) && traversal.Effective == PNTerrainIds.Air && traversal.Pop(b) && traversal.Effective == PNTerrainIds.Ground && !traversal.Pop(b), "pushes stack and each pops by its own handle");
+    }
+
+    private IEnumerator TeleportNearEdge(EveEntityLoader player, Rigidbody body, float x, float z)
+    {
+        var target = new Vector3(x, player.transform.position.y, z);
+        var move = player.GetComponent<PNMove>();
+        if (move != null) move.RelocateToPoint(new Vector2(x, z)); else { player.transform.position = target; body.position = target; }
+        body.linearVelocity = Vector3.zero;
+        yield return Seconds(.3f);
+    }
+
+    // Drives the body east with the engine's own move-to-point motion (a velocity the physics honours), 3 m past the edge, then waits for it to end.
+    private IEnumerator PushEast(EveEntityLoader player, Rigidbody body, float edge, float z, float seconds)
+    {
+        var move = player.GetComponent<PNMove>(); float start = player.transform.position.x;
+        move.MoveToXZ(new Vector2(edge + 3f, z), 6f, seconds);
+        yield return Seconds(seconds + .2f);
+        lines.Add("info push east: x " + start.ToString("0.00") + " -> " + player.transform.position.x.ToString("0.00"));
     }
 
     private IEnumerator Victory()

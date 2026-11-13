@@ -152,3 +152,5 @@ Evidence and limits: .utmp/Step6/Move/Report.md, Execution.md, NativeOut, IPC*, 
 Standalone substitutes do not establish physics. Clone-only PNMoveReplicationEditorChecks manually steps an EMPTY default
 physics scene and MUST NOT run on an authored scene. Play review uses a disposable test scene. Loopback Player fixture
 uses known pre-created actors and tests the actual Move adapters, not production actor admission or two-machine gameplay.
+
+G12b: `MoveMirror.Locomotion` (EveId string, "" = none; NetworkVersion 19) carries the host's effective locomotion to the owning client. `PNTraversal.Push` is gameplay-authority only; a client owner applies it with `MirrorLocomotion`; observers get poses only and need no locomotion.

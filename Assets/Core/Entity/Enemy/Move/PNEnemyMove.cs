@@ -14,6 +14,8 @@ public class PNEnemyMove : PNMove
 #if UNITY_5_3_OR_NEWER
     [SerializeField] private PNNavigationSettings navigation = new PNNavigationSettings();
     private Pathfinding.Seeker seeker;
+    private IPNLocomotionSource locomotion;
+    private int seenLocomotion;
     private Guid generation;
     private long nextRequest;
     private PNEnemyNavigationRequest current;
@@ -42,6 +44,7 @@ public class PNEnemyMove : PNMove
     {
         navigation.Validate(); generation = Guid.NewGuid(); base.Load(context); base.CanJump = false;
         seeker = GetComponent<Pathfinding.Seeker>() ?? gameObject.AddComponent<Pathfinding.Seeker>();
+        locomotion = GetComponent<IPNLocomotionSource>(); seenLocomotion = locomotion != null ? locomotion.LocomotionRevision : 0;
         if (GetComponent<Pathfinding.FunnelModifier>() == null) gameObject.AddComponent<Pathfinding.FunnelModifier>();
         PoseRelocated += Relocated;
     }
@@ -166,6 +169,8 @@ public class PNEnemyMove : PNMove
         // A grid world whose cells changed (something placed or broken): look again when the change is on the route or near the body (a removed wall can give a shorter way).
         if (navigationWorld.Source != null && navigationWorld.ChangedNear(ref seenChange, Body.position, request.Route, request.Corner, navigationWorld.Radius + navigation.CornerTolerance + .5f, ChangeReach))
             request.NeedsPath = true;
+        // G12b: the body now moves another way (a pushed locomotion began or ended): the route it follows was found for the old one.
+        if (locomotion != null && locomotion.LocomotionRevision != seenLocomotion) { seenLocomotion = locomotion.LocomotionRevision; request.NeedsPath = true; }
         if (request.NeedsPath && !workerPending && request.RepathElapsed >= navigation.RepathInterval)
         {
             workerPending = request.Pending = true; request.SubmittedGoal = request.Goal; request.RouteGeneration = Guid.NewGuid();
@@ -178,7 +183,7 @@ public class PNEnemyMove : PNMove
                 request.Route = route; request.Corner = 1;
                 request.NeedsPath = (request.Goal - request.SubmittedGoal).sqrMagnitude >= navigation.GoalThreshold * navigation.GoalThreshold;
                 request.Status = PNEnemyNavigationStatus.Following;
-            });
+            }, lease.MaskOf(this));
             if (started) { request.PathAttempts++; request.RepathElapsed = 0; request.NeedsPath = false; } else workerPending = request.Pending = false;
         }
         if (request.IsTerminal) return;
@@ -248,7 +253,7 @@ public class PNEnemyMove : PNMove
         var bounds = capsule.bounds; float radius = Mathf.Min(bounds.extents.x, bounds.extents.z) * .95f;
         float half = Mathf.Max(0, bounds.extents.y - radius - navigation.CollisionSkin);
         int count = PNAgentPhysicsQuery.CapsuleCast(gameObject.scene.GetPhysicsScene(), bounds.center + Vector3.up * half, bounds.center - Vector3.up * half,
-            radius, new Vector3(direction.x, 0, direction.y), ref obstacles, distance, ~(1 << 13));
+            radius, new Vector3(direction.x, 0, direction.y), ref obstacles, distance, ~((1 << 13) | Body.excludeLayers.value));   // G12b: the terrain barriers this body's locomotion stands on are not obstacles to it
         if (count == obstacles.Length) return true;
         for (int i = 0; i < count; i++)
             if (obstacles[i].collider != null && !obstacles[i].collider.transform.IsChildOf(transform) && obstacles[i].collider.GetComponentInParent<PNStat>() == null &&

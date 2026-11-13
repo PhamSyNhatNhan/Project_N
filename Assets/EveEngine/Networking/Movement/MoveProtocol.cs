@@ -69,7 +69,9 @@ namespace EveEngine.Movement
         public float Scale { get; }
         public float RawScale { get; }
         public IReadOnlyList<string> MotionPermissions { get; }
-        public MoveMirror(MoveIdentity id,uint revision,long lifeRevision,bool dead,MoveRights rights,float moveSpeed,float jumpSpeed,float scale,float rawScale,IEnumerable<string> motionPermissions=null)
+        // How the body moves (a game-defined namespaced id such as a locomotion), "" when the game declares none. The host owns it; an owner machine applies it to predict collisions the way the host does.
+        public string Locomotion { get; }
+        public MoveMirror(MoveIdentity id,uint revision,long lifeRevision,bool dead,MoveRights rights,float moveSpeed,float jumpSpeed,float scale,float rawScale,IEnumerable<string> motionPermissions=null,string locomotion=null)
         {
             id.Validate();
             if(revision==0 || lifeRevision<0 || (rights & ~MoveRights.All)!=0 || !MoveOrder.Finite(moveSpeed) || moveSpeed<0 || moveSpeed>100000 ||
@@ -79,12 +81,15 @@ namespace EveEngine.Movement
             if(permissions.Length>64 || permissions.Any(p=>p==null || System.Text.Encoding.UTF8.GetByteCount(p)>128 || !EveId.TryParse(p,out _)) || permissions.Distinct().Count()!=permissions.Length)
                 throw new ArgumentException("Motion permissions.");
             Array.Sort(permissions,StringComparer.Ordinal);
+            locomotion=locomotion ?? "";
+            if(locomotion.Length>0 && (System.Text.Encoding.UTF8.GetByteCount(locomotion)>128 || !EveId.TryParse(locomotion,out _)))throw new ArgumentException("Move locomotion.");
+            Locomotion=locomotion;
             Identity=id; Revision=revision; LifeRevision=lifeRevision; Dead=dead; Rights=rights; MoveSpeed=moveSpeed; JumpSpeed=jumpSpeed; Scale=scale; RawScale=rawScale;
             MotionPermissions=Array.AsReadOnly(permissions);
         }
         public bool AllowsMotion(string permission) => !Dead && MotionPermissions.Contains(permission);
         public bool SameValues(MoveMirror other) => other!=null && Identity.Equals(other.Identity) && LifeRevision==other.LifeRevision && Dead==other.Dead && Rights==other.Rights &&
-            MoveSpeed==other.MoveSpeed && JumpSpeed==other.JumpSpeed && Scale==other.Scale && RawScale==other.RawScale && MotionPermissions.SequenceEqual(other.MotionPermissions);
+            MoveSpeed==other.MoveSpeed && JumpSpeed==other.JumpSpeed && Scale==other.Scale && RawScale==other.RawScale && MotionPermissions.SequenceEqual(other.MotionPermissions) && Locomotion==other.Locomotion;
     }
     public readonly struct MoveRecovery
     {

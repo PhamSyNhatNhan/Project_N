@@ -2,13 +2,16 @@ using System;
 using EveEngine;
 
 // EN: A ground type a grid world can be painted with (Docs/SandboxPlan.md, step G1). Registered by a content module (registry `grounds`); a world keeps a palette of the ids it uses and stores the palette index per ground cell,
-//     so a mod can add ground types without renumbering anything. The colour is the placeholder look until ground art exists; whether it can be walked on is a fact of the ground, not of the mesh.
+//     so a mod can add ground types without renumbering anything. The colour is the placeholder look until ground art exists; which terrain it is (so whether it can be walked on) is a fact of the ground, not of the mesh.
 // VI: Loại đất có thể sơn lên world lưới (G1). Đăng ký ở registry `grounds`; world giữ bảng các id nó dùng và lưu chỉ số bảng trên mỗi ô đất. Màu là hình tạm tới khi có art.
 public sealed class PNGroundDefinition : EveIIdentified
 {
     public const int MaxText = 128, MaxDescription = 256;
     public EveId Id { get; }
-    public bool Walkable { get; }
+    // The terrain this ground makes (registry `terrains`): what a body's locomotion has to stand on. Whether the ground can be walked on is a fact of its terrain.
+    public EveId Terrain { get; }
+    // True when the default locomotion (walking) can stand on it: the terrain is land. Navigation, placement and the map tool use this.
+    public bool Walkable => Terrain == PNTerrainIds.Land;
     public byte Red { get; }
     public byte Green { get; }
     public byte Blue { get; }
@@ -16,11 +19,12 @@ public sealed class PNGroundDefinition : EveIIdentified
     // False for a ground that is nothing: no floor is drawn over it (the colour is only what a tool shows for it).
     public bool Visible { get; }
 
-    public PNGroundDefinition(EveId id, bool walkable, byte red, byte green, byte blue, string description = "", bool visible = true)
+    public PNGroundDefinition(EveId id, EveId terrain, byte red, byte green, byte blue, string description = "", bool visible = true)
     {
         if (!id.IsValid || id.ToString().Length > MaxText) throw new ArgumentException("A ground type needs a valid id of at most " + MaxText + " characters.", nameof(id));
         if (description != null && description.Length > MaxDescription) throw new ArgumentException("A ground description is at most " + MaxDescription + " characters.", nameof(description));
-        Id = id; Walkable = walkable; Red = red; Green = green; Blue = blue; Description = description ?? ""; Visible = visible;
+        if (!terrain.IsValid || terrain.ToString().Length > MaxText) throw new ArgumentException("A ground type needs a valid terrain id of at most " + MaxText + " characters.", nameof(terrain));
+        Id = id; Terrain = terrain; Red = red; Green = green; Blue = blue; Description = description ?? ""; Visible = visible;
     }
 }
 

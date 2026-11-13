@@ -77,7 +77,8 @@ public sealed class PNMoveHostWorld : IDisposable
         float scale=PNWorldGameplay.CanExecute(move)?(clock!=null && clock.isActiveAndEnabled?clock.Scale:1):0;
         float raw=clock!=null && clock.isActiveAndEnabled?clock.RawScale:1;
         return new MoveMirror(move.NetworkIdentity(session.SessionId),revision,life.LifeRevision,life.Dead,rights,
-            (float)stats.Evaluate(EveBuiltInContentModule.MoveSpeed),(float)stats.Evaluate(EveBuiltInContentModule.JumpSpeed),scale,raw,permissions);
+            (float)stats.Evaluate(EveBuiltInContentModule.MoveSpeed),(float)stats.Evaluate(EveBuiltInContentModule.JumpSpeed),scale,raw,permissions,
+            move.GetComponent<IPNLocomotionSource>()?.Locomotion?.Id.ToString());
     }
     public void Untrack(MoveIdentity id)
     {

@@ -80,7 +80,8 @@ public sealed class PNAgentPointQuery : IDisposable
             float angle = Mathf.Atan2(settings.PreferredDirection.y, settings.PreferredDirection.x) + index * 2.399963f;
             float radius = Mathf.Lerp(settings.MinimumRadius, settings.MaximumRadius, settings.Candidates == 1 ? .5f : (float)index / (settings.Candidates - 1));
             var raw = settings.Center + new Vector3(Mathf.Cos(angle), 0, Mathf.Sin(angle)) * radius;
-            if (!lease.TryProject(raw, settings.ProjectionTolerance, out var point)) { candidate++; Diagnostic = "OutsideProfile"; continue; }
+            var mask = lease.MaskOf(actor);
+            if (!lease.TryProject(raw, settings.ProjectionTolerance, out var point, mask)) { candidate++; Diagnostic = "OutsideProfile"; continue; }
             float projectedRadius = PNAgentGeometry.CenterDistance(settings.Center, point);
             if (projectedRadius < settings.MinimumRadius - .001f || projectedRadius > settings.MaximumRadius + .001f) { candidate++; continue; }
             var body = actor.GetComponent<CapsuleCollider>();
@@ -116,7 +117,7 @@ public sealed class PNAgentPointQuery : IDisposable
                 if (!agent.IsCurrent || !lease.IsCurrent) { Dispose(); return; }
                 if (valid) { Point = point; Status = PNPointQueryStatus.Success; Diagnostic = null; }
                 else Diagnostic = "NoFullPath";
-            });
+            }, lease.MaskOf(actor));
             if (!started) { pending = false; return; }
             probeIndex++; return;
         }

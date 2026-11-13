@@ -109,7 +109,7 @@ public sealed class PNWorldNavigation : IDisposable
             if (graph.width != source.Width || graph.depth != source.Depth) throw new InvalidOperationException("The grid graph came out " + graph.width + "x" + graph.depth + " for a " + source.Width + "x" + source.Depth + " source (size limit?).");
             Astar.AddWorkItem(ctx =>
             {
-                for (int z = 0; z < source.Depth; z++) for (int x = 0; x < source.Width; x++) if (!source.Walkable(x, z)) graph.GetNode(x, z).Walkable = false;
+                for (int z = 0; z < source.Depth; z++) for (int x = 0; x < source.Width; x++) { var node = graph.GetNode(x, z); node.Tag = (uint)source.Tag(x, z); if (!source.Passable(x, z)) node.Walkable = false; }
                 graph.RecalculateAllConnections();
             });
             Astar.FlushWorkItems();
@@ -221,7 +221,7 @@ public sealed class PNWorldNavigationLease : IDisposable
             foreach (var grown in copy)
             {
                 for (int z = grown.Z0; z <= grown.Z1; z++) for (int x = grown.X0; x <= grown.X1; x++)
-                { var node = graph.GetNode(x, z); bool walkable = source.Walkable(x, z); node.WalkableErosion = walkable; node.Walkable = walkable; }
+                { var node = graph.GetNode(x, z); bool walkable = source.Passable(x, z); node.Tag = (uint)source.Tag(x, z); node.WalkableErosion = walkable; node.Walkable = walkable; }
                 graph.RecalculateConnectionsInRegion(new Pathfinding.IntRect(grown.X0, grown.Z0, grown.X1, grown.Z1).Expand(1));
             }
         });
@@ -265,14 +265,14 @@ public sealed class PNWorldNavigationLease : IDisposable
         return true;
     }
     // Pull the raw funnel path off the cell corners: keep every inner waypoint, and every segment, at least a body radius plus the follower's corner tolerance away from blocked cells.
-    private Vector3[] Refined(Path path, PNEnemyNavigationRequest movement)
+    private Vector3[] Refined(Path path, PNEnemyNavigationRequest movement, uint? mask)
     {
         var raw = path.vectorPath;
         if (Source == null || raw.Count < 2) return raw.ToArray();   // a repath from the body to a goal in sight has only two points, and its one segment can still graze a corner
         float tolerance = movement?.Owner != null ? movement.Owner.CornerToleranceValue : .12f;
         var points = new List<PNGridPoint>(raw.Count);
         foreach (var v in raw) points.Add(new PNGridPoint(v.x, v.z));
-        var refined = PNGridPathRefiner.Refine(points, Source, Radius, Radius + tolerance + .02f);
+        var refined = PNGridPathRefiner.Refine(points, mask.HasValue ? new PNNavigationView(Source, mask.Value) : Source, Radius, Radius + tolerance + .02f);
         var result = new Vector3[refined.Count];
         for (int i = 0; i < result.Length; i++)
             result[i] = i == 0 ? raw[0] : i == result.Length - 1 ? raw[raw.Count - 1] : new Vector3(refined[i].X, raw[0].y, refined[i].Z);
@@ -280,19 +280,22 @@ public sealed class PNWorldNavigationLease : IDisposable
     }
     internal void Publish() => published = true;
     internal void Retire() { retiring = true; published = false; }
-    public bool TryProject(Vector3 point, float tolerance, out Vector3 projected)
+    // The tag mask of the locomotion a body moves with (its PNTraversal, G12b); null when the body has none or the lease is not a grid (a baked mesh has no tags), which means the default walker.
+    public uint? MaskOf(Component body) => Source != null && body != null && body.GetComponent<IPNLocomotionSource>() is IPNLocomotionSource source && source.Locomotion != null ? Source.MaskOf(source.Locomotion) : (uint?)null;
+    public bool TryProject(Vector3 point, float tolerance, out Vector3 projected, uint? mask = null)
     {
         PNNavigationSettings.Position(point); PNAgentGeometry.Nonnegative(tolerance, nameof(tolerance)); projected = default;
         if (!IsCurrent || !World.CanExecute) return false;
         var constraint = NNConstraint.Walkable; constraint.graphMask = GraphMask.FromGraph(Graphs[0]);
+        if (Source != null) constraint.tags = (int)(mask ?? Source.GroundMask);
         var nearest = owner.Astar.GetNearest(point, constraint);
         if (nearest.node == null || nearest.node.GraphIndex != Graphs[0].graphIndex || Vector3.Distance(nearest.position, point) > tolerance) return false;
         projected = nearest.position; return true;
     }
-    internal bool StartProbe(EveEntityLoadContext actor, Vector3 start, Vector3 goal, float tolerance, Action<bool> completed)
+    internal bool StartProbe(EveEntityLoadContext actor, Vector3 start, Vector3 goal, float tolerance, Action<bool> completed, uint? mask = null)
     {
         if (!IsCurrent || !World.CanExecute || probeActors?.Contains(actor) == true || !owner.TakeProbeBudget(actor)) return false;
-        if (!TryProject(start, tolerance, out _) || !TryProject(goal, tolerance, out _)) { completed(false); return true; }
+        if (!TryProject(start, tolerance, out _, mask) || !TryProject(goal, tolerance, out _, mask)) { completed(false); return true; }
         (probeActors ??= new HashSet<EveEntityLoadContext>()).Add(actor);
         var request = ABPath.Construct(start, goal, path =>
         {
@@ -300,13 +303,14 @@ public sealed class PNWorldNavigationLease : IDisposable
                 path.path.All(n => n.GraphIndex == Graphs[0].graphIndex) && ReachesEndpoints(path, start, goal, tolerance)); }
             finally { Pending--; probeActors.Remove(actor); }
         });
-        request.nnConstraint.graphMask = GraphMask.FromGraph(Graphs[0]); Pending++;
+        request.nnConstraint.graphMask = GraphMask.FromGraph(Graphs[0]); if (Source != null) request.enabledTags = (int)(mask ?? Source.GroundMask); Pending++;
         try { AstarPath.StartPath(request); return true; } catch { Pending--; probeActors.Remove(actor); throw; }
     }
-    internal bool Start(PNEnemyNavigationRequest movement, Seeker seeker, Vector3 start, Vector3 goal, float tolerance, Action<Vector3[], string> completed)
+    internal bool Start(PNEnemyNavigationRequest movement, Seeker seeker, Vector3 start, Vector3 goal, float tolerance, Action<Vector3[], string> completed, uint? mask = null)
     {
         if (!IsCurrent || !World.CanExecute || !owner.TakeStartBudget(movement)) return false;
         var constraint = NNConstraint.Walkable; constraint.graphMask = GraphMask.FromGraph(Graphs[0]);
+        if (Source != null) { constraint.tags = (int)(mask ?? Source.GroundMask); seeker.traversableTags = constraint.tags; }
         var a = owner.Astar.GetNearest(start, constraint); var b = owner.Astar.GetNearest(goal, constraint);
         if (a.node == null || b.node == null || Vector3.Distance(a.position, start) > tolerance || Vector3.Distance(b.position, goal) > tolerance)
         { completed(null, "Start or goal is outside the navigation profile."); return true; }
@@ -327,7 +331,7 @@ public sealed class PNWorldNavigationLease : IDisposable
                         !ReachesEndpoints(path, start, goal, tolerance))
                     { completed(null, string.IsNullOrEmpty(path.errorLog) ? "No complete path reaching the requested endpoints in this world." : path.errorLog); return; }
                     // Copy before the Seeker releases its pooled Path, never retain vectorPath.
-                    completed(Refined(path, movement), null);
+                    completed(Refined(path, movement, mask), null);
                 }
                 finally { Pending--; }
             };

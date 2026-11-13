@@ -55,6 +55,7 @@ public sealed class PNSpawnPlanner
     private readonly IPNNavigationSource nav;
     private bool[] reach = new bool[0];
     private int windowX0, windowZ0, windowW, windowD;
+    private uint mask;
     private readonly Stack<int> stack = new Stack<int>();
 
     public PNSpawnPlanner(PNGridWorldData data, IPNNavigationSource nav)
@@ -78,8 +79,10 @@ public sealed class PNSpawnPlanner
     }
 
     // Marks the cells a body can reach from the player's cell inside a window around it (4-neighbour flood fill). Call once per player per round.
-    public void Prepare(float playerX, float playerZ, float radius)
+    // `mask` is the tag mask of the locomotion of the body to spawn (G12b: a flyer reaches cells a walker cannot); 0 means the default walker.
+    public void Prepare(float playerX, float playerZ, float radius, uint mask = 0)
     {
+        this.mask = mask == 0 ? nav.GroundMask : mask;
         int cx = (int)Math.Floor(playerX / data.CellSize), cz = (int)Math.Floor(playerZ / data.CellSize), r = (int)Math.Ceiling(radius / data.CellSize) + 2;
         windowX0 = Math.Max(0, cx - r); windowZ0 = Math.Max(0, cz - r);
         windowW = Math.Min(data.Width - 1, cx + r) - windowX0 + 1; windowD = Math.Min(data.Depth - 1, cz + r) - windowZ0 + 1;
@@ -90,7 +93,7 @@ public sealed class PNSpawnPlanner
         int sx = -1, sz = -1;
         for (int d = 0; d <= 2 && sx < 0; d++)
             for (int dz = -d; dz <= d && sx < 0; dz++) for (int dx = -d; dx <= d; dx++)
-                if (Math.Max(Math.Abs(dx), Math.Abs(dz)) == d && Inside(cx + dx, cz + dz) && nav.Walkable(cx + dx, cz + dz)) { sx = cx + dx; sz = cz + dz; break; }
+                if (Math.Max(Math.Abs(dx), Math.Abs(dz)) == d && Inside(cx + dx, cz + dz) && nav.WalkableFor(cx + dx, cz + dz, this.mask)) { sx = cx + dx; sz = cz + dz; break; }
         if (sx < 0) return;
         stack.Clear(); stack.Push(sz * data.Width + sx); reach[(sz - windowZ0) * windowW + (sx - windowX0)] = true;
         while (stack.Count > 0)
@@ -104,7 +107,7 @@ public sealed class PNSpawnPlanner
     {
         if (!Inside(x, z)) return;
         int i = (z - windowZ0) * windowW + (x - windowX0);
-        if (reach[i] || !nav.Walkable(x, z)) return;
+        if (reach[i] || !nav.WalkableFor(x, z, mask)) return;
         reach[i] = true; stack.Push(z * data.Width + x);
     }
     public bool Reachable(int x, int z) => Inside(x, z) && reach[(z - windowZ0) * windowW + (x - windowX0)];
