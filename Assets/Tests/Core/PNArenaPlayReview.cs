@@ -19,10 +19,10 @@ public sealed class PNArenaPlayReview : MonoBehaviour
         var trigger = Path.Combine(Path.GetDirectoryName(Application.dataPath), ".utmp", "ArenaTrigger.txt");
         if (!File.Exists(trigger)) return;
         var rows = File.ReadAllLines(trigger); File.Delete(trigger);
-        var host = new GameObject("PNArenaPlayReview"); DontDestroyOnLoad(host); host.AddComponent<PNArenaPlayReview>().output = rows.Length > 0 ? rows[0].Trim() : null;
+        var host = new GameObject("PNArenaPlayReview"); DontDestroyOnLoad(host); var review = host.AddComponent<PNArenaPlayReview>(); review.output = rows.Length > 0 ? rows[0].Trim() : null; review.hold = rows.Length > 1 && rows[1].Trim() == "hold";
     }
 #endif
-    public string output;
+    public string output; public bool hold;   // line 2 of the trigger "hold": leave Play Mode running after the review (for measuring by hand)
     private readonly List<string> lines = new List<string>(); private bool failed;
     private void Check(bool value, string what) { if (!value) failed = true; lines.Add((value ? "PASS " : "FAIL ") + what); Debug.Log("Arena " + (value ? "PASS " : "FAIL ") + what); }
 
@@ -61,7 +61,7 @@ public sealed class PNArenaPlayReview : MonoBehaviour
         File.WriteAllText(Path.Combine(output, "arena.txt"), (failed ? "FAIL\n" : "PASS\n") + string.Join("\n", lines));
         File.WriteAllText(Path.Combine(Path.GetDirectoryName(Application.dataPath), ".utmp", "ArenaDone.txt"), failed ? "FAIL" : "PASS");
 #if UNITY_EDITOR
-        UnityEditor.EditorApplication.isPlaying = false;
+        if (!hold) UnityEditor.EditorApplication.isPlaying = false;
 #endif
     }
 }

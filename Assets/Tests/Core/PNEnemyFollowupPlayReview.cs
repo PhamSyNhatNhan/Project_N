@@ -29,10 +29,9 @@ public static class PNEnemyFollowupContent
         hub.Instances().Register(enemyRole.Derive(EveId.Parse("review:buffed_enemy"), roleData, null));
         var plainData = (JObject)enemyRole.Payload; plainData["prefab"] = "review:body";
         hub.Instances().Register(enemyRole.Derive(EveId.Parse("review:plain_enemy"), plainData, null));
-        string fixtureRoot = Environment.GetCommandLineArgs().FirstOrDefault(value => value.StartsWith("--pn-followup-root="))?.Substring("--pn-followup-root=".Length);
-        if (fixtureRoot != null && File.Exists(fixtureRoot + "/Disconnected/world.bytes"))
-            hub.GetOrCreate<PNWorldDefinition>().Register(new PNWorldDefinition(EveId.Parse("review:disconnected"), PNNavigationCache.Hash("disconnected-followup"),
-                typeof(PNEnemyDisconnectedProvider), () => new PNEnemyDisconnectedProvider(fixtureRoot)));
+        // G14: the disconnected world is built from cells (two floors with a void gap between them), no longer from a baked Recast cache.
+        hub.GetOrCreate<PNWorldDefinition>().Register(new PNWorldDefinition(EveId.Parse("review:disconnected"), PNWorldDefinition.HashContent("review:disconnected/grid/v1"),
+            typeof(PNEnemyDisconnectedProvider), () => new PNEnemyDisconnectedProvider()));
         var selected = EveId.Parse("review:trajectory_override");
         hub.Actions().Register(new PNSkillActionDefinition(selected, typeof(PNEnemyFollowupTrajectory),
             (data, registry) => PNAgentTrajectoryAction.Validate(data, registry, false), PNSkillContextRequirements.Direction));
@@ -64,12 +63,8 @@ public static class PNEnemyFollowupContent
 
 public sealed class PNEnemyDisconnectedProvider : IPNWorldProvider
 {
-    private readonly string rootPath;
-    public PNEnemyDisconnectedProvider(string path) { rootPath = path; }
     public IEnumerator Load(PNWorldBuildContext build)
     {
-        var cache = ScriptableObject.CreateInstance<PNNavigationCache>(); build.Own(() => UnityEngine.Object.Destroy(cache));
-        cache.SetBakedData(File.ReadAllBytes(rootPath + "/Disconnected/world.bytes"), File.ReadAllText(rootPath + "/Disconnected/world.hash"), "ground-small", .25f, 1.5f);
         var root = new GameObject("Disconnected fixture"); SceneManager.MoveGameObjectToScene(root, build.PhysicsScene);
         build.Own(() => { if (root != null) UnityEngine.Object.Destroy(root); });
         foreach (float x in new[] { -3f, 3f })
@@ -77,8 +72,16 @@ public sealed class PNEnemyDisconnectedProvider : IPNWorldProvider
             var floor = GameObject.CreatePrimitive(PrimitiveType.Cube); floor.transform.SetParent(root.transform);
             floor.transform.position = new Vector3(x, -.5f, 0); floor.transform.localScale = new Vector3(4, 1, 12); floor.layer = 13;
         }
-        root.AddComponent<PNWorldNavigationSource>().Configure(cache, cache.Fingerprint);
+        build.SetNavigation(Navigation());
         build.AddSlot("main", build.PhysicsScene, new[] { root }); yield break;
+    }
+    // Two floors, x -5..-1 and 1..5 metres, z -6..6, with void between them: 64 x 64 cells of 0.25 m, cell (0,0) at (-8,-8). Nothing connects them.
+    private static PNGridNavigationSource Navigation()
+    {
+        var data = new PNGridWorldData(new PNGridWorldDescriptor(64, 64, .25f, "review:disconnected_map", 1), new[] { "project_n:room_floor" });
+        data.FillSolid(new PNGridRegion(0, 0, 63, 63), true);
+        data.FillSolid(new PNGridRegion(12, 8, 27, 55), false); data.FillSolid(new PNGridRegion(36, 8, 51, 55), false);
+        return new PNGridNavigationSource(data, new[] { true }, new PNNavigationProfile("ground-small", .25f, 1.5f), -8f, -8f);
     }
 }
 

@@ -25,7 +25,8 @@ public static class PNProjectileGroundEditorChecks
         {
             var scene = EditorSceneManager.OpenScene(path, OpenSceneMode.Single);
             var floors = scene.GetRootGameObjects().SelectMany(r => r.GetComponentsInChildren<Transform>(true)).Where(t => t.name == "Eve 3D Ground").Select(t => t.gameObject).ToArray();
-            Check(floors.Length == 1 && floors[0].layer == ground && floors[0].GetComponent<Collider>() != null, "the floor collider of " + Path.GetFileNameWithoutExtension(path) + " is on the Ground layer");
+            // G14: Hall, Lobby and ErMode are shell scenes now (their floor is grid world data, no scene collider), so a scene without the object passes; one that still has it must keep it on Ground.
+            Check(floors.Length <= 1 && floors.All(f => f.layer == ground && f.GetComponent<Collider>() != null), "a floor collider of " + Path.GetFileNameWithoutExtension(path) + ", if the scene still has one, is on the Ground layer");
             Check(!scene.isDirty, "opening " + Path.GetFileNameWithoutExtension(path) + " leaves it clean");
         }
         // Eve's ground probe sees both the old Default floors and the Ground layer.

@@ -307,7 +307,10 @@ public sealed class PNVisualActor : MonoBehaviour
     private const float PaperPadding = 16f;
     private Drawable[] drawables; private Mesh mesh; private Vector3[] vertices; private Vector2[] uv0, uv1; private Vector4[] uvBounds; private Color32[] colors;
     private Color32[] tintColors; private MeshRenderer meshRenderer; private EveTimeScale clock; private PNCameraFacingTarget facing;
-    private float flash, fade = 1f; private bool dirty = true; private float feetY;
+    private float flash, fade = 1f; private bool dirty = true; private float feetY; private float bodyTop;
+    // Height of the drawn body's top above the feet in this object's local space (rest pose, fixed after Bind). The feet are the local origin, so TransformPoint(0, BodyTopLocal, 0) is the head on the puppet's
+    // own axis, tilted with its camera facing: the anchor of the bar over the head (PNUiRuntime), right at any view angle and whichever way the puppet faces.
+    public float BodyTopLocal => bodyTop;
     // Clone trial: projected caster triangles, restricted to major overlapping paper parts.
     private const int MaxPaperCasters=128;
     private readonly Vector4[] casterA=new Vector4[MaxPaperCasters],casterB=new Vector4[MaxPaperCasters],casterC=new Vector4[MaxPaperCasters],casterBounds=new Vector4[MaxPaperCasters],casterMeta=new Vector4[MaxPaperCasters];
@@ -470,6 +473,10 @@ public sealed class PNVisualActor : MonoBehaviour
     // extent of every vertex (x1.5 plus a margin, for parts that swing or orbit away from the rest pose). A humanoid keeps (at least) its old box; nothing here runs per frame.
     private void FitBounds(PNVisualRigDefinition def)
     {
+        // The real top of the drawn body at rest (local, above the feet = the mesh origin), without the paper gutter: what a bar over the head reads (BodyTopLocal). The culling box below is padded and is not it.
+        float gutter = def.PixelsPerMeter > 0f ? PaperPadding / def.PixelsPerMeter : 0f;
+        if (vertices.Length > 0) { float top = vertices[0].y; for (int i = 1; i < vertices.Length; i++) top = Mathf.Max(top, vertices[i].y); bodyTop = Mathf.Max(.05f, top - gutter); }
+        else bodyTop = Mathf.Max(.05f, CapsuleHeight);
         var box = mesh.bounds;
         if (def.DrawWidth > 0f && def.DrawHeight > 0f) box.Encapsulate(new Bounds(new Vector3(0f, def.DrawHeight * .5f - def.DrawBottom, 0f), new Vector3(def.DrawWidth, def.DrawHeight, .1f)));
         else if (vertices.Length > 0)

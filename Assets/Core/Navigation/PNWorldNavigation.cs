@@ -25,7 +25,7 @@ public sealed class PNWorldNavigation : IDisposable
     private PNWorldNavigation(EveSessionContext owner)
     {
         session = owner;
-        if (AstarPath.Version.ToString() != "5.3.3") throw new InvalidOperationException("Navigation caches require the installed A*5.3.3 backend.");
+        if (AstarPath.Version.ToString() != "5.3.3") throw new InvalidOperationException("Navigation requires the installed A*5.3.3 backend.");
         if (AstarPath.active != null) throw new InvalidOperationException("Another AstarPath already owns this process.");
         root = new GameObject("Project N Navigation"); root.SetActive(false); root.AddComponent<PNRoomResource>();
         try
@@ -45,47 +45,13 @@ public sealed class PNWorldNavigation : IDisposable
     }
     public static PNWorldNavigationLease Find(EveWorldContext world)
         => world != null && sessions.TryGetValue(world.Session, out var owner) && owner.worlds.TryGetValue(world, out var lease) && lease.IsCurrent ? lease : null;
+    // A world built from cell data declares its navigation in the build context (Docs/SandboxPlan.md G2); a world without a declaration has none. (G14: the baked Recast cache declared in a scene is gone.)
     public static void Prepare(PNWorldBuildContext build)
     {
-        var declarations = build.Slots.SelectMany(s => s.Roots).Where(x => x != null)
-            .SelectMany(x => x.GetComponentsInChildren<PNWorldNavigationSource>(true)).ToArray();
-        // A world built from cell data declares its navigation in the build context (Docs/SandboxPlan.md G2); a scene world keeps declaring a baked cache in the scene. Never both.
-        if (build.Navigation != null)
-        {
-            if (declarations.Length != 0) throw new InvalidOperationException("A world declares its navigation in the build context or in a scene, not both.");
-            if (build.World.Session.HasAuthority) ForSession(build.World.Session).LoadGrid(build.World, build.Navigation);
-            return;
-        }
-        if (declarations.Length == 0) return;
-        if (declarations.Length != 1) throw new InvalidOperationException("One navigation declaration per world is required.");
-        var source = declarations[0]; source.Validate();
-        if (build.World.Session.HasAuthority) ForSession(build.World.Session).Load(build.World, source.Cache, source.ExpectedFingerprint);
+        if (build.Navigation == null) return;
+        if (build.World.Session.HasAuthority) ForSession(build.World.Session).LoadGrid(build.World, build.Navigation);
     }
-    public PNWorldNavigationLease Load(EveWorldContext world, PNNavigationCache cache, string expectedFingerprint)
-    {
-        if (disposed || !session.IsActive || !ReferenceEquals(world?.Session, session) || world.State != EveWorldState.Loading || worlds.ContainsKey(world))
-            throw new InvalidOperationException("Load navigation once during world preparation.");
-        if (cache == null) throw new ArgumentNullException(nameof(cache)); cache.Validate();
-        if (expectedFingerprint != cache.Fingerprint) throw new InvalidOperationException("Navigation fingerprint differs from the world declaration.");
-        // The first release supports exactly one baked graph per profile/world.
-        if (GraphCount >= 32) throw new InvalidOperationException("A*5.3.3 GraphMask capacity exceeded (32 graphs).");
-        var lease = new PNWorldNavigationLease(this, world, cache);
-        worlds.Add(world, lease); world.RegisterCleanup(lease.Dispose);
-        try
-        {
-            var before = new HashSet<NavGraph>(Astar.data.graphs.Where(g => g != null));
-            try { Astar.data.DeserializeGraphsAdditive(cache.CopyGraphData()); }
-            finally { lease.Graphs.AddRange(Astar.data.graphs.Where(g => g != null && !before.Contains(g))); }
-            if (lease.Graphs.Count != 1 || !(lease.Graphs[0] is RecastGraph) || lease.Graphs[0].graphIndex >= 32)
-                throw new InvalidOperationException("Expected one baked Recast graph with a representable mask.");
-            foreach (var graph in lease.Graphs)
-                graph.GetNodes(node => node.GetConnections(other =>
-                { if (other.GraphIndex != node.GraphIndex) throw new InvalidOperationException("Navigation graph connects outside its world."); }));
-            lease.Publish(); return lease;
-        }
-        catch { lease.Retire(); throw; }
-    }
-    // The grid flavour of Load: one GridGraph built from the cells of the world's navigation source, never from a physics scan (the grid's own collision scan reads the default physics scene, not the world's).
+    // Loads the navigation of a world: one GridGraph built from the cells of the world's navigation source, never from a physics scan (the grid's own collision scan reads the default physics scene, not the world's).
     // First release limits: a flat floor, and the scan runs on the calling frame, so big worlds should be loaded under a cover.
     public PNWorldNavigationLease LoadGrid(EveWorldContext world, IPNNavigationSource source)
     {
@@ -186,8 +152,6 @@ public sealed class PNWorldNavigationLease : IDisposable
     public float Height { get; }
     public bool IsCurrent => published && !retiring && !disposed && World.Session.IsActive &&
         (World.State == EveWorldState.Loading || World.State == EveWorldState.Ready || World.State == EveWorldState.Paused);
-    internal PNWorldNavigationLease(PNWorldNavigation owner, EveWorldContext world, PNNavigationCache cache)
-    { this.owner = owner; World = world; ProfileId = cache.ProfileId; Radius = cache.Radius; Height = cache.Height; }
     // A lease over a grid built from a navigation source; its paths are refined (corner margin) before the enemy follows them.
     internal PNWorldNavigationLease(PNWorldNavigation owner, EveWorldContext world, IPNNavigationSource source)
     { this.owner = owner; World = world; Source = source; ProfileId = source.Profile.Id; Radius = source.Profile.Radius; Height = source.Profile.Height; }

@@ -62,50 +62,6 @@ public static class PNSyncWorldChecks
     private sealed class Source : IPNSyncStateSource { public EveId StateId => PNSyncFixtureModule.State; public JToken Value = new JObject(); public JToken Capture() => Value.DeepClone(); }
     private sealed class Sink : IPNSyncStateSink { public EveId StateId => PNSyncFixtureModule.State; public readonly List<ulong> Revisions = new List<ulong>(); public void Apply(JToken value, ulong revision) { Revisions.Add(revision); } }
 
-    // The real map of the sample rooms (Docs/RogueliteFramePlan.md F2), checked as authored content: the scene is opened additively and closed without saving (a scene provider loads with
-    // LoadSceneAsync, which needs Play Mode: loading it as a world is part of the Player review). Every key the sample rooms name exists exactly once, the spawn groups and the player spawn
-    // point are in place, the navigation cache is the one baked from the floor, and the scene carries nothing a world scene must not (camera, runtime, light, event system).
-    // Run: PNSyncWorldChecks.RunMap().
-    public static string RunMap()
-    {
-        var rows = new List<string>(); void Check(bool value, string label) { if (!value) throw new Exception(label); rows.Add("PASS " + label); }
-        var baseDocs = new PNGameContentSource(Path.Combine(Application.streamingAssetsPath, "BaseContent"), ".utmp/no-mods", Array.Empty<string>()).ReadDocuments().ToArray();
-        var hub = new EveContentBootstrap().Build(new EveIContentModule[] { new PNContentModule(), new PNGameplayContentModule() }, baseDocs);
-        var id = EveId.Parse("project_n:map_star_test_01");
-        Check(AssetDatabaseHas(PNScenes.RoomStarTest01), "the map scene exists at the registered path");
-        Check(UnityEditor.EditorBuildSettings.scenes.Any(x => x.path == PNScenes.RoomStarTest01 && x.enabled), "and is in the build settings");
-        var scene = UnityEditor.SceneManagement.EditorSceneManager.OpenScene(PNScenes.RoomStarTest01, UnityEditor.SceneManagement.OpenSceneMode.Additive);
-        try
-        {
-            var roots = scene.GetRootGameObjects();
-            var objects = roots.SelectMany(x => x.GetComponentsInChildren<PNWorldObject>(true)).ToArray(); var groupList = roots.SelectMany(x => x.GetComponentsInChildren<PNRoomSpawnGroup>(true)).ToArray();
-            PNWorldObject.ValidateSet(objects); PNRoomSpawnGroup.ValidateSet(groupList);
-            var keys = objects.Select(x => x.Key).OrderBy(x => x).ToArray(); var groups = groupList.Select(x => x.Group).OrderBy(x => x).ToArray();
-            Check(keys.SequenceEqual(new[] { "fountain", "gate_a", "gate_b", "gate_c", "room", "shop_heal", "shop_rogue", "start_switch" }), "its eight world objects: room, start switch, three gates, fountain, shop heal, star shop");
-            Check(groups.SequenceEqual(new[] { "center", "north", "south" }), "its three spawn groups: north, south, center");
-            var spawn = roots.SelectMany(x => x.GetComponentsInChildren<PNPlayerSpawnPoint>(true)).Single(); spawn.Validate();
-            Check(spawn.SpawnEntry == "player" && spawn.Ground != null && spawn.Ground.gameObject.layer == 13 && spawn.Character == "project_n:eve", "the player spawn point has the Eve prefab and a ground on layer 13");
-            var nav = roots.SelectMany(x => x.GetComponentsInChildren<PNWorldNavigationSource>(true)).Single(); nav.Validate();
-            Check(nav.Cache.ProfileId == "ground-small" && Mathf.Approximately(nav.Cache.Radius, 0.2f) && Mathf.Approximately(nav.Cache.Height, 1.4f), "navigation uses the same ground-small profile as ErMode (radius 0.2, height 1.4)");
-            Check(PNNavigationBaker.GeometryHash(nav.GeometryRoots) == nav.Cache.MapHash && nav.GeometryRoots.Length == 1 && nav.GeometryRoots[0].layer == 13, "the cache was baked from the floor as it is now");
-            var interactive = objects.Where(x => x.GetComponent<PNInteractable>() != null).ToArray();
-            Check(interactive.Select(x => x.Key).OrderBy(x => x).SequenceEqual(new[] { "fountain", "gate_a", "gate_b", "gate_c", "shop_heal", "shop_rogue", "start_switch" }), "the switch, the three gates, the fountain, the shop heal and the star shop carry a PNInteractable");
-            Check(interactive.All(x => hub.Instances().TryGetKind<PNInteractableDefinition>(EveId.Parse(x.GetComponent<PNInteractable>().DefinitionId), out var found) && found.Settings.Range > 0), "each names a registered interactable definition");
-            var keySet = new HashSet<string>(keys); var groupSet = new HashSet<string>(groups);
-            foreach (var room in hub.RogueliteRooms().Snapshot().Values.Where(x => x.World == id))
-            {
-                var wanted = room.Exits.Concat(room.Interactables).Concat(room.Start.Interactable.Length > 0 ? new[] { room.Start.Interactable } : new string[0]);
-                Check(wanted.All(keySet.Contains) && room.Waves.SelectMany(w => w.Spawns).All(s => groupSet.Contains(s.Group)), "room " + room.Id + " finds all its keys and spawn groups in the map");
-            }
-            Check(!roots.SelectMany(x => x.GetComponentsInChildren<Camera>(true)).Any() && !roots.SelectMany(x => x.GetComponentsInChildren<EveRuntime>(true)).Any() && !roots.SelectMany(x => x.GetComponentsInChildren<Light>(true)).Any()
-                && !roots.SelectMany(x => x.GetComponentsInChildren<UnityEngine.EventSystems.EventSystem>(true)).Any() && !roots.SelectMany(x => x.GetComponentsInChildren<EveEntityLoader>(true)).Any(), "no camera, runtime, light, event system or authored entity in the map");
-            Check(roots.SelectMany(x => x.GetComponentsInChildren<Collider>(true)).Where(c => c.gameObject.layer == 9).Count() == 4 && roots.SelectMany(x => x.GetComponentsInChildren<Collider>(true)).Count(c => c.gameObject.layer == 13) == 1, "one ground collider on layer 13 and four wall colliders on layer 9");
-        }
-        finally { UnityEditor.SceneManagement.EditorSceneManager.CloseScene(scene, true); }
-        return "PASS " + rows.Count + " native map content cases" + System.Environment.NewLine + string.Join(System.Environment.NewLine, rows);
-    }
-    private static bool AssetDatabaseHas(string path) => UnityEditor.AssetDatabase.LoadMainAssetAtPath(path) != null;
-
     public static string Run()
     {
         var rows = new List<string>(); void Check(bool value, string label) { if (!value) throw new Exception(label); rows.Add("PASS " + label); }

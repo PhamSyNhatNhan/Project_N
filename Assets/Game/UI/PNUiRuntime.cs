@@ -113,6 +113,19 @@ public sealed class PNUiRuntime : MonoBehaviour
         uiCamera.fieldOfView=camera.fieldOfView; uiCamera.nearClipPlane=camera.nearClipPlane;
         uiCamera.farClipPlane=camera.farClipPlane; uiCamera.rect=camera.rect;
         uiCamera.projectionMatrix=camera.projectionMatrix;
+        MatchRenderer();
+        foreach(var view in worlds.Values) view.Place(camera);
+    }
+    // The single rendering camera changes its renderer when a view preset is applied (G14 finding: Renderer2D vs UniversalRenderer, "Only cameras with compatible renderer types can be stacked ... Will skip rendering"
+    // hid every overhead bar), so the overlay camera follows it each frame instead of copying the renderer once at connect time.
+    private void MatchRenderer()
+    {
+        if(cameraData==null || uiCamera==null) return;
+        var pipeline=UniversalRenderPipeline.asset; if(pipeline==null) return;
+        var target=cameraData.scriptableRenderer; var data=uiCamera.GetUniversalAdditionalCameraData();
+        if(ReferenceEquals(data.scriptableRenderer,target)) return;
+        for(int index=0; index<pipeline.rendererDataList.Length; index++)
+            if(pipeline.GetRenderer(index)==target) { data.SetRenderer(index); break; }
     }
     public void Unbind()
     {
@@ -415,7 +428,7 @@ public sealed class PNUiRuntime : MonoBehaviour
         private readonly UIDocument document;
         private readonly VisualElement root, grid;
         private readonly ProgressBar health;
-        private readonly SpriteRenderer characterSprite;
+        private SpriteRenderer characterSprite; private PNVisualActor rigActor;
         private readonly PNBuffView buffs;
         // Enemies draw their Buff row in a second document above the health ring, so a Buff appearing or disappearing never changes the document that holds the bar.
         private readonly GameObject buffObj; private readonly UIDocument buffDocument; private readonly VisualElement buffRoot;
@@ -433,7 +446,7 @@ public sealed class PNUiRuntime : MonoBehaviour
             IgnorePicking(root);
             // UIDocument creates an interaction collider; combat labels never participate in physics/input.
             var collider=obj.GetComponent<BoxCollider>(); if(collider!=null) { collider.isTrigger=true; collider.enabled=false; }
-            characterSprite=stat.GetComponentInChildren<SpriteRenderer>();
+            characterSprite=BodySprite(stat);
             if(stat is PNEnemyStat && stat.GetComponent<PNLoricaPresentation>()==null)PNLoricaPresentation.Ensure(stat.gameObject);
             if(PNEntityRoles.IsPlayer(stat))
             {
@@ -474,26 +487,26 @@ public sealed class PNUiRuntime : MonoBehaviour
             bool has=PNLoricaView.TryRead(enemy,out var ratio,out var recovery);
             lorica.Present(has,ratio,recovery,Time.unscaledTime);
         }
-        public void Refresh(Camera camera)
+        // The sprite the bars sit above: the first one that is not a floor shadow (a body's "Ground Shadow" / the ErMode shadow is a SpriteRenderer at the feet; taking it put every bar at body height).
+        // A body drawn by a rig puppet (the Star enemies: "PN Visual Actor") has no body sprite; the puppet gives its head on its own axis (BodyTopLocal).
+        private static PNVisualActor RigActor(PNStat stat) { var body=stat.GetComponent<PNVisualBody>(); return body!=null?body.Actor:null; }   // the body's own puppet, not an echo or effect puppet under it
+        private static SpriteRenderer BodySprite(PNStat stat)
         {
-            if(buffs!=null)
-            {
-                buffs.Bind(stat.GetComponent<PNBuffManager>());buffs.Animate();root.Q("world-root").style.width=PNBuffView.Width;
-                if(buffDocument!=null)
-                {
-                    // Ring document: constant size. Buff document: sits right above the ring (the row keeps its 4 px gap through the container margin).
-                    document.worldSpaceSize=new Vector2(PNBuffView.Width,14+2*RingGlowMargin);
-                    buffRoot.Q("world-root").style.width=PNBuffView.Width; buffDocument.worldSpaceSize=new Vector2(PNBuffView.Width,Math.Max(14,buffs.Height+4));
-                }
-                else document.worldSpaceSize=new Vector2(PNBuffView.Width,Math.Max(14,buffs.Height+18));
-            }
+            foreach(var renderer in stat.GetComponentsInChildren<SpriteRenderer>(true))
+                if(renderer.GetComponent<PNGroundShadow>()==null && renderer.GetComponent<IPNSceneEntityVisual>()==null) return renderer;
+            return null;
+        }
+        // Where the view sits and how big it is, from the camera pose of THIS frame. Runs from Refresh (LateUpdate, before Brain) and again from PNUiRuntime.SyncCamera right after Brain wrote the pose: placing it only
+        // before Brain used last frame's pose while the overlay camera is synced after Brain, so a bar drifted off its entity by the camera's one-frame motion/zoom. Returns whether the view is shown.
+        public bool Place(Camera camera)
+        {
             var interactionCollider=obj.GetComponent<BoxCollider>();
             if(interactionCollider!=null) { interactionCollider.isTrigger=true; interactionCollider.enabled=false; }
             // Rebuilt Toolkit documents have no resolved layout until a panel update.
             // Hide for that frame rather than project a NaN anchor or invent a scale.
             float referenceHeight=owner.HudRoot.resolvedStyle.height;
             if(float.IsNaN(referenceHeight) || float.IsInfinity(referenceHeight) || referenceHeight<=0)
-            { root.style.display=DisplayStyle.None; if(buffRoot!=null)buffRoot.style.display=DisplayStyle.None; return; }
+            { root.style.display=DisplayStyle.None; if(buffRoot!=null)buffRoot.style.display=DisplayStyle.None; return false; }
             bool visible=!owner.MenuOpen && camera!=null && stat.IsReady && stat.isActiveAndEnabled && stat.gameObject.activeInHierarchy && stat.HealthBar!=PNHealthBarMode.Hidden && PNVitals.TryRead(stat,PNContentIds.Health,out _,out _,out var dead) && !dead;
             var position=stat.transform.position+(PNEntityRoles.IsPlayer(stat)?owner.playerOffset:owner.enemyOffset);
             if(camera!=null && characterSprite!=null && characterSprite.enabled && characterSprite.sprite!=null)
@@ -511,8 +524,17 @@ public sealed class PNUiRuntime : MonoBehaviour
                     top=Mathf.Max(top,projected.y);
                     left=Mathf.Min(left,projected.x); right=Mathf.Max(right,projected.x);
                 }
-                float gap=6*camera.pixelHeight/referenceHeight;
+                float gap=14*camera.pixelHeight/referenceHeight;
                 anchor.x=(left+right)*.5f; anchor.y=top+gap; position=camera.ScreenToWorldPoint(anchor);
+            }
+            else if(camera!=null && rigActor!=null && rigActor.isActiveAndEnabled)
+            {
+                // The head on the puppet's own axis, in its local space (feet = origin), carried by its transform: it tilts with the camera facing like the drawn body, so the bar sits over the head at any
+                // view angle and does not jump when the puppet turns. (The renderer's bounds are a padded culling box, and a world-vertical point above the feet drifts with perspective.)
+                var anchor=camera.WorldToScreenPoint(stat.transform.position);
+                var head=camera.WorldToScreenPoint(rigActor.transform.TransformPoint(new Vector3(0f,rigActor.BodyTopLocal,0f)));
+                float gap=14*camera.pixelHeight/referenceHeight;
+                anchor.x=head.x; anchor.y=Mathf.Max(anchor.y,head.y)+gap; position=camera.ScreenToWorldPoint(anchor);
             }
             if(visible)
             {
@@ -520,7 +542,7 @@ public sealed class PNUiRuntime : MonoBehaviour
                 visible=screen.z>0 && screen.x>=0 && screen.x<=1 && screen.y>=0 && screen.y<=1;
             }
             root.style.display=visible?DisplayStyle.Flex:DisplayStyle.None; if(buffRoot!=null)buffRoot.style.display=visible?DisplayStyle.Flex:DisplayStyle.None;
-            if(!visible) return;
+            if(!visible) return false;
             obj.transform.SetPositionAndRotation(position,camera.transform.rotation);
             float depth=camera.WorldToViewportPoint(position).z;
             float visibleHeight=camera.orthographic?2*camera.orthographicSize:2*depth*Mathf.Tan(camera.fieldOfView*Mathf.Deg2Rad*.5f);
@@ -529,6 +551,24 @@ public sealed class PNUiRuntime : MonoBehaviour
             obj.transform.localScale=Vector3.one*(100*pixelsToWorld*owner.worldScale);
             if(buffObj!=null) obj.transform.position-=camera.transform.up*(RingGlowMargin*pixelsToWorld*owner.worldScale);      // the glow margin under the ring does not move the ring
             if(buffObj!=null){ buffObj.transform.SetPositionAndRotation(position+camera.transform.up*(14f*pixelsToWorld*owner.worldScale),camera.transform.rotation); buffObj.transform.localScale=obj.transform.localScale; }
+            return true;
+        }
+        public void Refresh(Camera camera)
+        {
+            if(characterSprite==null) characterSprite=BodySprite(stat);   // a visual built after this view was made
+            if(characterSprite==null && rigActor==null) rigActor=RigActor(stat);
+            if(buffs!=null)
+            {
+                buffs.Bind(stat.GetComponent<PNBuffManager>());buffs.Animate();root.Q("world-root").style.width=PNBuffView.Width;
+                if(buffDocument!=null)
+                {
+                    // Ring document: constant size. Buff document: sits right above the ring (the row keeps its 4 px gap through the container margin).
+                    document.worldSpaceSize=new Vector2(PNBuffView.Width,14+2*RingGlowMargin);
+                    buffRoot.Q("world-root").style.width=PNBuffView.Width; buffDocument.worldSpaceSize=new Vector2(PNBuffView.Width,Math.Max(14,buffs.Height+4));
+                }
+                else document.worldSpaceSize=new Vector2(PNBuffView.Width,Math.Max(14,buffs.Height+18));
+            }
+            if(!Place(camera)) return;
             if(!owner.IsLocalPlayer(stat)) Health(health,stat,false);
             if(lorica!=null) PresentLorica((PNEnemyStat)stat,camera);
             else

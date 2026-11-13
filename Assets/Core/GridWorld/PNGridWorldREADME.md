@@ -28,7 +28,7 @@ VI: World lưới dựng từ dữ liệu ô thay cho scene. **Ô là sự thậ
 ## Navigation (step G2)
 
 A provider calls `context.SetNavigation(source)`; `PNWorldNavigation.Prepare` then builds ONE `GridGraph` in the lease from the source (never from a physics scan: the grid's own collision scan reads the default physics scene). A world declares its navigation in the
-build context OR in a scene (`PNWorldNavigationSource`), never both; the Recast path is unchanged. The lease keeps its API (`TryProject`, `Start`, `StartProbe`); for a grid lease `Start` refines the funnel path before the enemy follows it, with
+build context (the scene-declared Recast path is gone since G14). The lease keeps its API (`TryProject`, `Start`, `StartProbe`); for a grid lease `Start` refines the funnel path before the enemy follows it, with
 margin = body radius + the follower's corner tolerance + 0.02 (`PNEnemyMove.CornerToleranceValue`), including a repath that has only two points. First release limits: flat floor, the scan runs on the calling frame (a 2048 x 2048 world takes seconds), one profile (`ground-small`: radius 0.2, height 1.4) per world.
 
 ## Editing and placeable things (step G3)

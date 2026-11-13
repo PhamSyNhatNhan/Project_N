@@ -66,7 +66,7 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         worlds.RegisterBase(EveId.Parse("base:test_arena"),EveId.Parse("project_n:test_arena"),"project_n",compatible:(a,b)=>true);
         // A roguelite room map: one scene, a world of its own for every room played. Policy Continue (not Discard): a new room world is empty when it becomes ready and the team is only
         // transferred in afterwards, so an empty-world discard would remove it first; the run director unloads the room the team has left.
-        // G10a: the room is grid data (PNRoomMaps), no longer a scene; the old scene PNRoomStarTest01 stays in the project until the Recast removal (G10b). The world has only the grid feature: a room world is not saved,
+        // G10a: the room is grid data (PNRoomMaps), no longer a scene; the old scene PNRoomStarTest01 and the Recast path were removed in G14. The world has only the grid feature: a room world is not saved,
         // spawns nothing by itself and despawns nothing (the room director does the enemies).
         PNRoomMaps.EnsureRegistered();
         var roomDescriptor=PNRoomMaps.Descriptor();

@@ -62,7 +62,6 @@ public sealed partial class PNEnemyMoveSkillPlayReview : MonoBehaviour
     public static event Action<bool, string> Finished;
     private readonly List<string> evidence = new List<string>();
     private readonly List<GameObject> actors = new List<GameObject>();
-    private readonly List<PNNavigationCache> caches = new List<PNNavigationCache>();
     private EveEntityPreparationScheduler scheduler;
     private PNWorldRuntime worlds;
     private EveSessionContext session;
@@ -148,7 +147,6 @@ public sealed partial class PNEnemyMoveSkillPlayReview : MonoBehaviour
         while (EveRegistrySession.State != EveSessionState.Stopped && Time.realtimeSinceStartup < deadline)
         { EveRegistrySession.PumpCleanup(); yield return null; }
         try { if (EveRegistrySession.State == EveSessionState.Stopped) reviewRuntime?.UnloadContent(); } catch (Exception e) { failure = failure ?? e; evidence.Add("CONTENT CLEANUP " + e); }
-        foreach (var cache in caches) if (cache != null) Destroy(cache);
         foreach (var material in materials) if (material != null) Destroy(material);
         trace?.Dispose(); trace = null; Application.logMessageReceived -= Logged;
         Application.targetFrameRate = previousFrameRate; QualitySettings.vSyncCount = previousVSync; Application.runInBackground = previousBackground;
@@ -220,18 +218,11 @@ public sealed partial class PNEnemyMoveSkillPlayReview : MonoBehaviour
     private IEnumerator Run()
     {
         Check(Application.isPlaying && EveRegistrySession.State == EveSessionState.Stopped, "Review starts in empty native Play without a running session");
-        var cacheA = ScriptableObject.CreateInstance<PNNavigationCache>(); var cacheB = ScriptableObject.CreateInstance<PNNavigationCache>(); caches.Add(cacheA); caches.Add(cacheB);
-        // Historical backend bytes are fixture inputs, not shipped map assets. E4 also exercises the production baker.
-        var input = Environment.GetCommandLineArgs().FirstOrDefault(x => x.StartsWith("--pn-enemy-cache-path="))?.Substring(22);
-        if (input == null) input = Path.GetFullPath(Path.Combine(Application.dataPath, "../../../../AstarWorldProbe20261022/Worker"));
-        if (!Directory.Exists(input)) throw new DirectoryNotFoundException("Supply --pn-enemy-cache-path=<review caches directory>");
-        string GeometryHash(string name) => File.Exists(Path.Combine(input, name + ".hash")) ? File.ReadAllText(Path.Combine(input, name + ".hash")) : PNNavigationCache.Hash("review-" + name);
-        cacheA.SetBakedData(File.ReadAllBytes(Path.Combine(input, "worldA.bytes")), GeometryHash("worldA"), "ground-small", .25f, 1.5f);
-        cacheB.SetBakedData(File.ReadAllBytes(Path.Combine(input, "worldB.bytes")), GeometryHash("worldB"), "ground-small", .25f, 1.5f);
+        // G14: the review worlds navigate on a grid built from cells (ReviewProvider), not on baked Recast caches, so no external cache folder is needed.
         Reject(() => new PNNavigationSettings { RepathInterval = float.NaN }.Validate(), "E0 invalid navigation tuning rejected");
         var documents = new PNGameContentSource(Path.Combine(Application.streamingAssetsPath, "BaseContent"), Path.Combine(Application.persistentDataPath, "Mods"), Array.Empty<string>()).ReadDocuments().ToArray();
         if (stage.StartsWith("crowd-", StringComparison.Ordinal)) documents = CrowdDocuments(documents);
-        reviewRuntime = gameObject.AddComponent<PNEnemyReviewRuntime>(); reviewRuntime.ExtraModule = new ReviewContent(cacheA, cacheB); reviewRuntime.Documents = documents;
+        reviewRuntime = gameObject.AddComponent<PNEnemyReviewRuntime>(); reviewRuntime.ExtraModule = new ReviewContent(); reviewRuntime.Documents = documents;
         reviewRuntime.BeginSession(EveSessionRole.Offline); session = EveRegistrySession.Context;
         scheduler = new EveEntityPreparationScheduler(session, PNGameBootstrap.Config.Preparation); worlds = new PNWorldRuntime(session, scheduler);
         gameObject.AddComponent<PNWorldPhysicsLoop>().Bind(session);
@@ -430,9 +421,9 @@ public sealed partial class PNEnemyMoveSkillPlayReview : MonoBehaviour
         Check(!staleContext.IsCurrent && transferCooldown.CooldownRemaining <= beforeTransfer && transferCooldown.Current == 0, "E4 transfer retires old context while preserving entity cooldown");
         var transferPath = twinEnemy.GetComponent<PNEnemyMove>().GoTo(new Vector3(4, 0, 0), .15f);
         yield return Until(() => transferPath.Status == PNEnemyNavigationStatus.Arrived, 10, "E4 transferred enemy repaths using destination graph and physics");
-        Reject(() => PNWorldNavigation.ForSession(session).Load(b, cacheA, "wrong"), "E4 duplicate/late navigation acquisition rejected");
+        Reject(() => PNWorldNavigation.ForSession(session).LoadGrid(b, ReviewProvider.Navigation(true, false)), "E4 duplicate/late navigation acquisition rejected");
         var broken = worlds.Create(EveId.Parse("project_n:enemy_review_broken"));
-        yield return Until(() => broken.State == EveWorldState.Failed, 5, "E4 stale cache declaration fails world preparation");
+        yield return Until(() => broken.State == EveWorldState.Failed, 5, "E4 an unsupported navigation declaration (a source that is not flat) fails world preparation");
         Check(PNWorldNavigation.ForSession(session).GraphCount == 2, "E4 failed cache declaration leaks no graph");
         yield return Until(() => worlds.Unload(broken), 6, "E4 failed preparation cleans owned scene/resources");
         var capacityWorlds = new List<EveWorldContext>();
@@ -513,8 +504,6 @@ public sealed partial class PNEnemyMoveSkillPlayReview : MonoBehaviour
     }
     private sealed class ReviewContent : EveIContentModule
     {
-        private readonly PNNavigationCache a, b;
-        public ReviewContent(PNNavigationCache a, PNNavigationCache b) { this.a = a; this.b = b; }
         public void Register(EveRegistryHub hub)
         {
             PNEnemyFollowupContent.Register(hub);
@@ -533,23 +522,32 @@ public sealed partial class PNEnemyMoveSkillPlayReview : MonoBehaviour
             }")));
             foreach (var upper in new[] { true, false })
             {
-                var cache = upper ? a : b; var id = EveId.Parse(upper ? "project_n:enemy_review_a" : "project_n:enemy_review_b");
-                hub.GetOrCreate<PNWorldDefinition>().Register(new PNWorldDefinition(id, PNNavigationCache.Hash("review/" + cache.Fingerprint), typeof(ReviewProvider), () => new ReviewProvider(cache, upper)));
+                var id = EveId.Parse(upper ? "project_n:enemy_review_a" : "project_n:enemy_review_b");
+                hub.GetOrCreate<PNWorldDefinition>().Register(new PNWorldDefinition(id, PNWorldDefinition.HashContent("review/grid/v1/" + (upper ? "a" : "b")), typeof(ReviewProvider), () => new ReviewProvider(upper)));
             }
-            hub.GetOrCreate<PNWorldDefinition>().Register(new PNWorldDefinition(EveId.Parse("project_n:enemy_review_broken"), PNNavigationCache.Hash("broken-review"), typeof(ReviewProvider), () => new ReviewProvider(a, true, true)));
+            hub.GetOrCreate<PNWorldDefinition>().Register(new PNWorldDefinition(EveId.Parse("project_n:enemy_review_broken"), PNWorldDefinition.HashContent("broken-review/grid/v1"), typeof(ReviewProvider), () => new ReviewProvider(true, true)));
         }
     }
     private sealed class ReviewProvider : IPNWorldProvider
     {
-        private readonly PNNavigationCache cache; private readonly bool upper, broken;
-        public ReviewProvider(PNNavigationCache cache, bool upper, bool broken = false) { this.cache = cache; this.upper = upper; this.broken = broken; }
+        private readonly bool upper, broken;
+        public ReviewProvider(bool upper, bool broken = false) { this.upper = upper; this.broken = broken; }
+        // The floor is x, z -6..6 m and the wall (x -0.5..0.5) runs z -6..3 (upper) or -3..6 (lower), as the boxes below; 64 x 64 cells of 0.25 m with cell (0,0) at (-8,-8). A `broken` source is not flat, which grid navigation refuses.
+        public static PNGridNavigationSource Navigation(bool upper, bool broken)
+        {
+            var data = new PNGridWorldData(new PNGridWorldDescriptor(64, 64, .25f, "review:enemy_map", 1), new[] { "project_n:room_floor" });
+            data.FillSolid(new PNGridRegion(0, 0, 63, 63), true); data.FillSolid(new PNGridRegion(8, 8, 55, 55), false);
+            if (!Environment.GetCommandLineArgs().Contains("--pn-followup-open")) data.FillSolid(upper ? new PNGridRegion(30, 8, 33, 43) : new PNGridRegion(30, 20, 33, 55), true);
+            if (broken) data.SetHeightRaw(20, 20, 5);
+            return new PNGridNavigationSource(data, new[] { true }, new PNNavigationProfile("ground-small", .25f, 1.5f), -8f, -8f);
+        }
         public IEnumerator Load(PNWorldBuildContext build)
         {
             var root = new GameObject("Review map"); SceneManager.MoveGameObjectToScene(root, build.PhysicsScene); build.Own(() => { if (root != null) Destroy(root); });
             Box("Floor", new Vector3(0, -.5f, 0), new Vector3(12, 1, 12), 13);
             if (!Environment.GetCommandLineArgs().Contains("--pn-followup-open"))
                 Box("Wall", new Vector3(0, 1, upper ? -1.5f : 1.5f), new Vector3(1, 2, 9), 31);
-            root.AddComponent<PNWorldNavigationSource>().Configure(cache, broken ? "stale-fingerprint" : cache.Fingerprint);
+            build.SetNavigation(Navigation(upper, broken));
             build.AddSlot("main", build.PhysicsScene, new[] { root }); yield break;
             void Box(string name, Vector3 position, Vector3 scale, int layer)
             {
