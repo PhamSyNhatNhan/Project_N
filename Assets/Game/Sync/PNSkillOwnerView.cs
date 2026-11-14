@@ -30,6 +30,8 @@ public sealed class PNSkillOwnerView : MonoBehaviour, IPNSyncEntityListener, IPN
     public IReadOnlyDictionary<EveId, EveId> Bindings { get; private set; } = NoBindings;
     public ulong AppliedRevision { get; private set; }
     public int AppliedCount { get; private set; }
+    // Raised on a client right after a block replaced its Abilities (guesses still waiting must be laid over the new numbers).
+    public event Action Applied;
 
     public void OnBound(PNSyncService service, PNSyncTarget value)
     {
@@ -56,6 +58,8 @@ public sealed class PNSkillOwnerView : MonoBehaviour, IPNSyncEntityListener, IPN
 
     private void OnAbilityChanged(PNAbilityChange change) => Touch();
     private void OnBindingChanged(PNSkillBindingChange change) => Touch();
+    // The authority sends its Abilities again although none changed: the owner guessed something that did not happen and must see the truth.
+    public void Resync() => Touch();
     private void Touch() { if (IsBound && sync != null && sync.IsAuthority) sync.MarkDirty(target, State); }
 
     public JToken Capture()
@@ -110,7 +114,7 @@ public sealed class PNSkillOwnerView : MonoBehaviour, IPNSyncEntityListener, IPN
     {
         var manager = GetComponent<PNAbilityManager>();
         if (pending == null || sync == null || manager == null || !manager.IsReady) return;
-        AppliedCount = manager.Abilities.ApplyReplica(pending); AppliedRevision = pendingRevision; pending = null;
+        AppliedCount = manager.Abilities.ApplyReplica(pending); AppliedRevision = pendingRevision; pending = null; Applied?.Invoke();
     }
 }
 #endif

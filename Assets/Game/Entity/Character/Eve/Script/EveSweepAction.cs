@@ -9,7 +9,7 @@ using UnityEngine.SceneManagement;
 
 // EN: Independent Eve melee action. No legacy slash prefab, tracks or VFX operations.
 // VI: Action cận chiến riêng của Eve; không dùng prefab, track hay VFX slash cũ.
-public class EveSweepAction : PNSkillAction
+public class EveSweepAction : PNSkillAction, IPNSkillHitReceiver
 {
     public override bool HasAuxiliaryTimeline => true;
     public override bool AdvanceAuxiliary(float delta) { Advance(delta); return IsComplete; }
@@ -27,7 +27,7 @@ public class EveSweepAction : PNSkillAction
 #if UNITY_5_3_OR_NEWER
     private double rawAmount;
     private PNCombatSourceSnapshot damageSource; private PNHitCapture capture;
-    private PNHitboxCast hitbox;
+    private PNHitboxCast hitbox; private IDisposable hitLease;
     private EveHitboxPose root;
     private readonly List<PNStat> targets = new List<PNStat>();
     public EveSweepVisual Visual { get; private set; }
@@ -69,6 +69,7 @@ public class EveSweepAction : PNSkillAction
             Damage = capture.Damage(prepared);
             hitbox = new PNHitboxCast(EveHitboxShape.Sector(settings.Radius, settings.HitThickness, 4, settings.InnerRadius),
                 caster.gameObject.scene.GetPhysicsScene());
+            hitLease = context.Skill.RegisterHitReceiver(this);
         }
 #endif
     }
@@ -109,6 +110,24 @@ public class EveSweepAction : PNSkillAction
         if (!disposed) Visual?.Render(elapsed / settings.Duration, delta);
 #endif
     }
+#if UNITY_5_3_OR_NEWER
+    // S4: the owner's client says this sweep hit `target`. Accepted only while the sweep is live and the target is a legal one of THIS sweep that it has not hit, and only within the sweep's
+    // reach plus the slack for the report's travel time; the damage is the sweep's own (the host's numbers, not the client's).
+    public bool AcceptReportedHit(PNStat target, int step, float tolerance)
+    {
+        if (disposed || hitbox == null || !performed || target == null || ReferenceEquals(target, caster) || !target.IsReady || target.IsDead || !caster.IsReady || caster.IsDead) return false;
+        if (!PNLayers.Contains(caster.TargetLayers.Mask | settings.TargetLayers.Mask, target.Layer) || target.gameObject.scene != caster.gameObject.scene) return false;
+        var offset = target.transform.position - root.Position; offset.y = 0;
+        if (offset.magnitude > settings.Radius + tolerance) return false;
+        if (!hitbox.TryCommitReported(target, elapsed)) return false;
+        var point = target.transform.position;
+        results.Add(context.ReceiveHit(target, point, Damage, rawAmount, damageSource));
+        if (!disposed && Visual != null) Visual.Impact(point, ((EveCharacterSkill)context.Skill).Moveset.Energy.ImpactParticles);
+        return true;
+    }
+#else
+    public bool AcceptReportedHit(PNStat target, int step, float tolerance) => false;
+#endif
     public override void Exit(PNSkillActionContext value) { value.CompleteAction(); Cleanup(false); }
     public override void Cancel(PNSkillActionContext value) { value?.CancelEffects(); Cleanup(true); }
     public override void Dispose() => Cleanup(true);
@@ -116,7 +135,7 @@ public class EveSweepAction : PNSkillAction
     {
         if (disposed) return; disposed = true;
 #if UNITY_5_3_OR_NEWER
-        hitbox?.Dispose(); hitbox = null;
+        hitLease?.Dispose(); hitLease = null; hitbox?.Dispose(); hitbox = null;
         if (Visual != null) { Visual.Release(cancelled); Visual = null; }
 #endif
         movementLock?.Dispose(); movementLock = null;

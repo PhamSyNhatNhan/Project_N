@@ -31,6 +31,8 @@ public partial class EveCharacterSkill
     public EveCastPhase CurrentPhase { get; private set; }
     public PNStat CurrentTarget => castTarget;
     public bool IsBusy => CurrentCast != EveCast.None;
+    // The target the running cast follows (the checks read what a decision point picked).
+    public PNStat CastTarget => castTarget;
     public bool IsInBurst => burstEffectsActive;
     public int ComboIndex => comboStep?.Current ?? 0;
     public PNAbilityCounter BurstGauge => gauge;
@@ -391,13 +393,55 @@ public partial class EveCharacterSkill
     }
     // ---- Decision points inside a cast (E4): the only places where a running cast chooses again. Each is read-only; CompletePhase applies the answer at the same place as before. ----
     // UltimateRetarget: after the Charge the ultimate picks the lowest-health target again and turns toward it.
-    private EveCastDecision DecideUltimateRetarget() { var direction = SelectDirection(true, out var target); return new EveCastDecision(EveCast.Ultimate, direction, target, finisher: burstFinisher); }
+    private EveCastDecision DecideUltimateRetarget()
+    {
+        // S5: a remote owner chose its target on its own machine at this point; the authority takes it if it is a legal target in reach, and chooses itself otherwise.
+        if (TryTakeDecision("ult_retarget", out var answer) && ResolveRemoteTarget(answer, out var picked))
+        {
+            var toward = picked.transform.position - transform.position; toward.y = 0; double length = Math.Sqrt((double)toward.x * toward.x + (double)toward.z * toward.z);
+            if (length > 0) return new EveCastDecision(EveCast.Ultimate, new Vector3((float)(toward.x / length), 0, (float)(toward.z / length)), picked, finisher: burstFinisher);
+        }
+        var direction = SelectDirection(true, out var target); return new EveCastDecision(EveCast.Ultimate, direction, target, finisher: burstFinisher);
+    }
+    private bool TryTakeDecision(string point, out Newtonsoft.Json.Linq.JToken value) { value = null; return DecisionSource != null && DecisionSource.TryTake(point, out value); }
+    // The target a remote owner named: an entity the session knows, alive, on a layer this character targets and within its target range.
+    private bool ResolveRemoteTarget(Newtonsoft.Json.Linq.JToken answer, out PNStat target)
+    {
+        target = null;
+#if UNITY_5_3_OR_NEWER
+        if (!(answer is Newtonsoft.Json.Linq.JObject o) || o["t"] == null || o["t"].Type != Newtonsoft.Json.Linq.JTokenType.Integer) return false;
+        long id = (long)o["t"]; if (id == 0 || Stats == null || !Stats.IsReady) return false;
+        if (!EveRegistrySession.Context.Entities.TryGet(new EveEntityId(id), out var loader) || loader == null) return false;
+        var stat = loader.GetComponent<PNStat>();
+        if (stat == null || !stat.IsReady || stat.IsDead || ReferenceEquals(stat, Stats) || !PNLayers.Contains(Stats.TargetLayers.Mask, stat.Layer) || stat.gameObject.scene != gameObject.scene) return false;
+        var offset = stat.transform.position - transform.position; offset.y = 0;
+        if (offset.magnitude > moveset.TargetRange + PNSkillRemoteInput.HitTolerance) return false;
+        target = stat; return true;
+#else
+        return false;
+#endif
+    }
     // EmpoweredStrike: at the end of the empowered rush the slash chosen when the cast started follows.
-    private string DecideEmpoweredStrike() => pendingAttackProfile;
+    private string DecideEmpoweredStrike()
+    {
+        // S5: the remote owner may name the empowered slash; only the empowered ones are accepted (it cannot turn the cast into another kind), anything else keeps the profile chosen at the start.
+        if (TryTakeDecision("empowered_strike", out var answer) && answer is Newtonsoft.Json.Linq.JObject o && o["p"] != null && o["p"].Type == Newtonsoft.Json.Linq.JTokenType.String)
+        {
+            var profile = (string)o["p"];
+            if (profile.StartsWith("empowered_", StringComparison.Ordinal) && Array.IndexOf(StrokeNames, profile.Substring("empowered_".Length)) >= 0) return profile;
+        }
+        return pendingAttackProfile;
+    }
     // RepeatStroke: the stroke a Repeat rush ends with alternates right and left by the stroke counter.
     private string DecideRepeatStroke() => repeatStrokes.Current % 2 == 0 ? "repeat_right" : "repeat_left";
     // RepeatContinue: at the end of a Repeat stroke, whether the held Attack gesture chains another one (a binding change cancels the gesture, which clears repeatHeld).
-    private bool DecideRepeatContinue() => repeatHeld && IsInBurst && stacks.Current > 0;
+    private bool DecideRepeatContinue()
+    {
+        // S5: for a remote owner the gesture state at this point is what ITS machine saw (a release still in flight must not chain one more stroke); the Burst and stack rules stay the authority's.
+        bool held = repeatHeld;
+        if (TryTakeDecision("repeat_continue", out var answer) && answer is Newtonsoft.Json.Linq.JObject o && o["v"] != null && o["v"].Type == Newtonsoft.Json.Linq.JTokenType.Integer) held = held && (int)o["v"] != 0;
+        return held && IsInBurst && stacks.Current > 0;
+    }
     private void CompletePhase()
     {
         var phase = CurrentPhase;

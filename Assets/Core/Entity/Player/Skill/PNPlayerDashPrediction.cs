@@ -39,6 +39,9 @@ public partial class PNPlayerSkill
         }
     }
 
+    // A newer authority image replaced the replica under a guess that is still waiting: spend the charge again and hand back the fresh undo.
+    public bool RespendDash(out PNAbilityPrediction prediction) { prediction = default; return !HasGameplayAuthority && DashRecovery != null && DashRecovery.TryPredictConsume(out prediction); }
+
     public void CancelPredictedDash() { if (predictedDash) CancelPlayerDash(); }
 
     private void AdvancePredictedDash(float delta)

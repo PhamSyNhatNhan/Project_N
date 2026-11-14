@@ -130,6 +130,9 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         // The owner's skill input and its answer (S2): a command from the owner's client, the cast result back to the owner only.
         hub.SyncStates().Register(new PNSyncStateDefinition(PNSkillRemoteInput.ResultState,1,PNSkillRemoteInput.ResultBytes,PNSyncTargets.Entity,true));
         hub.SyncCommands().Register(new PNSyncCommandDefinition(PNSkillRemoteInput.Command,typeof(PNSkillInputCommandHandler),()=>new PNSkillInputCommandHandler(),PNSkillRemoteInput.CommandBytes,PNSyncTargets.Entity));
+        // The hits the owner's client saw and its choices at decision points (S4-S5): proposals the authority checks, never orders.
+        hub.SyncCommands().Register(new PNSyncCommandDefinition(PNSkillRemoteInput.HitCommand,typeof(PNSkillHitCommandHandler),()=>new PNSkillHitCommandHandler(),PNSkillRemoteInput.HitCommandBytes,PNSyncTargets.Entity));
+        hub.SyncCommands().Register(new PNSyncCommandDefinition(PNSkillRemoteInput.DecisionCommand,typeof(PNSkillDecisionCommandHandler),()=>new PNSkillDecisionCommandHandler(),PNSkillRemoteInput.DecisionCommandBytes,PNSyncTargets.Entity));
         hub.EntityModules().Register(new PNEntityModuleDefinition(EveId.Parse("project_n:skill_owner_player"),PNEntityModuleRoles.Player,null,new[]{PNRunFeatures.SkillSync},new[]{typeof(PNSyncEntity),typeof(PNSkillOwnerView),typeof(PNSkillRemoteInput)}));
         // The two things an enemy owes a room (G6), answered by the world's features instead of flags on the role: the clear marker the room director counts and the loot source.
         hub.EntityModules().Register(new PNEntityModuleDefinition(EveId.Parse("project_n:room_clear_enemy"),PNEntityModuleRoles.None,new[]{PNEntityGameplayContent.Enemy},new[]{PNRunFeatures.RoomClear},new[]{typeof(PNRoomClearMarker)}));

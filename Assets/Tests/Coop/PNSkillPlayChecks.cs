@@ -107,6 +107,51 @@ namespace ProjectN.Coop.Tests
                 yield return new WaitForSecondsRealtime(1f);
                 try { Check(remote1.AckedKey == 0 && remote1.Refusals.Count == 0, "client2 sees no cast result of client1's entity (owner-only)"); } catch (Exception e) { Fail(e); yield break; }
             }
+            // ---- a stale guess is declined on the host and taken back on the client ----
+            if (host)
+            {
+                yield return Wait(() => Has("client1-image"), "client1 image"); if (failed) yield break;
+                try { int n = 0; while (hostSkill1.DashRecovery.TryConsume()) n++; Check(hostSkill1.DashRecovery.Current < 1, "the host spent every Dash charge of client1 (" + n + ")"); Mark("host-drained"); } catch (Exception e) { Fail(e); yield break; }
+            }
+            if (name == "client1")
+            {
+                var ps = e1.GetComponent<PNPlayerSkill>(); var abil = e1.GetComponent<PNAbilityManager>().Abilities;
+                yield return Wait(() => !ps.IsDashing && ps.DashRecovery.Current >= 1, "dash over, a charge back");
+                if (failed) yield break;
+                var image = abil.CaptureReplica().ToList(); Mark("client1-image");
+                yield return Wait(() => Has("host-drained"), "host drained"); if (failed) yield break;
+                yield return Wait(() => ps.DashRecovery.Current < 1, "the replica shows the drained charges"); if (failed) yield break;
+                int rolled = remote1.RolledBackCount, predicted = remote1.PredictedCount;
+                try
+                {
+                    abil.ApplyReplica(image); // pretend the image is stale: the client believes a charge is left
+                    bool a = ps.RequestSlot(PNSkillSlots.Dash, new PNSkillInputEvent(PNSkillInputPhase.Started, PNSkillInteraction.Tap)), b = ps.RequestSlot(PNSkillSlots.Dash, new PNSkillInputEvent(PNSkillInputPhase.Performed, PNSkillInteraction.Tap)), c = ps.RequestSlot(PNSkillSlots.Dash, new PNSkillInputEvent(PNSkillInputPhase.Canceled, PNSkillInteraction.Tap));
+                    Check(a && b && c && remote1.PredictedCount == predicted + 1 && ps.IsPredictingDash, "the client guesses a dash on its stale replica");
+                }
+                catch (Exception e) { Fail(e); yield break; }
+                yield return Wait(() => remote1.RolledBackCount > rolled, "the host's refusal: " + Diag(remote1, e1)); if (failed) yield break;
+                yield return Wait(() => ps.DashRecovery.Current < 1, "the true Abilities come back after the refusal"); if (failed) yield break;
+                try { Check(remote1.Refusals.Any(r => r.Reason == "declined") && !ps.IsDashing && remote1.PendingPredictions == 0, "the declined guess is taken back: dash stopped, replica shows the host's truth (refusals " + string.Join(";", remote1.Refusals.Select(r => r.Key + ":" + r.Reason)) + ")"); Mark("client1-declined"); } catch (Exception e) { Fail(e); yield break; }
+            }
+            yield return Wait(() => Has("client1-declined"), "client1 declined"); if (failed) yield break;
+            // ---- S4-S5 over the wire: a hit report and a decision reach the host, which checks and queues them ----
+            if (name == "client1")
+            {
+                try
+                {
+                    long keyNow = remote1.LastSentKey; var other2 = e2.GetComponent<EveEntityIdentity>().Id;
+                    Check(remote1.SendDecision(keyNow, "repeat_continue", new Newtonsoft.Json.Linq.JObject { ["v"] = 1 }) && remote1.SendHits(keyNow, 0, new[] { other2 }), "the client sends a decision and a hit report");
+                    Mark("client1-reported");
+                } catch (Exception e) { Fail(e); yield break; }
+            }
+            if (host)
+            {
+                yield return Wait(() => Has("client1-reported"), "client1 reported"); if (failed) yield break;
+                yield return Wait(() => remote1.DecisionsTaken + remote1.DecisionsWaiting + remote1.DecisionsExpired >= 1 && remote1.HitsRejected + remote1.HitsApplied >= 1, "the host received the decision and the report"); if (failed) yield break;
+                try { Check(remote1.HitsApplied == 0 && remote1.HitsRejected == 1, "the host refused a hit report while no sweep was running (applied " + remote1.HitsApplied + ", rejected " + remote1.HitsRejected + ")"); } catch (Exception e) { Fail(e); yield break; }
+            }
+            Mark(name + "-s45");
+            yield return Wait(() => Has("client1-s45") && Has("client2-s45") && Has("host-s45"), "everyone past S4-S5"); if (failed) yield break;
             Mark(name + "-done");
             yield return Wait(() => Has("host-done") || host && Has("client1-done") && Has("client2-done"), "everyone done"); if (failed) yield break;
             if (host) { try { PNGameBootstrap.EndPlay(); } catch (Exception e) { Fail(e); yield break; } yield return new WaitForSecondsRealtime(1f); }

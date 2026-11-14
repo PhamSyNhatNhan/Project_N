@@ -122,6 +122,22 @@ public static class EveSkillPredictionChecks
             Check(remote.PendingPredictions == 0 && remote.RolledBackCount == 1 && skill.IsDashing && skill.DashRecovery.Current == charges - 1, "the acknowledged release confirms the guess: nothing rolled back, the charge stays spent");
             skill.CancelPredictedDash();
 
+            // a newer image under a waiting guess does not undo it; the refusal then gives back what the IMAGE held
+            var abilities = root.GetComponent<PNAbilityManager>().Abilities; var image = abilities.CaptureReplica().ToList(); double c0 = skill.DashRecovery.Current;
+            skill.Press(PNSkillSlots.Dash, PNSkillInputPhase.Started); long key2 = remote.LastSentKey;
+            Check(skill.DashRecovery.Current == c0 - 1, "a fresh guess spends a charge (" + skill.DashRecovery.Current + " of " + c0 + ")");
+            abilities.ApplyReplica(image); Check(skill.DashRecovery.Current == c0, "the stale image puts the charge back");
+            ((Action)typeof(PNSkillOwnerView).GetField("Applied", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(view))();
+            Check(skill.DashRecovery.Current == c0 - 1, "the waiting guess is laid over the new image again");
+            service.ReceiveState(target, PNSkillRemoteInput.ResultState, 1, 6, new JObject { ["ack"] = key2, ["p"] = 0, ["rej"] = new JArray((object)new JArray(key2, "declined")) });
+            Check(skill.DashRecovery.Current == c0 && !skill.IsDashing, "the refusal then restores the charge the image held");
+            // a guess nobody answers is taken back
+            skill.Release(PNSkillSlots.Dash); skill.Press(PNSkillSlots.Dash, PNSkillInputPhase.Started); skill.Release(PNSkillSlots.Dash);
+            int rolled = remote.RolledBackCount; remote.ExpireGuesses(UnityEngine.Time.unscaledTime + 1f);
+            Check(remote.RolledBackCount == rolled && remote.PendingPredictions == 1, "a young guess is kept");
+            remote.ExpireGuesses(UnityEngine.Time.unscaledTime + PNSkillRemoteInput.GuessTimeoutReleased + 1f);
+            Check(remote.RolledBackCount == rolled + 1 && remote.PendingPredictions == 0 && skill.DashRecovery.Current == c0 && !skill.IsDashing, "an unanswered guess times out and is taken back");
+
             // an ordinary slot that names no cooldown is not guessed
             Check(!skill.TryPredictSlotCooldown(PNSkillSlots.Attack, out _), "a slot whose profile names no cooldown Ability is not guessed");
             remote.OnUnbound(); view.OnUnbound(); service.Dispose();

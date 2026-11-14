@@ -87,6 +87,14 @@ public sealed class PNHitboxCast : IDisposable
             throw new InvalidOperationException("Target is not eligible for another hit.");
         lastHits[target.EntityId] = castTime;
     }
+    // A hit the owner's client reported (S4): the action found the target legal by its own rules, so only the once-per-cast (or rehit delay) history is left to keep.
+    public bool TryCommitReported(PNStat target, double castTime)
+    {
+        CheckTime(castTime);
+        if (querying || target == null || !target.IsReady || target.SessionId != sessionId) return false;
+        if (lastHits.TryGetValue(target.EntityId, out var previous) && (!rehitDelay.HasValue || castTime - previous < rehitDelay.Value)) return false;
+        lastHits[target.EntityId] = castTime; if (castTime > lastTime) lastTime = castTime; return true;
+    }
     private void CheckTime(double time)
     {
         if (disposed) throw new ObjectDisposedException(nameof(PNHitboxCast));
