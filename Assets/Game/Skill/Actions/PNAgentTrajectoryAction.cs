@@ -85,7 +85,7 @@ public class PNAgentTrajectoryAction : PNSkillAction, IPNSkillMotionAction, IPNS
     private PNHitboxCast cast;
     private PNStat caster;
     private PNDamage damage;
-    private PNCombatSourceSnapshot source;
+    private PNCombatSourceSnapshot source; private float hitRadius;
     private double rawAmount;
     private readonly List<PNStat> targets = new List<PNStat>();
     private RaycastHit[] sweptHits = new RaycastHit[32];
@@ -143,8 +143,10 @@ public class PNAgentTrajectoryAction : PNSkillAction, IPNSkillMotionAction, IPNS
         if (Contact)
         {
             foreach (var component in settings.Values.Components) rawAmount += component.Evaluate(caster);
-            source = caster.CaptureCombatSource(); damage = caster.CreateDamage(rawAmount, settings.CanCrit, null, value.Data.Action.PerformTags.ToArray());
-            cast = new PNHitboxCast(EveHitboxShape.Sphere(settings.HitRadius), value.Skill.gameObject.scene.GetPhysicsScene(), settings.RepeatInterval > 0 ? settings.RepeatInterval : (double?)null);
+            // Captured once at Perform: melee_scale widens the contact radius (travel distance and sweep angle stay), melee_damage joins the tags.
+            source = caster.CaptureCombatSource(); var capture = PNHitCapture.Melee(source, value.Data.Action.PerformTags);
+            hitRadius = capture.Scale(settings.HitRadius); damage = capture.Damage(capture.Prepare(rawAmount, settings.CanCrit, null));
+            cast = new PNHitboxCast(EveHitboxShape.Sphere(hitRadius), value.Skill.gameObject.scene.GetPhysicsScene(), settings.RepeatInterval > 0 ? settings.RepeatInterval : (double?)null);
         }
     }
     private Vector3 Sample(float t)
@@ -164,7 +166,7 @@ public class PNAgentTrajectoryAction : PNSkillAction, IPNSkillMotionAction, IPNS
         if (Outcome != PNMotionOutcome.Running || disposed) return true;
         if (!performed || delta == 0 || !PNWorldGameplay.CanExecute(context.Skill) || !motor.CanWrite) return false;
         float next = Mathf.Min(settings.Duration, elapsed + delta); float from = elapsed / settings.Duration, to = next / settings.Duration;
-        float maximumStep = Contact ? Mathf.Min(settings.MaximumSegment, settings.HitRadius * .5f) : settings.MaximumSegment;
+        float maximumStep = Contact ? Mathf.Min(settings.MaximumSegment, hitRadius * .5f) : settings.MaximumSegment;
         int steps = 1;
         while (true)
         {
@@ -203,7 +205,7 @@ public class PNAgentTrajectoryAction : PNSkillAction, IPNSkillMotionAction, IPNS
         var vector = last - first; float length = vector.magnitude;
         if (length > .00001f)
         {
-            int count = PNAgentPhysicsQuery.SphereCast(context.Skill.gameObject.scene.GetPhysicsScene(), first, settings.HitRadius, vector / length, ref sweptHits, length, ~0);
+            int count = PNAgentPhysicsQuery.SphereCast(context.Skill.gameObject.scene.GetPhysicsScene(), first, hitRadius, vector / length, ref sweptHits, length, ~0);
             if (count == sweptHits.Length) { Outcome = PNMotionOutcome.BudgetExceeded; return; }
             Array.Sort(sweptHits, 0, count, SweepOrder);
             for (int i = 0; i < count && !disposed; i++)

@@ -9,8 +9,14 @@ using UnityEngine.SceneManagement;
 //     one contact function (OnContacts); everything else has a default. The base integrates position from Velocity + External,
 //     splits a tick into sub-steps, finds contacts and keeps no collider on the projectile. Pooled by the manager.
 // VI: Lớp nền mọi implementation đạn (khuôn PNAreaInstance). Tác giả viết hàm chuyển động (Move) và hàm va chạm (OnContacts).
-public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable
+public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable, IPNTimeTarget
 {
+    // A running projectile is in its world's PNTimeTargets, so any time effect finds it by shape and layer with the other clocks that are not entities.
+    EveTimeScale IPNTimeTarget.TimeClock => Clock;
+    int IPNTimeTarget.TimeLayer => PNLayers.Projectile;
+    Vector3 IPNTimeTarget.TimePosition => position;
+    bool IPNTimeTarget.TimeActive => IsRunning && Clock != null;
+    private PNTimeTargets.Entry timeEntry;
     private readonly PNProjectileContacts contacts = new PNProjectileContacts();
     private Vector3 position, heading = Vector3.forward;
     private PNProjectileTarget target;
@@ -92,12 +98,13 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable
         EndReason = null; CleanupFailed = false; ending = false; first = true; armed = false; Age = 0; Distance = 0; TickIndex = 0; HitCount = 0; hitContext = null; admission = null; Velocity = default; External = default; DestroyedBy = null;
         position = spawn.Position; heading = spawn.Direction; target = new PNProjectileTarget(spawn.Target); contacts.Clear();
         transform.position = position; transform.rotation = Quaternion.LookRotation(heading);
-        IsRunning = true; Initialize(spawn);
+        IsRunning = true; timeEntry = PNTimeTargets.For(world).Register(this); Initialize(spawn);
     }
     internal void Stop(PNProjectileEndReason reason)
     {
         if (!IsRunning && !CleanupFailed) return;
         IsRunning = false; EndReason = reason; CleanupFailed = true;
+        if (timeEntry != null) { PNTimeTargets.Unregister(timeEntry); timeEntry = null; }
         OnEnd(reason); Cleanup(); CleanupFailed = false;
     }
 
@@ -233,6 +240,7 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable
     public virtual void DisposePooledResources() { }
     public virtual void OnPoolRelease()
     {
+        if (timeEntry != null) { PNTimeTargets.Unregister(timeEntry); timeEntry = null; }
         Manager = null; World = null; Definition = null; Launch = null; Handle = default; EndReason = null; IsRunning = false; ending = false; DestroyedBy = null; target = default; hitContext = null; admission = null;
         if (CleanupFailed) throw new InvalidOperationException("Faulted projectile cleanup; the pool must discard this instance.");
     }

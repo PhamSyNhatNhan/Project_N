@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "characters": [
+    {
+      "id": "project_n:starforger_star",
+      "portraitPath": "",
+      "data": {
+        "body": {
+          "prefab": "starforger_star",
+          "aggro": "ignored",
+          "healthBar": "hidden"
+        },
+        "star": {
+          "firstDelay": 1,
+          "stagger": 0.667,
+          "interval": 2,
+          "range": 3,
+          "value": {
+            "amount": 50,
+            "statId": "base:attack_power"
+          },
+          "canCrit": true,
+          "tags": [
+            "project_n:attack",
+            "base:magic"
+          ]
+        }
+      },
+      "stats": [
+        {
+          "statId": "base:attack_power",
+          "base": 1
+        }
+      ],
+      "skill": []
+    }
+  ]
+}

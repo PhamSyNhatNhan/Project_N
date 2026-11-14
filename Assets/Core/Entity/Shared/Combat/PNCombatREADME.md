@@ -103,7 +103,7 @@ damage transport or client HP synchronization. Hit detection owns per-target hit
 VI: PNSkillValue và action project_n:damage_action nối value/statId với luồng này.
 Slash hiện dùng hitbox PhysX theo timeline để chọn targets. PNStat tạo popup sau
 khi ghi HP, hiển thị CalculatedDamage; PNPlayerStat tắt popup khi player nhận damage.
-Xem Popup/PNDamagePopupREADME.md và Game/Skill/Actions/Slash/PNSlashAuthoringREADME.md.
+Xem Popup/PNDamagePopupREADME.md.
 Crit dùng snapshot; iframe Gradual đã triển khai bên receiver. Heal/shield còn để sau.
 RulesVersion project_n:37; DLL API2.
 
@@ -268,3 +268,15 @@ refresh, 0.1 s, and on every `Acquire`, so a query outside the tick sees a chang
 blocks the hit calls `gate.Block()`: `ReceiveDamage` then returns an `ignored` result and applies nothing (no HP, Lorica, iframe, popup or `DamageReceived`). Subscribers run in subscription order and stop at
 the first block, so only one of them spends anything (check `gate.Blocked` first when you spend a resource). A faulty subscriber is logged and counts as not blocking. A subscriber (a Buff) unsubscribes in its own
 cleanup; the event is also cleared with the other combat listeners. Damage over time goes through the same path. First user: the `block_hits` Buff (`Assets/Game/Buff/PNSupportBuffs.cs`).
+
+## Strike capture: `PNHitCapture`, `melee_scale`, `melee_damage` (RulesVersion158)
+
+- `PNHitCapture` (Core, Unity-free) is the immutable record every instant attack takes when its shape is first committed or shown: the attacker's `PNCombatSourceSnapshot`, a scale factor read once from it (Scale route over 1, so +50% = 1.5; different groups multiply) and the damage tags (the attack's own plus `project_n:melee_damage`). Later Buff changes never reach an attack already shown.
+- `Scale(length)` multiplies radius, thickness, height and inner radius; a positive length never drops below 1 mm. Angles, travel distances (`step.distance`, `motion.distance`, `maxRange`) and behaviour thresholds are NOT scaled: a smaller `melee_scale` can make an enemy start an attack that then misses (accepted).
+- `Prepare` runs the damage formula once; `Damage(prepared)` gives each hit its own crit roll. It is a library: no timer, no manager, no shape. The caller builds the shape from `Scale(...)` and queries it with `PNHitboxCast`.
+- Used by: Starkeeper star sweep (captured in `Start`, telegraph and VFX use the scaled radius, one prepared damage per sweep), Eve sweep (`Perform`; the visual and hit sector scale together), contact motion (`hitRadius`, at `Perform`), Starforger slam (captured in `Start` with the telegraph; the landing hit is a `PNHitboxCast` cylinder, body touching the cylinder counts). Eve's slash action is unchanged (see `Docs/StrikeBlastPlan.md`).
+- Non-authoritative peers cannot read a combat snapshot: Eve's sweep VFX there is drawn unscaled (network gap, `Docs/SkillNetworkingGaps.md`).
+
+## Blast capture (RulesVersion160)
+
+A Blast (`Assets/Core/Blast/PNBlastREADME.md`) builds its `PNHitCapture` through `PNBlastInstance.CreateCapture`: `blast_scale` (Scale route over 1, read once at creation) scales radius and height, `blast_damage` joins the damage tags, the damage is prepared once and each hit rolls its own critical. Same rules as Strike; the source is the creator's snapshot taken by `PNCombatSource.Capture`.

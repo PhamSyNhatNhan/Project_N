@@ -18,7 +18,7 @@ public sealed class PNStarkeeperSweepAction : PNSkillAction, IPNSkillMotionActio
     private readonly PNHitboxCast[] casts = new PNHitboxCast[2]; private readonly double[] raw = new double[2]; private readonly double?[] iframe = new double?[2];
     private PNStat caster; private PNCombatSourceSnapshot source; private bool canCrit, reaimed, ended; private readonly bool[] swept = new bool[2];
     private Vector3 first, second; private PNStarkeeperPresentation presentation; private PNVisualBody body; private PNStarkeeperTelegraph telegraph;
-    private readonly List<PNStat> hits = new List<PNStat>();
+    private readonly List<PNStat> hits = new List<PNStat>(); private PNHitCapture capture; private readonly PNPreparedDamage[] prepared = new PNPreparedDamage[2];
     private PNStarkeeperSweepVisual visual;
     public override bool HasAuxiliaryTimeline => true;
     public override void Start(PNSkillActionContext c)
@@ -34,6 +34,9 @@ public sealed class PNStarkeeperSweepAction : PNSkillAction, IPNSkillMotionActio
         caster = c.Skill.GetComponent<PNStat>();
         for (int i = 0; i < 2; i++) { foreach (var v in PNSkillValues.Parse(p["hits"][i]["value"]).Components) raw[i] += v.Evaluate(caster); iframe[i] = PNDamage.ParseIFrameDuration((JObject)p["hits"][i]); }
         source = caster.CaptureCombatSource();
+        // Captured once when the telegraph first shows: melee_scale sizes the sector (the angle stays), melee_damage joins the tags; Buffs gained during the windup do not change this attack.
+        capture = PNHitCapture.Melee(source, c.Data.Action.PerformTags); radius = capture.Scale(radius); thickness = capture.Scale(thickness);
+        if (EveRegistrySession.Context.HasAuthority) for (int i = 0; i < 2; i++) prepared[i] = capture.Prepare(raw[i], canCrit, iframe[i]);
         first = Flat(c.Direction.Value, Vector3.forward); second = first;
         var world = c.Skill.gameObject.scene.GetPhysicsScene();
         context = c;
@@ -55,14 +58,13 @@ public sealed class PNStarkeeperSweepAction : PNSkillAction, IPNSkillMotionActio
         swept[index] = true;
         visual?.Emit(index, context.Skill.transform.position, direction);
         if (!EveRegistrySession.Context.HasAuthority) return;
-        var tags = context.Data.Action.PerformTags.ToArray();
         var pose = EveHitboxPose.Planar(context.Skill.transform.position + Vector3.up * .3f, direction);
         casts[index].Query(pose, age, hits, caster, ~0, QueryTriggerInteraction.Ignore, target => caster.Targets(target) && !target.IsDead && PNWorldGameplay.CanTarget(context.Skill, target));
         foreach (var target in hits.ToArray())
         {
             if (ended) break;
             var hitPosition = target.transform.position;
-            context.ReceiveHit(target, hitPosition, caster.CreateDamage(raw[index], canCrit, iframe[index], tags), raw[index], source, index);
+            context.ReceiveHit(target, hitPosition, capture.Damage(prepared[index]), raw[index], source, index);
             if (!ended) visual?.Hit(hitPosition);
             if (!ended && target.IsReady) casts[index].CommitHit(target, age);
         }

@@ -65,10 +65,7 @@ Normal right/left/horizontal, empowered right/left/horizontal, Repeat right/left
 normal Ulti and Burst-Ulti right/left/horizontal each have their own action payload.
 They select base:eve_sweep_action, a NEW independent EveSweepAction.
 No old slash mesh, prefab, texture, track or slash VFX/hit operation is used by
-Eve's actual attacks. The legacy eve_slash entry and GetSlashVfxPool API remain
-available only for existing callers/mods and legacy regression checks. Old
-base:slash_action overrides do not modify the new base:eve_sweep_action.
-
+Eve's actual attacks. The old slash action (`base:slash_action`, `base:slash_vfx`, `base:slash_hit`), the `eve_slash` skill, `PNArcSlashVisual`, the `PNAttacks/EveSlash` prefab, hitbox tracks and `GetSlashVfxPool` were removed in RulesVersion 159.
 ## Control leases (2026-10-06)
 
 Eve TryAttack/Repeat/Skill/Dash/Ultimate/Burst use registered category/global and

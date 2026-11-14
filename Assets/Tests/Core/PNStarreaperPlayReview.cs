@@ -56,23 +56,23 @@ public static class PNStarreaperPlayReview
             if (hp < player.GetMax(health) * .4) { player.SetCurrent(health, player.GetMax(health)); lastHp = (float)player.GetMax(health); }
             var arrows = Resources.FindObjectsOfTypeAll<PNStarreaperProjectile>().Where(x => x.IsRunning).ToArray(); maxArrows = Mathf.Max(maxArrows, arrows.Length);
             foreach (var a in arrows) { int key = a.GetHashCode(); if (seenArrows.Add(key)) { arrowStart[key] = a.transform.position; arrowSeen[key] = now; var h = a.transform.forward; Log("ARROW appears at " + a.transform.position.ToString("F2") + " heading " + h.ToString("F2") + " (reaper " + reaper.transform.position.ToString("F2") + ")"); if (!shotArrow) { shotArrow = true; Shot("arrow"); } } arrowLife[key] = now - arrowSeen[key]; }
-            var shadows = Resources.FindObjectsOfTypeAll<PNStarreaperShadowArea>().Where(x => x.IsRunning).ToArray(); maxShadows = Mathf.Max(maxShadows, shadows.Length);
+            var shadows = Resources.FindObjectsOfTypeAll<PNStarreaperShadowSummon>().Where(x => x.IsRunning).ToArray(); maxShadows = Mathf.Max(maxShadows, shadows.Length);
             if (shadows.Length > 0 && shadowAt < 0) { shadowAt = now; Log("SHADOW appears at " + shadows[0].transform.position.ToString("F2") + " (the reaper has moved " + (retreatNoted ? Vector3.Distance(retreatFrom, reaper.transform.position).ToString("F2") : "?") + " m)"); Shot("shadow"); }
             if (shadows.Length > 0 && !shotShadow && now - shadowAt > 1.9f) { shotShadow = true; Shot("shadow_fire"); }
             if (shadows.Length == 0 && shadowAt >= 0 && shadowAt > -1) { Log("SHADOW gone after " + (now - shadowAt).ToString("F2") + " s"); shadowAt = -2; }
-            var rains = Resources.FindObjectsOfTypeAll<PNStarreaperRainArea>().Where(x => x.IsRunning).ToArray(); maxRains = Mathf.Max(maxRains, rains.Length);
+            var rains = Resources.FindObjectsOfTypeAll<PNStarreaperRainBlast>().Where(x => x.IsRunning).OrderBy(x => x.Delay).ToArray(); maxRains = Mathf.Max(maxRains, rains.Length);
             if (rains.Length > 0)
             {
-                var rain = rains[0];
-                if (rainSeenAt < 0) { rainSeenAt = now; Log("RAIN area appears with " + rain.Points.Count + " landing points (centre-ish " + rain.Points[0].ToString("F2") + ")"); Shot("rain_warning"); }
-                if (!probed && rain.Age > .55f && rain.Points.Count > 0)
+                var rain = rains[0]; var rainPoints = rains.Select(x => x.Center).ToList();
+                if (rainSeenAt < 0) { rainSeenAt = now; Log("RAIN blasts appear with " + rainPoints.Count + " landing points (centre-ish " + rainPoints[0].ToString("F2") + ")"); Shot("rain_warning"); }
+                if (!probed && rain.Age > .55f && rainPoints.Count > 0)
                 {
-                    probed = true; var under = rain.Points[rain.Points.Count - 1]; player.transform.position = new Vector3(under.x, player.transform.position.y, under.z); lastHp = (float)player.GetCurrent(health);
+                    probed = true; var under = rainPoints[rainPoints.Count - 1]; player.transform.position = new Vector3(under.x, player.transform.position.y, under.z); lastHp = (float)player.GetCurrent(health);
                     Log("PROBE: player placed under the LAST landing " + under.ToString("F2") + " at rain age " + rain.Age.ToString("F2") + "; hp " + lastHp.ToString("F0"));
                 }
                 if (!shotRain && rain.Age > 1.05f) { shotRain = true; Shot("rain_landing"); }
             }
-            else if (rainSeenAt >= 0) { Log("RAIN area gone after " + (now - rainSeenAt).ToString("F2") + " s"); rainSeenAt = -1f; }
+            else if (rainSeenAt >= 0) { Log("RAIN blasts gone after " + (now - rainSeenAt).ToString("F2") + " s"); rainSeenAt = -1f; }
             if (now - lastLog > 3f) { lastLog = now; Log("diag: gap " + Gap().ToString("F2") + " state " + skill.GetComponent<PNVisualBody>()?.Actor?.Animator.BaseState + " casting " + skill.IsExecutingEnemyAction + " casts " + skill.CastCount + " arrows " + arrows.Length); }
             yield return null;
         }

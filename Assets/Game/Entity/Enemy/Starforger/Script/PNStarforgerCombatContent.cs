@@ -4,23 +4,22 @@ using EveEngine;
 using Newtonsoft.Json.Linq;
 
 // The Starforger's registered combat data (Docs/StarforgerSkillsPlan.md): two skills, each with its own cooldown Ability (<skill id>_ready) and Action, the slam's damage Operation, the star bolt
-// projectile and the star area. Every number lives in these payloads and nowhere else.
+// projectile and the star summon. Every number lives in these payloads and nowhere else.
 //   starforger_slam (10 s) : crouches `crouch` seconds (a warning ring shows the landing), jumps to the target's spot (a Hop trajectory of `hop.duration`, invulnerable and immune to control while
 //                            airborne), slams on landing (`starforger_slam_hit`: radius 0.7 m, 300%, physical) and rests `recovery`. Every star shoots one extra bolt toward the landing at take-off.
-//   starforger_star (5 s)  : gathers `cast` seconds and makes one star (at most `maxStars`; the skill is not used with all of them alive). A star is a dependent area: no health, lives `lifetime`,
+//   starforger_star (5 s)  : gathers `cast` seconds and makes one star (at most `maxStars`; the skill is not used with all of them alive). A star is a dependent summon (one group per slot): no health, lives `summon.lifetime`,
 //                            shoots a bolt (50%) at the nearest hostile within `range` every `interval`, its first one `firstDelay` + slot * `stagger` after it appeared.
 public static class PNStarforgerCombatContent
 {
     public static readonly EveId Slam = EveId.Parse("project_n:starforger_slam"), Star = EveId.Parse("project_n:starforger_star"),
         SlamAction = EveId.Parse("project_n:starforger_slam_action"), StarAction = EveId.Parse("project_n:starforger_star_action"),
-        SlamHit = EveId.Parse("project_n:starforger_slam_hit"), Bolt = EveId.Parse("project_n:starforger_bolt"), StarArea = EveId.Parse("project_n:starforger_star_area");
+        SlamHit = EveId.Parse("project_n:starforger_slam_hit"), Bolt = EveId.Parse("project_n:starforger_bolt"), StarCharacter = EveId.Parse("project_n:starforger_star"), CreateSummon = EveId.Parse("project_n:create_summon");
 
     public static void Register(EveRegistryHub hub)
     {
         hub.Instances().Register(new PNProjectileDefinition(Bolt, typeof(PNStarforgerBoltProjectile),
             JObject.Parse(@"{'speed':4,'acceleration':0,'speedMin':0,'speedMax':4,'life':{'mode':'Time','value':3},'volume':{'size':[0.2,0.3,0.3]},'environmentMask':['Wall'],'hitLimit':1}"),
             PNDirectionalSettings.ValidateDefinition, PNDirectionalSettings.ValidateInput));
-        hub.Instances().Register(new PNAreaDefinition(StarArea, typeof(PNStarforgerStarArea), new JObject(), (token, registry) => PNBuffContentBatch.Fields(PNBuffContentBatch.Object(token)), ValidateStarInput));
         hub.Operations().Register(new PNSkillOperationDefinition(SlamHit, typeof(PNStarforgerSlamHitOperation), ValidateSlamHit, PNSkillContextRequirements.Position));
         hub.Actions().Register(new PNSkillActionDefinition(SlamAction, typeof(PNStarforgerSlamAction), (a, h) => ValidateSlam(a, h), PNSkillContextRequirements.Direction | PNSkillContextRequirements.Position,
             (data, references) => references.Require<PNSkillOperationDefinition>(new JValue("base:lock_movement"), "movementLock")));
@@ -33,8 +32,7 @@ public static class PNStarforgerCombatContent
           'tags':['base:physical']}")));
         skills.Register(Skill(Star, "base:attack", false, 5, StarAction, JObject.Parse(@"{
           'range':4,'cast':0.8,'recovery':0.2,'maxStars':3,'orbit':1.2,'slotDegrees':120,
-          'star':{'areaId':'project_n:starforger_star_area','followCaster':false,'input':{'lifetime':16,'firstDelay':1,'stagger':0.667,'interval':2,'range':3,'slot':0,
-            'value':{'amount':50,'statId':'base:attack_power'},'canCrit':true,'tags':['base:magic']}},
+          'summon':{'character':'project_n:starforger_star','lifetime':16},
           'tags':['base:magic']}")));
     }
     private static EveSkillDefinition Skill(EveId id, string category, bool attackSpeed, double cooldown, EveId action, JObject perform)
@@ -80,20 +78,39 @@ public static class PNStarforgerCombatContent
     }
     public static void ValidateStar(PNSkillActionData data, EveRegistryHub hub)
     {
-        var p = PNBuffContentBatch.Object(data.Perform); PNBuffContentBatch.Fields(p, "range", "cast", "recovery", "maxStars", "orbit", "slotDegrees", "star", "tags");
+        var p = PNBuffContentBatch.Object(data.Perform); PNBuffContentBatch.Fields(p, "range", "cast", "recovery", "maxStars", "orbit", "slotDegrees", "summon", "tags");
         Positive(p, "range", 30); Positive(p, "cast", 10); Positive(p, "recovery", 10); Positive(p, "orbit", 20); Positive(p, "slotDegrees", 360);
         int max = PNBuffContentBatch.Integer(p, "maxStars"); if (max < 1 || max > 8) throw new FormatException("maxStars must be 1..8.");
-        var star = PNBuffContentBatch.Object(p["star"]); PNBuffContentBatch.Fields(star, "areaId", "followCaster", "input");
-        if (PNBuffContentBatch.String(star, "areaId") != StarArea.ToString() || PNBuffContentBatch.Bool(star, "followCaster")) throw new FormatException("The star skill creates the star area, not following the caster.");
-        ValidateStarInput(star["input"]); ValidateDamage((JObject)star["input"], hub);
+        // The star is a summon (Docs/StrikeBlastPlan.md U2): the skill names the character and its lifetime; the slot's group, its limit and the offset are added when the star is made, and what the star does
+        // is the character's `star` block (ValidateCharacters).
+        var summon = PNBuffContentBatch.Object(p["summon"]); PNBuffContentBatch.Fields(summon, "character", "lifetime");
+        if (PNBuffContentBatch.String(summon, "character") != StarCharacter.ToString()) throw new FormatException("The star skill summons " + StarCharacter + ".");
+        var made = (JObject)summon.DeepClone(); made["group"] = SlotGroup(0); made["limit"] = 1; made["whenFull"] = "reject";
+        if (PNCreateSummonSettings.Parse(made).Lifetime == null) throw new FormatException("A star needs a lifetime.");
+    }
+    // The limit group of the star in `slot`: one star per slot, counted by the summon index (also while its entity is still being prepared).
+    public const string SlotGroupPrefix = "starforger_star_";
+    public static string SlotGroup(int slot) => SlotGroupPrefix + slot;
+    public static bool TrySlot(string group, out int slot)
+    {
+        slot = -1; return group != null && group.StartsWith(SlotGroupPrefix, StringComparison.Ordinal) && int.TryParse(group.Substring(SlotGroupPrefix.Length), out slot) && slot >= 0 && slot < 8;
+    }
+    // Content check: the `star` block of every character that has one.
+    public static void ValidateCharacters(EveRegistryHub hub)
+    {
+        foreach (var character in hub.Characters.Snapshot().Values)
+        {
+            var block = (character.Data as JObject)?["star"]; if (block == null) continue;
+            try { ValidateStarInput(block); ValidateDamage((JObject)block, hub); }
+            catch (FormatException error) { throw new FormatException("Character " + character.Id + " star block: " + error.Message); }
+        }
     }
     public static void ValidateStarInput(JToken token)
     {
         var o = PNBuffContentBatch.Object(token);
-        PNBuffContentBatch.Fields(o, "lifetime", "firstDelay", "stagger", "interval", "range", "slot", "value", "canCrit", "tags");
-        Positive(o, "lifetime", 600); Positive(o, "firstDelay", 60); Positive(o, "interval", 60); Positive(o, "range", 100);
+        PNBuffContentBatch.Fields(o, "firstDelay", "stagger", "interval", "range", "value", "canCrit", "tags");
+        Positive(o, "firstDelay", 60); Positive(o, "interval", 60); Positive(o, "range", 100);
         if (PNBuffContentBatch.Number(o, "stagger") < 0) throw new FormatException("stagger must not be negative.");
-        int slot = PNBuffContentBatch.Integer(o, "slot"); if (slot < 0 || slot > 7) throw new FormatException("slot must be 0..7.");
         PNSkillValues.Parse(o["value"]).ValidateNonnegativeAmounts(); PNSkillEffect.Ids(o["tags"]).ToArray();
     }
 }

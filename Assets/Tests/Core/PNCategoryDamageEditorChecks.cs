@@ -32,7 +32,7 @@ public static class PNCategoryDamageEditorChecks
     {
         var original = SceneManager.GetActiveScene(); bool dirty = original.isDirty;
         float originalTime = Time.timeScale;
-        var results = new[] { PNSkillEffectsEditorChecks.Run(), PNDamageFlowEditorChecks.RunFlatScale(), PNSlashCombatEditorChecks.Run() };
+        var results = new[] { PNSkillEffectsEditorChecks.Run(), PNDamageFlowEditorChecks.RunFlatScale() };
         if (SceneManager.GetActiveScene() != original || original.isDirty != dirty || Time.timeScale != originalTime)
             throw new Exception("Native checks changed authored scene or global time.");
         Directory.CreateDirectory(Review);

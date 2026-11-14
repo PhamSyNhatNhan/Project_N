@@ -29,7 +29,7 @@ public class EveGameRuntime : EveRuntime
 #endif
     // EN: Bump when executable gameplay rules change, even if JSON stays the same.
     // VI: TÄƒng phiÃªn báº£n khi luáº­t gameplay trong code Ä‘á»•i dÃ¹ JSON váº«n giá»¯ nguyÃªn.
-    public const string CurrentRulesVersion = "project_n:156";
+    public const string CurrentRulesVersion = "project_n:161";
     public override string RulesVersion => CurrentRulesVersion;
 #if UNITY_5_3_OR_NEWER
     internal bool IsBootstrapOwner { get; set; }
@@ -46,9 +46,11 @@ public class EveGameRuntime : EveRuntime
         if (!Application.isPlaying) return;
         // Register before binding, so partial initialization also has a cleanup owner.
         session.RegisterCleanup(() => GetComponent<PNAreaManager>()?.Shutdown());
+        session.RegisterCleanup(() => GetComponent<PNBlastManager>()?.Shutdown());
         session.RegisterCleanup(() => GetComponent<PNProjectileManager>()?.Shutdown());
         session.RegisterCleanup(() => GetComponent<PNUiRuntime>()?.Unbind());
         PNAreaManager.Attach(this);
+        PNBlastManager.Attach(this);
         PNProjectileManager.Attach(this, PNGameBootstrap.Config.Projectiles);
         PNUiRuntime.Attach(this);
         PNGameSession.Attach(this, session);
@@ -99,7 +101,7 @@ public class EveGameRuntime : EveRuntime
 #if UNITY_5_3_OR_NEWER
     protected override IReadOnlyDictionary<string, string> ReadGameplayAssetHashes(EveRegistryHub registry)
     {
-        var hashes=PNSlashPrefabContent.Hashes(registry).ToDictionary(x=>x.Key,x=>x.Value);
+        var hashes=new Dictionary<string,string>();
         // The gameplay structure of every referenced entity prefab. Mobile has no mods and no crossplay, so it skips the walk.
         if(!Application.isMobilePlatform)foreach(var pair in PNEntityPrefabReferences.Hashes(registry,PNEntityPrefabs.Source))hashes.Add(pair.Key,pair.Value);
         foreach(var pack in packs??System.Array.Empty<EveContentPack>())if(pack.Assets!=null)

@@ -22,7 +22,7 @@ public class PNAreaDefinition : PNInstanceDefinition
     {
         var root = new UnityEngine.GameObject("Area template: " + Id);
         root.SetActive(false); root.hideFlags = UnityEngine.HideFlags.HideAndDontSave;
-        root.AddComponent(ImplementationType); return root;
+        root.AddComponent(ImplementationType); root.AddComponent<PNAreaClock>(); return root;
     }
 #endif
 }

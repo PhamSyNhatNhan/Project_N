@@ -25,9 +25,6 @@ Pitch billboard check: `PNBillboardEditorChecks.Run()` outside Play Mode verifie
 Eve/dummy Visual attachments, multiple camera pitches, fixed feet, unchanged root
 physics and flipX. Uses a disposable preview scene and never saves gameplay scenes.
 
-Continuous slash check: `PNSlashDirectionEditorChecks.Run()` outside Play Mode
-checks real pooled meshes at arbitrary skill-supplied angles independent of
-movement, planar forward offsets and aim fixed for the duration of each cast.
 `RunSkillFacing()` checks the actual no-argument Eve skill-to-VFX pipeline using
 last movement directions25/155/-72, idle retention and explicit unload cleanup.
 

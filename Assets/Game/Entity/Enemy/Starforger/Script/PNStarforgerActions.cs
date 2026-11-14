@@ -33,7 +33,7 @@ internal static class PNStarforgerCast
     }
 }
 
-// Tạo sao: the owner stands still for `cast` seconds, then makes one star (a dependent area, see PNStarforgerStarArea) in the first free slot around it. A stun cancels the cast before the star exists;
+// Tạo sao: the owner stands still for `cast` seconds, then makes one star (a dependent summon, see PNStarforgerStarSummon) in the first free slot around it. A stun cancels the cast before the star exists;
 // a star that already exists is not touched. With every slot taken nothing is made (the behavior does not cast then).
 public sealed class PNStarforgerStarAction : PNSkillAction
 {
@@ -69,11 +69,10 @@ public sealed class PNStarforgerStarAction : PNSkillAction
         var hits = new RaycastHit[8]; int n = caster.gameObject.scene.GetPhysicsScene().Raycast(origin + Vector3.up * .2f, delta / length, hits, length, LayerMask.GetMask("Wall"), QueryTriggerInteraction.Ignore);
         for (int i = 0; i < n; i++) length = Mathf.Min(length, Mathf.Max(0f, hits[i].distance - .15f));
         var spot = origin + delta.normalized * length;
-        var star = (JObject)p["star"]; var input = (JObject)star["input"].DeepClone(); input["slot"] = slot; input["tags"] = PNStarforgerCast.Tags(c, input["tags"]);
-        var scene = caster.gameObject.scene; var manager = PNAreaManager.Resolve(EveRegistrySession.Context, scene);
-        if (!ReferenceEquals(manager.Session.Registry, c.Registry)) throw new InvalidOperationException("Star session mismatch.");
-        var receipt = manager.Create(new PNAreaCreateRequest(PNStarforgerCombatContent.StarArea, input, PNCombatSource.Capture(caster), scene, spot, caster));
-        if (receipt.Status == PNAreaStatus.Failed) throw new InvalidOperationException("Star creation failed.", receipt.Error);
+        // The star is a summon of the caster in this slot's group (one per slot; a second one for a taken slot is refused), hung at the spot as an offset from the caster.
+        var summon = (JObject)p["summon"].DeepClone(); summon["group"] = PNStarforgerCombatContent.SlotGroup(slot); summon["limit"] = 1; summon["whenFull"] = "reject";
+        var shift = spot - origin; summon["offset"] = new JArray(shift.x, shift.y, shift.z);
+        using (var create = CreateOperation(c, PNStarforgerCombatContent.CreateSummon)) create.Execute(c, summon);
     }
     public override void Exit(PNSkillActionContext c) { try { c.CompleteAction(); } finally { Dispose(); } }
     public override void Cancel(PNSkillActionContext c) { try { c.CancelEffects(); } finally { Dispose(); } }      // a star already made belongs to the manager and stays
@@ -91,6 +90,7 @@ public sealed class PNStarforgerSlamAction : PNAgentTrajectoryAction
 {
     private PNSkillActionContext cast; private PNStat caster; private PNStarforgerSkill skill; private PNStarforgerPresentation presentation; private PNVisualBody body;
     private PNStarforgerTelegraph telegraph; private PNSkillOperation hitOperation;
+    private PNHitCapture hitCapture; private PNPreparedDamage hitPrepared; private double hitAmount; private float hitRadius, hitHeight;
     private float crouch, recovery, hopSeconds, age, recoverAge; private bool flying, landed, ended; private Vector3 landing;
     private Action<PNDamageGate> block; private PNBuffImmunityLease lease;
     protected override JToken MotionPayload(PNSkillActionContext value) => value.Data.Action.Perform["hop"];
@@ -107,7 +107,10 @@ public sealed class PNStarforgerSlamAction : PNAgentTrajectoryAction
         presentation = c.Skill.GetComponent<PNStarforgerPresentation>(); body = c.Skill.GetComponent<PNVisualBody>();
         PNStarforgerCast.Face(c, body, PNStarforgerCast.Planar(c.Direction.Value));
         body?.PlayAction("crouch", crouch);body?.Actor?.SetPhase(0); presentation?.BeginSlam(crouch, hopSeconds, recovery);
-        telegraph = PNStarforgerTelegraph.Create(caster.gameObject.scene, landing, p["hit"]["radius"].Value<float>(), crouch + hopSeconds);
+        // The telegraph is the first committed shape: scale and damage are captured now (melee_scale), and the hit at the landing uses the same numbers.
+        if (EveRegistrySession.Context.HasAuthority) hitCapture = PNStarforgerSlamHitOperation.Prepare(c, p["hit"], out hitPrepared, out hitAmount, out hitRadius, out hitHeight);
+        else hitRadius = p["hit"]["radius"].Value<float>();
+        telegraph = PNStarforgerTelegraph.Create(caster.gameObject.scene, landing, hitRadius, crouch + hopSeconds);
     }
     public override bool AdvanceAuxiliary(float dt)
     {
@@ -147,7 +150,7 @@ public sealed class PNStarforgerSlamAction : PNAgentTrajectoryAction
         if (Outcome == PNMotionOutcome.Completed || Outcome == PNMotionOutcome.Blocked)
         {
             body?.PlayAction("slam", recovery);body?.Actor?.SetPhase(0);
-            hitOperation = CreateOperation(cast, PNStarforgerCombatContent.SlamHit); hitOperation.Execute(cast, cast.Data.Action.Perform["hit"]);
+            hitOperation = CreateOperation(cast, PNStarforgerCombatContent.SlamHit); if (hitOperation is PNStarforgerSlamHitOperation slam) slam.Bind(hitCapture, hitPrepared, hitAmount, hitRadius, hitHeight); hitOperation.Execute(cast, cast.Data.Action.Perform["hit"]);
         }
     }
     public override void Dispose()
@@ -161,27 +164,40 @@ public sealed class PNStarforgerSlamAction : PNAgentTrajectoryAction
     }
 }
 
-// The slam's damage: everything of the caster's TargetLayers whose body overlaps the circle (`radius`, within `height` of the landing) takes the damage prepared once from the caster's stats.
+// The slam's damage: everything of the caster's TargetLayers whose body touches the cylinder (`radius` x melee_scale, within `height` of the landing) takes the damage prepared once from the caster's stats.
+// The cast is captured by the Action when the telegraph appears (PNHitCapture, D6); the Operation only fires it at the landing.
 public sealed class PNStarforgerSlamHitOperation : PNSkillOperation
 {
     private bool executed;
+    public PNHitCapture Capture { get; private set; } private PNPreparedDamage prepared; private double amount; private float radius, height;
+    // Reads the registered `hit` payload and captures once: scale from melee_scale, damage prepared with the attack's tags (the Action's effective tags, the payload tags and melee_damage).
+    public static PNHitCapture Prepare(PNSkillActionContext c, JToken data, out PNPreparedDamage prepared, out double amount, out float radius, out float height)
+    {
+        var caster = c.Skill.GetComponent<PNStat>(); amount = 0; foreach (var v in PNSkillValues.Parse(data["value"]).Components) amount += v.Evaluate(caster);
+        var tags = c.EffectiveTags().Concat(data["tags"].Select(x => EveId.Parse(x.Value<string>())));
+        var capture = PNHitCapture.Melee(caster.CaptureCombatSource(), tags);
+        radius = capture.Scale(data["radius"].Value<float>()); height = capture.Scale(data["height"].Value<float>());
+        prepared = capture.Prepare(amount, data["canCrit"].Value<bool>(), 0);
+        return capture;
+    }
+    public void Bind(PNHitCapture capture, PNPreparedDamage prepared, double amount, float radius, float height) { Capture = capture; this.prepared = prepared; this.amount = amount; this.radius = radius; this.height = height; }
     public override void Execute(PNSkillActionContext c, JToken data)
     {
         if (executed) throw new InvalidOperationException("Slam already spent"); executed = true;
         if (!EveRegistrySession.Context.HasAuthority) return;
-        var center = c.Position.Value; float radius = data["radius"].Value<float>(), height = data["height"].Value<float>();
-        var caster = c.Skill.GetComponent<PNStat>(); double amount = 0; foreach (var v in PNSkillValues.Parse(data["value"]).Components) amount += v.Evaluate(caster);
-        var capture = caster.CaptureCombatSource(); var tags = c.EffectiveTags().Concat(data["tags"].Select(x => EveId.Parse(x.Value<string>()))).Distinct().ToArray();
-        var prepared = capture.PrepareDamage(amount, data["canCrit"].Value<bool>(), 0, tags);
-        foreach (var entity in c.World.Session.Entities.Snapshot(c.World))
+        if (Capture == null) throw new InvalidOperationException("Slam needs the Action's capture.");
+        var caster = c.Skill.GetComponent<PNStat>(); var center = c.Position.Value;
+        var targets = new List<PNStat>();
+        using (var cast = new PNHitboxCast(EveHitboxShape.Cylinder(radius, height * 2f), caster.gameObject.scene.GetPhysicsScene()))
         {
-            var target = entity.GetComponent<PNStat>(); if (target == null || !target.IsReady || target.IsDead || !caster.Targets(target) || !PNWorldGameplay.CanTarget(c.Skill, target)) continue;
-            var col = target.GetComponent<Collider>(); if (col == null) continue; var b = col.bounds;
-            if (b.max.y < center.y - height || b.min.y > center.y + height) continue;
-            // the nearest point of the body's box to the centre must be inside the circle
-            float dx = Mathf.Max(b.min.x - center.x, 0f, center.x - b.max.x), dz = Mathf.Max(b.min.z - center.z, 0f, center.z - b.max.z);
-            if (dx * dx + dz * dz > radius * radius) continue;
-            c.ReceiveHit(target, target.transform.position, capture.CreateDamage(prepared), amount, capture);
+            cast.Query(EveHitboxPose.Planar(center, Vector3.forward), 0d, targets, caster, ~0, QueryTriggerInteraction.Ignore,
+                target => target != null && target.IsReady && !target.IsDead && caster.Targets(target) && PNWorldGameplay.CanTarget(c.Skill, target));
+            foreach (var target in targets.ToArray())
+            {
+                if (!target.IsReady || target.IsDead) continue;
+                cast.CommitHit(target, 0d);
+                c.ReceiveHit(target, target.transform.position, Capture.Damage(prepared), amount, Capture.Source);
+            }
         }
     }
 }
@@ -204,5 +220,4 @@ public sealed class PNStarforgerStarAction : PNSkillAction
 public sealed class PNStarforgerSlamHitOperation : PNSkillOperation
 { public override void Execute(PNSkillActionContext c, Newtonsoft.Json.Linq.JToken p) { PNStarforgerCombatContent.ValidateSlamHit(p, c.Registry); } }
 public sealed class PNStarforgerBoltProjectile { }
-public sealed class PNStarforgerStarArea { }
 #endif

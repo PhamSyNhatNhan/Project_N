@@ -114,8 +114,7 @@ StartTags/PerformTags/ExitTags/CancelTags read-only, khử trùng và kiểm tra
 qua hub.Tags khi nạp bằng loader hoặc tạo context. Không yêu cầu value; action chuyển
 dạng có thể chỉ mang formId và tags. Xem Core/Content/Registry/PNTagREADME.md.
 
-Đã có input PNPlayerSkill và prototype Eve slash: PNSlashAction ghép khóa di chuyển
-với VFX mới, không damage. Xem Assets/VFX/PNArcSlash/PNArcSlashREADME.md.
+Đã có input PNPlayerSkill; đòn đánh của Eve là EveSweepAction (slash cũ đã bỏ ở RulesVersion 159).
 PNSkillValue đã hỗ trợ raw hoặc phần trăm stat, đọc riêng bởi action cần giá trị.
 PNDamageAction đăng ký project_n:damage_action, chụp value/bonus tại Perform và gửi
 đến Targets tường minh trong context; chưa có hitbox. Overload CreateAction nhận danh

@@ -10,6 +10,7 @@ public sealed class PNWorldGameplayTransferParticipant : IPNWorldTransferPartici
         context.Actor.GetComponent<PNStat>()?.PrepareWorldPresentationChange();
         context.Actor.GetComponent<PNMove>()?.CancelWorldMotion();
         PNGameBootstrap.Runtime?.GetComponent<PNAreaManager>()?.ActorWorldChanging(context.Actor.GetComponent<PNStat>());
+        PNGameBootstrap.Runtime?.GetComponent<PNBlastManager>()?.ActorWorldChanging(context.Actor.GetComponent<PNStat>());
     }
     public void Commit(PNWorldTransferContext context) { }
     public void Abort(PNWorldTransferContext context) { }

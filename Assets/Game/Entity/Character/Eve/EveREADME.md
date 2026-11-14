@@ -14,7 +14,6 @@ từ EveTest, giữ nguyên GUID để scene ErMode tiếp tục tham chiếu.
 ErMode dùng Rigidbody/Collider 3D, sprite và `PNPlayerMove` để thử di chuyển 2.5D.
 Space/Gamepad North nhảy; Tap J/Gamepad buttonEast gọi đòn chém với hitbox Sector
 và damage100% Attack physical trong window0.06..0.20s. Chưa có combo/cooldown.
-Chi tiết cấu hình: Assets/Game/Skill/Actions/Slash/PNSlashCombatREADME.md.
 Đòn chém hiện tại được tính là đánh thường: mỗi frame nhân thời gian action với
 `base:attack_speed / 100`, sau khi áp EveTimeScale. 50% mất gấp đôi thời gian,
 200% mất nửa thời gian. VFX và hitbox dùng chung timeline nên cửa sổ trúng đòn,
@@ -37,8 +36,8 @@ và `PNContentModule` đăng ký chỉ số cùng registry nền. Runtime nạp 
 
 Dữ liệu Eve tiếp tục nằm ở `Assets/StreamingAssets/BaseContent/characters/EveCharacter.json`
 để loader tìm dưới BaseContent. HP bắt đầu 40/100, Attack 10, Defense 5,
-move speed 3, jump speed 3.2. VFX/shader và prefab/material vẫn ở
-`Assets/VFX/PNArcSlash` và `Assets/Resources/PNVfx`.
+move speed 3, jump speed 3.2. VFX/shader nằm ở
+`Assets/VFX` và `Assets/Resources/PNVfx`.
 
 Kiểm thử Unity nằm riêng trong `Assets/Tests`; smoke harness nằm ngoài Assets
 tại `Tests/EveEngine`. Xem README VFX để biết vòng đời và cách kiểm thử đòn chém.
@@ -53,7 +52,7 @@ ErMode tests 2.5D movement with 3D physics. Space/Gamepad North jumps;
 Tap J/Gamepad buttonEast starts a sector slash with a data-defined hit window and
 100% Attack physical damage to hostile entities. The Skill owns its Action and
 reusable VFX pool, cancels on disable, and disposes the pool on unload/destruction.
-Combo/cooldown are not implemented. See PNSlashCombatREADME for configuration.
+Combo/cooldown are not implemented.
 
 Concrete shared implementations live in `Assets/Game/Skill/Actions` and
 `Assets/Game/Skill/Operations`, registered by `PNGameplayContentModule`. Core retains

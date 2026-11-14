@@ -120,6 +120,23 @@ public static class PNStarkeeperEditorChecks
             var cancelled = skill.CreateAction(PNStarkeeperCombatContent.StarSweep, out var cc, new[] { targetA }, Vector3.right, null);
             try { cancelled.Start(cc); cancelled.AdvanceAuxiliary(.3f); cancelled.Cancel(cc); } finally { cancelled.Dispose(); }
             Check(Health(targetA) == h1 && Markers() == 0, "a sweep cancelled in the windup hurts nobody and leaves no marker");
+            // --- melee_scale: captured when the telegraph first shows ---
+            go.transform.position = Vector3.zero; go.GetComponent<Rigidbody>().position = Vector3.zero; Physics.SyncTransforms();
+            targetA.transform.position = new Vector3(1f, 0, 0); float scaleB0 = Health(targetB);
+            caster.SetSource(EveId.Parse("test:melee_scale"), new[] { new EveStatModifier(PNContentIds.MeleeScale, 1d, 1) });
+            var scaled = skill.CreateAction(PNStarkeeperCombatContent.StarSweep, out var scc, new[] { targetA }, Vector3.right, null);
+            try
+            {
+                if (scaled is IPNSkillMotionAction motion2) motion2.BindMovementOwner(() => { });
+                scaled.Start(scc);
+                caster.SetSource(EveId.Parse("test:melee_scale"), Array.Empty<EveStatModifier>());     // a Buff lost during the windup does not shrink an attack already shown
+                var scaledMarker = scene.GetRootGameObjects().Single(o => o.name == "Starkeeper sweep").transform.Find("Constellation boundary");
+                Check(scaledMarker.GetComponent<MeshFilter>().sharedMesh.vertices.Max(v => v.magnitude) > 2.6f, "melee_scale +100% doubles the telegraph radius (1.4 m -> 2.8 m)");
+                scaled.AdvanceAuxiliary(.41f);
+                Check(Health(targetB) < scaleB0, "the target 2.6 m away is inside the doubled sector");
+            }
+            finally { scaled.Dispose(); }
+            Check(Markers() == 0, "the scaled sweep leaves no marker"); b0 = Health(targetB); h1 = Health(targetA);
             // --- Diem sao ---
             var anchor = new Vector3(3f, 0, 0); var start = go.transform.position;
             var star = skill.CreateAction(PNStarkeeperCombatContent.StarPoint, out var pc, new[] { targetB }, Vector3.right, anchor);

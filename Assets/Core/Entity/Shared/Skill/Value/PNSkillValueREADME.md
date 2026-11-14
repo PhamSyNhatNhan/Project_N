@@ -98,7 +98,7 @@ evaluate them separately. Signed components remain valid in the general parser;
 Slash/EveSweep/Heal settings require nonnegative coefficients. DamageAction keeps
 its existing final nonnegative damage validation. Overflow fails before HP mutation.
 
-Existing object payloads need no migration. `PNSlashHitSettings.Value` remains a
+Existing object payloads need no migration. The removed slash hit settings `Value` was a
 single-value accessor and throws on composites; use `Values` for arrays.
 `EveSweepSettings.Value` retains its public field for legacy single-value mods;
 it is null on parsed composites, which are available through `Values`.

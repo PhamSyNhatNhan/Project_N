@@ -37,3 +37,7 @@ MonoBehaviour:
     Prefab: {fileID: 3075890851030679134, guid: 55dd3212d7f24754f82aa5a92fef3a94, type: 3}
   - Key: project_n:dummy_lorica
     Prefab: {fileID: 4268054520564624981, guid: 06b1a5be035b8ab4bb0fd0272c3adef7, type: 3}
+  - Key: project_n:starreaper_shadow
+    Prefab: {fileID: 8059214730017314496, guid: 8d4dee20a77541f49bde9e28cba3e614, type: 3}
+  - Key: project_n:starforger_star
+    Prefab: {fileID: 8059214730017314496, guid: 0a92a8394289c234caa4ce16cf3b1598, type: 3}

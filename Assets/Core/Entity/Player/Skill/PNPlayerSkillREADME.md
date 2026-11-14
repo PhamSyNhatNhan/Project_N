@@ -88,5 +88,5 @@ Input System, không nối với EveTimeScale hoặc thời gian thi triển Act
 Smoke checks config/timing serialization, ownership không Move, callback không nhân đôi,
 khóa/unload/destroy, xóa chế độ và Repeat timer. Mã runtime đã biên dịch với Unity
 6000.6.3f1/Input System DLL thật. Eve slash đã được kiểm chứng Tap J qua Input System
-và frame Play Mode thật; xem Assets/VFX/PNArcSlash/PNArcSlashREADME.md.
+và frame Play Mode thật.
 Chưa kiểm chứng thứ tự interaction Tap kết hợp Hold/SlowTap/Repeat hoặc gamepad vật lý.

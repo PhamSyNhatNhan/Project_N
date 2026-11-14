@@ -19,6 +19,14 @@ public static class PNContentIds
     // Summon modifiers: ordinary tags read from the owner's source snapshot when the summon is created (Docs/SummonPlan.md).
     public static readonly EveId SummonDamage = EveId.Parse("project_n:summon_damage");
     public static readonly EveId SummonScale = EveId.Parse("project_n:summon_scale");
+    // Area modifiers: ordinary tags read from the creator's source snapshot when the area is created (Docs/StrikeBlastPlan.md D7).
+    public static readonly EveId AreaScale = EveId.Parse("project_n:area_scale");
+    public static readonly EveId MeleeScale = EveId.Parse("project_n:melee_scale");
+    public static readonly EveId MeleeDamage = EveId.Parse("project_n:melee_damage");
+    public static readonly EveId AreaDamage = EveId.Parse("project_n:area_damage");
+    // Blast modifiers: the same, read from the creator's snapshot when the blast is created (Docs/StrikeBlastPlan.md D7).
+    public static readonly EveId BlastScale = EveId.Parse("project_n:blast_scale");
+    public static readonly EveId BlastDamage = EveId.Parse("project_n:blast_damage");
     public static readonly EveId NormalEnemy = EveId.Parse("project_n:normal");
     public static readonly EveId BossEnemy = EveId.Parse("project_n:boss");
     public static readonly EveId Heal = EveId.Parse("project_n:heal");

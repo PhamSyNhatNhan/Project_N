@@ -16,7 +16,7 @@ public static partial class PNVisualEditorChecks
         Directory.CreateDirectory(output);int checks=0;int echoBaseline=Resources.FindObjectsOfTypeAll<Material>().Count(m=>m.name.StartsWith("Starreaper echo "));int baseline=Resources.FindObjectsOfTypeAll<Material>().Count(m=>m.name.StartsWith("Starreaper pierce "));
         var oldStringCamera=PNVisualStringSystem.CameraOverride;float oldStringTime=PNVisualStringSystem.FixedTime;
         Material wireMaterial=null;
-        PNAreaManager areas=null;Stage stage=null;PNProjectileManager manager=null;GameObject source=null;PNSkillAction action=null;PNSkillActionContext context=null;RenderTexture rt=null;Texture2D tex=null;bool session=false;
+        Stage stage=null;PNProjectileManager manager=null;GameObject source=null;var madeShadows=new System.Collections.Generic.List<GameObject>();PNSkillAction action=null;PNSkillActionContext context=null;RenderTexture rt=null;Texture2D tex=null;bool session=false;
         var docs=new PNGameContentSource(Application.streamingAssetsPath+"/BaseContent","unused",Array.Empty<string>()).ReadDocuments().ToArray();
         var hub=new EveContentBootstrap().Build(new EveIContentModule[]{new PNContentModule(),new PNGameplayContentModule()},docs);PNVisualPacks.Set("project_n",Application.streamingAssetsPath+"/BaseContent");
         void Check(bool value,string label){Require(value,label);checks++;}
@@ -43,16 +43,21 @@ public static partial class PNVisualEditorChecks
             var a=Dummy(.42f,987602);var bTarget=Dummy(.95f,987603);double hpA=a.GetCurrent(PNContentIds.Health),hpB=bTarget.GetCurrent(PNContentIds.Health);Physics.SyncTransforms();
             var shader=Resources.Load<Shader>("PNStarreaperPierce");Check(shader!=null&&shader.passCount==2&&!ShaderUtil.ShaderHasError(shader),"pierce shader compiles");
             Check(hub.Get<PNShaderWarmupDefinition>().Get(EveId.Parse("base:shader_starreaperpierce")).ShaderName==shader.name,"pierce shader warm-up alias");
-            var areaRoot=new GameObject("Echo manager");SceneManager.MoveGameObjectToScene(areaRoot,stage.Scene);areas=areaRoot.AddComponent<PNAreaManager>();areas.Initialize(EveRegistrySession.Context);
-            var skill=source.GetComponent<PNStarreaperSkill>();var unused=skill.CreateAction(PNStarreaperCombatContent.Afterimage,out context,new[]{a},Vector3.right,source.transform.position);unused.Dispose();
-            var payload=(Newtonsoft.Json.Linq.JObject)context.Data.Action.Perform["shadow"]["input"].DeepClone();
-            var receipt=areas.Create(new PNAreaCreateRequest(PNStarreaperCombatContent.ShadowArea,payload,PNCombatSource.Capture(source.GetComponent<PNStat>()),stage.Scene,source.transform.position,source.GetComponent<PNStat>()));
-            Check(receipt.Status==PNAreaStatus.Created,"real registered shadow area is created");
-            var shadow=Resources.FindObjectsOfTypeAll<PNStarreaperShadowArea>().Single(x=>x.IsRunning&&x.Handle.Equals(receipt.Handle));fx.BeginRetreat(.16f);int peak=0;
+                        var skill=source.GetComponent<PNStarreaperSkill>();var unused=skill.CreateAction(PNStarreaperCombatContent.Afterimage,out context,new[]{a},Vector3.right,source.transform.position);unused.Dispose();
+            int shadowCount=0;
+            PNStarreaperShadowSummon MakeShadow()
+            {
+                var go=UnityEngine.Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Game/Entity/Enemy/Starreaper/Prefab/StarreaperShadow.prefab"));go.SetActive(false);SceneManager.MoveGameObjectToScene(go,stage.Scene);go.transform.position=source.transform.position;
+                go.GetComponent<EveEntityIdentity>().Assign(new EveEntityId(987650+shadowCount++),EveId.Parse("project_n:starreaper_shadow"),0);go.GetComponent<EveEntityLoader>().Load(hub);
+                go.GetComponent<PNSummon>().Begin(PNCombatSource.Capture(source.GetComponent<PNStat>()),source.GetComponent<PNStat>().EntityId,"starreaper_shadow",shadowCount,1d);go.SetActive(true);madeShadows.Add(go);return go.GetComponent<PNStarreaperShadowSummon>();
+            }
+            var shadow=MakeShadow();
+            Check(shadow.GetComponent<PNSummon>().IsActive&&shadow.GetComponent<PNSummon>().OwnerSource.LoadedSource==source.GetComponent<PNStat>(),"real registered shadow summon is created with the owner's combat source");
+            fx.BeginRetreat(.16f);int peak=0;
             for(int frame=0;frame<frames;frame++)
             {
                 float t=(frame+1)/30f;source.transform.position=new Vector3(-.7f-1.5f*Mathf.Clamp01(t/.16f),0,0);
-                actor.Tick(1f/30);facing.Align();fx.Tick(1f/30);areas.Advance(1f/30);manager.Advance(1f/30);
+                actor.Tick(1f/30);facing.Align();fx.Tick(1f/30);shadow.Tick(1f/30);manager.Advance(1f/30);
                 shadow.RenderPreview(stage.Camera);
                 foreach(var arrow in Resources.FindObjectsOfTypeAll<PNStarreaperProjectile>().Where(x=>x.IsRunning&&x.gameObject.scene==stage.Scene))arrow.GetComponentInChildren<PNStarreaperArrowVisual>().Render(arrow.Position,arrow.Forward,arrow.Age,stage.Camera);
                 if(frame==2)
@@ -75,7 +80,7 @@ public static partial class PNVisualEditorChecks
                 peak=Math.Max(peak,manager.ActiveCount);PNVisualStringSystem.FixedTime=t;PNVisualStringSystem.Draw();Shot("frame_"+frame.ToString("000"));
                 if(frame==30)
                 {
-                    Check(manager.ActiveCount==0&&receipt.Handle.IsAlive,"shadow holds for its registered 2 seconds before shooting");
+                    Check(manager.ActiveCount==0&&shadow.Started&&!shadow.Locked,"shadow holds for its registered 2 seconds before shooting");
                     Check(shadow.GetComponentsInChildren<Collider>().Length==0,"visual shadow has no collider or health entity");
                     var echo=shadow.transform.Find("Starreaper echo");var bodyMaterial=echo.Find("Echo atlas silhouette").GetComponent<MeshRenderer>().sharedMaterial;
                     Check(bodyMaterial.GetFloat("_EchoMode")==1&&bodyMaterial.GetTexture("_MainTex")!=null,"shadow borrows live puppet atlas for dark silhouette");
@@ -85,23 +90,24 @@ public static partial class PNVisualEditorChecks
                     stage.Camera.GetUniversalAdditionalCameraData().SetRenderer(1);Shot("echo_renderer3D");stage.Camera.GetUniversalAdditionalCameraData().SetRenderer(0);
                 }
                 if(frame==61)Check(manager.ActiveCount==1,"first actual projectile launches after the delay");
-                if(frame==66)Check(!receipt.Handle.IsAlive&&areas.BorrowedCount==1,"second shot ends gameplay while visual retirement continues");
-                if(frame==75){Check(areas.BorrowedCount==1,"clone is still dissolving after old 0.35s point");Shot("dissolve_detail");}
+                if(frame==66)Check(shadow.Shots==2&&shadow.IsDissolving,"second shot ends gameplay while the dissolve continues");
+                if(frame==75){Check(shadow.IsDissolving,"clone is still dissolving after old 0.35s point");Shot("dissolve_detail");}
             }
             Check(peak==2,"shadow produces exactly two actual pooled projectiles");
-            Check(areas.BorrowedCount==0,"dissolve retires and returns shadow to pool");
-            var again=areas.Create(new PNAreaCreateRequest(PNStarreaperCombatContent.ShadowArea,payload,PNCombatSource.Capture(source.GetComponent<PNStat>()),stage.Scene,source.transform.position,source.GetComponent<PNStat>()));
-            Check(again.Status==PNAreaStatus.Created,"pooled shadow restarts");source.SetActive(false);areas.Advance(.1f);Check(again.Handle.IsAlive,"independent shadow survives owner disable");source.SetActive(true);again.Handle.End();areas.Advance(.7f);Check(areas.ActiveCount==0&&areas.BorrowedCount==0,"manual cancel clears shadow without firing");
+            Check(shadow.Shots==2,"the shadow fired exactly its two arrows");
+            var again=MakeShadow();again.Tick(.1f);var againSummon=again.GetComponent<PNSummon>();
+            source.SetActive(false);again.Tick(.1f);againSummon.Tick();Check(againSummon.IsActive&&!againSummon.IsRetiring&&again.Started,"independent shadow survives owner disable");
+            source.SetActive(true);int arrowsBefore=manager.ActiveCount;int againShots=again.Shots;again.Release();UnityEngine.Object.DestroyImmediate(again.gameObject);Check(again==null&&againSummon==null&&againShots==0&&manager.ActiveCount==arrowsBefore&&shadow.Shots==2,"destroying a shadow before its shot clears it without firing");
         }
         finally
         {
-            action?.Dispose();areas?.Shutdown();manager?.Shutdown();if(wireMaterial!=null)UnityEngine.Object.DestroyImmediate(wireMaterial);if(session)EveRegistrySession.End();
+            action?.Dispose();foreach(var made in madeShadows)if(made!=null){made.GetComponent<PNStarreaperShadowSummon>()?.Release();UnityEngine.Object.DestroyImmediate(made);}manager?.Shutdown();if(wireMaterial!=null)UnityEngine.Object.DestroyImmediate(wireMaterial);if(session)EveRegistrySession.End();
             if(source!=null){source.GetComponent<PNStarreaperPresentation>()?.Dispose();source.GetComponent<PNVisualBody>()?.Clear();UnityEngine.Object.DestroyImmediate(source);}
             if(stage!=null)stage.Camera.targetTexture=stage.Target;if(rt!=null){rt.Release();UnityEngine.Object.DestroyImmediate(rt);}if(tex!=null)UnityEngine.Object.DestroyImmediate(tex);PNVisualStringSystem.Release();stage?.Dispose();PNVisualRuntime.Release();PNVisualPacks.Clear();PNVisualStringSystem.CameraOverride=oldStringCamera;PNVisualStringSystem.FixedTime=oldStringTime;
         }
         Check(Resources.FindObjectsOfTypeAll<Material>().Count(m=>m.name.StartsWith("Starreaper pierce "))==baseline,"owned energy materials are released");
         Check(Resources.FindObjectsOfTypeAll<Material>().Count(m=>m.name.StartsWith("Starreaper echo "))==echoBaseline,"echo atlas and bow materials are released");
-        string report="Starreaper Echo PASS "+checks+"; real registered shadow area/two projectiles and native render; retreat is explicitly animated fixture, not real AI motion";File.WriteAllText(output+"/native.txt",report);return report;
+        string report="Starreaper Echo PASS "+checks+"; real registered shadow summon/two projectiles and native render; retreat is explicitly animated fixture, not real AI motion";File.WriteAllText(output+"/native.txt",report);return report;
     }
 }
 #endif

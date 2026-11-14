@@ -77,7 +77,7 @@ public static class PNControlEditorChecks
             Check(!move.CanMove, "Base false survives lease release."); move.CanMove = true;
             using (state.Acquire("native motion", new[] { PNControlIds.VoluntaryMotion })) Check(!skill.TryDash() && !skill.TrySkill() && !skill.TryUltimate(), "Motion denied before cast commits.");
             skill.MenuInputBlocked = true;
-            var action = skill.CreateAction(EveId.Parse("base:eve_slash"), out var context);
+            var action = skill.CreateAction(EveId.Parse("base:eve_attack_right"), out var context);
             using (var operation = hub.Operations().Get(EveId.Parse("base:lock_movement")).Create())
             { operation.Execute(context, null); skill.MenuInputBlocked = false; Check(!move.CanMove, "Menu release preserves operation lease."); }
             action.Dispose(); Check(move.CanMove && skill.CanInput, "Operation does not poison base input.");

@@ -106,7 +106,7 @@ public static class PNEntitySpawnEditorChecks
         {
             string message = null;
             try { new EveContentBootstrap().Build(Modules(), docs); } catch (Exception error) { message = error.Message; }
-            Check(message != null && message.Contains("project_n:eve_2"), "content load rejects a character whose prefab the catalog does not hold (" + message + ")");
+            Check(message != null && message.Contains("does not hold"), "content load rejects a character whose prefab the catalog does not hold (" + message + ")");
         }
         finally { UnityEngine.Object.DestroyImmediate(PNEntityPrefabs.CatalogOverride); PNEntityPrefabs.CatalogOverride = null; }
         hub = new EveContentBootstrap().Build(Modules(), docs);
@@ -134,7 +134,7 @@ public static class PNEntitySpawnEditorChecks
             var session = EveRegistrySession.Context;
             var fallback = new GameObject("spawn point prefab"); fixtures.Add(fallback);
             Check(ReferenceEquals(PNEntityPrefabs.For(session, "project_n:eve_2", fallback), eve2), "a character that names a prefab spawns from the catalog");
-            Check(ReferenceEquals(PNEntityPrefabs.For(session, "project_n:eve", fallback), fallback) && ReferenceEquals(PNEntityPrefabs.For(session, "", fallback), fallback), "a character that names none spawns from the spawn point's prefab");
+            Check(ReferenceEquals(PNEntityPrefabs.For(session, "project_n:eve", fallback), catalog.Find("project_n:eve")) && ReferenceEquals(PNEntityPrefabs.For(session, "", fallback), fallback), "Eve names its own catalog prefab (G10a) and a blank character spawns from the spawn point's prefab");
             var data = new JObject { ["owner"] = "host", ["persist"] = true, ["followsOwner"] = false, ["lifetime"] = JValue.CreateNull(), ["prefab"] = "mymod:golem" };
             var entity = new PNEntityDefinition(EveId.Parse("test:golem_entity"), typeof(PNHostEntityRecipe), () => new PNHostEntityRecipe(), data);
             Check(ReferenceEquals(PNEntityPrefabs.For(session, "project_n:eve", fallback, entity), eve2), "an entity that names a prefab wins over the character's");
@@ -424,7 +424,7 @@ public static class PNEntitySpawnEditorChecks
             PNEntityHosts.Remove(session); PNSummons.Reset();
 
             // Rejections.
-            Reject(() => factory.Get(Prop("project_n:prop", "project_n:dummy")), "an entity whose character names no prefab and has no spawn point is rejected");
+            Reject(() => factory.Get(Prop("project_n:prop", "project_n:no_such_character")), "an entity whose character does not exist (so names no prefab) and has no spawn point is rejected");
             Reject(() => factory.Get(Prop("mymod:nothing")), "an unknown entity role is rejected");
             var mismatch = Prop("project_n:prop"); mismatch.Template = "project_n:enemy";
             Reject(() => factory.Get(mismatch), "Entity and Template naming different roles are rejected");

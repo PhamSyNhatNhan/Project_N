@@ -26,7 +26,7 @@ public class EveSweepAction : PNSkillAction
     public PNDamage Damage { get; private set; }
 #if UNITY_5_3_OR_NEWER
     private double rawAmount;
-    private PNCombatSourceSnapshot damageSource;
+    private PNCombatSourceSnapshot damageSource; private PNHitCapture capture;
     private PNHitboxCast hitbox;
     private EveHitboxPose root;
     private readonly List<PNStat> targets = new List<PNStat>();
@@ -49,15 +49,24 @@ public class EveSweepAction : PNSkillAction
         if (performed || disposed || !ReferenceEquals(value, context)) throw new InvalidOperationException("Invalid sweep perform.");
         performed = true; Invocations++;
 #if UNITY_5_3_OR_NEWER
-        var rig=((EveCharacterSkill)context.Skill).WeaponRig;
-        root = EveHitboxPose.Planar(context.Skill.transform.position+rig.HandOffset(context.Direction.Value), context.Direction.Value);
-        Visual = EveSweepVisual.Create(context.Skill.transform, root, settings);
+        // Captured once when the shape is committed: melee_scale sizes the sweep (radius, inner radius, hit thickness; the angles stay), melee_damage joins the tags.
+        // Non-authoritative peers cannot read a combat snapshot, so they draw the unscaled sweep (see Docs/SkillNetworkingGaps.md).
+        PNPreparedDamage prepared = null;
         if (EveRegistrySession.Context.HasAuthority)
         {
             double amount = 0d;
             foreach (var component in settings.Values.Components) amount += component.Evaluate(caster);
             rawAmount = amount; damageSource = caster.CaptureCombatSource();
-            Damage = caster.CreateDamage(amount, true, settings.IFrameDuration, value.Data.Action.PerformTags.ToArray());
+            capture = PNHitCapture.Melee(damageSource, value.Data.Action.PerformTags);
+            settings.Radius = capture.Scale(settings.Radius); settings.InnerRadius = capture.Scale(settings.InnerRadius); settings.HitThickness = capture.Scale(settings.HitThickness);
+            prepared = capture.Prepare(amount, true, settings.IFrameDuration);
+        }
+        var rig=((EveCharacterSkill)context.Skill).WeaponRig;
+        root = EveHitboxPose.Planar(context.Skill.transform.position+rig.HandOffset(context.Direction.Value), context.Direction.Value);
+        Visual = EveSweepVisual.Create(context.Skill.transform, root, settings);
+        if (prepared != null)
+        {
+            Damage = capture.Damage(prepared);
             hitbox = new PNHitboxCast(EveHitboxShape.Sector(settings.Radius, settings.HitThickness, 4, settings.InnerRadius),
                 caster.gameObject.scene.GetPhysicsScene());
         }

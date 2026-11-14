@@ -57,7 +57,7 @@ public static class PNPenetrationEditorChecks
                 victim.AdvanceCombatTime(100d); Physics.SyncTransforms(); probe.BeginCategoryReview();
                 try
                 {
-                    var action = (PNSlashAction)skill.CreateAction(EveId.Parse("base:eve_slash"), out var context, Vector3.right);
+                    var action = (EveSweepAction)skill.CreateAction(EveId.Parse("base:eve_attack_right"), out var context, Vector3.right);
                     using (action) { action.Start(context); action.Perform(context); action.Advance(1f); var hit = action.Results.First(x => x.TargetId == victim.EntityId); action.Exit(context); return hit; }
                 }
                 finally { probe.EndCategoryReview(); }
@@ -162,7 +162,6 @@ public static class PNPenetrationBatch
         Step("Penetration", PNPenetrationEditorChecks.Run);
         Step("DamageFlowFlatScale", PNDamageFlowEditorChecks.RunFlatScale);
         Step("DamageFlow", PNDamageFlowEditorChecks.Run);
-        Step("Slash", PNSlashCombatEditorChecks.Run);
         Step("ProjectileHit", PNProjectileHitEditorChecks.Run);
         Step("Lorica", PNLoricaEditorChecks.Run);
         Directory.CreateDirectory(".utmp/PenetrationReview");

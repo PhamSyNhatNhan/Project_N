@@ -325,9 +325,9 @@ public static class PNStarweaverEditorChecks
             var source=stat.CaptureCombatSource();var prepared=source.PrepareDamage(150,true,0,EveId.Parse("base:magic"));
             Check(source.CreateDamage(prepared,false).Amount==150);Check(source.CreateDamage(prepared,true).Amount==225);
             prepared=source.PrepareDamage(250,true,0,EveId.Parse("base:magic"));Check(source.CreateDamage(prepared,true).Amount==375);
-            Check(PNStarweaverTriangleGeometry.Intersects(0,0,1.2f,-.05f,-.05f,.05f,.05f));
-            Check(!PNStarweaverTriangleGeometry.Intersects(0,0,1.2f,2,2,3,3));
-            Check(PNStarweaverTriangleGeometry.Intersects(0,0,1.2f,-.01f,1.19f,.01f,1.3f));
+            Check(PNBlastGeometry.PolygonIntersectsBox(0,0,1.2f,3,0,-.05f,-.05f,.05f,.05f));
+            Check(!PNBlastGeometry.PolygonIntersectsBox(0,0,1.2f,3,0,2,2,3,3));
+            Check(PNBlastGeometry.PolygonIntersectsBox(0,0,1.2f,3,0,-.01f,1.19f,.01f,1.3f));
             var prefab=Resources.Load<PNEntityPrefabCatalog>(PNEntityPrefabCatalog.ResourcePath).Find("starweaver");
             Check(prefab!=null&&prefab.GetComponent<PNStarweaverBehavior>()!=null&&prefab.GetComponent<PNVisualBody>()!=null);
             return "PASS "+n+" Starweaver native content/Move-load/no-jump/stat/crit/geometry/prefab checks; actual AI combat not covered";

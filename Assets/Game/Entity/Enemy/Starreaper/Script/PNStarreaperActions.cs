@@ -9,7 +9,7 @@ using UnityEngine;
 // What the three Starreaper Actions share: where the owner looks and which tags a spawned damage carries.
 internal static class PNStarreaperCast
 {
-    public static readonly EveId CreateProjectile = EveId.Parse("project_n:create_projectile"), CreateArea = EveId.Parse("project_n:create_area");
+    public static readonly EveId CreateProjectile = EveId.Parse("project_n:create_projectile"), CreateArea = EveId.Parse("project_n:create_area"), CreateRain = EveId.Parse("project_n:starreaper_rain_blasts"), CreateSummon = EveId.Parse("project_n:create_summon");
     // The cast's first target (the behavior passes the one it fights), or null.
     public static PNStat Target(PNSkillActionContext c) { if (c.Targets == null) return null; foreach (var t in c.Targets) if (t != null && t.IsReady && !t.IsDead) return t; return null; }
     public static Vector3 Planar(Vector3 v) { v.y = 0; return v.sqrMagnitude > 1e-8f ? v.normalized : Vector3.zero; }
@@ -77,8 +77,8 @@ public sealed class PNStarreaperPierceAction : PNSkillAction
     }
 }
 
-// Mưa Tinh: gathers for `windup` seconds (stun cancels it here), then shoots one arrow into the sky and hands the rest to the rain area, which owns the warnings, the flight and the landings.
-// Once the area exists the cast no longer matters: stunning the owner afterwards does not stop the rain; the owner's death does (the area is dependent).
+// Mưa Tinh: gathers for `windup` seconds (stun cancels it here), then shoots one arrow into the sky and hands the rest to the rain Operation, which creates one owner-dependent Cylinder Blast per landing (each owns its warning, its flight and its explosion).
+// Once the blasts exist the cast no longer matters: stunning the owner afterwards does not stop the rain; the owner's death does (the blasts depend on their owner).
 public sealed class PNStarreaperRainAction : PNSkillAction
 {
     private PNSkillActionContext context; private float age, windup, recovery; private bool fired, ended;
@@ -110,9 +110,9 @@ public sealed class PNStarreaperRainAction : PNSkillAction
             {
                 fired = true; presentation?.Tick(0); presentation?.Release();
                 body?.PlayAction("rain_release", recovery); body?.Actor?.SetPhase(0);
-                var data = (JObject)context.Data.Action.Perform["area"].DeepClone(); var input = (JObject)data["input"];
+                var input = (JObject)context.Data.Action.Perform["rain"].DeepClone();
                 input["tags"] = PNStarreaperCast.Tags(context, input["tags"]);
-                operation = CreateOperation(context, PNStarreaperCast.CreateArea); operation.Execute(context, data);
+                operation = CreateOperation(context, PNStarreaperCast.CreateRain); operation.Execute(context, input);
                 presentation?.EndPose();
             }
         }
@@ -120,7 +120,7 @@ public sealed class PNStarreaperRainAction : PNSkillAction
         return age >= windup + recovery;
     }
     public override void Exit(PNSkillActionContext c) { try { c.CompleteAction(); } finally { Dispose(); } }
-    public override void Cancel(PNSkillActionContext c) { try { c.CancelEffects(); } finally { Dispose(); } }      // the area, once created, belongs to the manager and is not cancelled here
+    public override void Cancel(PNSkillActionContext c) { try { c.CancelEffects(); } finally { Dispose(); } }      // the blasts, once created, belong to the manager and depend on the owner, not on this cast
     public override void Dispose()
     {
         if (ended) return; ended = true;
@@ -152,15 +152,8 @@ public sealed class PNStarreaperAfterimageAction : PNAgentTrajectoryAction
     }
     private void CreateShadow(PNSkillActionContext c)
     {
-        var caster = c.Skill.GetComponent<PNStat>(); var skill = c.Skill.GetComponent<PNStarreaperSkill>();
-        var shadow = (JObject)c.Data.Action.Perform["shadow"]; var input = (JObject)shadow["input"].DeepClone();
-        if (skill != null) { input["side"] = skill.NextShadowSide; skill.NextShadowSide = PNStarreaperPlanner.NextSide(skill.NextShadowSide); if (skill.ShadowHandle.IsAlive) skill.ShadowHandle.End(); }
-        input["tags"] = PNStarreaperCast.Tags(c, input["tags"]);
-        var scene = caster.gameObject.scene; var manager = PNAreaManager.Resolve(EveRegistrySession.Context, scene);
-        if (!ReferenceEquals(manager.Session.Registry, c.Registry)) throw new InvalidOperationException("Shadow session mismatch.");
-        var receipt = manager.Create(new PNAreaCreateRequest(PNStarreaperCombatContent.ShadowArea, input, PNCombatSource.Capture(caster), scene, caster.transform.position, caster));
-        if (receipt.Status == PNAreaStatus.Failed) throw new InvalidOperationException("Shadow creation failed.", receipt.Error);
-        if (skill != null && receipt.Status == PNAreaStatus.Created) skill.ShadowHandle = receipt.Handle;
+        // The shadow is a summon of the caster at the old spot (group of one: a new shadow replaces the old). The summon asks the owner's skill for its side when it starts.
+        using (var summon = CreateOperation(c, PNStarreaperCast.CreateSummon)) summon.Execute(c, c.Data.Action.Perform["summon"]);
     }
     public override bool AdvanceAuxiliary(float dt)
     {
@@ -210,6 +203,9 @@ public sealed class PNStarreaperAfterimageAction : PNSkillAction
     public override void Cancel(PNSkillActionContext c) { }
 }
 public sealed class PNStarreaperProjectile { }
-public sealed class PNStarreaperRainArea { }
-public sealed class PNStarreaperShadowArea { }
+public sealed class PNStarreaperRainBlast { }
+public sealed class PNStarreaperRainOperation : PNSkillOperation
+{
+    public override void Execute(PNSkillActionContext c, Newtonsoft.Json.Linq.JToken data) { PNStarreaperCombatContent.ValidateRainInput(data); }
+}
 #endif

@@ -333,3 +333,6 @@ EN: the normal melee enemy that comes after the Starweaver: a flying rig puppet 
 - **Checks:** `PNStarkeeperEditorChecks.Run`/`RunCombat`, `PNVisualEditorChecks.RunStarkeeper`/`RunStarkeeperWeapon` (see HANDOFF for what was run and what was NOT: the lunge's wall stop and path hits, real AI combat, coop).
 
 VI: kẻ địch cận chiến thường sau Starweaver, bay, đầu và mặt một mảnh, áo choàng dài, giáo vàng 3D. Hai skill: Quét sao (hai nhát, nhát 2 nhắm lại) và Điểm sao (đánh dấu sao, 2 s sau lao tới, dừng ở tường). Số liệu là giá trị khởi điểm của plan, chưa chốt. Khi di chuyển prefab phải kèm `.meta` để giữ GUID mà catalog tham chiếu.
+
+## melee_scale (RulesVersion158)
+The star sweep captures `PNHitCapture.Melee` when the telegraph first shows: `radius` and `thickness` scale by `melee_scale` (the 100° `angle`, the step distance and the behaviour's trigger range do not), the damage is prepared once per sweep with the extra `melee_damage` tag. The marker and VFX use the scaled radius. A Buff gained or lost during the windup does not change that cast.

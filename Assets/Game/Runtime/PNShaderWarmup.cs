@@ -17,7 +17,7 @@ public static class PNShaderWarmupContent
     private static readonly string[] Names =
     {
         "PN/StarweaverEffects", "PN/StarreaperWeapon", "PN/StarreaperPierce", "PN/StarchanterHealingField", "Project_N/VFX/GlassShard", "Project_N/VFX/GlassGlint", "Project_N/VFX/EveEnergy", "Project_N/VFX/EveBlade", "Project_N/VFX/ProjectileTrail", "Project_N/VFX/BuffElemental",
-        "Project_N/VFX/TimeScaleArea", "Project_N/VFX/TimeScaleDust", "Project_N/VFX/ArcSlash", "Project_N/Environment/SpriteGroundDepth", "ProjectN/DamagePopupSDF", "ProjectN/DamagePopupSprite"
+        "Project_N/VFX/TimeScaleArea", "Project_N/VFX/TimeScaleDust", "Project_N/Environment/SpriteGroundDepth", "ProjectN/DamagePopupSDF", "ProjectN/DamagePopupSprite"
     };
     public static void Register(EveRegistryHub hub)
     {

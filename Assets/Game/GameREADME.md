@@ -2,17 +2,16 @@
 
 VI: Hitbox mới: `Assets/EveEngine/Hitbox/EveHitboxREADME.md`. Engine dò collider,
 Core PNHitboxTargets tìm entity/gộp ID, Game PNHitboxCast giữ lịch trúng từng cast.
-Action sở hữu hit window, clock và damage. Eve slash đã nối Sector và damage;
-xem Assets/Game/Skill/Actions/Slash/PNSlashCombatREADME.md.
+Action sở hữu hit window, clock và damage (Eve sweep, Quét Sao, slam; slash cũ đã bỏ).
 
 EN: Hitboxes separate Engine collider queries, Core entity resolution and Game
-invocation hit history. Eve slash now applies sector-based damage; see PNSlashCombatREADME.
+invocation hit history. Eve sweep applies sector-based damage through PNHitCapture.
 
 VI: DLL mod Windows Mono và SDK: `Assets/EveEngine/Mods/EveModsREADME.md`.
 Assembly phân lớp: EveEngine → ProjectN.Core → ProjectN.Game.
 ProjectN.Input chứa PlayerControls và inputactions; Core tham chiếu assembly này.
-EveGameRuntime nằm trong Game/Runtime, giữ GUID script cũ. PNArcSlash dùng asmref
-ProjectN.Game. ID dùng chung của game nằm trong Core/Content/Registry/PNContentIds.cs.
+EveGameRuntime nằm trong Game/Runtime, giữ GUID script cũ.
+ID dùng chung của game nằm trong Core/Content/Registry/PNContentIds.cs.
 Registry Core truy cập bằng extension method như `hub.Actions()`.
 
 EN: Windows Mono mods/SDK are documented in EveModsREADME. Assemblies follow

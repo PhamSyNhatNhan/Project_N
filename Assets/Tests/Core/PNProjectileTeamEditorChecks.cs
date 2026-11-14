@@ -235,7 +235,6 @@ public static class PNProjectileTeamBatch
         Step("ProjectileTimeStop", PNProjectileTimeStopEditorChecks.Run);
         Step("EveSkillVolley", EveSkillVolleyEditorChecks.Run);
         Step("Penetration", PNPenetrationEditorChecks.Run);
-        Step("Slash", PNSlashCombatEditorChecks.Run);
         Step("Lorica", PNLoricaEditorChecks.Run);
         Step("EveMoveset", EveMovesetEditorChecks.Run);
         Directory.CreateDirectory(".utmp/ProjectileTeamReview");

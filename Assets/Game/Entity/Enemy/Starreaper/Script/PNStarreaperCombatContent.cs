@@ -12,7 +12,7 @@ public static class PNStarreaperCombatContent
 {
     public static readonly EveId Pierce = EveId.Parse("project_n:starreaper_pierce"), Afterimage = EveId.Parse("project_n:starreaper_afterimage"), Rain = EveId.Parse("project_n:starreaper_rain"),
         PierceAction = EveId.Parse("project_n:starreaper_pierce_action"), AfterimageAction = EveId.Parse("project_n:starreaper_afterimage_action"), RainAction = EveId.Parse("project_n:starreaper_rain_action"),
-        Arrow = EveId.Parse("project_n:starreaper_arrow"), EchoArrow = EveId.Parse("project_n:starreaper_echo_arrow"), ShadowArea = EveId.Parse("project_n:starreaper_shadow"), RainArea = EveId.Parse("project_n:starreaper_rain_area");
+        Arrow = EveId.Parse("project_n:starreaper_arrow"), EchoArrow = EveId.Parse("project_n:starreaper_echo_arrow"), Shadow = EveId.Parse("project_n:starreaper_shadow"), RainBlast = EveId.Parse("project_n:starreaper_rain_blast"), RainOperation = EveId.Parse("project_n:starreaper_rain_blasts");
 
     private const string ArrowShot = @"{'projectileId':'project_n:starreaper_arrow','input':{},'count':1,'spread':0,'aimRadius':12,
           'damage':{'value':{'amount':250,'statId':'base:attack_power'},'canCrit':true,'tags':['base:magic']}}";
@@ -34,8 +34,8 @@ public static class PNStarreaperCombatContent
         var echoArrowData=(JObject)instances.GetKind<PNProjectileDefinition>(Arrow).Payload.DeepClone();
         echoArrowData["speed"]=2;echoArrowData["speedMax"]=2;
         instances.Register(new PNProjectileDefinition(EchoArrow,typeof(PNStarreaperProjectile),echoArrowData,PNDirectionalSettings.ValidateDefinition,ValidateArrowInput));
-        instances.Register(new PNAreaDefinition(RainArea, typeof(PNStarreaperRainArea), new JObject(), (token, registry) => PNBuffContentBatch.Fields(PNBuffContentBatch.Object(token)), ValidateRainInput));
-        instances.Register(new PNAreaDefinition(ShadowArea, typeof(PNStarreaperShadowArea), new JObject(), (token, registry) => PNBuffContentBatch.Fields(PNBuffContentBatch.Object(token)), ValidateShadowInput));
+        instances.Register(new PNBlastDefinition(RainBlast, typeof(PNStarreaperRainBlast), new JObject(), (token, registry) => PNBuffContentBatch.Fields(PNBuffContentBatch.Object(token)), ValidateRainBlastInput));
+        hub.Operations().Register(new PNSkillOperationDefinition(RainOperation, typeof(PNStarreaperRainOperation), (token, registry) => { ValidateRainInput(token); ValidateDamage(PNBuffContentBatch.Object(token), registry); }, PNSkillContextRequirements.Position));
         hub.Actions().Register(new PNSkillActionDefinition(PierceAction, typeof(PNStarreaperPierceAction), (a, h) => ValidatePierce(a, h), PNSkillContextRequirements.Direction | PNSkillContextRequirements.Position));
         hub.Actions().Register(new PNSkillActionDefinition(AfterimageAction, typeof(PNStarreaperAfterimageAction), (a, h) => ValidateAfterimage(a, h),
             PNSkillContextRequirements.Direction | PNSkillContextRequirements.Position,
@@ -48,13 +48,12 @@ public static class PNStarreaperCombatContent
           'range':1.5,'recovery':0.4,
           'motion':{'kind':'CurveXZ','distance':1.5,'lateralOffset':0,'duration':0.16,'permissionId':'base:motion_voluntary','actorCollision':'IgnoreEnemyBodies','maxSegmentLength':0.12,'maxChordError':0.015,'maxSubsteps':64},
           'shot':" + ArrowShot + @",
-          'shadow':{'areaId':'project_n:starreaper_shadow','followCaster':false,'input':{'delay':2.0,'gap':0.15,'sideAngle':10,'side':1,'aimRadius':12,'appearance':'project_n:starreaper',
-            'value':{'amount':120,'statId':'base:attack_power'},'canCrit':true,'tags':['base:magic']}},
+          'summon':{'character':'project_n:starreaper_shadow','group':'starreaper_shadow','limit':1,'whenFull':'replaceOldest'},
           'tags':['base:magic']}")));
         skills.Register(Skill(Rain, "base:skill", false, 12, RainAction, JObject.Parse(@"{
           'windup':2.0,'recovery':0.5,'range':2.5,
-          'area':{'areaId':'project_n:starreaper_rain_area','followCaster':false,'input':{'dependent':true,'seek':6,'flight':1.0,'interval':0.15,'minCount':5,'maxCount':7,'scatterRadius':2.0,'minSpacing':0.8,'radius':0.5,
-            'value':{'amount':150,'statId':'base:attack_power'},'canCrit':true,'tags':['base:magic']}},
+          'rain':{'seek':6,'flight':1.0,'interval':0.15,'tail':0.45,'minCount':5,'maxCount':7,'scatterRadius':2.0,'minSpacing':0.8,'radius':0.5,'height':0.5,
+            'value':{'amount':150,'statId':'base:attack_power'},'canCrit':true,'tags':['base:magic']},
           'tags':['base:magic']}")));
     }
     private static EveSkillDefinition Skill(EveId id, string category, bool attackSpeed, double cooldown, EveId action, JObject perform)
@@ -86,7 +85,7 @@ public static class PNStarreaperCombatContent
     }
     public static void ValidateAfterimage(PNSkillActionData data, EveRegistryHub hub)
     {
-        var p = PNBuffContentBatch.Object(data.Perform); PNBuffContentBatch.Fields(p, "range", "recovery", "motion", "shot", "shadow", "tags");
+        var p = PNBuffContentBatch.Object(data.Perform); PNBuffContentBatch.Fields(p, "range", "recovery", "motion", "shot", "summon", "tags");
         Positive(p, "range", 30); Positive(p, "recovery", 10); ValidateShot(p["shot"], hub);
         var motion = PNBuffContentBatch.Object(p["motion"]);
 #if UNITY_5_3_OR_NEWER
@@ -95,35 +94,49 @@ public static class PNStarreaperCombatContent
 #else
         if (motion["kind"]?.Value<string>() != "CurveXZ") throw new FormatException("The retreat is a straight CurveXZ.");
 #endif
-        var shadow = PNBuffContentBatch.Object(p["shadow"]); PNBuffContentBatch.Fields(shadow, "areaId", "followCaster", "input");
-        if (PNBuffContentBatch.String(shadow, "areaId") != ShadowArea.ToString() || PNBuffContentBatch.Bool(shadow, "followCaster")) throw new FormatException("The afterimage creates the shadow area, not following the caster.");
-        ValidateShadowInput(shadow["input"]); ValidateDamage((JObject)shadow["input"], hub);
+        // The shadow is a summon (Docs/StrikeBlastPlan.md U1): the skill only says which character and how many may live; what the shadow does is the character's `shadow` block (ValidateCharacters).
+        var summon = PNCreateSummonSettings.Parse(p["summon"]);
+        if (summon.Character != Shadow || summon.Limit != 1 || summon.Lifetime.HasValue) throw new FormatException("The afterimage summons its shadow: character " + Shadow + ", limit 1, no lifetime (the shadow ends itself).");
     }
     public static void ValidateRain(PNSkillActionData data, EveRegistryHub hub)
     {
-        var p = PNBuffContentBatch.Object(data.Perform); PNBuffContentBatch.Fields(p, "windup", "recovery", "range", "area", "tags");
+        var p = PNBuffContentBatch.Object(data.Perform); PNBuffContentBatch.Fields(p, "windup", "recovery", "range", "rain", "tags");
         Positive(p, "windup", 10); Positive(p, "recovery", 10); Positive(p, "range", 30);
-        var area = PNBuffContentBatch.Object(p["area"]); PNBuffContentBatch.Fields(area, "areaId", "followCaster", "input");
-        if (PNBuffContentBatch.String(area, "areaId") != RainArea.ToString() || PNBuffContentBatch.Bool(area, "followCaster")) throw new FormatException("The rain creates the rain area, not following the caster.");
-        ValidateRainInput(area["input"]); ValidateDamage((JObject)area["input"], hub);
+        ValidateRainInput(p["rain"]); ValidateDamage((JObject)p["rain"], hub);
     }
     public static void ValidateRainInput(JToken token)
     {
         var o = PNBuffContentBatch.Object(token);
-        PNBuffContentBatch.Fields(o, "dependent", "seek", "flight", "interval", "minCount", "maxCount", "scatterRadius", "minSpacing", "radius", "value", "canCrit", "tags");
-        PNBuffContentBatch.Bool(o, "dependent"); Positive(o, "seek", 100); Positive(o, "flight", 30); Positive(o, "interval", 10); Positive(o, "scatterRadius", 50); Positive(o, "radius", 20);
+        PNBuffContentBatch.Fields(o, "seek", "flight", "interval", "tail", "minCount", "maxCount", "scatterRadius", "minSpacing", "radius", "height", "value", "canCrit", "tags");
+        Positive(o, "seek", 100); Positive(o, "flight", 30); Positive(o, "interval", 10); Positive(o, "scatterRadius", 50); Positive(o, "radius", 20); Positive(o, "height", 20);
+        if (PNBuffContentBatch.Number(o, "tail") < 0) throw new FormatException("tail must not be negative.");
         if (PNBuffContentBatch.Number(o, "minSpacing") < 0) throw new FormatException("minSpacing must not be negative.");
         int min = PNBuffContentBatch.Integer(o, "minCount"), max = PNBuffContentBatch.Integer(o, "maxCount");
         if (min < 1 || max < min || max > 16) throw new FormatException("The rain count must be 1 <= minCount <= maxCount <= 16.");
         PNSkillValues.Parse(o["value"]).ValidateNonnegativeAmounts(); PNSkillEffect.Ids(o["tags"]).ToArray();
     }
+    // One landing of the rain: the common blast fields plus the landing's number and whether it draws the arrow shot into the sky.
+    public static void ValidateRainBlastInput(JToken token)
+    {
+        var o = PNBuffContentBatch.Object(token); PNBuffContentBatch.Fields(o, PNBlastSchema.Common.Concat(new[] { "index", "sky" }).ToArray());
+        PNBlastSchema.ValidateCommon(o); if (PNBuffContentBatch.Integer(o, "index") < 0) throw new FormatException("index must not be negative."); PNBuffContentBatch.Bool(o, "sky");
+    }
+    // Content check: the `shadow` block of every character that has one (the shadow summon's numbers: delay, gap, sideAngle, aimRadius, appearance, damage).
+    public static void ValidateCharacters(EveRegistryHub hub)
+    {
+        foreach (var character in hub.Characters.Snapshot().Values)
+        {
+            var block = (character.Data as JObject)?["shadow"]; if (block == null) continue;
+            try { ValidateShadowInput(block); ValidateDamage((JObject)block, hub); }
+            catch (FormatException error) { throw new FormatException("Character " + character.Id + " shadow block: " + error.Message); }
+        }
+    }
     public static void ValidateShadowInput(JToken token)
     {
         var o = PNBuffContentBatch.Object(token);
-        PNBuffContentBatch.Fields(o, "delay", "gap", "sideAngle", "side", "aimRadius", "appearance", "value", "canCrit", "tags");
+        PNBuffContentBatch.Fields(o, "delay", "gap", "sideAngle", "aimRadius", "appearance", "value", "canCrit", "tags");
         Positive(o, "delay", 30); Positive(o, "gap", 10); Positive(o, "aimRadius", 100);
         double angle = PNBuffContentBatch.Number(o, "sideAngle"); if (double.IsNaN(angle) || angle < 0 || angle > 90) throw new FormatException("sideAngle must be 0..90 degrees.");
-        int side = PNBuffContentBatch.Integer(o, "side"); if (side != 1 && side != -1) throw new FormatException("side must be 1 or -1.");
         EveId.Parse(PNBuffContentBatch.String(o, "appearance"));
         PNSkillValues.Parse(o["value"]).ValidateNonnegativeAmounts(); PNSkillEffect.Ids(o["tags"]).ToArray();
     }

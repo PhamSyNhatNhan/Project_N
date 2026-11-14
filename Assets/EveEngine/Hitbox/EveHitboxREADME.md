@@ -127,5 +127,4 @@ immutability/offset/giới hạn64 điểm và cấu hình Inspector của cả 
 Chưa kiểm tra build player, Play Mode performance hoặc sweep. Suite .NET stub không mô phỏng PhysX; runner loại các thư mục Hitbox khỏi smoke
 compile và dùng native checks cho phần này.
 
-Eve slash đã dùng API này qua base:slash_hit: Sector, window và damage trong JSON.
-Xem Assets/Game/Skill/Actions/Slash/PNSlashCombatREADME.md cho cấu hình cụ thể.
+Eve sweep (EveSweepAction), Quét Sao Starkeeper và slam Starforger dùng API này; slash cũ đã bỏ ở RulesVersion 159.

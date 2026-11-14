@@ -58,7 +58,6 @@ public static class EveVfxEditorChecks
                         "Slash still covers only the sword tip.");
                     Check(vertices.Length >= 8 && visual.Progress == times[column], "Moving ribbon timeline failed.");
                     Check(Math.Abs((vertices[vertices.Length-3]-vertices[vertices.Length-1]).magnitude-settings.TrailDepth)<.0001f, "Slash trail has no real cross-section depth.");
-                    Check(visual.GetComponentInChildren<PNArcSlashVisual>() == null, "New VFX reused legacy slash.");
                     Check(visual.GetComponentInChildren<TrailRenderer>().positionCount > 0, "Leading edge trail has no swept path.");
                     if (column >= 2) Check(visual.LiveParticles > 0, "Sweep did not emit real ParticleSystem sparks.");
                     // The ribbon spans only recent motion; its oldest vertex is never the starting blade at mid-sweep.

@@ -1,0 +1,147 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &8059214730017314496
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 5253154008698781636}
+  - component: {fileID: 2429511494217611316}
+  - component: {fileID: 654647300111076985}
+  - component: {fileID: 6609195591603046148}
+  - component: {fileID: 509806777269407181}
+  - component: {fileID: 5820160789775804740}
+  - component: {fileID: 6485061924801721155}
+  - component: {fileID: 2120564933339111955}
+  m_Layer: 6
+  m_Name: StarforgerStar
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &5253154008698781636
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8059214730017314496}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2429511494217611316
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8059214730017314496}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 46a3b9ea0b5e37541868765bbba3950f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: EveEngine::EveEngine.EveEntityIdentity
+--- !u!114 &654647300111076985
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8059214730017314496}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 071e75bd35027a54094831c43aaba248, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: ProjectN.Core::PNStat
+  characterId: 
+  showDamagePopups: 1
+  damagePopupPrefab: {fileID: 0}
+  damagePopupOffset: {x: 0, y: 0.55, z: 0}
+  physicalPopupColor: {r: 0.15, g: 0.9, b: 1, a: 1}
+  magicPopupColor: {r: 1, g: 0.3, b: 0.9, a: 1}
+  truePopupColor: {r: 1, g: 1, b: 1, a: 1}
+--- !u!114 &6609195591603046148
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8059214730017314496}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ad06891ff4fc4f42b047265d1cc89602, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: EveEngine::EveEngine.EveEntityLoader
+--- !u!114 &509806777269407181
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8059214730017314496}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f9cfccc6478572045af7f1d84994a0e0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: EveEngine::EveEngine.EveTimeScale
+  minScale: 0
+--- !u!54 &5820160789775804740
+Rigidbody:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8059214730017314496}
+  serializedVersion: 5
+  m_Mass: 1
+  m_LinearDamping: 0
+  m_AngularDamping: 0
+  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_InertiaTensor: {x: 1, y: 1, z: 1}
+  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ImplicitCom: 1
+  m_ImplicitTensor: 1
+  m_UseGravity: 0
+  m_IsKinematic: 0
+  m_Interpolate: 1
+  m_Constraints: 112
+  m_CollisionDetection: 0
+--- !u!114 &6485061924801721155
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8059214730017314496}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c3c9a92313bc23743aa74963344435a5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: ProjectN.Game::PNStarforgerStarSummon
+--- !u!114 &2120564933339111955
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8059214730017314496}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 74fb1bbc0126f0d489e3ed48f1bbf174, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: ProjectN.Core::PNSummon

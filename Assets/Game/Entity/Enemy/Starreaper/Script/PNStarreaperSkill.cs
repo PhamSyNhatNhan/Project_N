@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using EveEngine;
 
 // Starreaper's enemy-skill owner. Phase policy (HP thresholds, behavior switches) belongs here, as PNSentinelSkill does; the shared owner knows none.
-// It also keeps the small per-entity state of the afterimage: which side the next shadow's second arrow leans to (it alternates between uses) and the live shadow (at most one).
+// It also keeps the small per-entity state of the afterimage: which side the next shadow's second arrow leans to (it alternates between uses). The shadow itself is a summon (group `starreaper_shadow`, limit 1).
 [DisallowMultipleComponent]
 public class PNStarreaperSkill : PNEnemySkill
 {
@@ -27,7 +27,8 @@ public class PNStarreaperSkill : PNEnemySkill
         public BowContext(PNSkill skill,EveId id,PNSkillData data,EveRegistryHub hub,IEnumerable<PNStat> targets,Vector3? direction,Vector3? position,PNStarreaperPresentation weapon)
             :base(skill,id,data,hub,targets,direction,null,true,position){this.weapon=weapon;}
     }
-    public int NextShadowSide { get; set; } = 1;
-    public PNAreaHandle ShadowHandle { get; set; }
+    // The side the next shadow's second arrow leans to; each shadow takes one when it starts, and the side alternates between shadows (the afterimage's registered 'sideAngle' is its size).
+    public int NextShadowSide { get; private set; } = 1;
+    public int TakeShadowSide() { int side = NextShadowSide; NextShadowSide = PNStarreaperPlanner.NextSide(side); return side; }
 }
 #endif

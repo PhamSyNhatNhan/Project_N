@@ -61,12 +61,13 @@ public class PNTimeScaleArea : PNAreaInstance
     }
     private readonly Dictionary<EveEntityId, Grant> grants = new Dictionary<EveEntityId, Grant>();
     private readonly Dictionary<EveEntityId, PNStat> inside = new Dictionary<EveEntityId, PNStat>();
-    // Projectiles are not entities: the area places its modifiers straight on their own clock, owned by this area (see PollProjectiles).
-    private sealed class ProjectileGrant { internal PNProjectileClock Clock; internal long Scale, Minimum; }
-    private readonly Dictionary<long, ProjectileGrant> projectileGrants = new Dictionary<long, ProjectileGrant>();
-    private readonly List<PNProjectileHandle> projectileHits = new List<PNProjectileHandle>();
-    private readonly HashSet<long> projectileInside = new HashSet<long>();
-    private PNProjectileManager projectiles;
+    // Things that are not entities (projectiles, areas, later blasts) own a clock and sit in the world's PNTimeTargets: the zone places its modifiers
+    // straight on that clock, owned by this zone (see PollClocks). Entities take the same effect through a Buff (Poll).
+    private sealed class ClockGrant { internal EveTimeScale Clock; internal long Scale, Minimum; }
+    private readonly Dictionary<long, ClockGrant> clockGrants = new Dictionary<long, ClockGrant>();
+    private readonly List<PNTimeTargets.Entry> clockHits = new List<PNTimeTargets.Entry>();
+    private readonly HashSet<long> clockInside = new HashSet<long>();
+    private float radius;
     private Collider[] buffer = new Collider[32];
     private PNTimeScaleAreaSettings settings;
     private PNAreaCreateRequest request;
@@ -88,7 +89,10 @@ public class PNTimeScaleArea : PNAreaInstance
     private PNAreaOwnerSignal followSignal;
     private Action followDisabled;
     private Action<PNDamageResult> followDied;
-    public float Radius => settings?.Radius ?? 0;
+    // The zone does not slow itself (two overlapping zones would lengthen each other); every other area does follow a zone.
+    public override bool AffectedByTime => false;
+    // The registered radius times the creator's `area_scale` at creation.
+    public float Radius => radius;
     public float VisualRadius { get; private set; }
     public float VisualStrength { get; private set; }
     public PNTimeScaleAreaVisualSettings VisualSettings { get; private set; }
@@ -100,6 +104,8 @@ public class PNTimeScaleArea : PNAreaInstance
     protected override void Initialize(PNAreaCreateRequest context)
     {
         settings = new PNTimeScaleAreaSettings(context.Input); request = context;
+        radius = settings.Radius * (float)ScaleFactor;
+        if (float.IsNaN(radius) || float.IsInfinity(radius) || radius <= 0) throw new ArgumentException("The area_scale of the creator leaves the zone without a finite positive radius.");
         var data = (JObject)Definition.Payload; buffId = EveId.Parse(PNBuffContentBatch.String(data, "buffId"));
         VisualSettings = new PNTimeScaleAreaVisualSettings(data["visual"]);
         pollPeriod = (float)PNBuffContentBatch.Number(data, "pollPeriod");
@@ -124,7 +130,7 @@ public class PNTimeScaleArea : PNAreaInstance
             disabled = () => Finish(PNAreaEndReason.OwnerUnavailable); ownerSignal.Disabled += disabled;
         }
         elapsed = 0; pollElapsed = pollPeriod; visualAge = 0; VisualStrength = 0; VisualRadius = 0;
-        projectiles = PNProjectileManager.Find(Manager.Session, gameObject.scene); projectileGrants.Clear();
+        clockGrants.Clear();
         PNTimeScaleAreaRendering.Register(this);
         if (dust == null) dust = new PNTimeScaleDust(transform);
         dust.Initialize(this, VisualSettings);
@@ -145,18 +151,18 @@ public class PNTimeScaleArea : PNAreaInstance
             else followLost = true;
         }
         visualAge += gameDelta; VisualStrength = Mathf.Clamp01(visualAge / fadeIn);
-        VisualRadius = Radius * Mathf.SmoothStep(0, 1, Mathf.Clamp01(visualAge / VisualSettings.BirthDuration));
+        VisualRadius = radius * Mathf.SmoothStep(0, 1, Mathf.Clamp01(visualAge / VisualSettings.BirthDuration));
         dust.Advance(gameDelta, VisualStrength, true);
         pollElapsed += gameDelta;
         if (pollElapsed < pollPeriod) return;
-        pollElapsed %= pollPeriod; Poll(); PollProjectiles();
+        pollElapsed %= pollPeriod; Poll(); PollClocks();
     }
     private void Poll()
     {
         inside.Clear(); var physics = gameObject.scene.GetPhysicsScene(); int count;
         do
         {
-            count = physics.OverlapSphere(transform.position, settings.Radius, buffer, ~0, QueryTriggerInteraction.Ignore);
+            count = physics.OverlapSphere(transform.position, radius, buffer, ~0, QueryTriggerInteraction.Ignore);
             if (count < buffer.Length) break;
             Array.Resize(ref buffer, checked(buffer.Length * 2));
         } while (true);
@@ -186,32 +192,29 @@ public class PNTimeScaleArea : PNAreaInstance
             grants[pair.Key] = new Grant { Collection = collection, Receipt = receipt };
         }
     }
-    // Projectiles inside the radius (and not excluded by the layer rule, which treats them as the Projectile layer) get the same two clock
-    // modifiers an entity gets through the Buff, owned by this area. A projectile that left, ended or whose clock was reset is released.
-    private void PollProjectiles()
+    // Everything registered in the world's PNTimeTargets (projectiles, areas that follow time, later blasts) inside the radius and selected by the same layer rule
+    // as the entities (Include keeps the listed layers, Exclude every other) gets the same two clock modifiers an entity gets through the Buff, owned by this zone.
+    // A target that left, ended or whose clock was reset is released. Adding a kind of target means giving it a layer and registering it, not changing this method.
+    private void PollClocks()
     {
-        projectileInside.Clear();
-        bool selected = PNLayers.Contains(settings.Layers, PNLayers.Projectile);
-        if (projectiles != null && selected != settings.Exclude)
+        clockInside.Clear();
+        clockHits.Clear(); PNTimeTargets.For(World).Query(transform.position, radius, settings.Exclude ? ~settings.Layers : settings.Layers, clockHits);
+        foreach (var entry in clockHits)
         {
-            projectileHits.Clear(); projectiles.QueryRunning(World, transform.position, settings.Radius, projectileHits);
-            foreach (var handle in projectileHits)
-            {
-                if (!projectiles.TryGetClock(handle, out var clock) || !clock.isActiveAndEnabled) continue;
-                projectileInside.Add(handle.InstanceId);
-                if (projectileGrants.ContainsKey(handle.InstanceId)) continue;
-                var grant = new ProjectileGrant { Clock = clock };
-                grant.Scale = clock.AddOwnedModifier(buffId, EveTimeModifierKind.Scale, -settings.Reduction, this);
-                try { grant.Minimum = clock.AddOwnedModifier(buffId, EveTimeModifierKind.MinScaleReduction, settings.MinimumReduction, this); }
-                catch { clock.RemoveModifier(grant.Scale); throw; }
-                projectileGrants[handle.InstanceId] = grant;
-            }
+            var clock = entry.Target.TimeClock; if (clock == null || !clock.isActiveAndEnabled) continue;
+            clockInside.Add(entry.Id);
+            if (clockGrants.ContainsKey(entry.Id)) continue;
+            var grant = new ClockGrant { Clock = clock };
+            grant.Scale = clock.AddOwnedModifier(buffId, EveTimeModifierKind.Scale, -settings.Reduction, this);
+            try { grant.Minimum = clock.AddOwnedModifier(buffId, EveTimeModifierKind.MinScaleReduction, settings.MinimumReduction, this); }
+            catch { clock.RemoveModifier(grant.Scale); throw; }
+            clockGrants[entry.Id] = grant;
         }
-        foreach (var id in projectileGrants.Keys.Where(x => !projectileInside.Contains(x)).ToArray()) { ReleaseProjectile(projectileGrants[id]); projectileGrants.Remove(id); }
+        foreach (var id in clockGrants.Keys.Where(x => !clockInside.Contains(x)).ToArray()) { ReleaseClock(clockGrants[id]); clockGrants.Remove(id); }
     }
-    private static void ReleaseProjectile(ProjectileGrant grant)
+    private static void ReleaseClock(ClockGrant grant)
     {
-        // The clock may already belong to another projectile (pooled object); modifier ids are unique per clock, so only ours is removed.
+        // The clock may already belong to another object (a pooled one); modifier ids are unique per clock, so only ours is removed.
         if (grant.Clock == null) return;
         grant.Clock.RemoveModifier(grant.Scale); grant.Clock.RemoveModifier(grant.Minimum);
     }
@@ -236,8 +239,8 @@ public class PNTimeScaleArea : PNAreaInstance
         death = null;
         var failures=new List<Exception>();
         foreach (var pair in grants.ToArray()) { try { Revoke(pair.Value);grants.Remove(pair.Key); } catch (Exception error) { failures.Add(error); } }
-        foreach (var pair in projectileGrants.ToArray()) { try { ReleaseProjectile(pair.Value); projectileGrants.Remove(pair.Key); } catch (Exception error) { failures.Add(error); } }
-        projectileInside.Clear(); projectileHits.Clear();
+        foreach (var pair in clockGrants.ToArray()) { try { ReleaseClock(pair.Value); clockGrants.Remove(pair.Key); } catch (Exception error) { failures.Add(error); } }
+        clockInside.Clear(); clockHits.Clear();
         if(failures.Count>0)throw new AggregateException("Owned Area Buff cleanup remains pending.",failures);
         inside.Clear();
     }
@@ -248,7 +251,7 @@ public class PNTimeScaleArea : PNAreaInstance
         PNTimeScaleAreaRendering.Unregister(this); VisualStrength = 0; VisualRadius = 0;
         dust?.Reset(); VisualSettings = null;
         Array.Clear(buffer, 0, buffer.Length);
-        settings = null; request = null; ownerIdentity = followIdentity = null; projectiles = null;
+        settings = null; request = null; ownerIdentity = followIdentity = null; radius = 0;
         base.OnPoolRelease();
     }
     public override void DisposePooledResources() { PNTimeScaleAreaRendering.Unregister(this); dust?.Dispose(); dust = null; }

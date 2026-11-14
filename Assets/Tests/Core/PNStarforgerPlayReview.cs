@@ -77,7 +77,7 @@ public static class PNStarforgerPlayReview
                 Log("LANDED after " + (landed - takeoff).ToString("F2") + " s in the air (max height " + maxHeight.ToString("F2") + "); at " + landPos.ToString("F2") + ", the player was at " + playerAtTakeoff.ToString("F2") + " at take-off, flat error " + new Vector2(landPos.x - playerAtTakeoff.x, landPos.z - playerAtTakeoff.z).magnitude.ToString("F2") + " m; the player is now " + Gap().ToString("F2") + " m away");
                 if (!shotLand) { shotLand = true; Shot("slam_land"); }
             }
-            var stars = Resources.FindObjectsOfTypeAll<PNStarforgerStarArea>().Where(x => x.IsRunning).ToArray(); maxStars = Mathf.Max(maxStars, stars.Length); foreach (var st in stars) starSlots.Add(st.Slot);
+            var stars = Resources.FindObjectsOfTypeAll<PNStarforgerStarSummon>().Where(x => x.IsRunning).ToArray(); maxStars = Mathf.Max(maxStars, stars.Length); foreach (var st in stars) starSlots.Add(st.Slot);
             var bolts = Resources.FindObjectsOfTypeAll<PNStarforgerBoltProjectile>().Where(x => x.IsRunning).ToArray();
             var nowBolts = new HashSet<int>(); foreach (var b in bolts) { int key = b.GetHashCode(); nowBolts.Add(key); if (!seenBolts.Contains(key)) { seenBolts.Add(key); boltTimes.Add(now); boltTotal++; if (boltWindow >= 0 && now - boltWindow < .15f) boltsAtTakeoff++; Log("BOLT appears at " + b.transform.position.ToString("F2") + " heading " + b.transform.forward.ToString("F2")); } }
             seenBolts = nowBolts;

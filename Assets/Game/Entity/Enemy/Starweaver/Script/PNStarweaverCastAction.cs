@@ -9,7 +9,7 @@ public sealed class PNStarweaverCastAction : PNSkillAction
 {
     private PNSkillActionContext context; private float age,windup,recovery; private bool fired,ended;
     private PNStarweaverPresentation presentation;
-    private PNSkillOperation operation; private PNStarweaverTelegraph marker; private PNVisualBody body; private PNStarweaverCastVisual castVisual;
+    private PNSkillOperation operation; private PNVisualBody body; private PNStarweaverCastVisual castVisual;
     public override bool HasAuxiliaryTimeline=>true;
     public override void Start(PNSkillActionContext c)
     {
@@ -24,14 +24,15 @@ public sealed class PNStarweaverCastAction : PNSkillAction
         if(c.SkillId==PNStarweaverCombatContent.Triangle)
         {
             if(!c.Position.HasValue)throw new InvalidOperationException("Triangle center required");
-            marker=new PNStarweaverTelegraph(c.Position.Value,p["data"]["radius"].Value<float>(),c.Skill.gameObject.scene,windup);
+            // The blast owns the telegraph and the detonation on its own clock; this cast only ends it if the cast is cancelled (Action dependency).
+            fired=true;operation=CreateOperation(c,EveId.Parse(p["operationId"].Value<string>()));operation.Execute(c,p["data"]);
         }
     }
     public override void Perform(PNSkillActionContext c) { }
     public override bool AdvanceAuxiliary(float dt)
     {
         if(ended)return true;age+=dt;
-        marker?.SetPhase(age/windup,age>=windup);castVisual?.SetTime(age);
+        castVisual?.SetTime(age);
         if(!fired&&age>=windup)
         {
             fired=true;var p=context.Data.Action.Perform;
@@ -44,31 +45,12 @@ public sealed class PNStarweaverCastAction : PNSkillAction
         return age>=windup+recovery;
     }
     public override void Exit(PNSkillActionContext c){try{c.CompleteAction();}finally{Dispose();}}
-    public override void Cancel(PNSkillActionContext c){try{c.CancelEffects();operation?.Cancel();}finally{Dispose();}}
-    public override void Dispose(){if(ended)return;ended=true;castVisual?.Dispose();castVisual=null;body?.EndAction();body=null;operation?.Dispose();operation=null;marker?.Dispose();marker=null;context=null;}
+    public override void Cancel(PNSkillActionContext c){try{c.CancelEffects();EndBlast();operation?.Cancel();}finally{Dispose();}}
+    // Only a cancelled cast ends its blast; a finished one lets the blast run out its own tail.
+    private void EndBlast(){var handle=(operation as PNCreateBlastOperation)?.Result?.Handle;if(handle.HasValue&&handle.Value.IsAlive)handle.Value.End();}
+    public override void Dispose(){if(ended)return;ended=true;castVisual?.Dispose();castVisual=null;body?.EndAction();body=null;operation?.Dispose();operation=null;context=null;}
 }
 
-public sealed class PNStarweaverTriangleOperation:PNSkillOperation
-{
-    private bool executed;
-    public override void Execute(PNSkillActionContext c,JToken data)
-    {
-        if(executed)throw new InvalidOperationException("Pulse already spent");executed=true;
-        if(!EveRegistrySession.Context.HasAuthority)return;
-        var center=c.Position.Value;float radius=data["radius"].Value<float>(),height=data["height"].Value<float>();
-        var caster=c.Skill.GetComponent<PNStat>();double amount=0;foreach(var v in PNSkillValues.Parse(data["value"]).Components)amount+=v.Evaluate(caster);
-        var capture=caster.CaptureCombatSource();var tags=c.EffectiveTags().Concat(data["tags"].Select(x=>EveId.Parse(x.Value<string>()))).Distinct().ToArray();
-        var prepared=capture.PrepareDamage(amount,data["canCrit"].Value<bool>(),0,tags);
-        foreach(var entity in c.World.Session.Entities.Snapshot(c.World))
-        {
-            var target=entity.GetComponent<PNStat>();if(target==null||!target.IsReady||target.IsDead||!caster.Targets(target)||!PNWorldGameplay.CanTarget(c.Skill,target))continue;
-            var col=target.GetComponent<Collider>();if(col==null)continue;var b=col.bounds;
-            if(b.max.y<center.y-height||b.min.y>center.y+height)continue;
-            if(!PNStarweaverTriangleGeometry.Intersects(center.x,center.z,radius,b.min.x,b.min.z,b.max.x,b.max.z))continue;
-            c.ReceiveHit(target,target.transform.position,capture.CreateDamage(prepared),amount,capture);
-        }
-    }
-}
 public sealed class PNStarweaverProjectile:PNDirectionalProjectile
 {
     private PNStarweaverNeedleVisual visual; private Vector3 contactPoint,environmentPoint;
@@ -95,7 +77,6 @@ public sealed class PNStarweaverCastAction:PNSkillAction
     public override void Exit(PNSkillActionContext c){}
     public override void Cancel(PNSkillActionContext c){}
 }
-public sealed class PNStarweaverTriangleOperation:PNSkillOperation
-{public override void Execute(PNSkillActionContext c,Newtonsoft.Json.Linq.JToken p){PNStarweaverCombatContent.ValidateTriangle(p,c.Registry);}}
+public sealed class PNStarweaverTriangleBlast {}
 public sealed class PNStarweaverProjectile {}
 #endif

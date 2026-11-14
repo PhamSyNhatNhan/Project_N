@@ -126,6 +126,14 @@ retirement. External OnDisable cleans gameplay immediately and defers pool retur
 until sceneUnloaded/next manager update, avoiding storage destruction races.
 No global timeScale, Control lock or forced Animator/Rigidbody speed.
 
+
+## Time clock, `area_scale` and shared time targets (RulesVersion157)
+
+- Every area root carries a `PNAreaClock` (an `EveTimeScale`, like `PNProjectileClock`) added by `PNAreaDefinition.CreatePoolTemplate`. The manager advances the instance with `ScaleDelta(gameDelta)`: the clock is advanced every tick (even at scale 0, so an orphaned modifier is reclaimed) and `Advance` receives `delta × Scale`. Retirement/fade still uses real Game time.
+- `virtual bool AffectedByTime => true`. An implementation that returns false never registers in the time list and keeps full speed. `PNTimeScaleArea` returns false, so overlapping zones do not lengthen each other.
+- `PNTimeTargets` (`IPNTimeTarget`: clock, logical layer, position, active) is one per-world list shared by projectiles (`Projectile`=8) and areas (`Area`=19; `Blast`=18 is reserved for the Blast stage). These are logical time-effect layers, not the GameObject layers; area GameObject layers are unchanged. `Query` is allocation-free.
+- `PNTimeScaleArea.PollClocks` queries that list with the area's layer rule and puts its two modifiers on each clock (one grant per target, released on exit/end). The entity Buff path (`Poll`) is unchanged.
+- Tags `project_n:area_scale` and `project_n:area_damage` are registered. `area_scale` multiplies the time-scale zone radius (read once at `Initialize` from the source snapshot); `area_damage` is registered but no implementation uses it yet.
 ## Pool ownership and implementation
 
 Implement `Initialize`, `Advance`, `Cleanup`; optional `AdvanceRetirement` and

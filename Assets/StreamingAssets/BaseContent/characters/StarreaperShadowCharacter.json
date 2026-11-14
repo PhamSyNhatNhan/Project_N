@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "characters": [
+    {
+      "id": "project_n:starreaper_shadow",
+      "portraitPath": "",
+      "data": {
+        "body": {
+          "prefab": "starreaper_shadow",
+          "aggro": "ignored",
+          "healthBar": "hidden"
+        },
+        "shadow": {
+          "delay": 2.0,
+          "gap": 0.15,
+          "sideAngle": 10,
+          "aimRadius": 12,
+          "appearance": "project_n:starreaper",
+          "value": {
+            "amount": 120,
+            "statId": "base:attack_power"
+          },
+          "canCrit": true,
+          "tags": [
+            "project_n:attack",
+            "base:magic"
+          ]
+        }
+      },
+      "stats": [
+        {
+          "statId": "base:attack_power",
+          "base": 1
+        }
+      ],
+      "skill": []
+    }
+  ]
+}

@@ -49,8 +49,41 @@ public sealed class PNAreaCreateRequest
 }
 
 // Component instances are reused by the existing GameObject pool; manager owns every borrow.
-public abstract class PNAreaInstance : MonoBehaviour, EveIPoolable
+public abstract class PNAreaInstance : MonoBehaviour, EveIPoolable, IPNTimeTarget
 {
+    // EN: Every area carries a clock (PNAreaClock, minScale 0). An area that is affected by time (the default) registers in the world's PNTimeTargets while it
+    //     runs, so a time effect can slow or stop it; the manager then hands `Advance` the delta scaled by that clock. An implementation that must not be
+    //     affected (the time-scale area itself, so two overlapping zones cannot lengthen each other) overrides this to false. Retirement uses real time.
+    // VI: Mỗi vùng có đồng hồ (PNAreaClock, minScale 0). Vùng chịu thời gian (mặc định) đăng ký vào PNTimeTargets của world khi chạy; manager đưa Advance
+    //     delta đã nhân theo đồng hồ đó. Implementation không muốn chịu (chính vùng thời gian) override false. Retirement dùng thời gian thật.
+    public virtual bool AffectedByTime => true;
+    public PNAreaClock Clock { get; private set; }
+    EveTimeScale IPNTimeTarget.TimeClock => Clock;
+    int IPNTimeTarget.TimeLayer => PNLayers.Area;
+    Vector3 IPNTimeTarget.TimePosition => transform.position;
+    bool IPNTimeTarget.TimeActive => IsRunning && Clock != null;
+    private PNTimeTargets.Entry timeEntry;
+    private PNAreaCreateRequest created; private double scaleFactor = double.NaN;
+    // The creator's `area_scale` (Scale route over a base of 1, read from the source snapshot at creation; 1 = unchanged). What it scales is the implementation's choice.
+    protected double ScaleFactor
+    {
+        get
+        {
+            if (double.IsNaN(scaleFactor)) scaleFactor = created?.Source?.Snapshot != null ? created.Source.Snapshot.Calculate(1d, PNContentIds.AreaScale) : 1d;
+            return scaleFactor;
+        }
+    }
+    internal float ScaleDelta(float gameDelta)
+    {
+        if (!AffectedByTime || Clock == null || Clock.ModifierCount == 0) return gameDelta;
+        Clock.Advance(gameDelta);
+        return gameDelta * Clock.Scale;
+    }
+    private void ReleaseTime()
+    {
+        if (timeEntry != null) { PNTimeTargets.Unregister(timeEntry); timeEntry = null; }
+        if (Clock != null) Clock.ClearModifiers();
+    }
     public PNAreaHandle Handle { get; private set; }
     public bool IsRunning { get; private set; }
     public EveWorldContext World { get; private set; }
@@ -61,7 +94,11 @@ public abstract class PNAreaInstance : MonoBehaviour, EveIPoolable
     public virtual float RetirementDuration => 0;
     public virtual void ActorWorldChanging(PNStat actor) { }
     internal void Bind(PNAreaManager manager, PNAreaHandle handle, PNAreaDefinition definition, PNAreaCreateRequest request)
-    { Manager = manager; World=PNWorldGameplay.ForScene(manager.Session,request.Scene);Handle = handle; Definition = definition; EndReason = null; CleanupFailed = false; IsRunning = true; Initialize(request); }
+    { Manager = manager; World=PNWorldGameplay.ForScene(manager.Session,request.Scene);Handle = handle; Definition = definition; EndReason = null; CleanupFailed = false; IsRunning = true;
+        Clock = GetComponent<PNAreaClock>(); if (Clock != null) Clock.ClearModifiers(); created = request; scaleFactor = double.NaN;
+        Initialize(request);
+        if (AffectedByTime && Clock != null) timeEntry = PNTimeTargets.For(World).Register(this);
+    }
     protected abstract void Initialize(PNAreaCreateRequest request);
     public abstract void Advance(float gameDelta);
     public virtual void AdvanceRetirement(float gameDelta) { }
@@ -71,6 +108,7 @@ public abstract class PNAreaInstance : MonoBehaviour, EveIPoolable
     {
         if (!IsRunning && !CleanupFailed) return;
         IsRunning = false; EndReason = reason; CleanupFailed = true;
+        ReleaseTime();
         Cleanup(); CleanupFailed = false;
     }
     public virtual void OnPoolCreated() { }
@@ -79,6 +117,7 @@ public abstract class PNAreaInstance : MonoBehaviour, EveIPoolable
     public virtual void DisposePooledResources() { }
     public virtual void OnPoolRelease()
     {
+        ReleaseTime(); created = null;
         Manager = null;World=null; Definition = null; Handle = default; EndReason = null; IsRunning = false;
         if (CleanupFailed) throw new InvalidOperationException("Faulted area cleanup; existing pool must evict this instance.");
     }
@@ -242,7 +281,7 @@ public sealed class PNAreaManager : MonoBehaviour
                     if (entry.Instance == null) { Return(pair.Key, entry); continue; }
                     if(entry.World!=null&&!entry.World.CanExecute)continue;
                     if (entry.Instance.IsRunning && !entry.Instance.isActiveAndEnabled) { End(new PNAreaHandle(this, pair.Key), PNAreaEndReason.Disabled); continue; }
-                    if (entry.Instance.IsRunning) entry.Instance.Advance(gameDelta);
+                    if (entry.Instance.IsRunning) entry.Instance.Advance(entry.Instance.ScaleDelta(gameDelta));
                     else { entry.Instance.AdvanceRetirement(gameDelta); entry.Retirement -= gameDelta; if (entry.Retirement <= 0) Return(pair.Key, entry); }
                 }
                 catch (Exception error) { Debug.LogException(error, this); End(new PNAreaHandle(this, pair.Key), PNAreaEndReason.RuntimeError); }

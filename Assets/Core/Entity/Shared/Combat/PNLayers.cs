@@ -7,10 +7,10 @@ using System;
 // VI: Tên các layer gameplay. Nội dung gọi layer theo tên; PNTargetLayers biên dịch tên thành bitmask int. Bảng phải khớp TagManager.
 public static class PNLayers
 {
-    public const int Player = 6, Enemy = 7, Projectile = 8, Wall = 9, Boundary = 10, Void = 11, Ground = 13;
+    public const int Player = 6, Enemy = 7, Projectile = 8, Wall = 9, Boundary = 10, Void = 11, Ground = 13, Blast = 18, Area = 19;
     private static readonly (string Name, int Index)[] known =
     {
-        ("Player", Player), ("Enemy", Enemy), ("Projectile", Projectile), ("Wall", Wall), ("Boundary", Boundary), ("Void", Void), ("Ground", Ground),
+        ("Player", Player), ("Enemy", Enemy), ("Projectile", Projectile), ("Wall", Wall), ("Boundary", Boundary), ("Void", Void), ("Ground", Ground), ("Blast", Blast), ("Area", Area),
     };
     public static System.Collections.Generic.IReadOnlyList<(string Name, int Index)> Known => known;
     public static int Bit(int layer) => 1 << layer;

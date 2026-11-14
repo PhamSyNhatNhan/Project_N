@@ -54,43 +54,6 @@
       ],
       "skill": [
         {
-          "id": "project_n:eve_slash",
-          "data": {
-            "skill": {},
-            "action": {
-              "id": "base:slash_action",
-              "start": {},
-              "perform": {
-                "tags": [
-                  "base:physical",
-                  "base:fire",
-                  "base:ice",
-                  "base:lightning"
-                ],
-                "duration": 0.32,
-                "prefab": "PNAttacks/EveSlash",
-                "value": {
-                  "amount": 100,
-                  "statId": "base:attack_power"
-                },
-                "hitbox": {
-                  "windowStart": 0.06,
-                  "windowEnd": 0.2,
-                  "followCaster": false,
-                  "hitTriggers": false,
-                  "sampleInterval": 0.004
-                }
-              },
-              "exit": {},
-              "cancel": {}
-            },
-            "categoryIds": [
-              "base:attack"
-            ],
-            "affectedByAttackSpeed": true
-          }
-        },
-        {
           "id": "project_n:eve_moveset",
           "data": {
             "skill": {

@@ -17,7 +17,7 @@ supplies the mechanism; trusted game modules own names/contracts. RulesVersion: 
 
 ```csharp
 hub.Stats.Get(EveId.Parse("base:attack_power"));
-hub.Actions().Get(EveId.Parse("base:slash_action")).Create();
+hub.Actions().Get(EveId.Parse("base:damage_action")).Create();
 stat.Evaluate(EveId.Parse("base:attack_power"));
 stat.GetCurrent(EveId.Parse("base:health"));
 ```
@@ -25,8 +25,8 @@ stat.GetCurrent(EveId.Parse("base:health"));
 | Registry name | Public names | Override contract |
 | --- | --- | --- |
 | stats | health, attack_power, attack_speed, cooldown_reduction, crit_rate, crit_damage, defense, move_speed, jump_speed | Same Number/Resource kind; resource policy may change |
-| actions | slash_action, damage_action | Replacement inherits original action implementation |
-| operations | slash_vfx, lock_movement | Replacement inherits original operation implementation |
+| actions | damage_action | Replacement inherits original action implementation |
+| operations | lock_movement | Replacement inherits original operation implementation |
 | calculations | scale, mitigation | Concrete PNStatCalculation factory |
 | contributions | before, after | Locked metadata; calculator owns interpretation |
 | damage_types | physical, magic, true | Valid PNDamageTypeDefinition |
@@ -34,7 +34,7 @@ stat.GetCurrent(EveId.Parse("base:health"));
 | tags | physical, magic, true, fire, ice, lightning, heal, attack, skill, ultimate, dash, burst | Locked |
 | enemy_types | normal, elite, boss | Locked; custom types may be registered |
 | characters | eve, dummy, further project_n JSON characters | Locked |
-| skills | eve_slash, further project_n JSON skills | Locked |
+| skills | eve_moveset, further project_n JSON skills | Locked |
 
 VI: Tất cả tên trong bảng dùng tiền tố `base:` và chỉ tra trong registry đã chọn.
 Định nghĩa riêng của mod tiếp tục dùng namespace mod. `Count`, `Snapshot` và
@@ -61,13 +61,13 @@ reads the original definition. Runtime stats use GetEffective for selected metad
 on the same identity, so old/base references share values, resource state and
 caches. A provider implementation ID remains separate content, not another alias.
 
-VI: Action gọi ID gốc sẽ bỏ qua override của action; JSON Eve đã dùng base:slash_action.
-Operation slash dùng base:lock_movement/base:slash_vfx. API stat dùng ID gốc vẫn áp
+VI: Action gọi ID gốc sẽ bỏ qua override của action; JSON Eve đã dùng base:damage_action.
+Operation dùng base:lock_movement. API stat dùng ID gốc vẫn áp
 luật đã chọn vì danh tính runtime không chia đôi. Không dùng ID implementation mod
 để tham chiếu HP/ATK nền trong dữ liệu nhân vật.
 
 EN: Explicit original action IDs bypass action overrides; Eve's JSON now uses
-base:slash_action, and slash operations use public IDs. Legacy stat APIs still apply
+base:damage_action, and operations use public IDs. Legacy stat APIs still apply
 selected runtime rules because entity identity is not split. Use public concepts,
 not provider implementation IDs, for built-in character HP/ATK references.
 
@@ -130,11 +130,11 @@ class names alone do not prove identical executable code.
 
 ```csharp
 hub.Actions().Register(new PNSkillActionDefinition(
-    EveId.Parse("combat_mod:slash"), typeof(CustomSlashAction)));
+    EveId.Parse("combat_mod:damage"), typeof(CustomSlashAction)));
 hub.Actions().RequestOverride(
-    EveId.Parse("base:slash_action"), EveId.Parse("combat_mod:slash"),
+    EveId.Parse("base:damage_action"), EveId.Parse("combat_mod:damage"),
     "combat_mod", "1.0.0", new[] { "project_n" });
-// CustomSlashAction inherits PNSlashAction / kế thừa PNSlashAction.
+// CustomSlashAction inherits PNDamageAction / kế thừa PNDamageAction.
 ```
 
 VI: Bộ nạp DLL Windows Mono và SDK được mô tả trong

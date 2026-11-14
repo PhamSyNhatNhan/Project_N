@@ -11,14 +11,10 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
     // The look of the Hall and the Lobby (Docs/CameraSinglePathPlan.md C4): their shell scenes no longer carry a virtual camera, the world declares it. 45 degrees, 5.5 m, FOV 38, as the scene rigs were.
     private static readonly PNCameraViewLayer ShellView=new PNCameraViewLayer{Projection=PNCameraProjection.Perspective,FieldOfView=38f,Pitch=45f,Yaw=0f,Distance=5.5f};
     private readonly List<(EveId id,string owner,IReadOnlyCollection<string> dependencies)> motionReferences=new List<(EveId,string,IReadOnlyCollection<string>)>();
-    public static readonly EveId EveSlash = EveId.Parse("project_n:eve_slash");
-    public static readonly EveId SlashAction = EveId.Parse("project_n:slash_action");
-    public static readonly EveId SlashVfxOperation = EveId.Parse("project_n:slash_vfx");
     public static readonly EveId LockMovementOperation = EveId.Parse("project_n:lock_movement");
     public static readonly EveId DamageAction = EveId.Parse("project_n:damage_action");
     public static readonly EveId WorkAction = EveId.Parse("project_n:work_action");
     public static readonly EveId LocomotionAction = EveId.Parse("project_n:locomotion_action");
-    public static readonly EveId SlashHitOperation = EveId.Parse("project_n:slash_hit");
     public static readonly EveId HealOperation = EveId.Parse("project_n:heal");
     public static readonly EveId EveAttackEntry = EveId.Parse("project_n:eve_attack_entry");
     public static readonly EveId EveSkillEntry = EveId.Parse("project_n:eve_skill_entry");
@@ -109,6 +105,7 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         PNInstances.Create(hub);
         PNPlaceableContent.Register(hub);
         PNAreaGameplayContent.Register(hub);
+        PNBlastGameplayContent.Register(hub);
         PNProjectileGameplayContent.Register(hub);
         PNEntityGameplayContent.Register(hub);
         PNSummonGameplayContent.Register(hub);
@@ -147,8 +144,6 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
             string category = entry == EveAttackEntry ? "attack" : entry == EveSkillEntry ? "skill" : entry == EveUltimateEntry ? "ultimate" : "burst";
             hub.GetOrCreate<EveSkillDefinition>().Register(new EveSkillDefinition(entry, new JObject { ["categoryIds"] = new JArray("base:" + category), ["affectedByAttackSpeed"] = entry == EveAttackEntry }));
         }
-        hub.GetOrCreate<PNSkillActionDefinition>().Register(
-            new PNSkillActionDefinition(SlashAction, typeof(PNSlashAction), ValidateEffectAction, PNSkillContextRequirements.Direction));
         hub.Actions().Register(new PNSkillActionDefinition(DamageAction, typeof(PNDamageAction), ValidateEffectAction, PNSkillContextRequirements.Targets));
 #if UNITY_5_3_OR_NEWER
         // Work on placed things of a grid world (Docs/SandboxPlan.md): the registered way for a skill to bring things down. Not wired into any existing skill.
@@ -178,9 +173,7 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
             (data, context) => context.Require<PNBuffDefinition>(PNBuffContentBatch.Object(data)["buffId"], "buffId"), sourceIndependent: true));
         operations.Register(new PNSkillOperationDefinition(EveId.Parse("project_n:change_buff_stacks"), typeof(PNChangeBuffStacksOperation), (data, content) => { PNTriggerBuffOperation.Validate(data, content, true); }, PNSkillContextRequirements.None,
             (data, context) => context.Require<PNBuffDefinition>(PNBuffContentBatch.Object(data)["buffId"], "buffId"), sourceIndependent: true));
-        operations.Register(new PNSkillOperationDefinition(SlashVfxOperation, typeof(PNSlashVfxOperation)));
         operations.Register(new PNSkillOperationDefinition(LockMovementOperation, typeof(PNLockMovementOperation)));
-        operations.Register(new PNSkillOperationDefinition(SlashHitOperation, typeof(PNSlashHitOperation)));
         operations.Register(new PNSkillOperationDefinition(HealOperation, typeof(PNHealOperation), (data, content) => PNHealSettings.Parse(data).ValidateContent(content)));
         foreach (var definition in hub.Actions().Snapshot().Values)
             if (definition.Id.Namespace == "project_n")
@@ -241,8 +234,6 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         { EveSweepSettings.Parse(data.Perform).Values.ValidateStats(hub); new PNStatSet(hub).ResolveDamageType(data.PerformTags); }
         else if (typeof(PNDamageAction).IsAssignableFrom(implementation))
         { PNSkillValues.Parse((data.Perform as JObject)?["value"]).ValidateStats(hub); PNDamage.ParseIFrameDuration(data.Perform as JObject); new PNStatSet(hub).ResolveDamageType(data.PerformTags); }
-        else if (typeof(PNSlashAction).IsAssignableFrom(implementation))
-        { var hit = PNSlashHitSettings.Parse(data.Perform); if (hit != null) { hit.Values.ValidateStats(hub); new PNStatSet(hub).ResolveDamageType(data.PerformTags); } }
     }
 
     // VI: Kiểm tra khung Core được nhận diện với action đã chọn trước khi công bố phiên.
@@ -264,6 +255,8 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
 #endif
         PNSkillBindingContent.Validate(hub);
         PNPetSettings.ValidateAll(hub);
+        PNStarreaperCombatContent.ValidateCharacters(hub);
+        PNStarforgerCombatContent.ValidateCharacters(hub);
         foreach (var category in hub.SkillCategories().Snapshot().Values) category.Validate(hub);
         foreach (var definition in hub.Buffs().Snapshot().Values) definition.Validate(hub);
         foreach (var definition in hub.Instances().Snapshot().Values) definition.Validate(hub);
@@ -303,18 +296,6 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
                 var sweep = EveSweepSettings.Parse(data.Action.Perform);
                 sweep.Values.ValidateStats(hub);
                 new PNStatSet(hub).ResolveDamageType(data.Action.PerformTags);
-            }
-            if (typeof(PNSlashAction).IsAssignableFrom(action.ImplementationType))
-            {
-                var hit = PNSlashHitSettings.Parse(data.Action.Perform);
-#if UNITY_5_3_OR_NEWER
-                PNSlashPrefabContent.Validate(new PNSlashVfxSettings(data.Action.Perform), hit != null);
-#endif
-                if (hit != null)
-                {
-                    hit.Values.ValidateStats(hub);
-                    new PNStatSet(hub).ResolveDamageType(data.Action.PerformTags);
-                }
             }
             if (typeof(PNDamageAction).IsAssignableFrom(action.ImplementationType))
             {

@@ -8,15 +8,11 @@ using UnityEngine;
 #if UNITY_5_3_OR_NEWER
 [DefaultExecutionOrder(100)]
 #endif
-public partial class EveCharacterSkill : PNPlayerSkill, PNSlashVfxPoolOwner
+public partial class EveCharacterSkill : PNPlayerSkill
 {
     private EveSweepAction attack;
     private PNSkillActionContext attackContext;
     private EveTimeScale clock;
-    private EveEasyPooling slashPool;
-#if UNITY_5_3_OR_NEWER
-    private string slashPoolPath;
-#endif
     [SerializeField] private Vector3 attackDirection = new Vector3(1f, 0f, 0f);
     public virtual bool IsAttacking => attack != null;
 #if UNITY_5_3_OR_NEWER
@@ -26,22 +22,6 @@ public partial class EveCharacterSkill : PNPlayerSkill, PNSlashVfxPoolOwner
     // VI: Huong du phong khi khong co movement; lan chem tuong minh co the truyen huong rieng.
     public virtual Vector3 AttackDirection { get => attackDirection; set => attackDirection = value; }
 
-    // EN: Lazy per-character pool survives disable and is reused across attacks.
-    // VI: Pool riêng từng nhân vật tạo khi cần, giữ qua disable và dùng lại qua nhiều đòn chém.
-    public virtual EveEasyPooling GetSlashVfxPool()
-    {
-#if UNITY_5_3_OR_NEWER
-        string path = new PNSlashVfxSettings(GetData(EveId.Parse("base:eve_slash")).Action.Perform).Prefab;
-        if (slashPool == null || slashPool.IsDisposed || slashPoolPath != path)
-        {
-            slashPool?.Dispose(); slashPool = PNArcSlashVisual.CreatePool(path); slashPoolPath = path;
-        }
-#else
-        if (slashPool == null || slashPool.IsDisposed)
-            slashPool = PNArcSlashVisual.CreatePool();
-#endif
-        return slashPool;
-    }
 
     public override void Load(EveEntityLoadContext context)
     {
@@ -115,29 +95,11 @@ public partial class EveCharacterSkill : PNPlayerSkill, PNSlashVfxPoolOwner
     protected override void OnDestroy()
     {
         try { UnloadMoveset(); }
-        finally
-        {
-            try { DisposeSlashPool(); }
-            finally { base.OnDestroy(); }
-        }
+        finally { base.OnDestroy(); }
     }
     public override void Unload()
     {
         try { UnloadMoveset(); }
-        finally
-        {
-            try { DisposeSlashPool(); }
-            finally { clock = null; base.Unload(); }
-        }
-    }
-
-    private void DisposeSlashPool()
-    {
-        var pool = slashPool;
-        slashPool = null;
-#if UNITY_5_3_OR_NEWER
-        slashPoolPath = null;
-#endif
-        pool?.Dispose();
+        finally { clock = null; base.Unload(); }
     }
 }
