@@ -113,9 +113,9 @@ public partial class PNPlayerSkill
     }
     private void EndPlayerDash(bool cancelled)
     {
-        var active=playerDash;var context=playerDashContext;playerDash=null;playerDashContext=null;
+        var active=playerDash;var context=playerDashContext;bool guess=predictedDash;playerDash=null;playerDashContext=null;predictedDash=false;
         try {if(cancelled)active.Cancel(context);else active.Exit(context);}
-        finally {try {active.Dispose();} finally {try {OnPlayerDashEnded(cancelled);} finally {EndActivation(cancelled);}}}
+        finally {try {active.Dispose();} finally {try {if(!guess)OnPlayerDashEnded(cancelled);} finally {EndActivation(cancelled);}}}
     }
     private void OnPlayerDashDeath(PNDamageResult result)
     {CancelPlayerDash();if(DashRecovery!=null&&DashRecovery.IsAttached)DashRecovery.Reset();}
@@ -129,7 +129,7 @@ public partial class PNPlayerSkill
     }
     protected override void Update()
     {
-        if(!HasGameplayAuthority)return;
+        if(!HasGameplayAuthority){if(predictedDash)AdvancePredictedDash(playerDashClock!=null&&playerDashClock.isActiveAndEnabled?playerDashClock.DeltaTime:Time.deltaTime);return;}
         var delta = playerDashClock!=null&&playerDashClock.isActiveAndEnabled?playerDashClock.DeltaTime:Time.deltaTime;
         AdvanceAuxiliaryEffects(delta); AdvancePlayerDash(delta); AdvanceBindings(delta);
     }

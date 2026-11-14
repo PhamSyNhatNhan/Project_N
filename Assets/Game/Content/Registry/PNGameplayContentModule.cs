@@ -125,6 +125,12 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         hub.SyncStates().Register(new PNSyncStateDefinition(PNRogueEntityView.State,1,PNRogueEntityView.StateBytes,PNSyncTargets.Entity));
         // What a player carries in a world that has Roguelite Buff (before the entity modules the factory added these to every player everywhere): the buff manager, the numbers block and the sync binding that block needs.
         hub.EntityModules().Register(new PNEntityModuleDefinition(EveId.Parse("project_n:rogue_buff_player"),PNEntityModuleRoles.Player,null,new[]{PNRunFeatures.RogueBuff},new[]{typeof(PNSyncEntity),typeof(PNRogueEntityView),typeof(PNRogueBuffManager)}));
+        // The owner's skill state (Abilities + view binding), sent only to the owner (Docs/SkillNetworkingAPlan.md S1).
+        hub.SyncStates().Register(new PNSyncStateDefinition(PNSkillOwnerView.State,1,PNSkillOwnerView.StateBytes,PNSyncTargets.Entity,true));
+        // The owner's skill input and its answer (S2): a command from the owner's client, the cast result back to the owner only.
+        hub.SyncStates().Register(new PNSyncStateDefinition(PNSkillRemoteInput.ResultState,1,PNSkillRemoteInput.ResultBytes,PNSyncTargets.Entity,true));
+        hub.SyncCommands().Register(new PNSyncCommandDefinition(PNSkillRemoteInput.Command,typeof(PNSkillInputCommandHandler),()=>new PNSkillInputCommandHandler(),PNSkillRemoteInput.CommandBytes,PNSyncTargets.Entity));
+        hub.EntityModules().Register(new PNEntityModuleDefinition(EveId.Parse("project_n:skill_owner_player"),PNEntityModuleRoles.Player,null,new[]{PNRunFeatures.SkillSync},new[]{typeof(PNSyncEntity),typeof(PNSkillOwnerView),typeof(PNSkillRemoteInput)}));
         // The two things an enemy owes a room (G6), answered by the world's features instead of flags on the role: the clear marker the room director counts and the loot source.
         hub.EntityModules().Register(new PNEntityModuleDefinition(EveId.Parse("project_n:room_clear_enemy"),PNEntityModuleRoles.None,new[]{PNEntityGameplayContent.Enemy},new[]{PNRunFeatures.RoomClear},new[]{typeof(PNRoomClearMarker)}));
         hub.EntityModules().Register(new PNEntityModuleDefinition(EveId.Parse("project_n:loot_enemy"),PNEntityModuleRoles.None,new[]{PNEntityGameplayContent.Enemy},new[]{PNRunFeatures.Loot},new[]{typeof(PNLootSource)}));

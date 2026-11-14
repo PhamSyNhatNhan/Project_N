@@ -50,7 +50,7 @@ public sealed class PNAbilityChange
 
 // EN: Passive counters/flags only. Skills consume this state and implement all effects.
 // VI: Chỉ bộ đếm/flag; skill đọc trạng thái và thực hiện toàn bộ hiệu ứng.
-public abstract class PNAbility
+public abstract partial class PNAbility
 {
     private PNAbilityCollection owner;
     public PNAbilityDefinition Definition { get; }

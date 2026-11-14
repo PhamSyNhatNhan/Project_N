@@ -173,6 +173,7 @@ public partial class PNSkill
     }
     public bool RequestSlot(EveId slot,PNSkillInputEvent input)
     {
+        if(!HasGameplayAuthority)return CanForwardInput&&isActiveAndEnabled&&IsReady&&InputForwarder.Forward(slot,input);
         if(Bindings==null||Bindings.IsFaulted||!IsReady||!HasGameplayAuthority||bindingsDisposed||input.Phase!=PNSkillInputPhase.Canceled&&!AllowsBindingInput)return false;
         if(!Bindings.TryGet(slot,out var profile))return false;
         BehaviorState value;

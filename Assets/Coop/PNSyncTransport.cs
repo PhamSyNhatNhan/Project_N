@@ -90,6 +90,9 @@ namespace ProjectN.Coop
             var binding = SyncBinding(entity, generation);
             return binding != null && binding.Shell != null && binding.Shell.netId != 0 && binding.Shell.netIdentity.observers.ContainsKey(connection.connectionId) && CanObserveActor(connection, binding.Shell);
         }
+        // An owner-only block goes to the connection that owns the entity life and to no other peer.
+        private bool StateAllowedTo(NetworkConnectionToClient connection, PNSyncTarget target, PNSyncStateDefinition state)
+            => !state.OwnerOnly || target.Kind == PNSyncTargetKind.Entity && ReferenceEquals(SyncBinding(target.Entity.Value, target.Generation)?.OwnerConnection, connection);
         private PNSyncStateMessage Pack(PNSyncTarget target, PNSyncStateDefinition state, ulong revision, JToken payload)
         {
             Describe(target, out var kind, out var world, out var incarnation, out var slot, out var key, out var entity, out var generation);
@@ -116,7 +119,7 @@ namespace ProjectN.Coop
             var message = Pack(target, state, revision, payload);
             foreach (var connection in NetworkServer.connections.Values)
             {
-                if (!SyncRemote(connection)) continue;
+                if (!SyncRemote(connection) || !StateAllowedTo(connection, target, state)) continue;
                 var peer = SyncPeer(connection);
                 if (target.Kind == PNSyncTargetKind.Session) { if (!peer.Session) continue; }
                 else if (target.Kind == PNSyncTargetKind.Entity) { if (!peer.Entities.Contains((message.Entity, message.Generation)) || !EntityVisibleTo(connection, message.Entity, message.Generation)) continue; }
@@ -152,7 +155,7 @@ namespace ProjectN.Coop
                     long entity = binding.Metadata.Entity, generation = binding.Metadata.Generation;
                     if (peer.Entities.Contains((entity, generation)) || !EntityVisibleTo(connection, entity, generation)) continue;
                     peer.Entities.Add((entity, generation));
-                    foreach (var item in sync.Snapshot(t => t.Kind == PNSyncTargetKind.Entity && t.Entity.Value == entity && t.Generation == generation)) Enqueue(peer, item.Target, item.State, Pack(item.Target, item.State, item.Revision, item.Payload));
+                    foreach (var item in sync.Snapshot(t => t.Kind == PNSyncTargetKind.Entity && t.Entity.Value == entity && t.Generation == generation).Where(x => StateAllowedTo(connection, x.Target, x.State))) Enqueue(peer, item.Target, item.State, Pack(item.Target, item.State, item.Revision, item.Payload));
                 }
                 int sent = 0;
                 while (sent < peer.Order.Count)

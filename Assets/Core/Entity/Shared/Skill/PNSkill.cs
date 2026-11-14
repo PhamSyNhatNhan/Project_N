@@ -9,6 +9,13 @@ using UnityEngine;
 [RequireComponent(typeof(PNAbilityManager))]
 public partial class PNSkill : EveSkill, EveIEntityLoadPreparation, EveIEntityCommitStep
 {
+    // EN: On the owner's client (no authority) a slot press is sent to the authority instead of run here (Docs/SkillNetworkingAPlan.md S2); null everywhere else.
+    public IPNSkillInputForwarder InputForwarder { get; set; }
+    // True on the machine with authority when an owner on another machine may drive this entity's skill input (PNSkillRemoteInput sets it): the local-player permission then does not apply, the entity's own state (ready, not held, network gate open) does.
+    public bool AcceptsRemoteInput { get; set; }
+    // Counts the activations this machine committed (an activation starts when a press really began a skill). The authority uses it to tell a press that cast from one that was declined.
+    public long ActivationSerial { get; private set; }
+    protected bool CanForwardInput => InputForwarder != null && InputForwarder.IsActive;
     protected bool HasGameplayAuthority=>(!EveRegistrySession.IsReady||EveRegistrySession.Context.HasAuthority)&&PNWorldGameplay.CanExecute(this);
     public void PrepareEntityLoad()
     { if (GetComponent<PNControlManager>() == null) gameObject.AddComponent<PNControlManager>(); }
@@ -42,7 +49,7 @@ public partial class PNSkill : EveSkill, EveIEntityLoadPreparation, EveIEntityCo
     {
         var value = CurrentInvocation;
         if (value == null || value.IsEnded || value.Committed) return;
-        value.Committed = true;
+        value.Committed = true; ActivationSerial++;
         var context = new PNSkillActionContext(this, value.SkillId, null, registry, targets, direction, value);
         context.ContributionSnapshot = value.ActivationSnapshot; value.ActivationContext = context;
         context.Fire("OnActivated");

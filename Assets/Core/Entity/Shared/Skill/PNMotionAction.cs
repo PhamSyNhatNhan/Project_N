@@ -63,6 +63,8 @@ public class PNMotionAction : PNSkillAction, IPNSkillMotionAction
     private Rigidbody movingBody;
     private RigidbodyInterpolation previousInterpolation;
 #endif
+    // Set before Start by the owner's client when it only guesses this motion (Docs/SkillNetworkingAPlan.md S3): no Control lease is taken.
+    public bool IsPrediction { get; set; }
     public virtual bool IsComplete => elapsed >= duration;
     public override void Start(PNSkillActionContext value)
     {
@@ -84,7 +86,8 @@ public class PNMotionAction : PNSkillAction, IPNSkillMotionAction
         context.BeginAction();
         if(move!=null && movementOwner!=null)
             movementExecution=move.RegisterMotion(settings.PermissionId,()=>{try { movementOwner?.Invoke(); } finally { Dispose(); }});
-        movementLock = CreateOperation(context,EveId.Parse("base:lock_movement")); movementLock.Execute(context, null);
+        // A prediction on the owner's client takes no Control lease (that is the authority's state); the real cast on the authority does.
+        if(!IsPrediction){movementLock = CreateOperation(context,EveId.Parse("base:lock_movement")); movementLock.Execute(context, null);}
 #if UNITY_5_3_OR_NEWER
         // EN: Update-driven motion must use the physics pose, never a delayed interpolated Transform.
         // VI: Chuyển động trong Update dùng vị trí vật lý, không cộng vào Transform nội suy trễ.

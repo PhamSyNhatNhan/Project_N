@@ -37,6 +37,8 @@ public sealed partial class PNAbilityCollection : IDisposable
         foreach (var definition in inputs) Define(definition);
         this.canMutate = canMutate;
     }
+    // True on a machine whose Abilities are a replica of the authority's (it can never mutate them the normal way).
+    internal bool IsReplica => canMutate != null && !canMutate();
     internal void RequireMutable()
     { if (disposed) throw new ObjectDisposedException(nameof(PNAbilityCollection)); if (canMutate != null && !canMutate()) throw new InvalidOperationException("Ability mutation requires published authority."); }
     public PNAbility Define(PNAbilityDefinition definition)
@@ -172,7 +174,17 @@ public sealed partial class PNAbilityCollection : IDisposable
     }
     public void Advance(double gameDeltaTime, double entityScale = 1, double rawScale = 1)
     {
-        RequireMutable(); PNAbilityDefinition.RequireSeconds(gameDeltaTime, true);
+        RequireMutable(); AdvanceCore(gameDeltaTime, entityScale, rawScale);
+    }
+    // EN: A machine without authority keeps its replicated Abilities ticking between updates (Docs/SkillNetworkingAPlan.md S1); refused on a machine that may mutate.
+    public void AdvanceReplica(double gameDeltaTime, double entityScale = 1, double rawScale = 1)
+    {
+        if (canMutate == null || canMutate()) throw new InvalidOperationException("A replica ticks only on a machine without gameplay authority.");
+        AdvanceCore(gameDeltaTime, entityScale, rawScale);
+    }
+    private void AdvanceCore(double gameDeltaTime, double entityScale, double rawScale)
+    {
+        PNAbilityDefinition.RequireSeconds(gameDeltaTime, true);
         PNAbilityDefinition.RequireSeconds(entityScale, true);
         if (double.IsNaN(rawScale) || double.IsInfinity(rawScale)) throw new ArgumentOutOfRangeException(nameof(rawScale));
         if (advancing || dispatching) throw new InvalidOperationException("Ability clock cannot advance recursively or inside a change notification.");

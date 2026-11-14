@@ -14,16 +14,18 @@ public static class PNRunFeatures
     // Every room of a run counts its enemies for the clear and lets them drop loot (Docs/SandboxPlan.md G6); a world that is not a room of a run (the sandbox) has neither.
     public static readonly EveId RoomClear = EveId.Parse("project_n:room_clear");
     public static readonly EveId Loot = EveId.Parse("project_n:loot");
+    // Every room of a run syncs the owner's skill state (Docs/SkillNetworkingAPlan.md S1): the player entity module that answers to it adds the sync binding and `PNSkillOwnerView`.
+    public static readonly EveId SkillSync = EveId.Parse("project_n:skill_sync");
     public const int MaxDeclared = 16;
 
     // The features a run's data blocks imply. Declaring one of these in `features` is refused.
     public static IReadOnlyList<EveId> Implied(PNRunDefinition run)
     {
         if (run == null) throw new ArgumentNullException(nameof(run));
-        return run.Rogue != null ? new[] { RoomClear, Loot, RogueBuff } : new[] { RoomClear, Loot };
+        return run.Rogue != null ? new[] { RoomClear, Loot, SkillSync, RogueBuff } : new[] { RoomClear, Loot, SkillSync };
     }
 
-    public static bool IsImpliedByABlock(EveId feature) => feature == RogueBuff || feature == RoomClear || feature == Loot;
+    public static bool IsImpliedByABlock(EveId feature) => feature == RogueBuff || feature == RoomClear || feature == Loot || feature == SkillSync;
 
     public static PNWorldFeatures Of(PNRunDefinition run) => new PNWorldFeatures(run.Features.Concat(Implied(run)));
 }

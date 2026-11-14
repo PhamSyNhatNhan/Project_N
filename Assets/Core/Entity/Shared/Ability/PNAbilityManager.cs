@@ -74,7 +74,7 @@ public class PNAbilityManager : MonoBehaviour, EveIEntityLoadStep
         abilities.ObserverFailed += ReportObserver;
     }
     protected virtual void Update()
-    { if (IsReady && context.CanMutate) Advance(Time.deltaTime); }
+    { if (IsReady && context.CanMutate) Advance(Time.deltaTime); else if (IsReady && isActiveAndEnabled && context.CanExecute) AdvanceReplica(Time.deltaTime); }
     public void Advance(double gameDeltaTime)
     {
         PNAbilityDefinition.RequireSeconds(gameDeltaTime, true);
@@ -83,6 +83,12 @@ public class PNAbilityManager : MonoBehaviour, EveIEntityLoadStep
         if(!context.CanSimulate)return;
         bool hasClock = clock != null && clock.isActiveAndEnabled;
         abilities.Advance(gameDeltaTime, hasClock ? clock.Scale : 1, hasClock ? clock.RawScale : 1);
+    }
+    // A machine without authority ticks the values it was told (the owner's client; see PNAbilityCollection.ApplyReplica).
+    private void AdvanceReplica(double gameDeltaTime)
+    {
+        bool hasClock = clock != null && clock.isActiveAndEnabled;
+        abilities.AdvanceReplica(gameDeltaTime, hasClock ? clock.Scale : 1, hasClock ? clock.RawScale : 1);
     }
     private void ReportObserver(Exception error) => Debug.LogException(error, this);
     private void ForwardChange(PNAbilityChange change)

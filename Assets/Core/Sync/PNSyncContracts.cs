@@ -123,13 +123,16 @@ public sealed class PNSyncStateDefinition : EveIIdentified
     public int Schema { get; }
     public int MaxBytes { get; }
     public PNSyncTargets Targets { get; }
-    public PNSyncStateDefinition(EveId id, int schema, int maxBytes, PNSyncTargets targets)
+    // EN: Entity targets only: the transport sends this block to the entity's OWNER and to nobody else (the host and offline read it locally as always). Default false.
+    public bool OwnerOnly { get; }
+    public PNSyncStateDefinition(EveId id, int schema, int maxBytes, PNSyncTargets targets, bool ownerOnly = false)
     {
         if (!id.IsValid || id.ToString().Length > 128) throw new ArgumentException("A valid state id of at most 128 characters is required.", nameof(id));
         if (schema < 1) throw new ArgumentOutOfRangeException(nameof(schema), "Schema numbers start at 1.");
         if (maxBytes < 1 || maxBytes > PNSyncLimits.StateBytes) throw new ArgumentOutOfRangeException(nameof(maxBytes), "A state block holds 1-" + PNSyncLimits.StateBytes + " bytes.");
         if (targets == PNSyncTargets.None || (targets & ~(PNSyncTargets.Entity | PNSyncTargets.WorldObject | PNSyncTargets.Session)) != 0) throw new ArgumentException("A state names at least one known target kind.", nameof(targets));
-        Id = id; Schema = schema; MaxBytes = maxBytes; Targets = targets;
+        if (ownerOnly && targets != PNSyncTargets.Entity) throw new ArgumentException("An owner-only block can only address an Entity target.", nameof(ownerOnly));
+        Id = id; Schema = schema; MaxBytes = maxBytes; Targets = targets; OwnerOnly = ownerOnly;
     }
 }
 

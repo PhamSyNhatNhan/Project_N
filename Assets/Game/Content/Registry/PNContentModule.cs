@@ -138,6 +138,7 @@ public class PNContentModule : EveIContentModule, EveIContentFinalizeModule, Eve
         hub.GetOrCreate<PNWorldFeatureDefinition>(); hub.NameRegistry<PNWorldFeatureDefinition>("world_features");
         hub.GetOrCreate<PNEntityModuleDefinition>(); hub.NameRegistry<PNEntityModuleDefinition>("entity_modules");
         // The world feature a run with Roguelite Buff gives its rooms (Docs/EntityModulePlan.md): the vocabulary lives here, the module that answers to it in the gameplay module.
+        hub.WorldFeatures().Register(new PNWorldFeatureDefinition(PNRunFeatures.SkillSync, "Worlds of a run whose players sync their skill state to their owner."));
         hub.WorldFeatures().Register(new PNWorldFeatureDefinition(PNRunFeatures.RogueBuff, "Worlds of a run that has Roguelite Buff."));
         // Rooms of a run count their enemies for the clear and let them drop loot (G6); the sandbox declares neither.
         hub.WorldFeatures().Register(new PNWorldFeatureDefinition(PNRunFeatures.RoomClear, "Worlds whose enemies count for a room clear."));

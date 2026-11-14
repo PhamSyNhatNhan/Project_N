@@ -36,10 +36,10 @@ public partial class PNPlayerSkill : PNSkill, IPNEntityResourceOwner
     //     switch is off the handlers drop what arrives, and turning a switch (or the environment) either way re-arms the actions through RefreshInput, which cancels any interaction in progress and
     //     does not fire again for a key that stays held. So a press that began while blocked never turns into a cast later.
     // VI: Action có được bật không? Bật khi thực thể này nhận được input cục bộ (quyền gameplay + môi trường), bất kể các công tắc; công tắc tắt thì handler bỏ qua, và đổi công tắc hay môi trường đều bật lại qua RefreshInput.
-    protected bool InputArmed => isActiveAndEnabled && HasGameplayAuthority && InputGate.Allowed;
+    protected bool InputArmed => isActiveAndEnabled && (HasGameplayAuthority || CanForwardInput) && InputGate.Allowed;
     public virtual bool CanInput
     {
-        get => canInput && !menuInputBlocked && HasGameplayAuthority && InputGate.Allowed;
+        get => canInput && !menuInputBlocked && (HasGameplayAuthority || CanForwardInput) && (InputGate.Allowed || AcceptsRemoteInput && PNLocalPlayerInput.AllowsRemote(GetComponent<EveEntityLoader>()));
         set
         {
             if (canInput == value) return;
