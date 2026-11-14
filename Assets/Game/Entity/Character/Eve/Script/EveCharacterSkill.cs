@@ -30,14 +30,6 @@ public partial class EveCharacterSkill : PNPlayerSkill
         LoadMoveset(context);
     }
 
-    protected override void TapAttack() => TryAttack();
-    protected override void RepeatAttack() { repeatHeld = true; TryRepeatAttack(); }
-    protected override void CanceledRepeatAttack() { repeatHeld = false; repeatExhausted = false; if (CurrentCast != EveCast.Repeat) EndRepeatChain(); }
-    protected override void TapSkill() => TrySkill();
-    protected override void TapUlti() => TryUltimate();
-    protected override void TapDash() => TryDash();
-    protected override void TapBurst() => TryBurst();
-
     public virtual bool TryAttack() => TryAttack(SelectDirection(false, out _));
 
     // EN: This prototype skill chooses movement facing; action/VFX only consume the supplied vector.
@@ -57,7 +49,7 @@ public partial class EveCharacterSkill : PNPlayerSkill
         try
         {
             BeginActivation(PNGameplayContentModule.EveAttackEntry);
-            BeginNormalAttack(direction);
+            BeginNormalAttack(DecideAttack(direction));
             CommitActivation(castTarget == null ? null : new[] { castTarget }, direction);
             return true;
         }

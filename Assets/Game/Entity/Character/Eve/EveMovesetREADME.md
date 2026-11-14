@@ -52,7 +52,7 @@ Gameplay, Ability definitions and VFX tuning now come from
 Assets/StreamingAssets/BaseContent/characters/EveCharacter.json.
 Eve owns targeting/combo/reward logic. Ability holds passive entity state only.
 
-The eve_moveset entry contains skill.abilities (seven entity-owned definitions)
+The eve_moveset entry contains skill.abilities (eleven entity-owned definitions; RulesVersion 162 added the combo state: eve_combo_step, eve_repeat_stroke, eve_ultimate_stroke, eve_repeat_exhausted)
 and skill.tuning (motion profile IDs, rewards, Burst bonus/cost, input timings and energy phases).
 PNAbilityManager loads these definitions BEFORE Skill, even on an entity without
 a skill component; Skill requires their IDs/types and never silently defines missing
@@ -94,7 +94,7 @@ GetData/CreateAction remain limited to character-selected or explicitly built-in
 skills. Shared data is parsed per entity, never mutated at invocation time.
 
 Eve selects base:eve_dash with its existing eve_dash_ready Ability and JSON distance,
-duration/collision parameters; its seven Ability definitions are unchanged.
+duration/collision parameters; its Ability definitions are unchanged.
 Eve only supplies interruption/face/VFX callbacks: Dash can interrupt ordinary
 casts, never Ulti. PNPlayerSkill owns immediate-press Dash, movement/last movement
 direction, charge spending/CDR/recovery and invocation cancellation/lifecycle.
@@ -280,7 +280,7 @@ Completion drains short particle tails; cancellation clears active blade/trail.
 Bloom uses the existing scene setup; production effects never change global cameras
 or volumes. VFX Graph is not needed for these effects.
 
-The seven Ability IDs are public constants on EveCharacterSkill. Manager loads
+The eleven Ability IDs are public constants on EveCharacterSkill. Manager loads
 first, then stats, then Skill. Gauge starts0, Dash3, Skill/Ulti ready by JSON.
 Runtime Awake supplies a missing manager on older scene entities without saving
 or modifying authored scene files.
@@ -344,3 +344,15 @@ expire by Game time; Eve/Player layers are excluded. Two overlapping fields can
 reduce effective timescale to0; damage still receives normally. No hardcoded
 completion tuning in Skill logic; selected content/Operation/area factories apply.
 Shared player Dash keeps its own registered distance. See Core/Area/PNAreaREADME.md.
+
+## Cast structure and input path (Plan 1 E1-E5, RulesVersion 162/163)
+
+- Combo state lives in Abilities: `eve_combo_step` (Counter 0..2), `eve_repeat_stroke` (Counter, only parity is used), `eve_ultimate_stroke` (Counter 0..3),
+  `eve_repeat_exhausted` (State without duration). `comboIdle` stays a local timer in the behavior: Abilities cannot pause while Eve casts and the timer runs only while idle.
+- Each cast is split in three: `Decide*` (read-only, returns `EveCastDecision`: cast, direction, target, step, reset, empowered, finisher, profile), `Begin*`/`Execute` (phases, motion, sweep, visuals),
+  and `Host*` methods (hit rewards, Burst stat source, Blazing Assault, Rising Momentum, Burst refund) called at the same places as before. Named decision points inside `CompletePhase`:
+  `DecideUltimateRetarget`, `DecideEmpoweredStrike`, `DecideRepeatStroke`, `DecideRepeatContinue`.
+- Input: Eve's Attack/Skill/Ultimate/Burst profiles use behavior `project_n:eve_slot_skill` (`EveSlotSkillBehavior`, one per slot). `RequestSlot` -> `Input` -> `EveCharacterSkill.DispatchSlotInput(slot, input)`;
+  a binding change cancels the gesture (clears the Repeat hold) and interrupts with `project_n:binding_changed`. The button-named hooks (`TapAttack`, `RepeatAttack`, `TapSkill`...) and
+  `CanContinueEveRepeat` no longer exist for Eve; new characters write a behavior too. Shared Dash still uses `PNLegacySkillBehavior`.
+- Behavior is pinned by the golden trace `EveMovesetTraceChecks` (18 scenarios, baseline `Tests/EveEngine/Baselines/EveMovesetTrace.baseline.txt`, git-ignored): any change to Eve casts must keep it byte-identical.

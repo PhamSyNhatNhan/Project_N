@@ -29,7 +29,7 @@ physics and flipX. Uses a disposable preview scene and never saves gameplay scen
 last movement directions25/155/-72, idle retention and explicit unload cleanup.
 
 Eve JSON/sweep revision: EveConfigurationEditorChecks.Run() checks content-driven
-states/tuning; EveMovesetEditorChecks.Run() checks native gameplay;
+states/tuning; EveMovesetEditorChecks.Run() checks native gameplay; EveMovesetTraceChecks.Execute() compares the frame-by-frame golden trace of Eve against Tests/EveEngine/Baselines (Docs/EveMovesetRefactorPlan.md E0);
 EveVfxEditorChecks.RenderPreview() checks moving ribbons/trails/particles and exports
 .utmp/EveSweepSequence.png. EveSlashPlayModeChecks.Begin() delegates to the current
 EveMovesetPlayModeChecks.Run() input test. No test runs automatically.

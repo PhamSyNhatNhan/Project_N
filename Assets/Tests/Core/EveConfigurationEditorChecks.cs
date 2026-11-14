@@ -47,12 +47,12 @@ public static class EveConfigurationEditorChecks
             fallbackRoot.AddComponent<EveEntityIdentity>(); var fallbackStat = fallbackRoot.AddComponent<EveCharacterStat>();
             var serialized = new SerializedObject(fallbackStat); serialized.FindProperty("characterId").stringValue = "project_n:eve"; serialized.ApplyModifiedPropertiesWithoutUndo();
             var fallbackManager = fallbackRoot.AddComponent<PNAbilityManager>(); var fallbackLoader = fallbackRoot.AddComponent<EveEntityLoader>();
-            try { fallbackLoader.Load(hub); Check(fallbackManager.Abilities.Definitions.Count == 7, "Legacy stat character ID fallback did not load JSON abilities."); }
+            try { fallbackLoader.Load(hub); Check(fallbackManager.Abilities.Definitions.Count == 11, "Legacy stat character ID fallback did not load JSON abilities."); }
             finally { fallbackLoader.Unload(); }
             var root = new GameObject("Eve JSON-only configuration probe"); root.SetActive(false); SceneManager.MoveGameObjectToScene(root, scene);
             root.AddComponent<EveEntityIdentity>().Assign(new EveEntityId(987200), EveId.Parse("project_n:eve"), 0);
             var manager = root.AddComponent<PNAbilityManager>(); loader = root.AddComponent<EveEntityLoader>(); loader.Load(hub);
-            Check(manager.Abilities.Definitions.Count == 7 && root.GetComponent<EveCharacterSkill>() == null, "Abilities depend on skill runtime creation.");
+            Check(manager.Abilities.Definitions.Count == 11 && root.GetComponent<EveCharacterSkill>() == null, "Abilities depend on skill runtime creation.");
             Check(((PNAbilityCooldown)manager.Abilities.Find(EveCharacterSkill.DashCooldownId)[0]).Current == 4, "Manager ignored JSON charge count.");
             loader.Unload(); var stats = root.AddComponent<EveCharacterStat>(); var skill = root.AddComponent<PNEveAttackSpeedProbe>();
             loader.Load(hub); root.SetActive(true);

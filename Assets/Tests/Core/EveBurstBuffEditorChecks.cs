@@ -12,9 +12,11 @@ using UnityEngine.SceneManagement;
 public sealed class EveBurstBuffProbe : EveCharacterSkill
 {
     public void Tick(float delta) => AdvanceAttack(delta);
-    public void Hold() => RepeatAttack();
-    public void Release() => CanceledRepeatAttack();
+    public void Hold() { RequestSlot(PNSkillSlots.Attack, new PNSkillInputEvent(PNSkillInputPhase.Started, PNSkillInteraction.Repeat)); RequestSlot(PNSkillSlots.Attack, new PNSkillInputEvent(PNSkillInputPhase.Performed, PNSkillInteraction.Repeat)); }
+    public void Release() => RequestSlot(PNSkillSlots.Attack, new PNSkillInputEvent(PNSkillInputPhase.Canceled, PNSkillInteraction.Repeat));
     public void PrepareInput() { if (pc == null) Awake(); OnEnable(); }
+    // A real press: while the Repeat gesture owns the executing profile, a direct TryDash is (correctly) refused by CanActivateSkill; the Dash slot press interrupts it like a player's.
+    public bool TapDash() { bool ok = RequestSlot(PNSkillSlots.Dash, new PNSkillInputEvent(PNSkillInputPhase.Started, PNSkillInteraction.Tap)); RequestSlot(PNSkillSlots.Dash, new PNSkillInputEvent(PNSkillInputPhase.Performed, PNSkillInteraction.Tap)); RequestSlot(PNSkillSlots.Dash, new PNSkillInputEvent(PNSkillInputPhase.Canceled, PNSkillInteraction.Tap)); return ok && IsDashing; }
     public void DisableReview() { enabled = false; OnDisable(); }
 }
 public static class EveBurstBuffEditorChecks
@@ -36,14 +38,15 @@ public static class EveBurstBuffEditorChecks
         try
         {
             EveRegistrySession.Begin(); EveRegistrySession.Start(hub, EveSessionRole.Offline, EveContentCompatibility.Create(hub, docs, "test:eve_burst_buffs"));
-            var actor = Root("Eve Burst Buff source", 989201, "project_n:eve", Vector3.zero); var stat = actor.AddComponent<EveCharacterStat>(); actor.AddComponent<PNAbilityManager>();
+            var areaRoot = new GameObject("Eve Burst Buff area manager fixture"); SceneManager.MoveGameObjectToScene(areaRoot, preview); areaRoot.AddComponent<PNAreaManager>().Initialize(EveRegistrySession.Context);
+            var actor = Root("Eve Burst Buff source", 989201, "project_n:eve", Vector3.zero); var stat = actor.AddComponent<EveCharacterStat>(); actor.layer = PNLayers.Player; actor.AddComponent<PNAbilityManager>();
             var body = actor.AddComponent<Rigidbody>(); body.useGravity = false; var capsule = actor.AddComponent<CapsuleCollider>(); capsule.radius = .12f; capsule.height = .6f;
             actor.AddComponent<PNPlayerMove>(); skill = actor.AddComponent<EveBurstBuffProbe>(); skill.PrepareInput(); var loader = actor.AddComponent<EveEntityLoader>(); loader.Load(hub); actor.SetActive(true); actor.GetComponent<PNBuffManager>().Advance(0);
             var enemies = new List<PNEnemyStat>();
             for (int i = 0; i < 2; i++)
             {
                 var obj = Root("Burst Buff target " + i, 989202 + i, "project_n:dummy", new Vector3(.45f + i * .12f, .4f, 0));
-                var enemy = obj.AddComponent<PNEnemyStat>(); obj.AddComponent<SphereCollider>().radius = .15f; obj.AddComponent<EveEntityLoader>().Load(hub); obj.SetActive(true); obj.GetComponent<PNBuffManager>().Advance(0); enemies.Add(enemy);
+                var enemy = obj.AddComponent<PNEnemyStat>(); obj.layer = PNLayers.Enemy; obj.AddComponent<SphereCollider>().radius = .15f; obj.AddComponent<EveEntityLoader>().Load(hub); obj.SetActive(true); obj.GetComponent<PNBuffManager>().Advance(0); enemies.Add(enemy);
             }
             Physics.SyncTransforms(); var burnId = hub.Buffs().ResolveIdentity(EveId.Parse("base:burn"));
             int Burn(PNEnemyStat enemy) => (int)(enemy.GetComponent<PNBuffManager>().Buffs.Snapshot().FirstOrDefault(x => x.Id == burnId)?.Stacks ?? 0);
@@ -51,7 +54,7 @@ public static class EveBurstBuffEditorChecks
             Check(enemies.All(x => Burn(x) == 0), "Outside Burst normal hit does not apply Burn.");
             skill.BurstGauge.Add(150); Check(skill.TryBurst() && skill.BlazingAssault != null, "Burst grants registered Blazing Assault.");
             Check(skill.TryAttack(Vector3.right), "Normal Attack starts inside Burst."); AdvanceUntil(() => !skill.IsBusy);
-            Check(enemies.All(x => Burn(x) == 1), "Each valid Burst normal hit applies one Burn stack per target.");
+            Check(enemies.All(x => Burn(x) == 1), "Each valid Burst normal hit applies one Burn stack per target: burn=" + string.Join(",", enemies.Select(Burn)) + "; hp=" + string.Join(",", enemies.Select(x => x.GetCurrent(PNContentIds.Health))) + "; buffs=" + string.Join(",", enemies.Select(x => x.GetComponent<PNBuffManager>().Buffs.Snapshot().Count())) + "; blaze=" + (skill.BlazingAssault != null));
             Check(skill.RisingMomentum == null, "Normal Attack does not grant Rising Momentum.");
             var external = EveId.Parse("test:external_momentum_owner"); stat.SetSource(external, new[] { new EveStatModifier(PNContentIds.AttackPower, .2, 2), new EveStatModifier(PNContentIds.AttackSpeed, 7, 0) });
             skill.Hold(); AdvanceUntil(() => skill.RisingMomentum != null && enemies.All(x => Burn(x) >= 2));
@@ -65,7 +68,7 @@ public static class EveBurstBuffEditorChecks
             foreach (var enemy in enemies) enemy.gameObject.SetActive(false); skill.SlashStacks.Clear(); skill.SlashStacks.Add(1); skill.Release(); skill.Hold(); AdvanceUntil(() => !skill.IsBusy);
             Check(skill.RisingMomentum == null && skill.SlashStacks.Current == 0, "Miss consumes slash resource but grants no Momentum; exhausted chain resets."); skill.Release();
             foreach (var enemy in enemies) enemy.gameObject.SetActive(true); body.position = actor.transform.position = Vector3.zero; Physics.SyncTransforms(); skill.SlashStacks.Add(4);
-            skill.Hold(); AdvanceUntil(() => skill.RisingMomentum != null); Check(skill.TryDash(), "Dash interrupts repeat chain.");
+            skill.Hold(); AdvanceUntil(() => skill.RisingMomentum != null); Check(skill.TapDash(), "Dash press interrupts repeat chain.");
             Check(skill.RisingMomentum == null && skill.BlazingAssault != null && stat.Evaluate(PNContentIds.AttackSpeed) == 157, "Interrupt resets Momentum without ending Burst Buff."); AdvanceUntil(() => !skill.IsBusy);
             body.position = actor.transform.position = Vector3.zero; Physics.SyncTransforms(); skill.Release(); skill.Hold(); AdvanceUntil(() => skill.RisingMomentum != null);
             skill.BurstState.End(); Check(!skill.IsInBurst && !skill.IsBusy && skill.RisingMomentum == null && skill.BlazingAssault == null, "Burst end cancels chain and removes both exact owned Buffs.");
@@ -79,7 +82,17 @@ public static class EveBurstBuffEditorChecks
             Check(!skill.IsInBurst && !buffs.Snapshot().Any(x => x.Id == EveBurstBuffContent.BlazingAssault || x.Id == EveBurstBuffContent.RisingMomentum), "Source death clears Eve-owned Buffs.");
             loader.Unload(); loader.Load(hub); Check(skill.BlazingAssault == null && skill.RisingMomentum == null, "Reload starts without previous Burst/chain handles.");
         }
-        finally { try { if (EveRegistrySession.State != EveSessionState.Stopped) EveRegistrySession.End(); } finally { EditorSceneManager.ClosePreviewScene(preview); } }
+        finally
+        {
+            // Edit Mode never runs OnDisable/OnDestroy: unload every fixture entity while the session still grants Ability authority, so session End does not mutate them without it.
+            try
+            {
+                foreach (var root in preview.GetRootGameObjects())
+                    if (root != null) foreach (var entityLoader in root.GetComponentsInChildren<EveEntityLoader>(true)) { try { entityLoader.Unload(); } catch (Exception) { } }
+                foreach (var root in preview.GetRootGameObjects()) if (root != null) root.SetActive(false);
+            }
+            finally { try { if (EveRegistrySession.State != EveSessionState.Stopped) EveRegistrySession.End(); } finally { EditorSceneManager.ClosePreviewScene(preview); } }
+        }
         Check(SceneManager.GetActiveScene() == original && original.isDirty == dirty, "Authored scene and dirty state preserved.");
         string summary = "PASS " + count + " native Eve Burst Buff checks"; Directory.CreateDirectory(".utmp/EveBurstBuffReview"); File.WriteAllLines(".utmp/EveBurstBuffReview/NativeResults.txt", evidence.Concat(new[] { summary })); return summary;
     }

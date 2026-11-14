@@ -136,6 +136,45 @@
                   "duration": 10,
                   "reapply": "Refresh",
                   "clock": "Game"
+                },
+                {
+                  "id": "project_n:eve_combo_step",
+                  "kind": "Counter",
+                  "showInUI": false,
+                  "iconPath": "",
+                  "displayOrder": 0,
+                  "maximum": 2,
+                  "initialAmount": 0,
+                  "clock": "Game"
+                },
+                {
+                  "id": "project_n:eve_repeat_stroke",
+                  "kind": "Counter",
+                  "showInUI": false,
+                  "iconPath": "",
+                  "displayOrder": 0,
+                  "maximum": 1000000,
+                  "initialAmount": 0,
+                  "clock": "Game"
+                },
+                {
+                  "id": "project_n:eve_ultimate_stroke",
+                  "kind": "Counter",
+                  "showInUI": false,
+                  "iconPath": "",
+                  "displayOrder": 0,
+                  "maximum": 3,
+                  "initialAmount": 0,
+                  "clock": "Game"
+                },
+                {
+                  "id": "project_n:eve_repeat_exhausted",
+                  "kind": "State",
+                  "showInUI": false,
+                  "iconPath": "",
+                  "displayOrder": 0,
+                  "reapply": "Keep",
+                  "clock": "Game"
                 }
               ],
               "tuning": {

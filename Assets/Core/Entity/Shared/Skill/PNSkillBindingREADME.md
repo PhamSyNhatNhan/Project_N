@@ -30,6 +30,10 @@ phải derive với profile phù hợp target, không mặc định mọi legacy
 DefaultDashBindingProfile là virtual fallback cho character chưa có base mapping. Eve
 override để giữ Eve Dash cho lớp kế thừa; ô không được quản giữ legacy hooks/Repeat.
 
+Eve (từ RulesVersion 163) không còn dùng hàm tên nút (`TapAttack`...): profile Attack/Skill/Ultimate/Burst của Eve dùng behavior `project_n:eve_slot_skill`
+(Input -> `DispatchSlotInput`, Cancel -> interrupt `project_n:binding_changed`). `PNLegacySkillBehavior` chỉ còn cho shared Dash; hàm tên nút là legacy,
+nhân vật mới viết `PNSkillBehavior` riêng.
+
 JSON schemaVersion1, extensions.project_n.skillBindingProfiles là array các object:
 id, entrySkillId, behaviorId, data, input, actionDataIds, abilities, displayAbilityIds,
 resetAbilitiesOnDeath. Input dùng tên CanTap/PressImmediately/HoldMode/TapDuration/

@@ -18,6 +18,12 @@ public partial class EveCharacterSkill
     public static readonly EveId BurstStateId = EveId.Parse("project_n:eve_burst_state");
     public static readonly EveId SlashStacksId = EveId.Parse("project_n:eve_slash_stacks");
     public static readonly EveId EmpowermentId = EveId.Parse("project_n:eve_next_attack");
+    // Combo state (Docs/EveMovesetRefactorPlan.md E1) lives in entity Abilities. Not held here: the idle timer (comboIdle) only runs while Eve is free
+    // and Abilities cannot pause, so it stays a local clock; the host sends the step, a client ticks its own idle time.
+    public static readonly EveId ComboStepId = EveId.Parse("project_n:eve_combo_step");
+    public static readonly EveId RepeatStrokeId = EveId.Parse("project_n:eve_repeat_stroke");
+    public static readonly EveId UltimateStrokeId = EveId.Parse("project_n:eve_ultimate_stroke");
+    public static readonly EveId RepeatExhaustedId = EveId.Parse("project_n:eve_repeat_exhausted");
     private static readonly EveId BurstSourceId = EveId.Parse("project_n:eve_burst_bonus");
     private EveMovesetSettings moveset;
     public EveMovesetSettings Moveset => moveset;
@@ -26,7 +32,7 @@ public partial class EveCharacterSkill
     public PNStat CurrentTarget => castTarget;
     public bool IsBusy => CurrentCast != EveCast.None;
     public bool IsInBurst => burstEffectsActive;
-    public int ComboIndex => comboIndex;
+    public int ComboIndex => comboStep?.Current ?? 0;
     public PNAbilityCounter BurstGauge => gauge;
     public PNAbilityCounter SlashStacks => stacks;
     public PNAbilityCooldown SkillRecovery => skillRecovery;
@@ -42,16 +48,15 @@ public partial class EveCharacterSkill
     private EveRegistryHub movesetRegistry;
     private PNAbilityCollection ownedAbilities;
     private PNAbilityCooldown skillRecovery, ultimateRecovery;
-    private PNAbilityCounter gauge, stacks;
-    private PNAbilityState burst, empowerment;
+    private PNAbilityCounter gauge, stacks, comboStep, repeatStrokes, ultimateStrokes;
+    private PNAbilityState burst, empowerment, repeatExhausted;
     private PNMotionAction motion;
     private PNSkillActionContext motionContext;
     private PNSkillOperation sequenceLock;
-    private int comboIndex, repeatStroke, ultimateStroke;
     private string pendingAttackProfile;
     private float comboIdle, phaseRemaining;
     private double lastCdr = double.NaN;
-    private bool repeatHeld, repeatExhausted, rewardedHit, burstEffectsActive, burstFinisher, ultimateRewarded;
+    private bool repeatHeld, rewardedHit, burstEffectsActive, burstFinisher, ultimateRewarded;
     private bool deathHandled;
     private Vector3 castDirection;
     private PNStat castTarget;
@@ -96,6 +101,12 @@ public partial class EveCharacterSkill
         stacks = (PNAbilityCounter)Require(SlashStacksId, PNAbilityKind.Counter);
         burst = (PNAbilityState)Require(BurstStateId, PNAbilityKind.State);
         empowerment = (PNAbilityState)Require(EmpowermentId, PNAbilityKind.State);
+        comboStep = (PNAbilityCounter)Require(ComboStepId, PNAbilityKind.Counter);
+        repeatStrokes = (PNAbilityCounter)Require(RepeatStrokeId, PNAbilityKind.Counter);
+        ultimateStrokes = (PNAbilityCounter)Require(UltimateStrokeId, PNAbilityKind.Counter);
+        repeatExhausted = (PNAbilityState)Require(RepeatExhaustedId, PNAbilityKind.State);
+        if (comboStep.Capacity != 2 || ultimateStrokes.Capacity != 3 || repeatStrokes.Capacity < 2 || repeatExhausted.Definition.Duration.HasValue)
+            throw new InvalidOperationException("Eve combo Abilities need combo step 0..2, ultimate stroke 0..3, a repeat stroke counter and an untimed exhausted state.");
         if (!burst.Definition.Duration.HasValue || !empowerment.Definition.Duration.HasValue || gauge.Capacity < moveset.BurstCost)
             throw new InvalidOperationException("Eve requires timed Burst/empowerment and sufficient gauge capacity.");
         if (empowerment.Definition.Reapply == PNAbilityReapply.Independent)
@@ -172,21 +183,32 @@ public partial class EveCharacterSkill
     {
         sequenceLock = movesetRegistry.Operations().Get(EveId.Parse("base:lock_movement")).Create(); sequenceLock.Execute(Context(castDirection), null);
     }
-    private void BeginNormalAttack(Vector3 direction)
+    private static readonly string[] StrokeNames = { "right", "left", "horizontal" };
+    // ---- Decisions (E2): read-only; the matching Begin* executes them. ----
+    private EveCastDecision DecideAttack(Vector3 direction)
+    {
+        bool reset = comboIdle > moveset.ComboReset, empowered = empowerment.IsActive;
+        int step = reset ? 0 : comboStep.Current;
+        return new EveCastDecision(EveCast.Attack, direction, empowered ? FindTarget(false) : null, step, reset, empowered, false, (empowered ? "empowered_" : "attack_") + StrokeNames[step]);
+    }
+    private EveCastDecision DecideSkill() => new EveCastDecision(EveCast.Skill, MovementDirection(), null);
+    private EveCastDecision DecideRepeat() { var direction = SelectDirection(false, out var target); return new EveCastDecision(EveCast.Repeat, direction, target); }
+    private EveCastDecision DecideUltimate() { var direction = SelectDirection(false, out var target); return new EveCastDecision(EveCast.Ultimate, direction, target, finisher: IsInBurst); }
+    // ---- Execution ----
+    private void BeginNormalAttack(EveCastDecision decision)
     {
         EndRepeatChain();
-        if (comboIdle > moveset.ComboReset) comboIndex = 0;
-        CurrentCast = EveCast.Attack; castDirection = direction; comboIdle = 0;
-        bool empowered = empowerment.IsActive;
-        pendingAttackProfile = (empowered ? "empowered_" : "attack_") + new[] { "right", "left", "horizontal" }[comboIndex];
-        if (empowered)
+        if (decision.ResetCombo) comboStep.SetAmount(0);
+        CurrentCast = EveCast.Attack; castDirection = decision.Direction; comboIdle = 0;
+        pendingAttackProfile = decision.Profile;
+        if (decision.Empowered)
         {
-            castTarget = FindTarget(false); Face(castDirection); LockSequence();
+            castTarget = decision.Target; Face(castDirection); LockSequence();
             empowerment.TryConsume();
             StartMotion(EveCastPhase.Rush,castDirection,moveset.EmpoweredMotion,moveset.EmpoweredStopDistance);
         }
         else StartSweep(pendingAttackProfile);
-        comboIndex = (comboIndex + 1) % 3;
+        comboStep.SetAmount((decision.Step + 1) % 3);
     }
     private void StartSweep(string profile)
     {
@@ -208,8 +230,9 @@ public partial class EveCharacterSkill
     {
         if (!CanBegin() || !CanActivateSkill(PNControlIds.Skill, PNGameplayContentModule.EveSkillEntry) || !Controls.IsAllowed(PNControlIds.VoluntaryMotion) || !skillRecovery.CanConsume()) return false;
         return RunCast(PNGameplayContentModule.EveSkillEntry, () => {
+            var decision = DecideSkill();
             SyncCooldowns(); skillRecovery.TryConsume();
-            CurrentCast = EveCast.Skill; castTarget = null; castDirection = MovementDirection(); Face(castDirection); LockSequence();
+            CurrentCast = EveCast.Skill; castTarget = null; castDirection = decision.Direction; Face(castDirection); LockSequence();
             ownedAbilities.GrantState(EmpowermentId);
             if (IsInBurst) stacks.Add(moveset.SkillStacks); else gauge.Add(moveset.SkillGauge);
             ultimateRecovery.ReduceRemaining(moveset.SkillUltimateReduction);
@@ -234,11 +257,10 @@ public partial class EveCharacterSkill
         if (!CanBegin() || !CanActivateSkill(PNControlIds.Burst, PNGameplayContentModule.EveBurstEntry) || IsInBurst || !burst.CanActivate || !gauge.CanConsume(moveset.BurstCost)) return false;
         return RunCast(PNGameplayContentModule.EveBurstEntry, () => {
             gauge.TryConsume(moveset.BurstCost); burst.TryActivate(); burstEffectsActive = true;
-            Stats.SetSource(BurstSourceId, new[] { new EveStatModifier(PNContentIds.AttackPower, moveset.BurstAttackBonus, 0),
-                new EveStatModifier(PNContentIds.AttackSpeed, moveset.BurstAttackSpeedBonus, 0) });
+            HostApplyBurstStats();
             stacks.Add(moveset.BurstInitialStacks);
-            blazingAssault = new EveOwnedBuff(BuffContext(), moveset.BlazingAssaultBuffId);
-            repeatStroke = 0;
+            HostStartBlazingAssault();
+            repeatStrokes.SetAmount(0);
 #if UNITY_5_3_OR_NEWER
             WeaponRig.SetBurst(true); EnsureEnergy().Flash();
 #endif
@@ -246,10 +268,11 @@ public partial class EveCharacterSkill
     }
     public bool TryRepeatAttack()
     {
-        if (!CanBegin() || !CanActivateSkill(PNControlIds.Attack, PNGameplayContentModule.EveAttackEntry) || !Controls.IsAllowed(PNControlIds.VoluntaryMotion) || !IsInBurst || repeatExhausted || !stacks.CanConsume()) return false;
+        if (!CanBegin() || !CanActivateSkill(PNControlIds.Attack, PNGameplayContentModule.EveAttackEntry) || !Controls.IsAllowed(PNControlIds.VoluntaryMotion) || !IsInBurst || repeatExhausted.IsActive || !stacks.CanConsume()) return false;
         return RunCast(PNGameplayContentModule.EveAttackEntry, () => {
+            var decision = DecideRepeat();
             repeatChainActive = true;
-            CurrentCast = EveCast.Repeat; castDirection = SelectDirection(false, out castTarget); Face(castDirection); LockSequence();
+            CurrentCast = EveCast.Repeat; castDirection = decision.Direction; castTarget = decision.Target; Face(castDirection); LockSequence();
             stacks.TryConsume();
             StartMotion(EveCastPhase.Rush,castDirection,moveset.RepeatMotion,moveset.TargetStopDistance);
         });
@@ -258,9 +281,10 @@ public partial class EveCharacterSkill
     {
         if (!CanBegin() || !CanActivateSkill(PNControlIds.Ultimate, PNGameplayContentModule.EveUltimateEntry) || !Controls.IsAllowed(PNControlIds.VoluntaryMotion) || !ultimateRecovery.CanConsume()) return false;
         return RunCast(PNGameplayContentModule.EveUltimateEntry, () => {
+            var decision = DecideUltimate();
             SyncCooldowns(); ultimateRecovery.TryConsume(); CurrentCast = EveCast.Ultimate;
-            burstFinisher = IsInBurst; ultimateStroke = 0; ultimateRewarded = false;
-            castDirection = SelectDirection(false, out castTarget); Face(castDirection); LockSequence();
+            burstFinisher = decision.Finisher; ultimateStrokes.SetAmount(0); ultimateRewarded = false;
+            castDirection = decision.Direction; castTarget = decision.Target; Face(castDirection); LockSequence();
             StartMotion(EveCastPhase.Retreat,-castDirection,moveset.RetreatMotion);
         });
     }
@@ -323,7 +347,7 @@ public partial class EveCharacterSkill
                 {
                     var active = attack; active.Advance(step);
                     if (ReferenceEquals(active, attack) && !rewardedHit && active.Results.Count != 0)
-                    { rewardedHit = true; OnSlashHit(); }
+                    { rewardedHit = true; HostOnSlashHit(); }
                 }
 #if UNITY_5_3_OR_NEWER
                 if (CurrentPhase == EveCastPhase.Charge) EnsureEnergy().Charge(1 - phaseRemaining / moveset.ChargeDuration);
@@ -335,7 +359,19 @@ public partial class EveCharacterSkill
         }
         catch (Exception error) { CancelMoveset(); Debug.LogException(error, this); }
     }
-    private void OnSlashHit()
+    // ---- Host-only effects (E3): rewards earned by a hit, the Burst stat source and the Buffs. A predicting client never runs these; the host runs them at the same points. ----
+    private void HostApplyBurstStats() => Stats.SetSource(BurstSourceId, new[] { new EveStatModifier(PNContentIds.AttackPower, moveset.BurstAttackBonus, 0),
+        new EveStatModifier(PNContentIds.AttackSpeed, moveset.BurstAttackSpeedBonus, 0) });
+    private void HostStartBlazingAssault() => blazingAssault = new EveOwnedBuff(BuffContext(), moveset.BlazingAssaultBuffId);
+    private void HostEndBurstBuffs() { var owned = blazingAssault; blazingAssault = null; owned?.Dispose(); EndRepeatChain(); }
+    private void HostRemoveBurstStats() { if (Stats != null && Stats.IsReady) Stats.RemoveSource(BurstSourceId); }
+    private void HostRefundBurst(bool refund) { if (refund && gauge.IsAttached) gauge.Add(moveset.BurstEndRefund); }
+    private void HostRisingMomentum()
+    {
+        if (risingMomentum?.Snapshot != null || risingMomentum?.IsPending == true) risingMomentum.Reapply(attackContext);
+        else { risingMomentum?.Dispose(); risingMomentum = new EveOwnedBuff(attackContext, moveset.RisingMomentumBuffId); }
+    }
+    private void HostOnSlashHit()
     {
         if (CurrentCast == EveCast.Attack)
         {
@@ -345,11 +381,7 @@ public partial class EveCharacterSkill
         else if (CurrentCast == EveCast.Repeat)
         {
             ultimateRecovery.ReduceRemaining(moveset.AttackUltimateReduction);
-            if (repeatChainActive && IsInBurst)
-            {
-                if (risingMomentum?.Snapshot != null || risingMomentum?.IsPending == true) risingMomentum.Reapply(attackContext);
-                else { risingMomentum?.Dispose(); risingMomentum = new EveOwnedBuff(attackContext, moveset.RisingMomentumBuffId); }
-            }
+            if (repeatChainActive && IsInBurst) HostRisingMomentum();
         }
         else if (CurrentCast == EveCast.Ultimate && !ultimateRewarded)
         {
@@ -357,15 +389,24 @@ public partial class EveCharacterSkill
             if (!IsInBurst) gauge.Add(moveset.UltimateGauge);
         }
     }
+    // ---- Decision points inside a cast (E4): the only places where a running cast chooses again. Each is read-only; CompletePhase applies the answer at the same place as before. ----
+    // UltimateRetarget: after the Charge the ultimate picks the lowest-health target again and turns toward it.
+    private EveCastDecision DecideUltimateRetarget() { var direction = SelectDirection(true, out var target); return new EveCastDecision(EveCast.Ultimate, direction, target, finisher: burstFinisher); }
+    // EmpoweredStrike: at the end of the empowered rush the slash chosen when the cast started follows.
+    private string DecideEmpoweredStrike() => pendingAttackProfile;
+    // RepeatStroke: the stroke a Repeat rush ends with alternates right and left by the stroke counter.
+    private string DecideRepeatStroke() => repeatStrokes.Current % 2 == 0 ? "repeat_right" : "repeat_left";
+    // RepeatContinue: at the end of a Repeat stroke, whether the held Attack gesture chains another one (a binding change cancels the gesture, which clears repeatHeld).
+    private bool DecideRepeatContinue() => repeatHeld && IsInBurst && stacks.Current > 0;
     private void CompletePhase()
     {
         var phase = CurrentPhase;
         motion?.Exit(motionContext); motion = null; motionContext = null;
         if (attack != null) FinishAttack(false);
         if (CurrentCast == EveCast.Attack && phase == EveCastPhase.Rush)
-        { StartSweep(pendingAttackProfile); return; }
+        { StartSweep(DecideEmpoweredStrike()); return; }
         if (CurrentCast == EveCast.Repeat && phase == EveCastPhase.Rush)
-        { StartSweep(repeatStroke++ % 2 == 0 ? "repeat_right" : "repeat_left"); return; }
+        { var stroke = DecideRepeatStroke(); repeatStrokes.Add(1); StartSweep(stroke); return; }
         if (CurrentCast == EveCast.Ultimate)
         {
             if (phase == EveCastPhase.Retreat)
@@ -381,21 +422,25 @@ public partial class EveCharacterSkill
 #if UNITY_5_3_OR_NEWER
                 energy?.Charge(0);
 #endif
-                castDirection = SelectDirection(true, out castTarget); Face(castDirection);
+                var retarget = DecideUltimateRetarget(); castDirection = retarget.Direction; castTarget = retarget.Target; Face(castDirection);
                 StartMotion(EveCastPhase.Rush,castDirection,moveset.UltimateMotion,moveset.TargetStopDistance); return;
             }
-            if (phase == EveCastPhase.Rush || (phase == EveCastPhase.Slash && burstFinisher && ++ultimateStroke < 3))
+            bool nextStroke = phase == EveCastPhase.Rush;
+            if (!nextStroke && phase == EveCastPhase.Slash && burstFinisher) { ultimateStrokes.Add(1); nextStroke = ultimateStrokes.Current < 3; }
+            if (nextStroke)
             {
-                StartSweep(burstFinisher ? "burst_ultimate_" + new[] { "right", "left", "horizontal" }[ultimateStroke] : "ultimate"); return;
+                StartSweep(burstFinisher ? "burst_ultimate_" + StrokeNames[ultimateStrokes.Current] : "ultimate"); return;
             }
             if (burstFinisher) EndBurst(true);
         }
         bool wasRepeat = CurrentCast == EveCast.Repeat;
-        bool again = wasRepeat && repeatHeld && IsInBurst && stacks.Current > 0;
-        if (CurrentCast == EveCast.Repeat && stacks.Current == 0) repeatExhausted = true;
+        bool again = wasRepeat && DecideRepeatContinue();
+        if (CurrentCast == EveCast.Repeat && stacks.Current == 0) repeatExhausted.TryActivate();
         FinishSequence();
-        if (wasRepeat && (!again || !CanContinueEveRepeat || !TryRepeatAttack())) EndRepeatChain();
+        if (wasRepeat && (!again || !TryRepeatAttack())) EndRepeatChain();
     }
+    // The player let go of Attack: the exhausted mark of the Repeat chain ends with the gesture (safe after unload).
+    private void ClearRepeatExhausted() { if (repeatExhausted != null && repeatExhausted.IsAttached && repeatExhausted.IsActive) repeatExhausted.End(); }
     private void EndRepeatChain()
     {
         repeatChainActive = false;
@@ -421,11 +466,11 @@ public partial class EveCharacterSkill
     {
         if (!burstEffectsActive) return;
         burstEffectsActive = false; burstFinisher = false;
-        var owned = blazingAssault; blazingAssault = null; owned?.Dispose(); EndRepeatChain();
+        HostEndBurstBuffs();
         if (CurrentCast == EveCast.Repeat) CancelMoveset();
         if (burst.IsAttached && burst.IsActive) burst.End();
-        if (stacks.IsAttached) stacks.Clear(); if (Stats != null && Stats.IsReady) Stats.RemoveSource(BurstSourceId);
-        if (refund && gauge.IsAttached) gauge.Add(moveset.BurstEndRefund);
+        if (stacks.IsAttached) stacks.Clear(); HostRemoveBurstStats();
+        HostRefundBurst(refund);
 #if UNITY_5_3_OR_NEWER
         WeaponRig?.SetBurst(false); energy?.SetBurst(false);
 #endif
@@ -463,7 +508,7 @@ public partial class EveCharacterSkill
     {
         if (deathHandled) return;
         deathHandled = true;
-        CancelMoveset(); EndBurst(false); foreach(var id in new[]{SkillCooldownId,UltimateCooldownId,DashCooldownId,BurstGaugeId,BurstStateId,SlashStacksId,EmpowermentId}) foreach(var ability in ownedAbilities.Find(id)) ability.Reset(); comboIndex = repeatStroke = 0;
+        CancelMoveset(); EndBurst(false); foreach(var id in new[]{SkillCooldownId,UltimateCooldownId,DashCooldownId,BurstGaugeId,BurstStateId,SlashStacksId,EmpowermentId}) foreach(var ability in ownedAbilities.Find(id)) ability.Reset(); comboStep.SetAmount(0); repeatStrokes.SetAmount(0);
 #if UNITY_5_3_OR_NEWER
         energy?.Clear();
 #endif
@@ -475,8 +520,8 @@ public partial class EveCharacterSkill
         if (ownedAbilities != null) ownedAbilities.Changed -= OnAbilityChanged;
         if (Stats != null) Stats.Died -= OnEveDied;
         ownedAbilities = null; movesetRegistry = null; loadedStats = null; lastCdr = double.NaN;
-        skillRecovery = ultimateRecovery = null; gauge = stacks = null; burst = empowerment = null;
-        comboIndex = repeatStroke = 0; comboIdle = 0; repeatExhausted = false; deathHandled = false;
+        skillRecovery = ultimateRecovery = null; gauge = stacks = null; burst = empowerment = repeatExhausted = null; comboStep = repeatStrokes = ultimateStrokes = null;
+        comboIdle = 0; deathHandled = false;
 #if UNITY_5_3_OR_NEWER
         if (WeaponRig != null) { EveVfxUtility.DestroyResource(WeaponRig.gameObject); WeaponRig = null; }
         if (energy != null)
