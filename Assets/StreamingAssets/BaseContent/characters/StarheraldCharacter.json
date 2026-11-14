@@ -1,0 +1,174 @@
+{
+  "schemaVersion": 1,
+  "characters": [
+    {
+      "id": "project_n:starherald",
+      "portraitPath": "",
+      "data": {
+        "enemyTypeId": "base:normal",
+        "body": {
+          "prefab": "starherald",
+          "visual": "project_n:starherald",
+          "build": "normal"
+        }
+      },
+      "stats": [
+        {
+          "statId": "base:health",
+          "base": 1200,
+          "initialCurrent": 1200
+        },
+        {
+          "statId": "base:lorica",
+          "base": 300,
+          "initialCurrent": 300
+        },
+        {
+          "statId": "base:attack_power",
+          "base": 50
+        },
+        {
+          "statId": "base:defense",
+          "base": 5
+        },
+        {
+          "statId": "base:move_speed",
+          "base": 1.2
+        },
+        {
+          "statId": "base:crit_rate",
+          "base": 10
+        },
+        {
+          "statId": "base:crit_damage",
+          "base": 150
+        },
+        {
+          "statId": "base:attack_speed",
+          "base": 100
+        },
+        {
+          "statId": "base:cooldown_reduction",
+          "base": 0
+        },
+        {
+          "statId": "base:jump_speed",
+          "base": 3
+        }
+      ],
+      "skill": [
+        {
+          "id": "project_n:starherald_sidus",
+          "data": {
+            "categoryIds": [
+              "base:skill"
+            ],
+            "affectedByAttackSpeed": false,
+            "skill": {
+              "abilities": [
+                {
+                  "id": "project_n:starherald_sidus_ready",
+                  "kind": "Cooldown",
+                  "showInUI": false,
+                  "iconPath": "",
+                  "displayOrder": 0,
+                  "maximum": 1,
+                  "initialAmount": 1,
+                  "recovery": "PerStack",
+                  "autoRecover": true,
+                  "clock": "Entity",
+                  "cooldown": 12
+                }
+              ]
+            },
+            "action": {
+              "id": "project_n:herald_sidus_action",
+              "start": {},
+              "perform": {
+                "windup": 1.0,
+                "release": 0.25,
+                "recovery": 0.55,
+                "radius": 4,
+                "approach": 1.5,
+                "castRange": 3,
+                "targets": 2,
+                "seek": 14,
+                "follow": 3,
+                "buffId": "project_n:sidus_star",
+                "guard": {
+                  "buffId": "project_n:block_hits",
+                  "duration": 1.5,
+                  "hits": 3
+                }
+              },
+              "exit": {},
+              "cancel": {}
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "extensions": {
+    "project_n": {
+      "buffs": [
+        {
+          "id": "project_n:sidus_star",
+          "factoryId": "project_n:buff_sidus_template",
+          "data": {
+            "duration": 15,
+            "clock": "Game",
+            "modifiers": [
+              {
+                "statId": "base:health",
+                "value": 0.2,
+                "group": 1
+              },
+              {
+                "statId": "base:attack_power",
+                "value": 0.2,
+                "group": 1
+              },
+              {
+                "statId": "base:defense",
+                "value": 0.2,
+                "group": 1
+              },
+              {
+                "statId": "base:move_speed",
+                "value": 0.2,
+                "group": 0
+              },
+              {
+                "statId": "base:magic",
+                "value": 0.5,
+                "group": 1
+              },
+              {
+                "statId": "base:physical",
+                "value": 0.1,
+                "group": 1
+              }
+            ]
+          },
+          "tags": [
+            "project_n:buff",
+            "project_n:sidus"
+          ],
+          "multipleInstances": false,
+          "maximumInstances": 1,
+          "scope": "Target",
+          "canDispel": true,
+          "showInUI": true,
+          "iconPath": "PNBuffIcons/PNSidus",
+          "glow": "#9aa8ff",
+          "countdown": {
+            "slot": "BottomRight",
+            "rounding": "Ceiling",
+            "zero": "Hide"
+          }
+        }
+      ]
+    }
+  }
+}

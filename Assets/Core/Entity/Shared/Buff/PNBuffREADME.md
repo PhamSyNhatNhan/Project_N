@@ -652,10 +652,10 @@ Registered in `Assets/Game/Buff/PNSupportBuffs.cs` with base aliases and art (`R
 
 Neither is applied by any content yet (the Starchanter skills that use them are not made).
 
-## Sidus Buffs (RulesVersion 152)
+## Sidus Buffs (RulesVersion 152; packages are JSON data since 154)
 
-`project_n:buff_sidus_template` (alias `base:buff_sidus_template`, tags `buff` and `sidus`) in `Assets/Game/Buff/PNSidusBuffs.cs`; sample package `project_n:sidus_star` (icon `PNBuffIcons/PNSidus`, glow
-`#9aa8ff`, 20 s, no modifier). Payload `{duration, clock?, modifiers?}`: `clock` defaults to Game, `modifiers` (0..32, a technical bound) are `{statId, value, group, calculationId?, contributionId?}` like the stat
+`project_n:buff_sidus_template` (alias `base:buff_sidus_template`, tags `buff` and `sidus`) in `Assets/Game/Buff/PNSidusBuffs.cs`; package `project_n:sidus_star` (a JSON Buff in `characters/StarheraldCharacter.json`, `extensions.project_n.buffs`; icon `PNBuffIcons/PNSidus`, glow
+`#9aa8ff`, 15 s, six modifiers: health, attack power, defense +20 % (group 1), move speed +0.2 flat (group 0), `base:magic` +50 %, `base:physical` +10 % (group 1), given by the Starherald). Payload `{duration, clock?, modifiers?}`: `clock` defaults to Game, `modifiers` (0..32, a technical bound) are `{statId, value, group, calculationId?, contributionId?}` like the stat
 template (any number of stats). A pack derives its own package with `factoryId: base:buff_sidus_template` and sets `canDispel` (default true). One instance per target; applying another Sidus package ends the
 old one with `Replaced` (found by implementation id, whatever its tags, removed with bypass); the same package again refreshes its time and does not stack. On apply it takes the Sidus lease on `PNEnemyStat`
 (`LockSidus`) and the modifiers only for a ready normal enemy; on a boss or any non-enemy the Buff exists but is inert. Lease and modifiers are in the Buff's resource scope, so expiry, removal, replacement,

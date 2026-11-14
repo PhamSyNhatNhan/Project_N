@@ -10,7 +10,7 @@ using UnityEngine;
 public sealed class PNStarkeeperBehavior : PNEnemyBehavior
 {
     public override IEnumerable<EveId> SkillIds => new[] { PNStarkeeperCombatContent.StarSweep, PNStarkeeperCombatContent.StarPoint };
-    [SerializeField, Min(.1f)] private float aggroRange = 6f, sweepRange = 1.4f, pointMin = 1.5f, pointMax = 4f;
+    [SerializeField, Min(.1f)] private float aggroRange = 6f, sweepRange = 1.4f, pointMin = 1.5f, pointMax = 4.5f;
     private PNStat target; private PNEnemyNavigationRequest walk; private float scan; private int last;
     private PNEnemyTargeting targeting;
     // The sight range is the character's registered `body.vision`; `aggroRange` is the default of an entity that has no role data.

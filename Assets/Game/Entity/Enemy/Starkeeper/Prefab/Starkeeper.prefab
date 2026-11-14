@@ -361,7 +361,7 @@ MonoBehaviour:
   aggroRange: 6
   sweepRange: 1.4
   pointMin: 1.5
-  pointMax: 4
+  pointMax: 4.5
 --- !u!1 &9176846970594735858
 GameObject:
   m_ObjectHideFlags: 0

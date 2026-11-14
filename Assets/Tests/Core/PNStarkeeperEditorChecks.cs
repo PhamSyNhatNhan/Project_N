@@ -30,7 +30,7 @@ public static class PNStarkeeperEditorChecks
             var sweep = (Newtonsoft.Json.Linq.JToken)hub.Get<EveSkillDefinition>().Get(PNStarkeeperCombatContent.StarSweep).Data;
             var point = (Newtonsoft.Json.Linq.JToken)hub.Get<EveSkillDefinition>().Get(PNStarkeeperCombatContent.StarPoint).Data;
             Check((double)sweep["skill"]["abilities"][0]["cooldown"] == 3 && (double)point["skill"]["abilities"][0]["cooldown"] == 7, "cooldowns 3 s and 7 s are registered per skill");
-            Check((double)point["action"]["perform"]["windup"] == 2 && (double)point["action"]["perform"]["maxRange"] == 3, "the star point: 2 s windup, 3 m range");
+            Check((double)point["action"]["perform"]["windup"] == 2 && (double)point["action"]["perform"]["maxRange"] == 4.5, "the star point: 2 s windup, 4.5 m range");
             Check(hub.Get<PNVisualAppearanceDefinition>().Get(EveId.Parse("project_n:starkeeper")).Slots.ContainsKey("skHead"), "the Starkeeper appearance exists with its head piece");
             var appearance=hub.Get<PNVisualAppearanceDefinition>().Get(EveId.Parse("project_n:starkeeper"));
             var skin=appearance.Colors["skin"]; var expected=PNVisualColor.Parse("#554d6d");
@@ -168,7 +168,7 @@ public static class PNStarkeeperEditorChecks
             }
             finally{blocked.Dispose();}
             Check(go.transform.Find("Star spear").GetComponent<MeshRenderer>().enabled,"real spear renderer restored after point completion/cancellation");
-            var data = skill.GetData(PNStarkeeperCombatContent.StarPoint); Check((float)data.Action.Perform["maxRange"] == 3f, "the behavior reads the 3 m range from the registered data");
+            var data = skill.GetData(PNStarkeeperCombatContent.StarPoint); Check((float)data.Action.Perform["maxRange"] == 4.5f, "the behavior reads the 4.5 m range from the registered data");
             return "PASS " + n + " Starkeeper combat checks (" + sweepDamage + "; sweep timeline/re-aim/cancel/cleanup, star point windup/cancel/marker); point lunge/path hit/no endpoint AOE/wall stop covered in disposable Editor physics, not actual AI/Player";
         }
         finally

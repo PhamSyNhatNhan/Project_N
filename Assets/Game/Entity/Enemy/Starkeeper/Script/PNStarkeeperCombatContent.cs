@@ -21,8 +21,8 @@ public static class PNStarkeeperCombatContent
           'hits':[{'value':{'amount':80,'statId':'base:attack_power'},'iframeDuration':0.2},{'value':{'amount':110,'statId':'base:attack_power'}}],
           'canCrit':true,'tags':['base:physical']}")));
         skills.Register(Skill(StarPoint, "base:skill", false, 7, StarPointAction, JObject.Parse(@"{
-          'windup':2.0,'recovery':1.2,'maxRange':3.0,'markRadius':0.35,'tags':['base:physical'],
-          'motion':{'kind':'CurveXZ','distance':3.0,'lateralOffset':0,'duration':0.25,'permissionId':'base:motion_voluntary','actorCollision':'IgnoreEnemyBodies',
+          'windup':2.0,'recovery':1.2,'maxRange':4.5,'markRadius':0.35,'tags':['base:physical'],
+          'motion':{'kind':'CurveXZ','distance':4.5,'lateralOffset':0,'duration':0.25,'permissionId':'base:motion_voluntary','actorCollision':'IgnoreEnemyBodies',
             'maxSegmentLength':0.12,'maxChordError':0.015,'maxSubsteps':64,'hitRadius':0.35,'activeStart':0,'activeEnd':1,'repeatInterval':0,'canCrit':true,
             'value':{'amount':220,'statId':'base:attack_power'},'tags':['base:physical']}}")));
     }

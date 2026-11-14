@@ -1,0 +1,2615 @@
+{
+  "schemaVersion": 1,
+  "extensions": {
+    "project_n": {
+      "visualRigs": [
+        {
+          "id": "project_n:starherald",
+          "pixelsPerMeter": 1630,
+          "facing": "right",
+          "capsule": {
+            "height": 0.4,
+            "radius": 0.15
+          },
+          "bones": [
+            {
+              "id": "root",
+              "at": [
+                0,
+                0
+              ]
+            },
+            {
+              "id": "body",
+              "parent": "root",
+              "at": [
+                0,
+                -174
+              ]
+            },
+            {
+              "id": "head",
+              "parent": "body",
+              "at": [
+                -17,
+                -117
+              ]
+            },
+            {
+              "id": "crown",
+              "parent": "head",
+              "at": [
+                8,
+                -270
+              ]
+            },
+            {
+              "id": "halo",
+              "parent": "body",
+              "at": [
+                -35,
+                -217
+              ]
+            },
+            {
+              "id": "starL",
+              "parent": "halo",
+              "at": [
+                -212,
+                196
+              ]
+            },
+            {
+              "id": "starR",
+              "parent": "halo",
+              "at": [
+                227,
+                185
+              ]
+            },
+            {
+              "id": "crownL1",
+              "parent": "crown",
+              "at": [
+                -100,
+                -30.799999999999997
+              ]
+            },
+            {
+              "id": "crownL2",
+              "parent": "crown",
+              "at": [
+                -161,
+                1.6000000000000014
+              ]
+            },
+            {
+              "id": "crownR1",
+              "parent": "crown",
+              "at": [
+                79,
+                -30.299999999999997
+              ]
+            },
+            {
+              "id": "crownR2",
+              "parent": "crown",
+              "at": [
+                127.5,
+                -4.599999999999994
+              ]
+            },
+            {
+              "id": "cloakL",
+              "parent": "body",
+              "at": [
+                -91,
+                -79
+              ]
+            },
+            {
+              "id": "cloakR",
+              "parent": "body",
+              "at": [
+                111,
+                -75
+              ]
+            },
+            {
+              "id": "cloakBack",
+              "parent": "body",
+              "at": [
+                -6,
+                -76
+              ]
+            }
+          ],
+          "slots": [
+            {
+              "id": "hatBack",
+              "bone": "head",
+              "layer": -50,
+              "at": [
+                -1,
+                24.5
+              ]
+            },
+            {
+              "id": "cloakBack",
+              "bone": "cloakBack",
+              "layer": -60
+            },
+            {
+              "id": "cloakL",
+              "bone": "cloakL",
+              "layer": 30
+            },
+            {
+              "id": "cloakR",
+              "bone": "cloakR",
+              "layer": 31
+            },
+            {
+              "id": "starL",
+              "bone": "starL",
+              "layer": 40,
+              "at": [
+                -0.5,
+                0.5
+              ]
+            },
+            {
+              "id": "starR",
+              "bone": "starR",
+              "layer": 41,
+              "at": [
+                0,
+                0.5
+              ]
+            },
+            {
+              "id": "halo",
+              "bone": "halo",
+              "layer": 50,
+              "at": [
+                0.5,
+                -9
+              ]
+            },
+            {
+              "id": "body",
+              "bone": "body",
+              "layer": 0,
+              "at": [
+                0.5,
+                0
+              ]
+            },
+            {
+              "id": "crownL2",
+              "bone": "crownL2",
+              "layer": 70,
+              "at": [
+                0,
+                -49.6
+              ]
+            },
+            {
+              "id": "crownR2",
+              "bone": "crownR2",
+              "layer": 71,
+              "at": [
+                0,
+                -46.400000000000006
+              ]
+            },
+            {
+              "id": "crownL1",
+              "bone": "crownL1",
+              "layer": 72,
+              "at": [
+                0,
+                -79.2
+              ]
+            },
+            {
+              "id": "crownR1",
+              "bone": "crownR1",
+              "layer": 73,
+              "at": [
+                0,
+                -77.2
+              ]
+            },
+            {
+              "id": "crown",
+              "bone": "crown",
+              "layer": 74,
+              "at": [
+                0,
+                -171.5
+              ]
+            },
+            {
+              "id": "star",
+              "bone": "halo",
+              "layer": 80,
+              "at": [
+                16,
+                -110.5
+              ]
+            },
+            {
+              "id": "mask",
+              "bone": "head",
+              "layer": 10,
+              "at": [
+                31.5,
+                23
+              ]
+            },
+            {
+              "id": "hat",
+              "bone": "head",
+              "layer": 100,
+              "at": [
+                -1.5,
+                -28.5
+              ]
+            }
+          ],
+          "sockets": [
+            {
+              "id": "head_top",
+              "bone": "head",
+              "at": [
+                -7.5,
+                -103
+              ]
+            },
+            {
+              "id": "feet",
+              "bone": "root",
+              "at": [
+                0,
+                0
+              ]
+            },
+            {
+              "id": "halo_l",
+              "bone": "halo",
+              "at": [
+                -232,
+                80
+              ]
+            },
+            {
+              "id": "halo_r",
+              "bone": "halo",
+              "at": [
+                238,
+                85
+              ]
+            }
+          ],
+          "dynamics": [
+            {
+              "bone": "crownL1",
+              "channel": "rot",
+              "tip": [
+                0,
+                -158.4
+              ],
+              "stiffness": 70,
+              "damping": 7,
+              "gravity": 0,
+              "inertia": 1,
+              "limit": 25
+            },
+            {
+              "bone": "crownL2",
+              "channel": "rot",
+              "tip": [
+                0,
+                -99.2
+              ],
+              "stiffness": 70,
+              "damping": 7,
+              "gravity": 0,
+              "inertia": 1,
+              "limit": 25
+            },
+            {
+              "bone": "crownR1",
+              "channel": "rot",
+              "tip": [
+                0,
+                -154.4
+              ],
+              "stiffness": 70,
+              "damping": 7,
+              "gravity": 0,
+              "inertia": 1,
+              "limit": 25
+            },
+            {
+              "bone": "crownR2",
+              "channel": "rot",
+              "tip": [
+                0,
+                -92.80000000000001
+              ],
+              "stiffness": 70,
+              "damping": 7,
+              "gravity": 0,
+              "inertia": 1,
+              "limit": 25
+            },
+            {
+              "bone": "crown",
+              "channel": "rot",
+              "tip": [
+                0,
+                -170
+              ],
+              "stiffness": 60,
+              "damping": 6,
+              "gravity": 0,
+              "inertia": 1,
+              "limit": 18
+            },
+            {
+              "bone": "starL",
+              "channel": "rot",
+              "tip": [
+                0,
+                60
+              ],
+              "stiffness": 50,
+              "damping": 5,
+              "gravity": 0,
+              "inertia": 1,
+              "limit": 20
+            },
+            {
+              "bone": "starR",
+              "channel": "rot",
+              "tip": [
+                0,
+                60
+              ],
+              "stiffness": 50,
+              "damping": 5,
+              "gravity": 0,
+              "inertia": 1,
+              "limit": 20
+            },
+            {
+              "bone": "cloakL",
+              "channel": "bend",
+              "tip": [
+                0,
+                173
+              ],
+              "stiffness": 60,
+              "damping": 7,
+              "gravity": 0,
+              "inertia": 1,
+              "limit": 14
+            },
+            {
+              "bone": "cloakR",
+              "channel": "bend",
+              "tip": [
+                0,
+                163
+              ],
+              "stiffness": 60,
+              "damping": 7,
+              "gravity": 0,
+              "inertia": 1,
+              "limit": 14
+            },
+            {
+              "bone": "cloakBack",
+              "channel": "bend",
+              "tip": [
+                0,
+                217
+              ],
+              "stiffness": 60,
+              "damping": 7,
+              "gravity": 0,
+              "inertia": 1,
+              "limit": 14
+            }
+          ],
+          "drawBounds": {
+            "width": 0.6,
+            "height": 0.7,
+            "bottom": 0.1
+          }
+        }
+      ],
+      "visualParts": [
+        {
+          "id": "project_n:starherald_hat_back",
+          "image": "visual/starherald/hat_back.png",
+          "pivot": [
+            154,
+            80.5
+          ],
+          "tint": "none"
+        },
+        {
+          "id": "project_n:starherald_cloak_back",
+          "image": "visual/starherald/cloak_back.png",
+          "pivot": [
+            170,
+            0
+          ],
+          "tint": "none",
+          "segments": 8
+        },
+        {
+          "id": "project_n:starherald_cloak_l",
+          "image": "visual/starherald/cloak_l.png",
+          "pivot": [
+            86,
+            0
+          ],
+          "tint": "none",
+          "segments": 8
+        },
+        {
+          "id": "project_n:starherald_cloak_r",
+          "image": "visual/starherald/cloak_r.png",
+          "pivot": [
+            53,
+            0
+          ],
+          "tint": "none",
+          "segments": 8
+        },
+        {
+          "id": "project_n:starherald_star_l",
+          "image": "visual/starherald/star_l.png",
+          "pivot": [
+            32.5,
+            67.5
+          ],
+          "tint": "none"
+        },
+        {
+          "id": "project_n:starherald_star_r",
+          "image": "visual/starherald/star_r.png",
+          "pivot": [
+            25,
+            57.5
+          ],
+          "tint": "none"
+        },
+        {
+          "id": "project_n:starherald_circle",
+          "image": "visual/starherald/circle.png",
+          "pivot": [
+            253.5,
+            129
+          ],
+          "tint": "none"
+        },
+        {
+          "id": "project_n:starherald_body",
+          "image": "visual/starherald/body.png",
+          "pivot": [
+            121.5,
+            174
+          ],
+          "tint": "none"
+        },
+        {
+          "id": "project_n:starherald_crown_l_2",
+          "image": "visual/starherald/crown_l_2.png",
+          "pivot": [
+            28,
+            62
+          ],
+          "tint": "none"
+        },
+        {
+          "id": "project_n:starherald_crown_r_2",
+          "image": "visual/starherald/crown_r_2.png",
+          "pivot": [
+            23.5,
+            58
+          ],
+          "tint": "none"
+        },
+        {
+          "id": "project_n:starherald_crown_l_1",
+          "image": "visual/starherald/crown_l_1.png",
+          "pivot": [
+            45,
+            99
+          ],
+          "tint": "none"
+        },
+        {
+          "id": "project_n:starherald_crown_r_1",
+          "image": "visual/starherald/crown_r_1.png",
+          "pivot": [
+            40,
+            96.5
+          ],
+          "tint": "none"
+        },
+        {
+          "id": "project_n:starherald_crown",
+          "image": "visual/starherald/crown.png",
+          "pivot": [
+            41,
+            129.5
+          ],
+          "tint": "none"
+        },
+        {
+          "id": "project_n:starherald_star",
+          "image": "visual/starherald/star.png",
+          "pivot": [
+            82,
+            88.5
+          ],
+          "tint": "none"
+        },
+        {
+          "id": "project_n:starherald_mask",
+          "image": "visual/starherald/mask.png",
+          "pivot": [
+            76.5,
+            64
+          ],
+          "tint": "none"
+        },
+        {
+          "id": "project_n:starherald_hat",
+          "image": "visual/starherald/hat.png",
+          "pivot": [
+            153.5,
+            75.5
+          ],
+          "tint": "none"
+        }
+      ],
+      "visualMotions": [
+        {
+          "id": "project_n:starherald_idle",
+          "rig": "project_n:starherald",
+          "kind": "pose",
+          "clock": "time",
+          "duration": 3,
+          "loop": true,
+          "blendIn": 0.15,
+          "tracks": {
+            "body": {
+              "y": {
+                "keys": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    1.5,
+                    -12
+                  ],
+                  [
+                    3,
+                    0
+                  ]
+                ],
+                "ease": "smooth"
+              },
+              "rot": {
+                "keys": [
+                  [
+                    0,
+                    -1.5
+                  ],
+                  [
+                    1.5,
+                    1.5
+                  ],
+                  [
+                    3,
+                    -1.5
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "head": {
+              "y": {
+                "keys": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    1.6,
+                    -4
+                  ],
+                  [
+                    3,
+                    0
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "halo": {
+              "rot": {
+                "keys": [
+                  [
+                    0,
+                    2.5
+                  ],
+                  [
+                    1.5,
+                    -2.5
+                  ],
+                  [
+                    3,
+                    2.5
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "crown": {
+              "rot": {
+                "keys": [
+                  [
+                    0,
+                    -1
+                  ],
+                  [
+                    1.5,
+                    1
+                  ],
+                  [
+                    3,
+                    -1
+                  ]
+                ],
+                "ease": "smooth"
+              },
+              "y": {
+                "keys": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    1.5,
+                    -3
+                  ],
+                  [
+                    3,
+                    0
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "starL": {
+              "y": {
+                "keys": [
+                  [
+                    0,
+                    -4
+                  ],
+                  [
+                    1.5,
+                    6
+                  ],
+                  [
+                    3,
+                    -4
+                  ]
+                ],
+                "ease": "smooth"
+              },
+              "rot": {
+                "keys": [
+                  [
+                    0,
+                    -8
+                  ],
+                  [
+                    1.5,
+                    8
+                  ],
+                  [
+                    3,
+                    -8
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "starR": {
+              "y": {
+                "keys": [
+                  [
+                    0,
+                    6
+                  ],
+                  [
+                    1.5,
+                    -4
+                  ],
+                  [
+                    3,
+                    6
+                  ]
+                ],
+                "ease": "smooth"
+              },
+              "rot": {
+                "keys": [
+                  [
+                    0,
+                    8
+                  ],
+                  [
+                    1.5,
+                    -8
+                  ],
+                  [
+                    3,
+                    8
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "cloakL": {
+              "sway": {
+                "keys": [
+                  [
+                    0,
+                    -4
+                  ],
+                  [
+                    1.5,
+                    4
+                  ],
+                  [
+                    3,
+                    -4
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "cloakR": {
+              "sway": {
+                "keys": [
+                  [
+                    0,
+                    3
+                  ],
+                  [
+                    1.5,
+                    -3
+                  ],
+                  [
+                    3,
+                    3
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "cloakBack": {
+              "bend": {
+                "keys": [
+                  [
+                    0,
+                    -3
+                  ],
+                  [
+                    1.5,
+                    3
+                  ],
+                  [
+                    3,
+                    -3
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            }
+          }
+        },
+        {
+          "id": "project_n:starherald_run",
+          "rig": "project_n:starherald",
+          "kind": "pose",
+          "clock": "time",
+          "duration": 0.9,
+          "loop": true,
+          "blendIn": 0.12,
+          "tracks": {
+            "body": {
+              "rot": {
+                "keys": [
+                  [
+                    0,
+                    5
+                  ],
+                  [
+                    0.45,
+                    6.5
+                  ],
+                  [
+                    0.9,
+                    5
+                  ]
+                ],
+                "ease": "smooth"
+              },
+              "y": {
+                "keys": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0.45,
+                    -10
+                  ],
+                  [
+                    0.9,
+                    0
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "head": {
+              "rot": {
+                "keys": [
+                  [
+                    0,
+                    -2
+                  ],
+                  [
+                    0.45,
+                    -3
+                  ],
+                  [
+                    0.9,
+                    -2
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "halo": {
+              "rot": {
+                "keys": [
+                  [
+                    0,
+                    -4
+                  ],
+                  [
+                    0.45,
+                    -6
+                  ],
+                  [
+                    0.9,
+                    -4
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "crown": {
+              "rot": {
+                "keys": [
+                  [
+                    0,
+                    -4
+                  ],
+                  [
+                    0.45,
+                    -5
+                  ],
+                  [
+                    0.9,
+                    -4
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "starL": {
+              "y": {
+                "keys": [
+                  [
+                    0,
+                    -6
+                  ],
+                  [
+                    0.45,
+                    4
+                  ],
+                  [
+                    0.9,
+                    -6
+                  ]
+                ],
+                "ease": "smooth"
+              },
+              "rot": {
+                "keys": [
+                  [
+                    0,
+                    -10
+                  ],
+                  [
+                    0.45,
+                    4
+                  ],
+                  [
+                    0.9,
+                    -10
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "starR": {
+              "y": {
+                "keys": [
+                  [
+                    0,
+                    4
+                  ],
+                  [
+                    0.45,
+                    -6
+                  ],
+                  [
+                    0.9,
+                    4
+                  ]
+                ],
+                "ease": "smooth"
+              },
+              "rot": {
+                "keys": [
+                  [
+                    0,
+                    -6
+                  ],
+                  [
+                    0.45,
+                    8
+                  ],
+                  [
+                    0.9,
+                    -6
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "cloakL": {
+              "bend": {
+                "keys": [
+                  [
+                    0,
+                    -4
+                  ],
+                  [
+                    0.45,
+                    -6
+                  ],
+                  [
+                    0.9,
+                    -4
+                  ]
+                ],
+                "ease": "smooth"
+              },
+              "sway": {
+                "keys": [
+                  [
+                    0,
+                    -1.5
+                  ],
+                  [
+                    0.45,
+                    1.5
+                  ],
+                  [
+                    0.9,
+                    -1.5
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "cloakR": {
+              "bend": {
+                "keys": [
+                  [
+                    0,
+                    -3
+                  ],
+                  [
+                    0.45,
+                    -5
+                  ],
+                  [
+                    0.9,
+                    -3
+                  ]
+                ],
+                "ease": "smooth"
+              },
+              "sway": {
+                "keys": [
+                  [
+                    0,
+                    1.5
+                  ],
+                  [
+                    0.45,
+                    -1.5
+                  ],
+                  [
+                    0.9,
+                    1.5
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "cloakBack": {
+              "bend": {
+                "keys": [
+                  [
+                    0,
+                    -5
+                  ],
+                  [
+                    0.45,
+                    -7
+                  ],
+                  [
+                    0.9,
+                    -5
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            }
+          }
+        },
+        {
+          "id": "project_n:starherald_cast",
+          "rig": "project_n:starherald",
+          "kind": "pose",
+          "clock": "phase",
+          "duration": 1.8,
+          "loop": false,
+          "blendIn": 0.1,
+          "tracks": {
+            "body": {
+              "y": {
+                "keys": [
+                  [
+                    0.0,
+                    "current"
+                  ],
+                  [
+                    1.0,
+                    -24
+                  ],
+                  [
+                    1.12,
+                    -14
+                  ],
+                  [
+                    1.25,
+                    -14
+                  ],
+                  [
+                    1.8,
+                    0
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "head": {
+              "y": {
+                "keys": [
+                  [
+                    0.0,
+                    "current"
+                  ],
+                  [
+                    1.0,
+                    -6
+                  ],
+                  [
+                    1.12,
+                    2
+                  ],
+                  [
+                    1.25,
+                    2
+                  ],
+                  [
+                    1.8,
+                    0
+                  ]
+                ],
+                "ease": "smooth"
+              },
+              "rot": {
+                "keys": [
+                  [
+                    0.0,
+                    "current"
+                  ],
+                  [
+                    1.0,
+                    -3
+                  ],
+                  [
+                    1.25,
+                    -3
+                  ],
+                  [
+                    1.8,
+                    0
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "halo": {
+              "y": {
+                "keys": [
+                  [
+                    0.0,
+                    "current"
+                  ],
+                  [
+                    1.0,
+                    -12
+                  ],
+                  [
+                    1.25,
+                    -8
+                  ],
+                  [
+                    1.8,
+                    0
+                  ]
+                ],
+                "ease": "smooth"
+              },
+              "sx": {
+                "keys": [
+                  [
+                    0.0,
+                    "current"
+                  ],
+                  [
+                    1.0,
+                    1.04
+                  ],
+                  [
+                    1.12,
+                    1.12
+                  ],
+                  [
+                    1.25,
+                    1.08
+                  ],
+                  [
+                    1.8,
+                    1
+                  ]
+                ],
+                "ease": "smooth"
+              },
+              "sy": {
+                "keys": [
+                  [
+                    0.0,
+                    "current"
+                  ],
+                  [
+                    1.0,
+                    1.04
+                  ],
+                  [
+                    1.12,
+                    1.12
+                  ],
+                  [
+                    1.25,
+                    1.08
+                  ],
+                  [
+                    1.8,
+                    1
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "crown": {
+              "y": {
+                "keys": [
+                  [
+                    0.0,
+                    "current"
+                  ],
+                  [
+                    1.0,
+                    -14
+                  ],
+                  [
+                    1.12,
+                    -6
+                  ],
+                  [
+                    1.25,
+                    -6
+                  ],
+                  [
+                    1.8,
+                    0
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "crownL1": {
+              "rot": {
+                "keys": [
+                  [
+                    0.0,
+                    "current"
+                  ],
+                  [
+                    1.0,
+                    -7
+                  ],
+                  [
+                    1.25,
+                    -7
+                  ],
+                  [
+                    1.8,
+                    0
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "crownR1": {
+              "rot": {
+                "keys": [
+                  [
+                    0.0,
+                    "current"
+                  ],
+                  [
+                    1.0,
+                    7
+                  ],
+                  [
+                    1.25,
+                    7
+                  ],
+                  [
+                    1.8,
+                    0
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "crownL2": {
+              "rot": {
+                "keys": [
+                  [
+                    0.0,
+                    "current"
+                  ],
+                  [
+                    1.0,
+                    -12
+                  ],
+                  [
+                    1.25,
+                    -12
+                  ],
+                  [
+                    1.8,
+                    0
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "crownR2": {
+              "rot": {
+                "keys": [
+                  [
+                    0.0,
+                    "current"
+                  ],
+                  [
+                    1.0,
+                    12
+                  ],
+                  [
+                    1.25,
+                    12
+                  ],
+                  [
+                    1.8,
+                    0
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "cloakL": {
+              "bend": {
+                "keys": [
+                  [
+                    0.0,
+                    "current"
+                  ],
+                  [
+                    1.0,
+                    6
+                  ],
+                  [
+                    1.12,
+                    -8
+                  ],
+                  [
+                    1.25,
+                    -8
+                  ],
+                  [
+                    1.8,
+                    0
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "cloakR": {
+              "bend": {
+                "keys": [
+                  [
+                    0.0,
+                    "current"
+                  ],
+                  [
+                    1.0,
+                    -6
+                  ],
+                  [
+                    1.12,
+                    8
+                  ],
+                  [
+                    1.25,
+                    8
+                  ],
+                  [
+                    1.8,
+                    0
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "cloakBack": {
+              "bend": {
+                "keys": [
+                  [
+                    0.0,
+                    "current"
+                  ],
+                  [
+                    1.0,
+                    4
+                  ],
+                  [
+                    1.12,
+                    -8
+                  ],
+                  [
+                    1.8,
+                    0
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            }
+          }
+        },
+        {
+          "id": "project_n:starherald_hurt",
+          "rig": "project_n:starherald",
+          "kind": "pose",
+          "clock": "time",
+          "duration": 0.4,
+          "loop": false,
+          "blendIn": 0,
+          "tracks": {
+            "body": {
+              "rot": {
+                "keys": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0.1,
+                    -8
+                  ],
+                  [
+                    0.4,
+                    0
+                  ]
+                ],
+                "ease": "smooth"
+              },
+              "y": {
+                "keys": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0.1,
+                    10
+                  ],
+                  [
+                    0.4,
+                    0
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "head": {
+              "rot": {
+                "keys": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0.1,
+                    -6
+                  ],
+                  [
+                    0.4,
+                    0
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "halo": {
+              "rot": {
+                "keys": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0.1,
+                    -8
+                  ],
+                  [
+                    0.4,
+                    0
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "crown": {
+              "rot": {
+                "keys": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0.1,
+                    10
+                  ],
+                  [
+                    0.4,
+                    0
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "starL": {
+              "y": {
+                "keys": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0.1,
+                    -14
+                  ],
+                  [
+                    0.4,
+                    0
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "starR": {
+              "y": {
+                "keys": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0.1,
+                    -14
+                  ],
+                  [
+                    0.4,
+                    0
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "cloakL": {
+              "bend": {
+                "keys": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0.1,
+                    -22
+                  ],
+                  [
+                    0.4,
+                    0
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "cloakR": {
+              "bend": {
+                "keys": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0.1,
+                    -22
+                  ],
+                  [
+                    0.4,
+                    0
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "cloakBack": {
+              "bend": {
+                "keys": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0.1,
+                    -26
+                  ],
+                  [
+                    0.4,
+                    0
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            }
+          },
+          "channel": "overlay",
+          "mask": [
+            "body",
+            "head",
+            "halo",
+            "crown",
+            "crownL1",
+            "crownL2",
+            "crownR1",
+            "crownR2",
+            "starL",
+            "starR",
+            "cloakL",
+            "cloakR",
+            "cloakBack"
+          ],
+          "blendOut": 0.15
+        },
+        {
+          "id": "project_n:starherald_dead",
+          "rig": "project_n:starherald",
+          "kind": "pose",
+          "clock": "time",
+          "duration": 1.4,
+          "loop": false,
+          "blendIn": 0,
+          "tracks": {
+            "body": {
+              "y": {
+                "keys": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0.5,
+                    45
+                  ],
+                  [
+                    1.4,
+                    70
+                  ]
+                ],
+                "ease": "smooth"
+              },
+              "rot": {
+                "keys": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0.6,
+                    -6
+                  ],
+                  [
+                    1.4,
+                    -8
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "head": {
+              "rot": {
+                "keys": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    1.4,
+                    -12
+                  ]
+                ],
+                "ease": "smooth"
+              },
+              "y": {
+                "keys": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    1.4,
+                    5
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "halo": {
+              "y": {
+                "keys": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0.6,
+                    18
+                  ],
+                  [
+                    1.4,
+                    30
+                  ]
+                ],
+                "ease": "smooth"
+              },
+              "rot": {
+                "keys": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    1.4,
+                    -4
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "crown": {
+              "rot": {
+                "keys": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    1.4,
+                    12
+                  ]
+                ],
+                "ease": "smooth"
+              },
+              "y": {
+                "keys": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    1.4,
+                    25
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "crownL1": {
+              "rot": {
+                "keys": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    1.4,
+                    -18
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "crownR1": {
+              "rot": {
+                "keys": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    1.4,
+                    20
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "crownL2": {
+              "rot": {
+                "keys": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    1.4,
+                    -25
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "crownR2": {
+              "rot": {
+                "keys": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    1.4,
+                    27
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "starL": {
+              "y": {
+                "keys": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    1.4,
+                    -15
+                  ]
+                ],
+                "ease": "smooth"
+              },
+              "rot": {
+                "keys": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    1.4,
+                    20
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "starR": {
+              "y": {
+                "keys": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    1.4,
+                    0
+                  ]
+                ],
+                "ease": "smooth"
+              },
+              "rot": {
+                "keys": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    1.4,
+                    -25
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "cloakL": {
+              "bend": {
+                "keys": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    1.4,
+                    28
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "cloakR": {
+              "bend": {
+                "keys": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    1.4,
+                    -28
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "cloakBack": {
+              "bend": {
+                "keys": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    1.4,
+                    20
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            }
+          },
+          "noModifiers": true
+        },
+        {
+          "id": "project_n:starherald_stun",
+          "rig": "project_n:starherald",
+          "kind": "pose",
+          "clock": "time",
+          "duration": 2,
+          "loop": true,
+          "blendIn": 0.1,
+          "tracks": {
+            "body": {
+              "y": {
+                "keys": [
+                  [
+                    0,
+                    40
+                  ],
+                  [
+                    1,
+                    48
+                  ],
+                  [
+                    2,
+                    40
+                  ]
+                ],
+                "ease": "smooth"
+              },
+              "rot": {
+                "keys": [
+                  [
+                    0,
+                    -6
+                  ],
+                  [
+                    1,
+                    -3
+                  ],
+                  [
+                    2,
+                    -6
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "head": {
+              "rot": {
+                "keys": [
+                  [
+                    0,
+                    10
+                  ],
+                  [
+                    1,
+                    5
+                  ],
+                  [
+                    2,
+                    10
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "halo": {
+              "rot": {
+                "keys": [
+                  [
+                    0,
+                    -18
+                  ],
+                  [
+                    1,
+                    -12
+                  ],
+                  [
+                    2,
+                    -18
+                  ]
+                ],
+                "ease": "smooth"
+              },
+              "y": {
+                "keys": [
+                  [
+                    0,
+                    20
+                  ],
+                  [
+                    1,
+                    24
+                  ],
+                  [
+                    2,
+                    20
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "crown": {
+              "rot": {
+                "keys": [
+                  [
+                    0,
+                    12
+                  ],
+                  [
+                    1,
+                    7
+                  ],
+                  [
+                    2,
+                    12
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "crownL1": {
+              "rot": {
+                "keys": [
+                  [
+                    0,
+                    -12
+                  ],
+                  [
+                    2,
+                    -12
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "crownR1": {
+              "rot": {
+                "keys": [
+                  [
+                    0,
+                    14
+                  ],
+                  [
+                    2,
+                    14
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "crownL2": {
+              "rot": {
+                "keys": [
+                  [
+                    0,
+                    -18
+                  ],
+                  [
+                    2,
+                    -18
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "crownR2": {
+              "rot": {
+                "keys": [
+                  [
+                    0,
+                    20
+                  ],
+                  [
+                    2,
+                    20
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "starL": {
+              "y": {
+                "keys": [
+                  [
+                    0,
+                    60
+                  ],
+                  [
+                    1,
+                    66
+                  ],
+                  [
+                    2,
+                    60
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "starR": {
+              "y": {
+                "keys": [
+                  [
+                    0,
+                    64
+                  ],
+                  [
+                    1,
+                    58
+                  ],
+                  [
+                    2,
+                    64
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "cloakL": {
+              "bend": {
+                "keys": [
+                  [
+                    0,
+                    18
+                  ],
+                  [
+                    1,
+                    24
+                  ],
+                  [
+                    2,
+                    18
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "cloakR": {
+              "bend": {
+                "keys": [
+                  [
+                    0,
+                    -18
+                  ],
+                  [
+                    1,
+                    -24
+                  ],
+                  [
+                    2,
+                    -18
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "cloakBack": {
+              "bend": {
+                "keys": [
+                  [
+                    0,
+                    14
+                  ],
+                  [
+                    1,
+                    18
+                  ],
+                  [
+                    2,
+                    14
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            }
+          }
+        },
+        {
+          "id": "project_n:starherald_recover",
+          "rig": "project_n:starherald",
+          "kind": "pose",
+          "clock": "time",
+          "duration": 0.5,
+          "loop": false,
+          "blendIn": 0,
+          "tracks": {
+            "body": {
+              "rot": {
+                "keys": [
+                  [
+                    0,
+                    "current"
+                  ],
+                  [
+                    0.5,
+                    0
+                  ]
+                ],
+                "ease": "smooth"
+              },
+              "y": {
+                "keys": [
+                  [
+                    0,
+                    "current"
+                  ],
+                  [
+                    0.5,
+                    0
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "head": {
+              "rot": {
+                "keys": [
+                  [
+                    0,
+                    "current"
+                  ],
+                  [
+                    0.5,
+                    0
+                  ]
+                ],
+                "ease": "smooth"
+              },
+              "y": {
+                "keys": [
+                  [
+                    0,
+                    "current"
+                  ],
+                  [
+                    0.5,
+                    0
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "halo": {
+              "rot": {
+                "keys": [
+                  [
+                    0,
+                    "current"
+                  ],
+                  [
+                    0.5,
+                    0
+                  ]
+                ],
+                "ease": "smooth"
+              },
+              "y": {
+                "keys": [
+                  [
+                    0,
+                    "current"
+                  ],
+                  [
+                    0.5,
+                    0
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "crown": {
+              "rot": {
+                "keys": [
+                  [
+                    0,
+                    "current"
+                  ],
+                  [
+                    0.5,
+                    0
+                  ]
+                ],
+                "ease": "smooth"
+              },
+              "y": {
+                "keys": [
+                  [
+                    0,
+                    "current"
+                  ],
+                  [
+                    0.5,
+                    0
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "crownL1": {
+              "rot": {
+                "keys": [
+                  [
+                    0,
+                    "current"
+                  ],
+                  [
+                    0.5,
+                    0
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "crownL2": {
+              "rot": {
+                "keys": [
+                  [
+                    0,
+                    "current"
+                  ],
+                  [
+                    0.5,
+                    0
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "crownR1": {
+              "rot": {
+                "keys": [
+                  [
+                    0,
+                    "current"
+                  ],
+                  [
+                    0.5,
+                    0
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "crownR2": {
+              "rot": {
+                "keys": [
+                  [
+                    0,
+                    "current"
+                  ],
+                  [
+                    0.5,
+                    0
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "starL": {
+              "rot": {
+                "keys": [
+                  [
+                    0,
+                    "current"
+                  ],
+                  [
+                    0.5,
+                    0
+                  ]
+                ],
+                "ease": "smooth"
+              },
+              "y": {
+                "keys": [
+                  [
+                    0,
+                    "current"
+                  ],
+                  [
+                    0.5,
+                    0
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "starR": {
+              "rot": {
+                "keys": [
+                  [
+                    0,
+                    "current"
+                  ],
+                  [
+                    0.5,
+                    0
+                  ]
+                ],
+                "ease": "smooth"
+              },
+              "y": {
+                "keys": [
+                  [
+                    0,
+                    "current"
+                  ],
+                  [
+                    0.5,
+                    0
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "cloakL": {
+              "bend": {
+                "keys": [
+                  [
+                    0,
+                    "current"
+                  ],
+                  [
+                    0.5,
+                    0
+                  ]
+                ],
+                "ease": "smooth"
+              },
+              "sway": {
+                "keys": [
+                  [
+                    0,
+                    "current"
+                  ],
+                  [
+                    0.5,
+                    0
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "cloakR": {
+              "bend": {
+                "keys": [
+                  [
+                    0,
+                    "current"
+                  ],
+                  [
+                    0.5,
+                    0
+                  ]
+                ],
+                "ease": "smooth"
+              },
+              "sway": {
+                "keys": [
+                  [
+                    0,
+                    "current"
+                  ],
+                  [
+                    0.5,
+                    0
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            },
+            "cloakBack": {
+              "bend": {
+                "keys": [
+                  [
+                    0,
+                    "current"
+                  ],
+                  [
+                    0.5,
+                    0
+                  ]
+                ],
+                "ease": "smooth"
+              }
+            }
+          }
+        }
+      ],
+      "visualMotionSets": [
+        {
+          "id": "project_n:starherald_default",
+          "rig": "project_n:starherald",
+          "states": {
+            "idle": "project_n:starherald_idle",
+            "run": "project_n:starherald_run",
+            "cast": "project_n:starherald_cast",
+            "hurt": "project_n:starherald_hurt",
+            "dead": "project_n:starherald_dead",
+            "stun": "project_n:starherald_stun",
+            "recover": "project_n:starherald_recover",
+            "walk": "project_n:starherald_run"
+          }
+        }
+      ],
+      "visualAppearances": [
+        {
+          "id": "project_n:starherald",
+          "rig": "project_n:starherald",
+          "motionSet": "project_n:starherald_default",
+          "build": "project_n:build_normal",
+          "slots": {
+            "hatBack": "project_n:starherald_hat_back",
+            "cloakBack": "project_n:starherald_cloak_back",
+            "cloakL": "project_n:starherald_cloak_l",
+            "cloakR": "project_n:starherald_cloak_r",
+            "starL": "project_n:starherald_star_l",
+            "starR": "project_n:starherald_star_r",
+            "halo": "project_n:starherald_circle",
+            "body": "project_n:starherald_body",
+            "crownL2": "project_n:starherald_crown_l_2",
+            "crownR2": "project_n:starherald_crown_r_2",
+            "crownL1": "project_n:starherald_crown_l_1",
+            "crownR1": "project_n:starherald_crown_r_1",
+            "crown": "project_n:starherald_crown",
+            "star": "project_n:starherald_star",
+            "mask": "project_n:starherald_mask",
+            "hat": "project_n:starherald_hat"
+          },
+          "strings": [
+            {
+              "style": "project_n:puppet_main",
+              "socket": "head_top"
+            },
+            {
+              "style": "project_n:puppet_drape",
+              "socket": "halo_l"
+            },
+            {
+              "style": "project_n:puppet_drape",
+              "socket": "halo_r",
+              "lean": 1
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

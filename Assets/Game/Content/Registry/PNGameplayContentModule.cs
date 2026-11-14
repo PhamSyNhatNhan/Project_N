@@ -116,6 +116,7 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         PNStarweaverCombatContent.Register(hub);
         PNStarkeeperCombatContent.Register(hub);
         PNStarchanterCombatContent.Register(hub);
+        PNHeraldCombatContent.Register(hub);
         PNStarforgerCombatContent.Register(hub);
         PNStarreaperCombatContent.Register(hub);
 #if UNITY_5_3_OR_NEWER
