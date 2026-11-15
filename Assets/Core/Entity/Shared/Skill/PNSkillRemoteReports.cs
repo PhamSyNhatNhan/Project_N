@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using EveEngine;
 using Newtonsoft.Json.Linq;
+using UnityEngine;
 
 // EN: What a skill running for a REMOTE owner may take from that owner's machine (Docs/SkillNetworkingAPlan.md S4-S5): hits the owner's client saw (N5) and the choices the owner made at a decision point
 //     inside a cast (N9). The authority still runs the real cast; a reported hit is applied only if the running action accepts it after its own checks, and a decision is only a proposal the skill
@@ -60,9 +61,8 @@ public partial class PNSkill
     }
 }
 
-// EN: What the AUTHORITY tells the other players' machines about a cast (Docs/SkillNetworkingAPlan.md S6): a picture to draw, never a state to keep. `Kind` names what to draw (a skill defines its own
-//     kinds), `Detail` which one, `X`/`Z` the planar direction, `Duration` how long (seconds). The observers' copy of the skill replays it with `PlayCastEvent` and touches nothing else:
-//     no Ability, no motion (the body's place comes from Move), no hit.
+// EN: What the AUTHORITY tells the other players' machines about a cast (G8b): an Action it began or ended (`Kind` "action" / "end", `Detail` the Action's skill id, `X`/`Z` the planar direction).
+//     The observers' copy of the skill replays the Action itself (`PNSkill.PlayObserved`): no Ability, no motion (the body's place comes from Move), no hit.
 // VI: Điều AUTHORITY báo cho máy người chơi khác về một cast: hình để vẽ, không phải trạng thái. Máy quan sát phát lại bằng `PlayCastEvent`, không đụng Ability / motion / hit.
 public readonly struct PNSkillCastEvent
 {
@@ -72,14 +72,17 @@ public readonly struct PNSkillCastEvent
 
 public partial class PNSkill
 {
-    // Raised on the authority only, for every picture a cast draws (see EveCharacterObserved.cs).
+    // Raised on the authority only, for every Action it begins or ends that asks for observers (the `skill_cast` block sends it; see PNSkillCastView).
     public event Action<PNSkillCastEvent> CastEvent;
-    protected void EmitCastEvent(string kind, string detail, float x, float z, float duration)
+    public const string ActionKind = "action", ActionEndKind = "end";
+    internal void AnnounceObservedAction(EveId skillId, Vector3? direction)
     {
-        if (CastEvent != null && HasGameplayAuthority) CastEvent(new PNSkillCastEvent(kind, detail, x, z, duration));
+        if (CastEvent != null && HasGameplayAuthority) CastEvent(new PNSkillCastEvent(ActionKind, skillId.ToString(), direction?.x ?? 0f, direction?.z ?? 0f, 0f));
     }
-    // An observer's machine plays one event; the default draws nothing.
-    public virtual void PlayCastEvent(PNSkillCastEvent value) { }
+    internal void AnnounceObservedActionEnd(EveId skillId)
+    {
+        if (CastEvent != null && HasGameplayAuthority) CastEvent(new PNSkillCastEvent(ActionEndKind, skillId.ToString(), 0f, 0f, 0f));
+    }
     // True on the machine of the entity's owner (its client forwards the owner's input): it drew the cast itself, so it ignores the events.
     public bool IsOwnerClient => CanForwardInput;
 }

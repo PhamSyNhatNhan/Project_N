@@ -128,13 +128,14 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         // The owner's skill state (Abilities + view binding), sent only to the owner (Docs/SkillNetworkingAPlan.md S1).
         hub.SyncStates().Register(new PNSyncStateDefinition(PNSkillOwnerView.State,1,PNSkillOwnerView.StateBytes,PNSyncTargets.Entity,true));
         hub.SyncStates().Register(new PNSyncStateDefinition(PNSkillCastView.State,1,PNSkillCastView.StateBytes,PNSyncTargets.Entity));
+        hub.SyncStates().Register(new PNSyncStateDefinition(PNPresentationSync.State,1,PNPresentationSync.StateBytes,PNSyncTargets.Entity));
         // The owner's skill input and its answer (S2): a command from the owner's client, the cast result back to the owner only.
         hub.SyncStates().Register(new PNSyncStateDefinition(PNSkillRemoteInput.ResultState,1,PNSkillRemoteInput.ResultBytes,PNSyncTargets.Entity,true));
         hub.SyncCommands().Register(new PNSyncCommandDefinition(PNSkillRemoteInput.Command,typeof(PNSkillInputCommandHandler),()=>new PNSkillInputCommandHandler(),PNSkillRemoteInput.CommandBytes,PNSyncTargets.Entity));
         // The hits the owner's client saw and its choices at decision points (S4-S5): proposals the authority checks, never orders.
         hub.SyncCommands().Register(new PNSyncCommandDefinition(PNSkillRemoteInput.HitCommand,typeof(PNSkillHitCommandHandler),()=>new PNSkillHitCommandHandler(),PNSkillRemoteInput.HitCommandBytes,PNSyncTargets.Entity));
         hub.SyncCommands().Register(new PNSyncCommandDefinition(PNSkillRemoteInput.DecisionCommand,typeof(PNSkillDecisionCommandHandler),()=>new PNSkillDecisionCommandHandler(),PNSkillRemoteInput.DecisionCommandBytes,PNSyncTargets.Entity));
-        hub.EntityModules().Register(new PNEntityModuleDefinition(EveId.Parse("project_n:skill_owner_player"),PNEntityModuleRoles.Player,null,new[]{PNRunFeatures.SkillSync},new[]{typeof(PNSyncEntity),typeof(PNSkillOwnerView),typeof(PNSkillRemoteInput),typeof(PNSkillCastView)}));
+        hub.EntityModules().Register(new PNEntityModuleDefinition(EveId.Parse("project_n:skill_owner_player"),PNEntityModuleRoles.Player,null,new[]{PNRunFeatures.SkillSync},new[]{typeof(PNSyncEntity),typeof(PNSkillOwnerView),typeof(PNSkillRemoteInput),typeof(PNSkillCastView),typeof(PNPresentationSync)}));
         // The two things an enemy owes a room (G6), answered by the world's features instead of flags on the role: the clear marker the room director counts and the loot source.
         hub.EntityModules().Register(new PNEntityModuleDefinition(EveId.Parse("project_n:room_clear_enemy"),PNEntityModuleRoles.None,new[]{PNEntityGameplayContent.Enemy},new[]{PNRunFeatures.RoomClear},new[]{typeof(PNRoomClearMarker)}));
         hub.EntityModules().Register(new PNEntityModuleDefinition(EveId.Parse("project_n:loot_enemy"),PNEntityModuleRoles.None,new[]{PNEntityGameplayContent.Enemy},new[]{PNRunFeatures.Loot},new[]{typeof(PNLootSource)}));
@@ -162,7 +163,7 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         // Puts a locomotion on the skill body for a while (Docs/SandboxPlan.md G12): the registered way for a skill to fly or cross a hole. Not wired into any existing skill.
         hub.Actions().Register(new PNSkillActionDefinition(LocomotionAction, typeof(PNLocomotionAction), ValidateEffectAction, PNSkillContextRequirements.None));
 #endif
-        hub.Actions().Register(new PNSkillActionDefinition(SweepAction, typeof(EveSweepAction), ValidateEffectAction, PNSkillContextRequirements.Direction));
+        hub.Actions().Register(new PNSkillActionDefinition(SweepAction, typeof(EveSweepAction), ValidateEffectAction, PNSkillContextRequirements.Direction).ReplayOnObservers());
         hub.Actions().Register(new PNSkillActionDefinition(MotionAction,typeof(PNMotionAction), ValidateEffectAction, PNSkillContextRequirements.Direction));
         hub.Actions().Register(new PNSkillActionDefinition(EveId.Parse("project_n:buff_action"), typeof(PNBuffAction), ValidateEffectAction, PNSkillContextRequirements.None,
             (data, context) => { var obj = PNBuffContentBatch.Object(data); context.Require<PNSkillOperationDefinition>(obj["operationId"], "operationId"); context.Registry.Operations().Get(context.Read(obj["operationId"], "operationId")).ValidateReferences(obj["data"], context); }));

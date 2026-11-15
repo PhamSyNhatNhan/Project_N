@@ -31,6 +31,74 @@ namespace ProjectN.Coop.Tests
                 if (done || failed) yield break; yield return null;
             }
         }
+        // The game camera's picture rendered into a texture (works with a minimized or hidden window, where the screen itself is not drawn).
+        private static Texture2D RenderFrame(Transform subject, Transform focus)
+        {
+            var cam = Camera.main; if (cam == null) cam = Camera.allCameras.Where(c => c.enabled).OrderByDescending(c => c.depth).FirstOrDefault();
+            if (cam == null) throw new Exception("no camera");
+            var rt = RenderTexture.GetTemporary(960, 540, 24); var previous = cam.targetTexture; var active = RenderTexture.active; var home = cam.transform.position;
+            // The game camera follows this machine's own player: move it over the observed Eve and bring it closer so the picture shows what the observer sees of that Eve.
+            var shift = subject.position - focus.position; shift.y = 0; cam.transform.position = home + shift; var distance = Vector3.Distance(cam.transform.position, subject.position); cam.transform.position += cam.transform.forward * distance * .6f;
+            try
+            {
+                cam.targetTexture = rt; cam.Render(); RenderTexture.active = rt;
+                var texture = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false); texture.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0); texture.Apply(); return texture;
+            }
+            finally { cam.transform.position = home; cam.targetTexture = previous; RenderTexture.active = active; RenderTexture.ReleaseTemporary(rt); }
+        }
+        // Review mode (`--pn-skill-review`, set by runskill.ps1 -Visible): client1 repeats its casts slowly, one at a time with a pause, so a person watching client2's window can see each one.
+        private IEnumerator ReviewCasts(EveCharacterSkill eve, PNSkillRemoteInput remote)
+        {
+            var steps = new[] { PNSkillSlots.Attack, PNSkillSlots.Attack, PNSkillSlots.Attack, PNSkillSlots.Dash, PNSkillSlots.Skill, PNSkillSlots.Ultimate, PNSkillSlots.Attack, PNSkillSlots.Dash };
+            foreach (var slot in steps)
+            {
+                bool ult = slot.Equals(PNSkillSlots.Ultimate), skill = slot.Equals(PNSkillSlots.Skill);
+                yield return Wait(() => !eve.IsBusy && !eve.IsDashing && (ult ? eve.UltimateRecovery.Current >= 1 : !skill || eve.SkillRecovery.Current >= 1), "Eve idle and charged for the review " + slot); if (failed) yield break;
+                try
+                {
+                    eve.RequestSlot(slot, new PNSkillInputEvent(PNSkillInputPhase.Started, PNSkillInteraction.Tap)); eve.RequestSlot(slot, new PNSkillInputEvent(PNSkillInputPhase.Performed, PNSkillInteraction.Tap)); eve.RequestSlot(slot, new PNSkillInputEvent(PNSkillInputPhase.Canceled, PNSkillInteraction.Tap));
+                } catch (Exception e) { Fail(e); yield break; }
+                long sent = remote.LastSentKey;
+                yield return Wait(() => remote.AckedKey >= sent && !eve.IsBusy, "the review " + slot + " answered"); if (failed) yield break;
+                yield return new WaitForSecondsRealtime(2f);
+            }
+        }
+        // Review mode: client2's own body is kept beside client1's Eve, so the window that follows client2 always shows the observed Eve.
+        private IEnumerator FollowSubject(Transform subject, Transform self)
+        {
+            while (!failed && subject != null && self != null)
+            {
+                var offset = new Vector3(-1.6f, 0f, 0f); var target = subject.position + offset; target.y = self.position.y;
+                self.position = target; Physics.SyncTransforms(); yield return null;
+            }
+        }
+        // Keeps one enemy where client1's machine was told to see it (replication would put it back between frames).
+        private IEnumerator PinEnemy(PNStat enemy, Transform around, Func<bool> active)
+        {
+            while (active() && enemy != null && around != null) { enemy.transform.position = around.position + new Vector3(2.4f, 0, 0); Physics.SyncTransforms(); yield return null; }
+        }
+        // Review frames (G8): while client2 observes client1's Eve it saves what the screen shows (the observed slash arc, the energy trail, Burst) as PNG next to the markers, for the user's eyes.
+        private IEnumerator ObserveShots(EveCharacterSkill seen, Transform localFocus)
+        {
+            var dir = Path.Combine(folder, "shots"); Directory.CreateDirectory(dir);
+            int slash = 0, motion = 0, burst = 0; float nextBurst = 0f;
+            while (!failed)
+            {
+                string label = null;
+                if (seen.ObservedActionCount > 0 && slash < 14) label = "slash_" + (++slash);
+                else if (seen.Presentation.Get(EveCharacterSkill.MotionPresentation) == "1" && motion < 10) label = "motion_" + (++motion);
+                else if (seen.Presentation.Get(EveCharacterSkill.BurstPresentation) == "1" && burst < 4 && Time.realtimeSinceStartup >= nextBurst) { label = "burst_" + (++burst); nextBurst = Time.realtimeSinceStartup + .6f; }
+                if (label != null)
+                {
+                    yield return new WaitForEndOfFrame();
+                    Texture2D texture = null;
+                    try { texture = RenderFrame(seen.transform, localFocus); File.WriteAllBytes(Path.Combine(dir, name + "_" + label + ".png"), texture.EncodeToPNG()); }
+                    catch (Exception error) { Debug.LogWarning("review frame " + label + " failed: " + error.Message); }
+                    finally { if (texture != null) Destroy(texture); }
+                }
+                yield return null;
+            }
+        }
         private PNPlayerMove[] Players() => FindObjectsByType<PNPlayerMove>().Where(x => x.GetComponent<EveEntityLoader>()?.IsReady == true).ToArray();
         private static string Diag(PNSkillRemoteInput r, PNPlayerMove e) { var sk = e.GetComponent<PNPlayerSkill>(); return "ack=" + r.AckedKey + " queued=" + r.QueuedCount + " sent=" + r.LastSentKey + " bound=" + r.IsBound + " refusals=" + string.Join(";", r.Refusals.Select(x => x.Key + ":" + x.Reason)) + " canInput=" + sk.CanInput + " ready=" + sk.IsReady + " auth=" + EveRegistrySession.Context.HasAuthority + " dashing=" + sk.IsDashing + " charges=" + sk.DashRecovery.Current + " voluntary=" + sk.Controls.IsAllowed(PNControlIds.VoluntaryMotion) + " activate=" + sk.CanActivateSkill(PNControlIds.Dash, EveId.Parse("base:player_dash")); }
         private PNPlayerMove Of(long owner) => Players().SingleOrDefault(x => x.GetComponent<EveEntityIdentity>().OwnerId == owner);
@@ -136,6 +204,7 @@ namespace ProjectN.Coop.Tests
             yield return Wait(() => Has("client1-declined"), "client1 declined"); if (failed) yield break;
             // ---- Eve only: her Attack is guessed by the owner's client and cast by the host ----
             var eveSkill = e1.GetComponent<EveCharacterSkill>();
+            if (eveSkill != null && name == "client2") { StartCoroutine(ObserveShots(eveSkill, e2.transform)); if (Arg("--pn-skill-review") != null) StartCoroutine(FollowSubject(e1.transform, e2.transform)); }
             if (eveSkill != null)
             {
                 if (name == "client1")
@@ -214,7 +283,7 @@ namespace ProjectN.Coop.Tests
                 if (name == "client2")
                 {
                     var seenView = e1.GetComponent<PNSkillCastView>(); var seenEve = e1.GetComponent<EveCharacterSkill>();
-                    yield return Wait(() => seenView.PlayedCount >= 1 && seenEve.ObservedSweepsPlayed >= 1, "client2 draws client1's slashes (events played " + seenView.PlayedCount + ")"); if (failed) yield break;
+                    yield return Wait(() => seenView.PlayedCount >= 1 && seenEve.ObservedActionsPlayed >= 1, "client2 draws client1's slashes (events played " + seenView.PlayedCount + ")"); if (failed) yield break;
                     try { Check(!seenEve.IsPredictingCast && !seenEve.IsBusy && seenEve.CurrentInvocation == null, "the observed Eve runs no cast on client2 (busy " + seenEve.IsBusy + ")"); Mark("client2-saw"); } catch (Exception e) { Fail(e); yield break; }
                 }
                 yield return Wait(() => Has("client2-saw"), "client2 saw the slashes"); if (failed) yield break;
@@ -245,7 +314,17 @@ namespace ProjectN.Coop.Tests
                     yield return Wait(() => eveSkill.CurrentCast == EveCast.Repeat || Has("client1-repeated"), "the host ran the Repeat chain (cast " + eveSkill.CurrentCast + ")"); if (failed) yield break;
                     try { Check(eveSkill.IsInBurst || Has("client1-repeated"), "the host's Eve is in Burst"); } catch (Exception e) { Fail(e); yield break; }
                 }
+                if (name == "client2")
+                {
+                    yield return Wait(() => eveSkill.Presentation.Get(EveCharacterSkill.BurstPresentation) == "1", "client2 sees client1's Burst in the presentation picture"); if (failed) yield break;
+                    try { Check(eveSkill.Presentation.Get(EveCharacterSkill.BurstPresentation) == "1", "client2 holds client1's Burst picture"); } catch (Exception e) { Fail(e); yield break; }
+                }
                 yield return Wait(() => Has("client1-repeated"), "client1 repeated"); if (failed) yield break;
+                if (Arg("--pn-skill-review") != null)
+                {
+                    if (name == "client1") { yield return ReviewCasts(eveSkill, remote1); if (failed) yield break; Mark("review-done"); }
+                    yield return Wait(() => Has("review-done"), "the slow review casts"); if (failed) yield break;
+                }
             }
 
             // ---- G7, a character that is not Eve (Eve 2): the pet in the Skill slot is guessed by the owner's client and summoned by the host, with no network code in the character ----
@@ -306,8 +385,10 @@ namespace ProjectN.Coop.Tests
                     yield return Wait(() => FindObjectsByType<PNEnemyStat>(FindObjectsSortMode.None).Count(x => (x.transform.position - e1.transform.position).sqrMagnitude < 2.5f * 2.5f) >= 2, "both enemies show near the client's Eve on its own machine"); if (failed) yield break;
                     // On client1's own machine the nearer enemy is moved behind the other one, so ITS nearest enemy is the host's far one: a different choice from the host's own.
                     var seenNear = FindObjectsByType<PNEnemyStat>(FindObjectsSortMode.None).OrderBy(x => (x.transform.position - e1.transform.position).sqrMagnitude).First();
-                    seenNear.transform.position = e1.transform.position + new Vector3(2.4f, 0, 0); Physics.SyncTransforms();
+                    bool pinning = true; StartCoroutine(PinEnemy(seenNear, e1.transform, () => pinning));
                     yield return new WaitForSeconds(.4f);
+                    seenNear.transform.position = e1.transform.position + new Vector3(2.4f, 0, 0); Physics.SyncTransforms(); yield return new WaitForSeconds(.25f);
+                    try { var nowNearest = FindObjectsByType<PNEnemyStat>(FindObjectsSortMode.None).OrderBy(x => (x.transform.position - e1.transform.position).sqrMagnitude).First(); Check(!ReferenceEquals(nowNearest, seenNear), "on client1's machine the enemy it moved is no longer the nearest (nearest at " + (nowNearest.transform.position - e1.transform.position).magnitude.ToString("F2") + " m, moved one at " + (seenNear.transform.position - e1.transform.position).magnitude.ToString("F2") + " m)"); } catch (Exception e) { Fail(e); yield break; }
                     var slashAbilities = e1.GetComponent<PNAbilityManager>().Abilities; long slashSent = 0;
                     int SlashCharges() { foreach (var item in slashAbilities.CaptureReplica()) if (item.Id == PNSummonGameplayContent.Eve2SlashReady) return item.Amount; return -1; }
                     yield return Wait(() => SlashCharges() >= 1, "client1 has its slash ready", () => "charges " + SlashCharges()); if (failed) yield break;
@@ -320,6 +401,7 @@ namespace ProjectN.Coop.Tests
                     }
                     catch (Exception e) { Fail(e); yield break; }
                     yield return Wait(() => remote1.AckedKey >= slashSent && remote1.PendingPredictions == 0, "the host answered the slash: " + Diag(remote1, e1)); if (failed) yield break;
+                    pinning = false;
                     try { Check(remote1.RolledBackCount == 0 || !remote1.Refusals.Any(r => r.Key >= slashSent), "the host cast the same slash (no refusal for it)"); Mark("client1-slashed"); } catch (Exception e) { Fail(e); yield break; }
                 }
                 if (host)

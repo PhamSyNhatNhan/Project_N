@@ -149,7 +149,7 @@ public static class EveChainPredictionChecks
             var castView = actor.AddComponent<PNSkillCastView>(); castView.OnBound(service, target);
             service.ReceiveState(target, PNSkillCastView.State, 1, 100, new JObject { ["n"] = 0, ["e"] = new JArray() });
             service.ReceiveState(target, PNSkillCastView.State, 1, 101, new JObject { ["n"] = 1, ["e"] = new JArray((object)new JArray(1, "sweep", "attack_right", 1f, 0f, .3f)) });
-            Check(skill.IsOwnerClient && !skill.IsObservingSweep && castView.PlayedCount == 0 && castView.LastSerial == 1, "the owner's client sees the serial but plays nothing (it drew the cast itself)");
+            Check(skill.IsOwnerClient && skill.ObservedActionCount == 0 && castView.PlayedCount == 0 && castView.LastSerial == 1, "the owner's client sees the serial but plays nothing (it drew the cast itself)");
             castView.OnUnbound();
             remote.OnUnbound(); view.OnUnbound(); service.Dispose();
         }

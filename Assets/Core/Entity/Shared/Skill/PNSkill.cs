@@ -284,7 +284,7 @@ public partial class PNSkill : EveSkill, EveIEntityLoadPreparation, EveIEntityCo
 
     public override void Unload()
     {
-        try { UnloadBindings(); }
+        try { EndObservedActions(); UnloadBindings(); }
         finally {
         prepared?.Dispose(); prepared = null; EndActivation(true, PNCastEnd.Unloaded); Effects?.Dispose(); Effects = null;
         registry = null;builtInData.Clear(); LastControlDecision = null;

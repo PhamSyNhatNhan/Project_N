@@ -14,7 +14,7 @@ using UnityEngine;
 public sealed class PNSkillCastView : MonoBehaviour, IPNSyncEntityListener, IPNSyncStateSource, IPNSyncStateSink
 {
     public static readonly EveId State = EveId.Parse("project_n:skill_cast");
-    public const int StateBytes = 1024, Kept = 6, MaxText = 32;
+    public const int StateBytes = 1024, Kept = 6, MaxText = 48;
     private PNSyncService sync;
     private PNSyncTarget target;
     private PNSkill skill;
@@ -41,7 +41,7 @@ public sealed class PNSkillCastView : MonoBehaviour, IPNSyncEntityListener, IPNS
 
     public void OnUnbound()
     {
-        if (skill != null) skill.CastEvent -= OnCastEvent;
+        if (skill != null) { skill.CastEvent -= OnCastEvent; skill.EndObservedActions(); }
         foreach (var lease in leases) lease.Dispose();
         leases.Clear(); IsBound = false; sync = null; skill = null; recent.Clear();
     }
@@ -82,6 +82,9 @@ public sealed class PNSkillCastView : MonoBehaviour, IPNSyncEntityListener, IPNS
         float v = token.Value<float>(); if (float.IsNaN(v) || float.IsInfinity(v)) throw new FormatException("Finite number required."); return v;
     }
 
+    // Observed Actions advance by their own timelines (the skill has no per-frame hook of its own on an observer).
+    private void Update() { if (skill != null && skill.ObservedActionCount > 0) skill.AdvanceObservedActions(Time.deltaTime); }
+
     public void Apply(JToken value, ulong revision)
     {
         if (sync == null || sync.IsAuthority) return; // the authority drew the cast itself
@@ -93,7 +96,7 @@ public sealed class PNSkillCastView : MonoBehaviour, IPNSyncEntityListener, IPNS
             if (item.Serial <= lastSeen) continue;
             lastSeen = item.Serial;
             if (owner || skill == null) continue;
-            try { skill.PlayCastEvent(item.Event); PlayedCount++; } catch (Exception error) { Debug.LogException(error, this); }
+            try { skill.PlayObserved(item.Event); PlayedCount++; } catch (Exception error) { Debug.LogException(error, this); }
         }
         if (latest > lastSeen) lastSeen = latest;
     }

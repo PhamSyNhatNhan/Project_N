@@ -36,6 +36,10 @@ public class PNSkillActionDefinition : PNSkillExecutionDefinition<PNSkillAction>
     private readonly Action<PNSkillActionData, EveRegistryHub> validator;
     private readonly Action<JToken, PNContentReferenceContext> referenceValidator;
     public PNSkillContextRequirements RequiredContext { get; }
+    // G8b: an Action that draws something other players must see. The framework tells the other machines when the authority begins it and each of them plays the same Action in an Observed invocation
+    // (no Ability, no motion, no hit: the services filter by mode). The Action itself has no code for it; its definition says so once.
+    public bool ObserverReplay { get; private set; }
+    public PNSkillActionDefinition ReplayOnObservers() { ObserverReplay = true; return this; }
     public PNSkillActionDefinition(EveId id, Type implementationType) : this(id, implementationType, null) { }
     public PNSkillActionDefinition(EveId id, Type implementationType, Action<PNSkillActionData, EveRegistryHub> validate) : this(id, implementationType, validate, PNSkillContextRequirements.None) { }
     public PNSkillActionDefinition(EveId id, Type implementationType, Action<PNSkillActionData, EveRegistryHub> validate, PNSkillContextRequirements requiredContext,

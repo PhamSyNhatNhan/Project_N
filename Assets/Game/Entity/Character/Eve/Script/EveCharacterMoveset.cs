@@ -72,6 +72,7 @@ public partial class EveCharacterSkill
     protected override void AwakeSetUp()
     {
         base.AwakeSetUp();
+        Presentation.Changed += OnPresentationChanged;
         AttackInput.HoldMode = PlayerSkillHoldMode.Repeat;
         DashInput.CanTap = true; DashInput.PressImmediately = true; DashInput.HoldMode = PlayerSkillHoldMode.None;
 
@@ -239,9 +240,8 @@ public partial class EveCharacterSkill
         attackTrack = CurrentInvocation?.Track(_ => FinishAttack(true));
         CurrentPhase = EveCastPhase.Slash; phaseRemaining = settings.Duration; rewardedHit = false;
 #if UNITY_5_3_OR_NEWER
-        energy?.SetMotion(false); energy?.Charge(0);
+        MotionLook(false); energy?.Charge(0);
 #endif
-        if (!predictingCast) EmitCastEvent(SweepEvent, profile, castDirection.x, castDirection.z, (float)settings.Duration);
         attack.Start(attackContext); attack.Perform(attackContext);
     }
     public bool TrySkill()
@@ -268,7 +268,7 @@ public partial class EveCharacterSkill
         CancelMoveset();CurrentCast=EveCast.Dash;CurrentPhase=EveCastPhase.Motion;
         castTarget=null;castDirection=direction;Face(direction);LockSequence();
 #if UNITY_5_3_OR_NEWER
-        EnsureEnergy().SetMotion(true);
+        MotionLook(true);
 #endif
     }
     protected override void OnPlayerDashEnded(bool cancelled)
@@ -282,7 +282,7 @@ public partial class EveCharacterSkill
     private void StartBurstCast()
     {
         gauge.TryConsume(moveset.BurstCost); burst.TryActivate();
-        stacks.Add(moveset.BurstInitialStacks); EmitCastEvent(BurstEvent, "1", 0f, 0f, 0f);
+        stacks.Add(moveset.BurstInitialStacks); Presentation.Set(BurstPresentation, "1");
         repeatStrokes.SetAmount(0);
 #if UNITY_5_3_OR_NEWER
         WeaponRig.SetBurst(true); EnsureEnergy().Flash();
@@ -336,20 +336,18 @@ public partial class EveCharacterSkill
         var settings=PNMotionSettings.Parse(GetData(profile).Action.Perform);
         float distance=stopDistance.HasValue?RushDistance(settings.Distance,stopDistance):settings.Distance;
         CurrentPhase=phase;phaseRemaining=settings.Duration;
-        if(!predictingCast)EmitCastEvent(MotionEvent,phase.ToString(),direction.x,direction.z,(float)settings.Duration);
         motion=CreateMotionAction(profile,direction,out motionContext,distance);
         motionTrack=CurrentInvocation?.Track(_=>CancelMotion());
         var ownedMotion=motion;
         motion.BindMovementOwner(()=>{if(ReferenceEquals(motion,ownedMotion))CancelMoveset();});
         motion.Start(motionContext);motion.Perform(motionContext);
 #if UNITY_5_3_OR_NEWER
-        EnsureEnergy().SetMotion(true);
+        MotionLook(true);
 #endif
     }
     private void AdvanceMoveset(float delta)
     {
         bool authority = HasGameplayAuthority;
-        if (!authority) AdvanceObserved(delta);
         if (!authority)
         {
             // The owner's client: it only runs what it guessed (a predicted Dash, a predicted cast); everything else is the authority's.
@@ -382,7 +380,7 @@ public partial class EveCharacterSkill
                 if (attack != null) attack.Advance(step);
 #if UNITY_5_3_OR_NEWER
                 if (CurrentPhase == EveCastPhase.Charge) EnsureEnergy().Charge(1 - phaseRemaining / moveset.ChargeDuration);
-                else energy?.SetMotion(motion != null);
+                else MotionLook(motion != null);
 #endif
                 if (!IsBusy) break;
                 if (phaseRemaining <= .000001f) CompletePhase(); else break;
@@ -406,7 +404,7 @@ public partial class EveCharacterSkill
     {
         if (state == RepeatChainId) { risingMomentum = null; return; }
         if (state != BurstStateId) return;
-        burstFinisher = false; blazingAssault = null; EmitCastEvent(BurstEvent, "0", 0f, 0f, 0f);
+        burstFinisher = false; blazingAssault = null; Presentation.Set(BurstPresentation, "");
         EndRepeatChain();
         if (CurrentCast == EveCast.Repeat) CancelMoveset();
         if (stacks.IsAttached) stacks.Clear();
@@ -491,7 +489,7 @@ public partial class EveCharacterSkill
             {
                 CurrentPhase = EveCastPhase.Charge; phaseRemaining = moveset.ChargeDuration;
 #if UNITY_5_3_OR_NEWER
-                EnsureEnergy().SetMotion(false); EnsureEnergy().Charge(.001f);
+                MotionLook(false); EnsureEnergy().Charge(.001f);
 #endif
                 return;
             }
@@ -543,7 +541,7 @@ public partial class EveCharacterSkill
         DisposeLock(); CurrentCast = EveCast.None; CurrentPhase = EveCastPhase.None;
         castTarget = null; pendingAttackProfile = null; phaseRemaining = 0;
 #if UNITY_5_3_OR_NEWER
-        energy?.SetMotion(false); energy?.Charge(0);
+        MotionLook(false); energy?.Charge(0);
 #endif
     }
     // The motion of the running phase stopped for good (cancel path and fallback).
@@ -580,7 +578,6 @@ public partial class EveCharacterSkill
     // is cancelled, the hook resets the state machine once. The direct branch is for a state machine with no invocation to end (a Dash guess, a half-built cast).
     private void CancelMoveset(string reason = PNCastEnd.Interrupted)
     {
-        EndObserved();
         bool finishingBurst = burstFinisher; burstFinisher = false;
         try { CancelPlayerDash(); }
         finally
@@ -608,6 +605,7 @@ public partial class EveCharacterSkill
 #if UNITY_5_3_OR_NEWER
         energy?.Clear();
 #endif
+        ReplayPresentation();
     }
     private void UnloadMoveset()
     {

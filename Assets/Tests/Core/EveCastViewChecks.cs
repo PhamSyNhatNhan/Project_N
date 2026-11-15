@@ -62,8 +62,8 @@ public static class EveCastViewChecks
             Check(skill.CurrentCast == EveCast.Attack, "the owner's press starts a slash on the authority");
             Check(service.Flush() >= 1 && service.TryGetLatest(target, PNSkillCastView.State, out _, out hostBlock), "the authority publishes the cast block");
             var events = PNSkillCastView.Parse(hostBlock, out long latest);
-            Check(events.Count == 1 && events[0].Event.Kind == EveCharacterSkill.SweepEvent && events[0].Event.Detail.StartsWith("attack_") && events[0].Event.X > .9f && events[0].Event.Duration > 0f && latest == events[0].Serial,
-                "the block holds one slash picture with its profile, direction and length (" + string.Join(",", events.Select(e => e.Event.Kind + ":" + e.Event.Detail)) + ")");
+            Check(events.Count == 1 && events[0].Event.Kind == PNSkill.ActionKind && events[0].Event.Detail.StartsWith("project_n:eve_attack_") && events[0].Event.X > .9f && latest == events[0].Serial,
+                "the block holds one Action start with its skill id and direction (" + string.Join(",", events.Select(e => e.Event.Kind + ":" + e.Event.Detail)) + ")");
             Check(hostBlock.ToString(Newtonsoft.Json.Formatting.None).Length < PNSkillCastView.StateBytes, "the block fits its byte bound");
             for (int i = 0; i < 300 && skill.IsBusy; i++) skill.Tick(.01f);
             service.ReceiveCommand(owner, target, PNSkillRemoteInput.Command, Input(3, PNSkillSlots.Attack, PNSkillInputPhase.Canceled, attackProfile));
@@ -93,29 +93,31 @@ public static class EveCastViewChecks
             Check(!skill.IsOwnerClient, "an observed Eve is not on its owner's machine");
 
             Check(Send(Block(7)) && view.PlayedCount == 0 && view.LastSerial == 7, "the first block only sets the serial: a late joiner replays nothing");
-            Check(Send(Block(7, new object[] { 7L, "sweep", "attack_right", 1f, 0f, .3f })) && view.PlayedCount == 0, "an event the first block already counted is not played");
+            Check(Send(Block(7, new object[] { 7L, "action", "base:eve_attack_right", 1f, 0f, 0f })) && view.PlayedCount == 0, "an event the first block already counted is not played");
             Check(Send(hostBlock) && view.PlayedCount == 0, "the authority's own block, with a serial this client already passed, plays nothing");
 
-            Check(Send(Block(9, new object[] { 8L, "sweep", "attack_right", 1f, 0f, .3f }, new object[] { 9L, "motion", "Motion", 1f, 0f, .2f })) && view.PlayedCount == 2, "two new events are played in order (" + view.PlayedCount + ")");
-            Check(skill.IsObservingSweep && skill.IsObservingMotion && skill.ObservedSweepsPlayed == 1, "the slash and the motion trail run on the observed Eve (sweep " + skill.IsObservingSweep + ", motion " + skill.IsObservingMotion + ")");
-            Check(Send(Block(9, new object[] { 8L, "sweep", "attack_right", 1f, 0f, .3f }, new object[] { 9L, "motion", "Motion", 1f, 0f, .2f })) && view.PlayedCount == 2, "the same block again plays nothing twice");
-            for (int i = 0; i < 300 && (skill.IsObservingSweep || skill.IsObservingMotion); i++) skill.Tick(.01f);
-            Check(!skill.IsObservingSweep && !skill.IsObservingMotion, "both end by themselves when their time is up");
+            Check(Send(Block(9, new object[] { 8L, "action", "base:eve_attack_right", 1f, 0f, 0f }, new object[] { 9L, "action", "base:eve_attack_left", 0f, 1f, 0f })) && view.PlayedCount == 2, "two new events are played in order (" + view.PlayedCount + ")");
+            Check(skill.ObservedActionCount == 2 && skill.ObservedActionsPlayed == 2, "both slashes run as the same Action on the observed Eve (running " + skill.ObservedActionCount + ", played " + skill.ObservedActionsPlayed + ")");
+            Check(Send(Block(9, new object[] { 8L, "action", "base:eve_attack_right", 1f, 0f, 0f }, new object[] { 9L, "action", "base:eve_attack_left", 0f, 1f, 0f })) && view.PlayedCount == 2, "the same block again plays nothing twice");
+            for (int i = 0; i < 300 && skill.ObservedActionCount > 0; i++) skill.AdvanceObservedActions(.01f);
+            Check(skill.ObservedActionCount == 0, "both end by themselves when their time is up");
             Check(enemy.GetCurrent(PNContentIds.Health) == hp, "the observed slash hits nothing");
             Check(!skill.IsBusy && skill.CurrentInvocation == null, "no cast runs on the observer");
 
-            Check(Send(Block(11, new object[] { 10L, "burst", "1", 0f, 0f, 0f }, new object[] { 11L, "burst", "0", 0f, 0f, 0f })) && view.PlayedCount == 4, "Burst on and off are drawn");
-            Check(Send(Block(12, new object[] { 12L, "sweep", "no_such_profile", 1f, 0f, .3f })) && !skill.IsObservingSweep && skill.ObservedSweepsPlayed == 1, "an unknown slash profile is dropped without a sound");
-            Check(Send(Block(13, new object[] { 13L, "sweep", "attack_right", 0f, 0f, .3f })) && !skill.IsObservingSweep, "a slash without a direction draws nothing");
-            Check(Send(Block(14, new object[] { 14L, "sweep", "attack_left", 0f, 1f, .3f })) && skill.IsObservingSweep, "a new slash replaces nothing running");
-            Check(Send(Block(15, new object[] { 15L, "sweep", "attack_right", 1f, 0f, .3f })) && skill.ObservedSweepsPlayed == 3, "a second slash replaces the first one");
-            skill.Tick(.01f);
+            Check(skill.Presentation.Apply(new System.Collections.Generic.Dictionary<string, string> { [EveCharacterSkill.BurstPresentation] = "1" }) && skill.Presentation.Get(EveCharacterSkill.BurstPresentation) == "1", "Burst on is drawn from the presentation picture");
+            Check(skill.Presentation.Apply(new System.Collections.Generic.Dictionary<string, string>()) && skill.Presentation.Get(EveCharacterSkill.BurstPresentation) == "", "Burst off is drawn from the next picture");
+            Check(Send(Block(12, new object[] { 12L, "action", "base:eve_no_such_profile", 1f, 0f, 0f })) && skill.ObservedActionCount == 0 && skill.ObservedActionsPlayed == 2, "an unknown Action is dropped without a sound");
+            Check(Send(Block(13, new object[] { 13L, "action", "base:eve_attack_right", 0f, 0f, 0f })) && skill.ObservedActionCount == 0 && skill.ObservedActionsPlayed == 2, "a slash without a direction draws nothing");
+            Check(Send(Block(14, new object[] { 14L, "action", "base:eve_attack_left", 0f, 1f, 0f })) && skill.ObservedActionCount == 1, "a new slash starts");
+            Check(Send(Block(15, new object[] { 15L, "action", "base:eve_attack_right", 1f, 0f, 0f })) && skill.ObservedActionCount == 2 && skill.ObservedActionsPlayed == 4, "a second slash runs beside the first");
+            Check(Send(Block(16, new object[] { 16L, "end", "base:eve_attack_right", 0f, 0f, 0f })) && skill.ObservedActionCount == 1, "the authority's end of an Action stops that one on the observer");
+            skill.AdvanceObservedActions(.01f);
             Check(string.Join(";", abilities.CaptureReplica().Select(i => i.Id + ":" + i.Amount + ":" + i.Active)) == before, "no Ability was written by anything the observer drew");
             Check(wireIsEmpty(skill), "nothing was sent or reported (no sink on an observer)");
 
             foreach (var bad in new JToken[] {
                 new JObject { ["n"] = 1 }, new JObject { ["e"] = new JArray() }, Block(1, new object[] { 1L, "sweep", "x", 0f }), Block(2, new object[] { 2L, "sweep", "x", 1f, 0f, 1f }, new object[] { 1L, "sweep", "x", 1f, 0f, 1f }),
-                Block(1, new object[] { 1L, new string('a', 40), "x", 1f, 0f, 1f }), Block(1, new object[] { 1L, "sweep", "x", "a", 0f, 1f }),
+                Block(1, new object[] { 1L, new string('a', 60), "x", 1f, 0f, 1f }), Block(1, new object[] { 1L, "sweep", "x", "a", 0f, 1f }),
                 new JObject { ["n"] = 1, ["e"] = new JArray(Enumerable.Range(1, 13).Select(i => (object)new JArray((long)i, "k", "d", 0f, 0f, 0f))) } })
             {
                 bool refused = false; try { PNSkillCastView.Parse(bad, out _); } catch (FormatException) { refused = true; }
