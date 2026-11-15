@@ -8,6 +8,8 @@ using Newtonsoft.Json.Linq;
 // source-skill world check); a detached context (Skill == null) validates targets against its own World instead.
 internal static class PNBuffOperationContext
 {
+    // Buffs are the authority's state: a guess or a replay skips the Operation (empty results, no error; G2).
+    internal static bool Skips(PNSkillActionContext context) => context != null && context.Mode != PNSkillMode.Authority;
     internal static void Require(PNSkillActionContext context)
     {
         if (context == null || context.Skill != null && !context.Skill.IsReady) throw new InvalidOperationException("Ready skill context required.");
@@ -21,6 +23,8 @@ public class PNApplyBuffOperation : PNSkillOperation
     private bool executed;
     private readonly List<PNBuffReceipt> results = new List<PNBuffReceipt>();
     public IReadOnlyList<PNBuffReceipt> Results => results.AsReadOnly();
+    // True when the Operation did nothing because this cast runs in a guess or a replay (no receipts then); callers treat that as "no Buff here", not as an error.
+    public bool Skipped { get; private set; }
     public static EveId Validate(JToken payload, EveRegistryHub hub)
     {
         var data = PNBuffContentBatch.Object(payload); PNBuffContentBatch.Fields(data, "buffId", "input");
@@ -29,6 +33,7 @@ public class PNApplyBuffOperation : PNSkillOperation
     public override void Execute(PNSkillActionContext context, JToken payload)
     {
         if (executed) throw new InvalidOperationException("Operation has already executed or been disposed.");
+        if (PNBuffOperationContext.Skips(context)) { executed = true; Skipped = true; return; }
         PNBuffOperationContext.Require(context);
         var id = Validate(payload, context.Registry); var source = context.Source ?? throw new InvalidOperationException("Buff source required.");
         var targets = context.Targets.Distinct().Select(target =>
@@ -54,6 +59,7 @@ public class PNRemoveBuffOperation : PNSkillOperation
     public override void Execute(PNSkillActionContext context, JToken payload)
     {
         if (executed) throw new InvalidOperationException("Operation has already executed or been disposed.");
+        if (PNBuffOperationContext.Skips(context)) { executed = true; return; }
         PNBuffOperationContext.Require(context);
         var id = Validate(payload, context.Registry);
         var targets = context.Targets.Distinct().Select(x => x.GetComponent<PNBuffManager>()).ToArray();
@@ -85,6 +91,7 @@ public class PNTriggerBuffOperation : PNSkillOperation
     public override void Execute(PNSkillActionContext context, JToken payload)
     {
         if (executed) throw new InvalidOperationException("Operation already executed or disposed.");
+        if (PNBuffOperationContext.Skips(context)) { executed = true; return; }
         PNBuffOperationContext.Require(context);
         var id = Validate(payload, context.Registry, ChangesStacks); var data = (JObject)payload;
         // Only the caster's identity is read (no combat capture), so a skill context keeps the former ready-stat rule and a

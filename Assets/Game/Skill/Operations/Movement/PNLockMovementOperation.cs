@@ -11,7 +11,9 @@ public class PNLockMovementOperation : PNSkillOperation
         if (executed || disposed) throw new InvalidOperationException("Movement lock cannot execute twice.");
         if (context == null) throw new ArgumentNullException(nameof(context));
         executed = true;
-        lease = context.Skill.Controls.Acquire("action:" + context.SkillId,
+        // The Control lease is the authority's state: a guess or a replay takes none (G2). No lease means nothing to release in Dispose.
+        if (context.Mode != PNSkillMode.Authority) return;
+        lease =context.Skill.Controls.Acquire("action:" + context.SkillId,
             new[] { PNControlIds.Move, PNControlIds.FaceControl, PNControlIds.Jump });
     }
     public override void Cancel() => Dispose();

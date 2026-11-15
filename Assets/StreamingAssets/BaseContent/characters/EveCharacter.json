@@ -175,6 +175,32 @@
                   "displayOrder": 0,
                   "reapply": "Keep",
                   "clock": "Game"
+                },
+                {
+                  "id": "project_n:eve_repeat_chain",
+                  "kind": "State",
+                  "showInUI": false,
+                  "iconPath": "",
+                  "displayOrder": 0,
+                  "reapply": "Keep",
+                  "clock": "Game"
+                }
+              ],
+              "stateEffects": [
+                {
+                  "state": "project_n:eve_burst_state",
+                  "statSource": {
+                    "id": "project_n:eve_burst_bonus",
+                    "modifiers": [
+                      { "statId": "project_n:attack_power", "value": 100, "group": 0 },
+                      { "statId": "project_n:attack_speed", "value": 50, "group": 0 }
+                    ]
+                  },
+                  "buffs": [ "base:eve_blazing_assault" ]
+                },
+                {
+                  "state": "project_n:eve_repeat_chain",
+                  "buffs": [ "base:eve_rising_momentum" ]
                 }
               ],
               "tuning": {
@@ -190,8 +216,6 @@
                 "ultimateGauge": 10,
                 "attackStacks": 2,
                 "skillStacks": 5,
-                "burstAttackBonus": 100,
-                "burstAttackSpeedBonus": 50,
                 "attackUltimateReduction": 1,
                 "skillUltimateReduction": 2,
                 "repeatDelay": 0.3,
@@ -239,9 +263,7 @@
                 "empoweredMotion": "base:eve_empowered_rush",
                 "repeatMotion": "base:eve_repeat_rush",
                 "ultimateMotion": "base:eve_ultimate_rush",
-                "retreatMotion": "base:eve_ultimate_retreat",
-                "blazingAssaultBuffId": "base:eve_blazing_assault",
-                "risingMomentumBuffId": "base:eve_rising_momentum"
+                "retreatMotion": "base:eve_ultimate_retreat"
               }
             },
             "action": {

@@ -24,18 +24,18 @@ using UnityEngine.SceneManagement;
 public sealed class EveTraceProbe : EveCharacterSkill
 {
     private static readonly BindingFlags Private = BindingFlags.NonPublic | BindingFlags.Instance;
-    private static T Field<T>(object owner, string name) => (T)typeof(EveCharacterSkill).GetField(name, Private).GetValue(owner);
+    private static T Field<T>(object owner, string name) { var field = typeof(EveCharacterSkill).GetField(name, Private); return (T)(field != null ? field.GetValue(owner) : typeof(EveCharacterSkill).GetProperty(name, Private | BindingFlags.Public | BindingFlags.FlattenHierarchy).GetValue(owner)); }
     public void Tick(float delta) => AdvanceAttack(delta);
     public void Prepare() { if (pc == null) Awake(); OnEnable(); }
     public bool Slot(EveId slot, PNSkillInputPhase phase, PNSkillInteraction interaction) => RequestSlot(slot, new PNSkillInputEvent(phase, interaction));
     public static string Num(double v) { v = Math.Round(v, 4); if (v == 0) v = 0; return v.ToString("0.####", CultureInfo.InvariantCulture); }
     // Combo state: the step/stroke counters and the exhausted mark are Abilities since E1 (the idle timer is a local clock); rendered exactly as the old fields were.
-    private static readonly string[] ComboAbilities = { "eve_combo_step", "eve_repeat_stroke", "eve_ultimate_stroke", "eve_repeat_exhausted" };
+    private static readonly string[] ComboAbilities = { "eve_combo_step", "eve_repeat_stroke", "eve_ultimate_stroke", "eve_repeat_exhausted", "eve_repeat_chain" };
     private int Count(EveId id) => Abilities.Find(id)[0].Snapshot().Amount ?? 0;
-    private string ComboState() => "combo=" + Count(ComboStepId) + " idle=" + Num(Field<float>(this, "comboIdle")) + " rs=" + Count(RepeatStrokeId)
-        + " us=" + Count(UltimateStrokeId) + " rex=" + (Abilities.Find(RepeatExhaustedId)[0].Snapshot().IsActive ? 1 : 0) + " rh=" + (Field<bool>(this, "repeatHeld") ? 1 : 0)
+    private string ComboState() => "combo=" + Count(ComboStepId) + " idle=" + Num(Field<float>(this, "IdleTime")) + " rs=" + Count(RepeatStrokeId)
+        + " us=" + Count(UltimateStrokeId) + " rex=" + (Abilities.Find(RepeatExhaustedId)[0].Snapshot().IsActive ? 1 : 0) + " rh=" + (Field<bool>(this, "IsRepeatHeld") ? 1 : 0)
         + " pend=" + (Field<string>(this, "pendingAttackProfile") ?? "-") + " pr=" + Num(Field<float>(this, "phaseRemaining")) + " rw=" + (Field<bool>(this, "rewardedHit") ? 1 : 0)
-        + " bf=" + (Field<bool>(this, "burstFinisher") ? 1 : 0) + " ur=" + (Field<bool>(this, "ultimateRewarded") ? 1 : 0) + " rc=" + (Field<bool>(this, "repeatChainActive") ? 1 : 0);
+        + " bf=" + (Field<bool>(this, "burstFinisher") ? 1 : 0) + " ur=" + (Field<bool>(this, "ultimateRewarded") ? 1 : 0) + " rc=" + (Field<bool>(this, "IsRepeatChainActive") ? 1 : 0);
     private static string Short(EveId id) { var text = id.ToString(); int at = text.IndexOf(':'); return at < 0 ? text : text.Substring(at + 1); }
     public string Line()
     {

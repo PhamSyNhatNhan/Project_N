@@ -52,7 +52,7 @@ public class EveSweepAction : PNSkillAction, IPNSkillHitReceiver
         // Captured once when the shape is committed: melee_scale sizes the sweep (radius, inner radius, hit thickness; the angles stay), melee_damage joins the tags.
         // Non-authoritative peers cannot read a combat snapshot, so they draw the unscaled sweep (see Docs/SkillNetworkingGaps.md).
         PNPreparedDamage prepared = null;
-        if (EveRegistrySession.Context.HasAuthority)
+        if (value.Mode == PNSkillMode.Authority)
         {
             double amount = 0d;
             foreach (var component in settings.Values.Components) amount += component.Evaluate(caster);
@@ -70,6 +70,11 @@ public class EveSweepAction : PNSkillAction, IPNSkillHitReceiver
             hitbox = new PNHitboxCast(EveHitboxShape.Sector(settings.Radius, settings.HitThickness, 4, settings.InnerRadius),
                 caster.gameObject.scene.GetPhysicsScene());
             hitLease = context.Skill.RegisterHitReceiver(this);
+        }
+        else if (context.Mode == PNSkillMode.Predicted)
+        {
+            // The owner's client sees the hits its own sweep makes and reports them (S4); damage is the authority's. The reach is the unscaled one: the authority adds a tolerance.
+            hitbox = new PNHitboxCast(EveHitboxShape.Sector(settings.Radius, settings.HitThickness, 4, settings.InnerRadius), caster.gameObject.scene.GetPhysicsScene());
         }
 #endif
     }
@@ -102,7 +107,8 @@ public class EveSweepAction : PNSkillAction, IPNSkillHitReceiver
                     if (!target.IsReady || target.IsDead) continue;
                     hitbox.CommitHit(target, time);
                     var point = target.transform.position;
-                    results.Add(context.ReceiveHit(target, point, Damage, rawAmount, damageSource));
+                    var outcome = context.Hit(target, point, Damage, rawAmount, damageSource);
+                    if (outcome.Applied) results.Add(outcome.Result);
                     if (!disposed && Visual != null) Visual.Impact(point, ((EveCharacterSkill)context.Skill).Moveset.Energy.ImpactParticles);
                 }
             }
@@ -121,7 +127,8 @@ public class EveSweepAction : PNSkillAction, IPNSkillHitReceiver
         if (offset.magnitude > settings.Radius + tolerance) return false;
         if (!hitbox.TryCommitReported(target, elapsed)) return false;
         var point = target.transform.position;
-        results.Add(context.ReceiveHit(target, point, Damage, rawAmount, damageSource));
+        var outcome = context.Hit(target, point, Damage, rawAmount, damageSource);
+        if (outcome.Applied) results.Add(outcome.Result);
         if (!disposed && Visual != null) Visual.Impact(point, ((EveCharacterSkill)context.Skill).Moveset.Energy.ImpactParticles);
         return true;
     }

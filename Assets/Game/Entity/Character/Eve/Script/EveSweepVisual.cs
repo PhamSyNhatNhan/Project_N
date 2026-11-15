@@ -44,6 +44,32 @@ public sealed class EveSweepVisual : MonoBehaviour
         try { v.Initialize(); v.Render(0,0); return v; }
         catch { EveVfxUtility.DestroyResource(root); throw; }
     }
+    // Prewarm (PNPrewarmContent, under the transition cover): builds and drops what a slash builds on its first use (materials, dynamic mesh, trail, particle system, one emit), so that
+    // the first Attack of a session does not pay for it. The shader programs themselves are warmed by PNShaderWarmup (Project_N/VFX/EveEnergy).
+    public static void Warm()
+    {
+        var root = new GameObject("Eve sweep warm-up") { hideFlags = HideFlags.HideAndDontSave };
+        Mesh warmMesh = null; Material ribbon = null, particle = null;
+        try
+        {
+            ribbon = EveVfxUtility.Material(false); ribbon.SetFloat("_Volume", 1); particle = EveVfxUtility.Material(true);
+            warmMesh = new Mesh { name = "Eve sweep warm-up", hideFlags = HideFlags.HideAndDontSave }; warmMesh.MarkDynamic();
+            warmMesh.SetVertices(new List<Vector3> { Vector3.zero, Vector3.right, Vector3.up, Vector3.one }); warmMesh.SetTriangles(new List<int> { 0, 1, 2, 0, 2, 3 }, 0); warmMesh.RecalculateNormals(); warmMesh.RecalculateBounds();
+            root.AddComponent<MeshFilter>().sharedMesh = warmMesh;
+            var renderer = root.AddComponent<MeshRenderer>(); renderer.sharedMaterial = ribbon; renderer.shadowCastingMode = ShadowCastingMode.Off;
+            var tipObject = new GameObject("Sword tip trail"); tipObject.transform.SetParent(root.transform, false);
+            var trail = tipObject.AddComponent<TrailRenderer>(); trail.sharedMaterial = ribbon; trail.emitting = false; trail.time = .2f; trail.widthMultiplier = .1f;
+            trail.colorGradient = EveVfxUtility.GoldGradient(1); trail.widthCurve = AnimationCurve.EaseInOut(0, 1, 1, 0); trail.minVertexDistance = .015f; trail.AddPosition(Vector3.zero); trail.Clear();
+            var sparks = EveVfxUtility.Particles(root.transform, "Sword sparks", particle, .3f, .05f, 0);
+            var sparkRenderer = sparks.GetComponent<ParticleSystemRenderer>(); sparkRenderer.renderMode = ParticleSystemRenderMode.Stretch; sparkRenderer.velocityScale = .06f; sparkRenderer.lengthScale = 1.5f;
+            sparks.Emit(new ParticleSystem.EmitParams { position = Vector3.zero, velocity = Vector3.up, startLifetime = .3f, startSize = .05f, startColor = Color.white }, 1);
+            sparks.Simulate(.016f, true, false, false); sparks.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+        }
+        finally
+        {
+            EveVfxUtility.DestroyResource(root); EveVfxUtility.DestroyResource(warmMesh); EveVfxUtility.DestroyResource(ribbon); EveVfxUtility.DestroyResource(particle);
+        }
+    }
     private void Initialize()
     {
         ribbonMaterial=EveVfxUtility.Material(false); ribbonMaterial.SetFloat("_Volume",1); particleMaterial=EveVfxUtility.Material(true);

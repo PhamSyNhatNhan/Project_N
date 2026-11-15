@@ -87,6 +87,8 @@ internal sealed class EveOwnedBuff : IDisposable
     private readonly EveId id;
     private readonly PNBuffReceipt receipt;
     private bool disposed;
+    // The grant was skipped (a guess or a replay holds no Buffs): there is no receipt, no Snapshot, nothing to remove.
+    private bool skipped;
     public EveOwnedBuff(PNSkillActionContext context, EveId id)
     {
         this.id = id; collection = context.Skill.GetComponent<PNBuffManager>().Buffs; receipt = Apply(context);
@@ -99,16 +101,18 @@ internal sealed class EveOwnedBuff : IDisposable
         {
             if (!(operation is PNApplyBuffOperation apply)) throw new InvalidOperationException("Eve Buff grant requires apply receipt contract.");
             apply.Execute(execution, new JObject { ["buffId"] = id.ToString() });
+            if (apply.Skipped) { skipped = true; return default; }
             if (apply.Results.Count != 1) throw new InvalidOperationException("Eve Buff grant must report one target receipt.");
             return apply.Results[0];
         }
     }
-    public PNBuffSnapshot Snapshot => !disposed && !collection.IsDisposed && receipt.Handle.IsAlive ? collection.Get(receipt.Handle) : null;
-    public bool IsPending => !disposed && receipt.Status == PNBuffStatus.Pending;
-    public void Reapply(PNSkillActionContext context) { if (!disposed && !collection.IsDisposed) Apply(context); }
+    public PNBuffSnapshot Snapshot => !skipped && !disposed && !collection.IsDisposed && receipt.Handle.IsAlive ? collection.Get(receipt.Handle) : null;
+    public bool IsPending => !skipped && !disposed && receipt.Status == PNBuffStatus.Pending;
+    public void Reapply(PNSkillActionContext context) { if (!skipped && !disposed && !collection.IsDisposed) Apply(context); }
     public void Dispose()
     {
         if (disposed) return; disposed = true;
+        if (skipped) return;
         collection.Coordinator.Submit(() =>
         {
             if (!collection.IsDisposed && receipt.Handle.IsAlive && EveRegistrySession.IsReady && EveRegistrySession.Context.HasAuthority && EveRegistrySession.Context.SessionId == collection.SessionId)

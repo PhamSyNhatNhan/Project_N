@@ -14,7 +14,7 @@ using UnityEngine;
 // VI: Input skill của người chơi qua mạng (S2, chưa dự đoán). Client chủ nhân không chạy skill: lệnh bấm ô thành lệnh `project_n:skill_input`; authority chạy như input của chính chủ, kiểm người gửi là chủ,
 //     ô còn đúng profile (N4), thử bấm; chưa bắt đầu được thì xếp một hàng ngắn tối đa 250 ms (N6), quá hạn thì từ chối. Kết quả về chủ qua khối owner-only `project_n:skill_cast_result`.
 [DisallowMultipleComponent]
-public sealed class PNSkillRemoteInput : MonoBehaviour, IPNSyncEntityListener, IPNSkillInputForwarder, IPNSkillDecisionSource
+public sealed class PNSkillRemoteInput : MonoBehaviour, IPNSyncEntityListener, IPNSkillInputForwarder, IPNSkillDecisionSource, IPNSkillReportSink
 {
     public static readonly EveId Command = EveId.Parse("project_n:skill_input"), ResultState = EveId.Parse("project_n:skill_cast_result");
     public const int CommandBytes = 256, ResultBytes = 512, QueueLimit = 8, KeptRefusals = 4;
@@ -23,7 +23,8 @@ public sealed class PNSkillRemoteInput : MonoBehaviour, IPNSyncEntityListener, I
     public static readonly EveId HitCommand = EveId.Parse("project_n:skill_hit"), DecisionCommand = EveId.Parse("project_n:skill_decision");
     public const int HitCommandBytes = 512, DecisionCommandBytes = 256, MaxTargetsPerReport = 16, MaxHitsPerCast = 64, MaxDecisionsPerPoint = 4, KeyWindow = 64;
     public const float HitTolerance = 1.5f; public const double DecisionSeconds = 3;
-    public static readonly string[] DecisionPoints = { "ult_retarget", "empowered_strike", "repeat_continue" };
+    // G4: a skill names its decision points at the `Choose` call, so the host keeps no list; it only bounds how many answers wait (per point and in all) and for how long.
+    public const int MaxDecisionsWaiting = 16;
     // Client: a guess nobody answered is taken back (seconds since its release, or since its press while still held).
     public const float GuessTimeoutReleased = 3f, GuessTimeoutHeld = 10f;
 
@@ -53,7 +54,7 @@ public sealed class PNSkillRemoteInput : MonoBehaviour, IPNSyncEntityListener, I
     private readonly List<Refusal> refusals = new List<Refusal>();
     private long nextKey;
     // Client: what this machine guessed for each press that has not been answered yet (S3). Keyed by the key of the press's Started input.
-    private sealed class Press { public long Start, Release; public EveId Slot; public PNAbilityPrediction Undo; public bool Dashed; public float Stamp; }
+    private sealed class Press { public long Start, Release; public EveId Slot; public float Stamp; public readonly List<PNSkillInvocation> Casts = new List<PNSkillInvocation>(); public readonly List<long> CastKeys = new List<long>(); }
     private readonly Dictionary<long, Press> presses = new Dictionary<long, Press>();
     private readonly Dictionary<EveId, long> openPress = new Dictionary<EveId, long>();
     // Authority: for each slot, the key of the press being held and how many activations the skill had committed when it began.
@@ -84,19 +85,22 @@ public sealed class PNSkillRemoteInput : MonoBehaviour, IPNSyncEntityListener, I
 
     public void OnBound(PNSyncService service, PNSyncTarget value)
     {
-        sync = service; target = value; IsBound = true; AckedKey = 0; refusals.Clear(); queue.Clear(); nextKey = 0; presses.Clear(); openPress.Clear(); track.Clear(); pausing = false; PredictionPaused = false; takenHits.Clear(); hitsPerCast.Clear(); decisions.Clear(); highestKey = 0; HitsApplied = HitsRejected = DecisionsTaken = DecisionsExpired = 0;
+        sync = service; target = value; IsBound = true; AckedKey = 0; refusals.Clear(); queue.Clear(); nextKey = 0; presses.Clear(); openPress.Clear(); lastStart.Clear(); lastGuessSlot = default; dispatchSlot = default; track.Clear(); pausing = false; PredictionPaused = false; takenHits.Clear(); hitsPerCast.Clear(); decisions.Clear(); highestKey = 0; HitsApplied = HitsRejected = DecisionsTaken = DecisionsExpired = 0;
         skill = GetComponent<PNSkill>(); view = GetComponent<PNSkillOwnerView>(); channel = new Channel(this);
         if (service.IsAuthority) leases.Add(service.RegisterSource(value, channel));
         leases.Add(service.RegisterSink(value, channel));
-        if (!service.IsAuthority && skill != null) skill.InputForwarder = this;
-        if (!service.IsAuthority && view != null) view.Applied += Reapply;
+        if (!service.IsAuthority && skill != null) { skill.InputForwarder = this; skill.ReportSink = this; skill.PredictedCastBegan += OnPredictedCast; }
+        if (!service.IsAuthority && view != null) { view.Applying += BeforeImage; view.Applied += Reapply; }
         if (service.IsAuthority && skill != null) { skill.AcceptsRemoteInput = true; skill.DecisionSource = this; }
     }
 
     public void OnUnbound()
     {
-        if (view != null) view.Applied -= Reapply;
-        (skill as PNPlayerSkill)?.CancelPredictedDash(); presses.Clear(); openPress.Clear(); track.Clear();
+        if (view != null) { view.Applying -= BeforeImage; view.Applied -= Reapply; }
+        foreach (var guessed in presses.Values.Where(x => x.Casts.Count > 0).ToArray()) { try { RollBackCasts(guessed); } catch (Exception) { } }
+        if (skill != null) skill.PredictedCastBegan -= OnPredictedCast;
+        if (skill != null && ReferenceEquals(skill.ReportSink, this)) skill.ReportSink = null;
+        presses.Clear(); openPress.Clear(); track.Clear();
         if (skill != null && ReferenceEquals(skill.InputForwarder, this)) skill.InputForwarder = null;
         if (skill != null) { skill.AcceptsRemoteInput = false; if (ReferenceEquals(skill.DecisionSource, this)) skill.DecisionSource = null; }
         foreach (var lease in leases) lease.Dispose();
@@ -106,37 +110,60 @@ public sealed class PNSkillRemoteInput : MonoBehaviour, IPNSyncEntityListener, I
     // ---- client: forward ----
     public bool IsActive => IsBound && sync != null && !sync.IsAuthority && view != null && view.Bindings.Count > 0;
 
-    public bool Forward(EveId slot, PNSkillInputEvent input)
+    public bool Forward(EveId slot, PNSkillInputEvent input, Action predict)
     {
         if (!IsActive || !view.Bindings.TryGetValue(slot, out var profile)) return false;
         var payload = new JObject { ["k"] = ++nextKey, ["s"] = slot.ToString(), ["p"] = (int)input.Phase, ["i"] = (int)input.Interaction, ["f"] = profile.ToString() };
-        if (!sync.Send(target, Command, payload)) return false;
-        Predict(slot, input, nextKey);
-        return true;
+        // G7: the guess runs BEFORE the input is sent, so a decision it makes (`Choose`) reaches the authority ahead of the input and is waiting when the authority casts (an instant cast ends inside the input's own
+        // dispatch). Hits it reports are held and follow the input (the authority takes a hit only for a cast it has seen).
+        holdingHits = true; heldHits.Clear();
+        try { Predict(slot, input, nextKey, predict); } finally { holdingHits = false; }
+        bool sent = sync.Send(target, Command, payload);
+        if (sent) foreach (var held in heldHits) SendHits(held.Key, held.Step, new[] { held.Target });
+        heldHits.Clear();
+        return sent;
     }
 
     // ---- client: guess ----
-    // Called for every input event that was sent. A press (Started) of a slot the client can guess is run at once; its release marks when the answer is final.
-    private void Predict(EveId slot, PNSkillInputEvent input, long key)
+    // Called for every input event that was sent. The event runs through the skill's own binding path as a Predicted cast (G6a): whatever cast it begins is kept with the press (the slot's latest Started key),
+    // and the authority's answer to that key settles it. The shared Dash still has its own guess (G6b).
+    private readonly Dictionary<EveId, long> lastStart = new Dictionary<EveId, long>();
+    private EveId dispatchSlot; private EveId lastGuessSlot;
+    private void Predict(EveId slot, PNSkillInputEvent input, long key, Action run)
     {
         if (input.Phase == PNSkillInputPhase.Started)
         {
+            lastStart[slot] = key;
             if (openPress.TryGetValue(slot, out var stale) && presses.TryGetValue(stale, out var old) && old.Release == 0) old.Release = key - 1; // a new press supersedes one never released
-            if (PredictionPaused || !(skill is PNPlayerSkill player)) return;
-            var press = new Press { Start = key, Slot = slot, Stamp = Time.unscaledTime }; bool guessed;
-            if (slot.Equals(PNSkillSlots.Dash)) { guessed = player.TryPredictDash(out press.Undo); press.Dashed = guessed; }
-            else guessed = skill.TryPredictSlotCooldown(slot, out press.Undo);
-            if (!guessed) return;
-            presses[key] = press; openPress[slot] = key; PredictedCount++;
+            if (PredictionPaused || !(skill is PNPlayerSkill)) return;
         }
         else if (input.Phase == PNSkillInputPhase.Canceled && openPress.TryGetValue(slot, out var startKey) && presses.TryGetValue(startKey, out var open)) { open.Release = key; open.Stamp = Time.unscaledTime; openPress.Remove(slot); }
+        if (run == null || PredictionPaused && input.Phase != PNSkillInputPhase.Canceled) return;
+        dispatchSlot = slot;
+        if (skill != null) skill.PendingCastKey = key;
+        try { run(); } finally { dispatchSlot = default; if (skill != null) skill.PendingCastKey = 0; }
+    }
+
+    // A guessed cast began (during an input's dispatch, or by itself: the next stroke of a held Repeat). It belongs to the press of the slot being dispatched, else to the press that began the last guess.
+    private void OnPredictedCast(PNSkillInvocation cast)
+    {
+        var slot = dispatchSlot.IsValid ? dispatchSlot : lastGuessSlot;
+        if (!slot.IsValid || !lastStart.TryGetValue(slot, out var start) || start <= 0) return;
+        if (!presses.TryGetValue(start, out var press)) { press = new Press { Start = start, Slot = slot, Stamp = Time.unscaledTime }; presses[start] = press; }
+        press.Casts.Add(cast); press.CastKeys.Add(nextKey); if (press.Release == 0) openPress[slot] = start;
+        lastGuessSlot = slot; PredictedCount++;
     }
 
     private void RollBack(Press press)
     {
         presses.Remove(press.Start); if (openPress.TryGetValue(press.Slot, out var k) && k == press.Start) openPress.Remove(press.Slot);
-        if (press.Dashed) (skill as PNPlayerSkill)?.CancelPredictedDash();
-        press.Undo.Rollback(); RolledBackCount++;
+        RollBackCasts(press); RolledBackCount++;
+    }
+    // The guessed casts of a press, newest first: each is stopped if it still runs and its Ability writes are put back.
+    private void RollBackCasts(Press press)
+    {
+        for (int i = press.Casts.Count - 1; i >= 0; i--) { try { skill?.RollbackPredictedCast(press.Casts[i]); } catch (Exception error) { Debug.LogException(error, this); } }
+        press.Casts.Clear(); press.CastKeys.Clear();
     }
 
     // ---- authority: receive ----
@@ -156,6 +183,12 @@ public sealed class PNSkillRemoteInput : MonoBehaviour, IPNSyncEntityListener, I
         queue.Add(new Pending { Key = key, Slot = slot, Input = new PNSkillInputEvent((PNSkillInputPhase)phase, (PNSkillInteraction)interaction) });
         Pump(0);
     }
+    // ---- client: what the guessed cast reports ----
+    // G6c: the framework names the cast (`PNSkillInvocation.CastKey`); the report travels under it.
+    private bool holdingHits; private readonly List<(long Key, int Step, EveEntityId Target)> heldHits = new List<(long, int, EveEntityId)>();
+    public void ReportHit(long castKey, PNStat victim, int step) { if (victim == null) return; if (holdingHits) heldHits.Add((castKey, step, victim.EntityId)); else SendHits(castKey, step, new[] { victim.EntityId }); }
+    public void ReportDecision(long castKey, string point, JToken value) => SendDecision(castKey, point, value);
+
     // ---- client: report ----
     // The owner's client says which entities its own copy of the cast hit at `step`. The authority applies them only through the running action (ReceiveHits).
     public bool SendHits(long castKey, int step, IReadOnlyList<EveEntityId> targets)
@@ -166,7 +199,7 @@ public sealed class PNSkillRemoteInput : MonoBehaviour, IPNSyncEntityListener, I
     // The owner's client says what it chose at a decision point of the cast with this key.
     public bool SendDecision(long castKey, string point, JToken value)
     {
-        if (!IsActive || castKey <= 0 || Array.IndexOf(DecisionPoints, point) < 0 || value == null) return false;
+        if (!IsActive || castKey <= 0 || !PNSkillDecisions.IsValidPoint(point) || value == null) return false;
         return sync.Send(target, DecisionCommand, new JObject { ["k"] = castKey, ["n"] = point, ["v"] = value });
     }
 
@@ -177,10 +210,10 @@ public sealed class PNSkillRemoteInput : MonoBehaviour, IPNSyncEntityListener, I
         var loader = GetComponent<EveEntityLoader>();
         if (loader == null || loader.LoadContext == null || loader.LoadContext.Identity.OwnerId != senderOwnerId) return;
         long key = (long)Required(payload, "k"); int step = (int)Required(payload, "st");
-        if (!(payload["h"] is JArray list) || list.Count == 0 || list.Count > MaxTargetsPerReport || key <= 0 || step < 0 || step > 64) throw new FormatException("Skill hit report.");
+        if (!(payload["h"] is JArray list) || list.Count == 0 || list.Count > MaxTargetsPerReport || key <= 0 || step < 0 || step > PNSkillCastKey.MaxStep) throw new FormatException("Skill hit report.");
         var ids = new long[list.Count]; for (int i = 0; i < ids.Length; i++) { if (list[i].Type != JTokenType.Integer) throw new FormatException("Skill hit target."); ids[i] = (long)list[i]; }
         // A cast the owner could not have started (a key beyond what this machine received, or long gone) is stale, not hostile.
-        if (key > highestKey || key <= highestKey - KeyWindow) { HitsRejected += ids.Length; return; }
+        if (!InWindow(key)) { HitsRejected += ids.Length; return; }
         var ownStat = GetComponent<PNStat>(); if (ownStat == null || !ownStat.IsReady || ownStat.IsDead) { HitsRejected += ids.Length; return; }
         foreach (var id in ids)
         {
@@ -200,18 +233,25 @@ public sealed class PNSkillRemoteInput : MonoBehaviour, IPNSyncEntityListener, I
         var loader = GetComponent<EveEntityLoader>();
         if (loader == null || loader.LoadContext == null || loader.LoadContext.Identity.OwnerId != senderOwnerId) return;
         long key = (long)Required(payload, "k"); string point = payload["n"]?.Type == JTokenType.String ? (string)payload["n"] : null; var value = payload["v"];
-        if (key <= 0 || point == null || Array.IndexOf(DecisionPoints, point) < 0 || value == null) throw new FormatException("Skill decision.");
-        if (key > highestKey || key <= highestKey - KeyWindow) return;
+        if (key <= 0 || !PNSkillDecisions.IsValidPoint(point) || value == null) throw new FormatException("Skill decision.");
+        if (!DecisionInWindow(key)) return;
         int same = 0; for (int i = 0; i < decisions.Count; i++) if (decisions[i].Point == point) same++;
         if (same >= MaxDecisionsPerPoint) { for (int i = 0; i < decisions.Count; i++) if (decisions[i].Point == point) { decisions.RemoveAt(i); DecisionsExpired++; break; } }
+        if (decisions.Count >= MaxDecisionsWaiting) { decisions.RemoveAt(0); DecisionsExpired++; }
         decisions.Add(new Decision { Point = point, Value = value.DeepClone(), Key = key });
     }
 
-    // IPNSkillDecisionSource: the skill reaches a decision point and asks for what the owner's client chose, oldest first.
-    public bool TryTake(string point, out JToken value)
+    public float ReachSlack => HitTolerance;
+    // A cast key belongs to an input this machine received recently (the cast key is the input's key shifted, see PNSkillCastKey).
+    private bool InWindow(long castKey) { long input = PNSkillCastKey.InputOf(castKey); return input <= highestKey && input > highestKey - KeyWindow; }
+    // A decision is sent ahead of the input it belongs to (the guess runs first, see Forward), so it may name the next input or two.
+    private bool DecisionInWindow(long castKey) { long input = PNSkillCastKey.InputOf(castKey); return input <= highestKey + DecisionLead && input > highestKey - KeyWindow; }
+    public const int DecisionLead = 2;
+    // IPNSkillDecisionSource: the skill reaches a decision point of the cast with this key and asks for what the owner's client chose there (oldest first when it chose the same point more than once).
+    public bool TryTake(long castKey, string point, out JToken value)
     {
         for (int i = 0; i < decisions.Count; i++)
-            if (decisions[i].Point == point) { value = decisions[i].Value; decisions.RemoveAt(i); DecisionsTaken++; return true; }
+            if (decisions[i].Key == castKey && decisions[i].Point == point) { value = decisions[i].Value; decisions.RemoveAt(i); DecisionsTaken++; return true; }
         value = null; return false;
     }
     public void ExpireDecisions(double delta)
@@ -228,12 +268,15 @@ public sealed class PNSkillRemoteInput : MonoBehaviour, IPNSyncEntityListener, I
     // A new image of the owner's Abilities came in: every guess still waiting is spent again on top of it, with a fresh undo.
     private void Reapply()
     {
+        // The image is the new truth under every guess: a refusal now restores what the image holds, and a guess still waiting is shown on top of it again.
+        foreach (var press in presses.Values) foreach (var cast in press.Casts) cast.PredictionScope?.Rebase();
+    }
+    // G6b2: an image is about to replace the replica. A guess the authority has not taken yet (it began with an input the authority has not acknowledged) remembers what it wrote.
+    private void BeforeImage()
+    {
         foreach (var press in presses.Values)
-        {
-            if (press.Release > 0 && press.Release <= AckedKey) continue;
-            PNAbilityPrediction undo = default; bool again = press.Dashed ? (skill as PNPlayerSkill)?.RespendDash(out undo) == true : skill.TryPredictSlotCooldown(press.Slot, out undo);
-            if (again) press.Undo = undo;
-        }
+            for (int i = 0; i < press.Casts.Count; i++)
+                if (press.CastKeys[i] > AckedKey) press.Casts[i].PredictionScope?.CaptureOverlay();
     }
 
     public void ExpireGuesses(float now)
@@ -273,7 +316,8 @@ public sealed class PNSkillRemoteInput : MonoBehaviour, IPNSyncEntityListener, I
             var head = queue[0]; bool ok;
             if (!sync.IsAuthority || skill == null) { queue.Clear(); return; }
             long serial = skill.ActivationSerial;
-            ok = skill.RequestSlot(head.Slot, head.Input);
+            skill.PendingCastKey = head.Key;
+            try { ok = skill.RequestSlot(head.Slot, head.Input); } finally { skill.PendingCastKey = 0; }
             if (ok) { Observe(head, serial); Ack(head.Key); queue.RemoveAt(0); continue; }
             if (head.Input.Phase != PNSkillInputPhase.Started) { queue.RemoveAt(0); continue; } // no gesture to continue (its press was refused): nothing to do
             if (head.Waited < QueueSeconds) return;                                           // still hoping: the press may become valid
@@ -310,8 +354,8 @@ public sealed class PNSkillRemoteInput : MonoBehaviour, IPNSyncEntityListener, I
         foreach (var row in list) { if (!(row is JArray r) || r.Count != 2) throw new FormatException("Skill cast refusal."); refusals.Add(new Refusal((long)r[0], (string)r[1])); }
         // What the authority answered settles the guesses: a refused press is taken back, a released one that was acknowledged and not refused is confirmed.
         foreach (var refusal in refusals) if (presses.TryGetValue(refusal.Key, out var refused)) RollBack(refused);
-        foreach (var done in presses.Values.Where(x => x.Release > 0 && x.Release <= AckedKey).ToArray()) presses.Remove(done.Start);
-        if (PredictionPaused && skill is PNPlayerSkill paused) paused.CancelPredictedDash();
+        foreach (var done in presses.Values.Where(x => x.Release > 0 && x.Release <= AckedKey).ToArray()) presses.Remove(done.Start); // acknowledged: the guess stands until the authority's next image
+        if (PredictionPaused && skill is PNPlayerSkill) { foreach (var cast in presses.Values.Where(x => x.Casts.Count > 0).ToArray()) RollBack(cast); }
     }
 }
 

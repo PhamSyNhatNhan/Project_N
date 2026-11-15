@@ -7,6 +7,7 @@ public interface IPNSkillInputForwarder
 {
     // True while forwarding can work (bound to the sync layer, authority state known).
     bool IsActive { get; }
-    // Sends one slot input to the authority; false when it cannot be sent.
-    bool Forward(EveId slot, PNSkillInputEvent input);
+    // Sends one slot input to the authority; false when it cannot be sent. `predict` runs the same input through this machine's own binding path as a guess (G6a): the forwarder calls it right after the
+    // send (with the input's key known), or skips it when guessing is paused.
+    bool Forward(EveId slot, PNSkillInputEvent input, System.Action predict);
 }

@@ -32,6 +32,16 @@ public class PNSkillActionContext
     internal bool AllowContributions { get; }
     internal bool HasBegun => begun;
     // True when FreezeOnHit may be called now: a begun context of a live invocation that allows contributions.
+    // The owner's CLIENT is running this action ahead of the authority (S3-S5): no lock, no damage; a hit is handed to `HitReporter` instead of being applied.
+    // G1: the mode is the invocation's; a context with no invocation (the Eve moveset's) can be given one directly. `IsPrediction` is the old flag as a view of it.
+    private PNSkillMode? modeOverride;
+    public PNSkillMode Mode { get => modeOverride ?? Invocation?.Mode ?? PNSkillMode.Authority; set => modeOverride = value; }
+    public bool IsPrediction
+    {
+        get => Mode == PNSkillMode.Predicted;
+        set => modeOverride = value ? PNSkillMode.Predicted : Invocation?.Mode == PNSkillMode.Predicted ? PNSkillMode.Authority : (PNSkillMode?)null;
+    }
+    private int step = -1;
     public bool CanFreezeOnHit => begun && AllowContributions && Invocation != null && !Invocation.IsEnded;
     internal PNSkillContribution[] ContributionSnapshot = Array.Empty<PNSkillContribution>();
     internal IReadOnlyList<PNSkillEffect> AuthoredEffects = Array.Empty<PNSkillEffect>();
@@ -118,6 +128,27 @@ public class PNSkillActionContext
         var result = target.ReceiveDamage(ReclassifyDamage(original, amount, capture, tags));
         if (Invocation != null) Invocation.State.Fire(this, "OnHit", target, point, values, hitIndex);
         return result;
+    }
+    // The one door for a hit made by a cast (G2). Authority: damage is dealt (`ReceiveHit`) and the skill hears `OnHitConfirmed`. Predicted: the hit goes to `HitReporter` (if any) and nothing is dealt.
+    // Observed: nothing happens. Actions call this and never branch on the mode themselves.
+    public PNHitOutcome Hit(PNStat target, Vector3? point, PNDamage original, double amount, PNCombatSourceSnapshot capture, int hitIndex = 0)
+    {
+        switch (Mode)
+        {
+            case PNSkillMode.Authority:
+                var result = ReceiveHit(target, point, original, amount, capture, hitIndex);
+                Skill?.OnHitConfirmed(this, target, result);
+                return PNHitOutcome.Hit(result);
+            case PNSkillMode.Predicted:
+                // G6c: the framework reports the hit under the cast's key; a context with no keyed cast (or no wire) reports nothing.
+                var sink = Skill?.ReportSink; long key = Invocation?.CastKey ?? 0;
+                if (sink == null || key <= 0 || target == null) return PNHitOutcome.Skip(false);
+                if (step < 0) step = Invocation.NextStep();
+                sink.ReportHit(key, target, step);
+                return PNHitOutcome.Skip(true);
+            default:
+                return PNHitOutcome.Skip(false);
+        }
     }
     internal bool AdmitHitEffect(PNSkillEffect effect, int index)
     {

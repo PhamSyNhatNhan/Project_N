@@ -39,7 +39,7 @@ public sealed class PNMotionActionContext : PNSkillActionContext
     public float Distance { get; }
     public PNMotionActionContext(PNSkillActionContext source,float distance)
         : base(source.Skill,source.SkillId,source.Data,source.Registry,source.Targets,source.Direction,source.Invocation,source.AllowContributions,source.Position)
-    { Distance=distance; }
+    { Distance=distance; Mode=source.Mode; }
 }
 
 // One local motion invocation, with collision clipping and no damage/projectile behavior.
@@ -64,7 +64,9 @@ public class PNMotionAction : PNSkillAction, IPNSkillMotionAction
     private RigidbodyInterpolation previousInterpolation;
 #endif
     // Set before Start by the owner's client when it only guesses this motion (Docs/SkillNetworkingAPlan.md S3): no Control lease is taken.
-    public bool IsPrediction { get; set; }
+    // G1: also true when the action's context says Predicted (its invocation's mode); the flag stays for callers that have no invocation.
+    private bool predictionFlag;
+    public bool IsPrediction { get => predictionFlag || context != null && context.Mode == PNSkillMode.Predicted; set => predictionFlag = value; }
     public virtual bool IsComplete => elapsed >= duration;
     public override void Start(PNSkillActionContext value)
     {
@@ -86,8 +88,8 @@ public class PNMotionAction : PNSkillAction, IPNSkillMotionAction
         context.BeginAction();
         if(move!=null && movementOwner!=null)
             movementExecution=move.RegisterMotion(settings.PermissionId,()=>{try { movementOwner?.Invoke(); } finally { Dispose(); }});
-        // A prediction on the owner's client takes no Control lease (that is the authority's state); the real cast on the authority does.
-        if(!IsPrediction){movementLock = CreateOperation(context,EveId.Parse("base:lock_movement")); movementLock.Execute(context, null);}
+        // The lock Operation takes the Control lease only in Authority mode (a guess or a replay holds none).
+        movementLock = CreateOperation(context,EveId.Parse("base:lock_movement")); movementLock.Execute(context, null);
 #if UNITY_5_3_OR_NEWER
         // EN: Update-driven motion must use the physics pose, never a delayed interpolated Transform.
         // VI: Chuyển động trong Update dùng vị trí vật lý, không cộng vào Transform nội suy trễ.

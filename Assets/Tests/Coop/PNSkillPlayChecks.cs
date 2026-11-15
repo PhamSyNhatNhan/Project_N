@@ -16,18 +16,18 @@ namespace ProjectN.Coop.Tests
     {
         private string folder, name; private int checks; private bool failed;
         private static string Arg(string prefix) => Environment.GetCommandLineArgs().FirstOrDefault(x => x.StartsWith(prefix, StringComparison.Ordinal))?.Substring(prefix.Length);
-        private void Awake() { if (Arg("--pn-skill-test=") != null) PNGameBootstrap.Config.Network.Port = 7797; }
+        private void Awake() { if (Arg("--pn-skill-test=") != null) { PNGameBootstrap.Config.Network.Port = 7797; var character = Arg("--pn-skill-character="); if (!string.IsNullOrEmpty(character)) PNPlayerProfileService.SetLastCharacter(character); } }
         private void Mark(string value) { var path = Path.Combine(folder, value); File.WriteAllText(path + ".pending", "ok"); File.Move(path + ".pending", path); }
         private bool Has(string value) => File.Exists(Path.Combine(folder, value));
         private void Check(bool ok, string value) { if (!ok) throw new Exception(value); checks++; Debug.Log("SKILL PASS " + name + " " + value); }
         private void Fail(Exception error) { if (failed) return; failed = true; File.WriteAllText(Path.Combine(folder, name + ".txt"), "FAIL " + error); Debug.LogException(error); try { PNGameBootstrap.End(); } catch { } Application.Quit(1); }
-        private IEnumerator Wait(Func<bool> ready, string what)
+        private IEnumerator Wait(Func<bool> ready, string what, Func<string> detail = null)
         {
             double until = Time.realtimeSinceStartupAsDouble + 60;
             while (!failed)
             {
                 bool done = false;
-                try { done = ready(); if (!done && Time.realtimeSinceStartupAsDouble > until) throw new TimeoutException("waiting for " + what + " checks=" + checks + " " + (NetworkManager.singleton as PNNetworkManager)?.LastFailure); } catch (Exception e) { Fail(e); }
+                try { done = ready(); if (!done && Time.realtimeSinceStartupAsDouble > until) throw new TimeoutException("waiting for " + what + " checks=" + checks + " " + (detail != null ? detail() + " " : "") + (NetworkManager.singleton as PNNetworkManager)?.LastFailure); } catch (Exception e) { Fail(e); }
                 if (done || failed) yield break; yield return null;
             }
         }
@@ -116,7 +116,7 @@ namespace ProjectN.Coop.Tests
             if (name == "client1")
             {
                 var ps = e1.GetComponent<PNPlayerSkill>(); var abil = e1.GetComponent<PNAbilityManager>().Abilities;
-                yield return Wait(() => !ps.IsDashing && ps.DashRecovery.Current >= 1, "dash over, a charge back");
+                yield return Wait(() => !ps.IsDashing && ps.DashRecovery.Current >= 1, "dash over, a charge back", () => Diag(remote1, e1) + " predicting=" + ps.IsPredictingDash + " cooldown=" + ps.DashRecovery.CooldownRemaining);
                 if (failed) yield break;
                 var image = abil.CaptureReplica().ToList(); Mark("client1-image");
                 yield return Wait(() => Has("host-drained"), "host drained"); if (failed) yield break;
@@ -134,12 +134,214 @@ namespace ProjectN.Coop.Tests
                 try { Check(remote1.Refusals.Any(r => r.Reason == "declined") && !ps.IsDashing && remote1.PendingPredictions == 0, "the declined guess is taken back: dash stopped, replica shows the host's truth (refusals " + string.Join(";", remote1.Refusals.Select(r => r.Key + ":" + r.Reason)) + ")"); Mark("client1-declined"); } catch (Exception e) { Fail(e); yield break; }
             }
             yield return Wait(() => Has("client1-declined"), "client1 declined"); if (failed) yield break;
+            // ---- Eve only: her Attack is guessed by the owner's client and cast by the host ----
+            var eveSkill = e1.GetComponent<EveCharacterSkill>();
+            if (eveSkill != null)
+            {
+                if (name == "client1")
+                {
+                    yield return Wait(() => !eveSkill.IsBusy && !eveSkill.IsDashing, "Eve idle"); if (failed) yield break;
+                    int rolledBefore = remote1.RolledBackCount, guessedBefore = remote1.PredictedCount, refusedBefore = remote1.Refusals.Count;
+                    bool a1 = false, b1 = false, c1 = false;
+                    try
+                    {
+                        a1 = eveSkill.RequestSlot(PNSkillSlots.Attack, new PNSkillInputEvent(PNSkillInputPhase.Started, PNSkillInteraction.Tap));
+                        b1 = eveSkill.RequestSlot(PNSkillSlots.Attack, new PNSkillInputEvent(PNSkillInputPhase.Performed, PNSkillInteraction.Tap));
+                        Check(a1 && b1 && remote1.PredictedCount == guessedBefore + 1 && eveSkill.IsPredictingCast, "the client starts its Attack slash when the tap performs, as the host does (guesses " + (remote1.PredictedCount - guessedBefore) + ", predicting " + eveSkill.IsPredictingCast + ")");
+                        c1 = eveSkill.RequestSlot(PNSkillSlots.Attack, new PNSkillInputEvent(PNSkillInputPhase.Canceled, PNSkillInteraction.Tap));
+                    } catch (Exception e) { Fail(e); yield break; }
+                    long sentNow = remote1.LastSentKey;
+                    yield return Wait(() => remote1.AckedKey >= sentNow && !eveSkill.IsBusy, "the host answered the Attack and the guess ended: " + Diag(remote1, e1)); if (failed) yield break;
+                    yield return new WaitForSecondsRealtime(1f);
+                    try { Check(remote1.RolledBackCount == rolledBefore && remote1.PendingPredictions == 0 && !remote1.Refusals.Any(r => r.Key > sentNow - 3), "the host cast the same Attack: nothing rolled back (rolled back " + (remote1.RolledBackCount - rolledBefore) + ")"); Mark("client1-attacked"); } catch (Exception e) { Fail(e); yield break; }
+                    // Skill, then Ultimate when it is charged: each guessed at once, answered by the host, nothing taken back
+                    foreach (var slot in new[] { PNSkillSlots.Skill, PNSkillSlots.Ultimate })
+                    {
+                        bool isUlt = slot.Equals(PNSkillSlots.Ultimate);
+                        yield return Wait(() => !eveSkill.IsBusy && !eveSkill.IsDashing && (isUlt ? eveSkill.UltimateRecovery.Current >= 1 : eveSkill.SkillRecovery.Current >= 1), "Eve idle and charged for " + slot); if (failed) yield break;
+                        int guessed0 = remote1.PredictedCount, rolled0 = remote1.RolledBackCount;
+                        try
+                        {
+                            eveSkill.RequestSlot(slot, new PNSkillInputEvent(PNSkillInputPhase.Started, PNSkillInteraction.Tap));
+                            Check(eveSkill.RequestSlot(slot, new PNSkillInputEvent(PNSkillInputPhase.Performed, PNSkillInteraction.Tap)) && remote1.PredictedCount == guessed0 + 1 && eveSkill.IsPredictingCast, "the client starts " + slot + " when the tap performs (cast " + eveSkill.CurrentCast + ")");
+                            eveSkill.RequestSlot(slot, new PNSkillInputEvent(PNSkillInputPhase.Canceled, PNSkillInteraction.Tap));
+                        } catch (Exception e) { Fail(e); yield break; }
+                        long sent2 = remote1.LastSentKey;
+                        yield return Wait(() => remote1.AckedKey >= sent2 && !eveSkill.IsBusy, slot + " answered and finished: " + Diag(remote1, e1)); if (failed) yield break;
+                        yield return new WaitForSecondsRealtime(.5f);
+                        try { Check(remote1.RolledBackCount == rolled0 && remote1.PendingPredictions == 0, "the host cast the same " + slot + ": nothing rolled back (" + (remote1.RolledBackCount - rolled0) + ")"); } catch (Exception e) { Fail(e); yield break; }
+                    }
+                    Mark("client1-cast");
+                }
+                if (host)
+                {
+                    yield return Wait(() => Has("client1-attacked"), "client1 attacked"); if (failed) yield break;
+                    try { Check(eveSkill.ComboIndex >= 1, "the host ran Eve's Attack too (combo step " + eveSkill.ComboIndex + ")"); } catch (Exception e) { Fail(e); yield break; }
+                }
+                yield return Wait(() => Has("client1-cast"), "client1 cast Skill and Ultimate"); if (failed) yield break;
+                // ---- a real hit: the host pulls a room enemy next to client1's Eve, the client's sweep reports it, the host damages it ----
+                PNStat prey = null; double preyHealth = 0; int hitsBefore = host ? remote1.HitsApplied + remote1.HitsRejected : 0;
+                if (host)
+                {
+                    try
+                    {
+                        var world = PNLocalWorldContext.Current.World; var at0 = e1.transform.position + new Vector3(.45f, 0, 0);
+                        var request = new PNEntityRequest { Entity = "project_n:enemy", Template = "project_n:enemy", Character = "project_n:dummy_lorica", World = world, WorldIncarnation = world.Incarnation, ContentSlot = PNGridWorldController.SlotId, SceneKey = "skilltest:enemy", EntityKey = "", Position = at0 };
+                        if (PNEntityHosts.For(EveRegistrySession.Context).TrySpawn(request, null, null, error => Debug.LogException(error)) == null) throw new Exception("the host refused the test enemy");
+                    } catch (Exception e) { Fail(e); yield break; }
+                    yield return Wait(() => (prey = FindObjectsByType<PNEnemyStat>(FindObjectsSortMode.None).FirstOrDefault(x => x.IsReady)) != null, "the test enemy to be published"); if (failed) yield break;
+                    try { preyHealth = prey.GetCurrent(PNContentIds.Health); var at = e1.transform.position + new Vector3(.45f, 0, 0); prey.transform.position = at; Physics.SyncTransforms(); Mark("prey-ready"); } catch (Exception e) { Fail(e); yield break; }
+                }
+                yield return Wait(() => Has("prey-ready"), "prey placed"); if (failed) yield break;
+                if (name == "client1")
+                {
+                    PNStat seen = null;
+                    yield return Wait(() => (seen = FindObjectsByType<PNEnemyStat>(FindObjectsSortMode.None).FirstOrDefault(x => (x.transform.position - e1.transform.position).sqrMagnitude < 1.5f * 1.5f)) != null, "the enemy shows near the client's Eve on its own machine"); if (failed) yield break;
+                    yield return Wait(() => !eveSkill.IsBusy && !eveSkill.IsDashing, "Eve idle before the hit"); if (failed) yield break;
+                    long sentHit = 0;
+                    try { eveSkill.RequestSlot(PNSkillSlots.Attack, new PNSkillInputEvent(PNSkillInputPhase.Started, PNSkillInteraction.Tap)); eveSkill.RequestSlot(PNSkillSlots.Attack, new PNSkillInputEvent(PNSkillInputPhase.Performed, PNSkillInteraction.Tap)); eveSkill.RequestSlot(PNSkillSlots.Attack, new PNSkillInputEvent(PNSkillInputPhase.Canceled, PNSkillInteraction.Tap)); sentHit = remote1.LastSentKey; } catch (Exception e) { Fail(e); yield break; }
+                    yield return Wait(() => remote1.AckedKey >= sentHit && !eveSkill.IsBusy, "the host answered the hitting Attack: " + Diag(remote1, e1)); if (failed) yield break;
+                    Mark("client1-hit");
+                }
+                if (host)
+                {
+                    yield return Wait(() => Has("client1-hit"), "client1 swung at the enemy"); if (failed) yield break;
+                    yield return Wait(() => prey == null || !prey.IsReady || prey.GetCurrent(PNContentIds.Health) < preyHealth, "the enemy lost health from the client's reported hit (reports received " + (remote1.HitsApplied + remote1.HitsRejected - hitsBefore) + ")"); if (failed) yield break;
+                    try { Check(remote1.HitsApplied + remote1.HitsRejected > hitsBefore, "the host received the client's hit report (applied " + remote1.HitsApplied + ", dropped " + remote1.HitsRejected + "; the host's own sweep may have hit first)"); Mark("prey-hit"); } catch (Exception e) { Fail(e); yield break; }
+                }
+                yield return Wait(() => Has("prey-hit"), "host verified the hit"); if (failed) yield break;
+                // ---- S6: the OTHER client sees client1's slashes drawn on its copy of Eve, and nothing is cast or hit there ----
+                if (name == "client2")
+                {
+                    var seenView = e1.GetComponent<PNSkillCastView>(); var seenEve = e1.GetComponent<EveCharacterSkill>();
+                    yield return Wait(() => seenView.PlayedCount >= 1 && seenEve.ObservedSweepsPlayed >= 1, "client2 draws client1's slashes (events played " + seenView.PlayedCount + ")"); if (failed) yield break;
+                    try { Check(!seenEve.IsPredictingCast && !seenEve.IsBusy && seenEve.CurrentInvocation == null, "the observed Eve runs no cast on client2 (busy " + seenEve.IsBusy + ")"); Mark("client2-saw"); } catch (Exception e) { Fail(e); yield break; }
+                }
+                yield return Wait(() => Has("client2-saw"), "client2 saw the slashes"); if (failed) yield break;
+                // ---- Burst, then a held Attack: the Repeat chain is guessed by the owner and cast by the host ----
+                if (host) { try { eveSkill.BurstGauge.Add(100000); Mark("gauge-full"); } catch (Exception e) { Fail(e); yield break; } }
+                yield return Wait(() => Has("gauge-full"), "the host filled the Burst gauge"); if (failed) yield break;
+                if (name == "client1")
+                {
+                    yield return Wait(() => eveSkill.BurstGauge.Current >= eveSkill.Moveset.BurstCost && !eveSkill.IsBusy && !eveSkill.IsDashing, "the owner's replica shows a full gauge"); if (failed) yield break;
+                    int rolled1 = remote1.RolledBackCount; long sent3 = 0;
+                    try
+                    {
+                        eveSkill.RequestSlot(PNSkillSlots.Burst, new PNSkillInputEvent(PNSkillInputPhase.Started, PNSkillInteraction.Tap)); eveSkill.RequestSlot(PNSkillSlots.Burst, new PNSkillInputEvent(PNSkillInputPhase.Performed, PNSkillInteraction.Tap)); eveSkill.RequestSlot(PNSkillSlots.Burst, new PNSkillInputEvent(PNSkillInputPhase.Canceled, PNSkillInteraction.Tap));
+                        Check(eveSkill.IsInBurst, "Burst shows on the owner's client at once"); sent3 = remote1.LastSentKey;
+                    } catch (Exception e) { Fail(e); yield break; }
+                    yield return Wait(() => remote1.AckedKey >= sent3 && eveSkill.SlashStacks.Current > 0, "the host answered Burst and the stacks arrived"); if (failed) yield break;
+                    try { eveSkill.RequestSlot(PNSkillSlots.Attack, new PNSkillInputEvent(PNSkillInputPhase.Started, PNSkillInteraction.Tap)); eveSkill.RequestSlot(PNSkillSlots.Attack, new PNSkillInputEvent(PNSkillInputPhase.Started, PNSkillInteraction.Repeat)); eveSkill.RequestSlot(PNSkillSlots.Attack, new PNSkillInputEvent(PNSkillInputPhase.Performed, PNSkillInteraction.Repeat)); } catch (Exception e) { Fail(e); yield break; }
+                    yield return Wait(() => eveSkill.IsPredictingCast && eveSkill.CurrentCast == EveCast.Repeat, "the held Attack is guessed as a Repeat stroke on the owner's client"); if (failed) yield break;
+                    yield return new WaitForSecondsRealtime(1.5f);
+                    long sent4 = 0;
+                    try { eveSkill.RequestSlot(PNSkillSlots.Attack, new PNSkillInputEvent(PNSkillInputPhase.Canceled, PNSkillInteraction.Repeat)); sent4 = remote1.LastSentKey; } catch (Exception e) { Fail(e); yield break; }
+                    yield return Wait(() => remote1.AckedKey >= sent4 && !eveSkill.IsBusy, "the chain ended after the release: " + Diag(remote1, e1)); if (failed) yield break;
+                    yield return new WaitForSecondsRealtime(.5f);
+                    try { Check(remote1.RolledBackCount == rolled1 && remote1.PendingPredictions == 0, "the host cast the Repeat chain: nothing rolled back (" + (remote1.RolledBackCount - rolled1) + ")"); Mark("client1-repeated"); } catch (Exception e) { Fail(e); yield break; }
+                }
+                if (host)
+                {
+                    yield return Wait(() => eveSkill.CurrentCast == EveCast.Repeat || Has("client1-repeated"), "the host ran the Repeat chain (cast " + eveSkill.CurrentCast + ")"); if (failed) yield break;
+                    try { Check(eveSkill.IsInBurst || Has("client1-repeated"), "the host's Eve is in Burst"); } catch (Exception e) { Fail(e); yield break; }
+                }
+                yield return Wait(() => Has("client1-repeated"), "client1 repeated"); if (failed) yield break;
+            }
+
+            // ---- G7, a character that is not Eve (Eve 2): the pet in the Skill slot is guessed by the owner's client and summoned by the host, with no network code in the character ----
+            var petSkill = e1.GetComponent<PNEve2Skill>();
+            if (eveSkill == null && petSkill != null)
+            {
+                if (name == "client1")
+                {
+                    var petAbilities = e1.GetComponent<PNAbilityManager>().Abilities; long petSent = 0;
+                    int PetCharges() { foreach (var item in petAbilities.CaptureReplica()) if (item.Id == PNSummonGameplayContent.Eve2PetReady) return item.Amount; return -1; }
+                    yield return Wait(() => PetCharges() >= 1, "client1 has its pet ready", () => "charges " + PetCharges()); if (failed) yield break;
+                    try
+                    {
+                        int guessedPet = remote1.PredictedCount; int rolledPet = remote1.RolledBackCount;
+                        bool pressed = petSkill.RequestSlot(PNSkillSlots.Skill, new PNSkillInputEvent(PNSkillInputPhase.Started, PNSkillInteraction.Tap)); petSent = remote1.LastSentKey;
+                        Check(pressed && remote1.PredictedCount == guessedPet + 1 && PetCharges() < 1, "client1 guesses the pet and shows its cooldown spent at once (guesses " + (remote1.PredictedCount - guessedPet) + ", charges " + PetCharges() + ")");
+                        petSkill.RequestSlot(PNSkillSlots.Skill, new PNSkillInputEvent(PNSkillInputPhase.Canceled, PNSkillInteraction.Tap)); petSent = remote1.LastSentKey;
+                    }
+                    catch (Exception e) { Fail(e); yield break; }
+                    yield return Wait(() => remote1.AckedKey >= petSent && remote1.PendingPredictions == 0, "the host answered the pet press: " + Diag(remote1, e1)); if (failed) yield break;
+                    try { Check(PetCharges() < 1 || e1.GetComponent<PNAbilityManager>().Abilities.CaptureReplica().Any(x => x.Id == PNSummonGameplayContent.Eve2PetReady && x.CooldownRemaining > 0), "the confirmed guess stays spent (the host spent it too)"); Mark("client1-pet"); } catch (Exception e) { Fail(e); yield break; }
+                }
+                if (host)
+                {
+                    yield return Wait(() => Has("client1-pet"), "client1 pet"); if (failed) yield break;
+                    var summoner = e1.GetComponent<EveEntityIdentity>().Id;
+                    yield return Wait(() => PNSummons.Count(summoner, "eve2_pet") >= 1, "the host summoned client1's pet"); if (failed) yield break;
+                    try { Check(true, "the host created the pet client1's guess announced"); } catch (Exception e) { Fail(e); yield break; }
+                }
+            }
+            // ---- G7, the trial slash (Attack slot of Eve 2): the owner's client guesses it and proposes its target, the host chooses/accepts it and deals the damage; no network code in the character ----
+            if (eveSkill == null && petSkill != null)
+            {
+                PNStat slashNear = null, slashFar = null; double nearHealth = 0, farHealth = 0;
+                if (host)
+                {
+                    try
+                    {
+                        var world = PNLocalWorldContext.Current.World;
+                        for (int i = 0; i < 2; i++)
+                        {
+                            var request = new PNEntityRequest { Entity = "project_n:enemy", Template = "project_n:enemy", Character = "project_n:dummy_lorica", World = world, WorldIncarnation = world.Incarnation, ContentSlot = PNGridWorldController.SlotId, SceneKey = "skilltest:slash_enemy" + i, EntityKey = "", Position = e1.transform.position + new Vector3(1.0f + .8f * i, 0, 0) };
+                            if (PNEntityHosts.For(EveRegistrySession.Context).TrySpawn(request, null, null, error => Debug.LogException(error)) == null) throw new Exception("the host refused a slash test enemy");
+                        }
+                    } catch (Exception e) { Fail(e); yield break; }
+                    yield return Wait(() => FindObjectsByType<PNEnemyStat>(FindObjectsSortMode.None).Count(x => x.IsReady) >= 2, "two slash test enemies to be published"); if (failed) yield break;
+                    try
+                    {
+                        // The host's own nearest enemy is `slashNear` (1.0 m); `slashFar` is at 1.8 m. Client1 will see them the other way round (see below), so only client1's proposal can make `slashFar` the one hit.
+                        var ready = FindObjectsByType<PNEnemyStat>(FindObjectsSortMode.None).Where(x => x.IsReady).Take(2).ToArray(); slashNear = ready[0]; slashFar = ready[1];
+                        slashNear.transform.position = e1.transform.position + new Vector3(1.0f, 0, 0); slashFar.transform.position = e1.transform.position + new Vector3(1.8f, 0, 0); Physics.SyncTransforms();
+                        nearHealth = slashNear.GetCurrent(PNContentIds.Health); farHealth = slashFar.GetCurrent(PNContentIds.Health); Mark("slash-prey-ready");
+                    } catch (Exception e) { Fail(e); yield break; }
+                }
+                yield return Wait(() => Has("slash-prey-ready"), "slash enemy placed"); if (failed) yield break;
+                if (name == "client1")
+                {
+                    yield return Wait(() => FindObjectsByType<PNEnemyStat>(FindObjectsSortMode.None).Count(x => (x.transform.position - e1.transform.position).sqrMagnitude < 2.5f * 2.5f) >= 2, "both enemies show near the client's Eve on its own machine"); if (failed) yield break;
+                    // On client1's own machine the nearer enemy is moved behind the other one, so ITS nearest enemy is the host's far one: a different choice from the host's own.
+                    var seenNear = FindObjectsByType<PNEnemyStat>(FindObjectsSortMode.None).OrderBy(x => (x.transform.position - e1.transform.position).sqrMagnitude).First();
+                    seenNear.transform.position = e1.transform.position + new Vector3(2.4f, 0, 0); Physics.SyncTransforms();
+                    yield return new WaitForSeconds(.4f);
+                    var slashAbilities = e1.GetComponent<PNAbilityManager>().Abilities; long slashSent = 0;
+                    int SlashCharges() { foreach (var item in slashAbilities.CaptureReplica()) if (item.Id == PNSummonGameplayContent.Eve2SlashReady) return item.Amount; return -1; }
+                    yield return Wait(() => SlashCharges() >= 1, "client1 has its slash ready", () => "charges " + SlashCharges()); if (failed) yield break;
+                    try
+                    {
+                        int guessedSlash = remote1.PredictedCount; int rolledSlash = remote1.RolledBackCount;
+                        bool pressed = petSkill.RequestSlot(PNSkillSlots.Attack, new PNSkillInputEvent(PNSkillInputPhase.Started, PNSkillInteraction.Tap)); slashSent = remote1.LastSentKey;
+                        Check(pressed && remote1.PredictedCount == guessedSlash + 1 && SlashCharges() < 1, "client1 guesses the slash and shows its cooldown spent at once (guesses " + (remote1.PredictedCount - guessedSlash) + ", charges " + SlashCharges() + ")");
+                        petSkill.RequestSlot(PNSkillSlots.Attack, new PNSkillInputEvent(PNSkillInputPhase.Canceled, PNSkillInteraction.Tap));
+                    }
+                    catch (Exception e) { Fail(e); yield break; }
+                    yield return Wait(() => remote1.AckedKey >= slashSent && remote1.PendingPredictions == 0, "the host answered the slash: " + Diag(remote1, e1)); if (failed) yield break;
+                    try { Check(remote1.RolledBackCount == 0 || !remote1.Refusals.Any(r => r.Key >= slashSent), "the host cast the same slash (no refusal for it)"); Mark("client1-slashed"); } catch (Exception e) { Fail(e); yield break; }
+                }
+                if (host)
+                {
+                    yield return Wait(() => Has("client1-slashed"), "client1 slashed"); if (failed) yield break;
+                    yield return Wait(() => slashFar == null || !slashFar.IsReady || slashFar.GetCurrent(PNContentIds.Health) < farHealth || slashNear.GetCurrent(PNContentIds.Health) < nearHealth, "an enemy lost health from client1's slash"); if (failed) yield break;
+                    try { Check(slashFar.GetCurrent(PNContentIds.Health) < farHealth && slashNear.GetCurrent(PNContentIds.Health) == nearHealth, "the host hit the enemy client1 chose (its far one), not the one the host would have chosen (decisions taken " + remote1.DecisionsTaken + " waiting " + remote1.DecisionsWaiting + " expired " + remote1.DecisionsExpired + "; near " + slashNear.GetCurrent(PNContentIds.Health) + "/" + nearHealth + ", far " + slashFar.GetCurrent(PNContentIds.Health) + "/" + farHealth + ")"); Mark("slash-hit"); } catch (Exception e) { Fail(e); yield break; }
+                }
+                yield return Wait(() => Has("slash-hit"), "host verified the slash"); if (failed) yield break;
+            }
+            int baseApplied = host ? remote1.HitsApplied : 0, baseRejected = host ? remote1.HitsRejected : 0;
+            if (host) Mark("host-base");
             // ---- S4-S5 over the wire: a hit report and a decision reach the host, which checks and queues them ----
+            if (name == "client1")
+            {
+                yield return Wait(() => Has("host-base"), "the host took its report baseline"); if (failed) yield break;
+            }
             if (name == "client1")
             {
                 try
                 {
-                    long keyNow = remote1.LastSentKey; var other2 = e2.GetComponent<EveEntityIdentity>().Id;
+                    long keyNow = PNSkillCastKey.FromInput(remote1.LastSentKey); var other2 = e2.GetComponent<EveEntityIdentity>().Id;
                     Check(remote1.SendDecision(keyNow, "repeat_continue", new Newtonsoft.Json.Linq.JObject { ["v"] = 1 }) && remote1.SendHits(keyNow, 0, new[] { other2 }), "the client sends a decision and a hit report");
                     Mark("client1-reported");
                 } catch (Exception e) { Fail(e); yield break; }
@@ -147,8 +349,8 @@ namespace ProjectN.Coop.Tests
             if (host)
             {
                 yield return Wait(() => Has("client1-reported"), "client1 reported"); if (failed) yield break;
-                yield return Wait(() => remote1.DecisionsTaken + remote1.DecisionsWaiting + remote1.DecisionsExpired >= 1 && remote1.HitsRejected + remote1.HitsApplied >= 1, "the host received the decision and the report"); if (failed) yield break;
-                try { Check(remote1.HitsApplied == 0 && remote1.HitsRejected == 1, "the host refused a hit report while no sweep was running (applied " + remote1.HitsApplied + ", rejected " + remote1.HitsRejected + ")"); } catch (Exception e) { Fail(e); yield break; }
+                yield return Wait(() => remote1.DecisionsTaken + remote1.DecisionsWaiting + remote1.DecisionsExpired >= 1 && remote1.HitsRejected + remote1.HitsApplied >= baseApplied + baseRejected + 1, "the host received the decision and the report (decisions " + remote1.DecisionsTaken + "/" + remote1.DecisionsWaiting + "/" + remote1.DecisionsExpired + ", hits applied " + remote1.HitsApplied + " rejected " + remote1.HitsRejected + ", base " + baseApplied + "/" + baseRejected + ")"); if (failed) yield break;
+                try { Check(remote1.HitsApplied == baseApplied && remote1.HitsRejected == baseRejected + 1, "the host refused a hit report while no sweep was running (applied " + (remote1.HitsApplied - baseApplied) + ", rejected " + (remote1.HitsRejected - baseRejected) + ")"); } catch (Exception e) { Fail(e); yield break; }
             }
             Mark(name + "-s45");
             yield return Wait(() => Has("client1-s45") && Has("client2-s45") && Has("host-s45"), "everyone past S4-S5"); if (failed) yield break;

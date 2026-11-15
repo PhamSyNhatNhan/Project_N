@@ -76,6 +76,25 @@
             "categoryIds": [ "base:skill" ],
             "affectedByAttackSpeed": false
           }
+        },
+        {
+          "id": "project_n:eve2_slash_skill",
+          "data": {
+            "skill": {},
+            "action": {
+              "id": "project_n:damage_action",
+              "start": {},
+              "perform": {
+                "value": { "amount": 100, "statId": "base:attack_power" },
+                "tags": [ "base:physical", "base:attack" ],
+                "canCrit": true
+              },
+              "exit": {},
+              "cancel": {}
+            },
+            "categoryIds": [ "base:attack" ],
+            "affectedByAttackSpeed": true
+          }
         }
       ]
     }

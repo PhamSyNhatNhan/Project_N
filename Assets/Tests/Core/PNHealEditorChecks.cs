@@ -31,7 +31,7 @@ public static class PNHealEditorChecks
                 new EveInitialStat(PNContentIds.Defense, 500d)
             }, new[] { skillId }));
             var docs = new PNGameContentSource(System.IO.Path.Combine(Application.streamingAssetsPath,"BaseContent"),System.IO.Path.Combine(Application.persistentDataPath,"Mods"),Array.Empty<string>()).ReadDocuments().ToArray();
-            new EveJsonContentLoader().Register(docs,hub); gameplay.FinalizeContent(hub);
+            new EveJsonContentLoader().Register(docs,hub,null,null,new EveIContentExtension[]{gameplay}); gameplay.FinalizeContent(hub);
             hub.Seal(); gameplay.ValidateContent(hub); check(true, "Composite registered content validation with real built-in Skill references");
             EveRegistrySession.Begin(); started = true;
             EveRegistrySession.Start(hub, EveSessionRole.Offline,

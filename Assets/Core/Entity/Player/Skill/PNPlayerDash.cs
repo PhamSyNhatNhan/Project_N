@@ -27,7 +27,9 @@ public partial class PNPlayerSkill
     public PNPlayerDashSettings DashSettings { get; private set; }
     public PNAbilityCooldown DashRecovery { get; private set; }
     public bool IsDashing => playerDash!=null;
-    private PNMotionAction playerDash;
+    // The Dash running is a guess on the owner's client (its invocation is Predicted).
+    public bool IsPredictingDash=>playerDash!=null&&CurrentInvocation!=null&&CurrentInvocation.Mode==PNSkillMode.Predicted;
+    private PNMotionAction playerDash;private PNCastTrack dashTrack;
     private PNSkillActionContext playerDashContext;
     private PNStat playerDashStats;
     private PNAbilityCollection playerDashAbilities;
@@ -65,18 +67,23 @@ public partial class PNPlayerSkill
     {
         if(!CanStartPlayerDash() || !CanActivateSkill(PNControlIds.Dash,PlayerDashSkillId) || !Controls.IsAllowed(PNControlIds.VoluntaryMotion) || DashRecovery==null || !DashRecovery.CanConsume())return false;
         PNMotionAction created=null;PNSkillActionContext context=null;
+        // G6b: on the owner's client (no authority) the same Dash is a Predicted cast: the admission above opened it as one, the services read its mode, the charge is spent inside its scope.
+        bool guess=!EveRegistrySession.Context.HasAuthority;
         try
         {
             var direction=PlayerDashDirection();direction.y=0;
             double magnitude=Math.Sqrt((double)direction.x*direction.x+(double)direction.z*direction.z);
             direction=magnitude>0?new Vector3((float)(direction.x/magnitude),0,(float)(direction.z/magnitude)):Vector3.right;
-            SyncPlayerDashCooldown();OnPlayerDashStarting(direction);
+            SyncPlayerDashCooldown();
+            // A guess only turns the body: the character's own start hook (Eve cancels her moveset and locks the sequence there) is the authority's.
+            if(guess)GetComponent<PNPlayerMove>()?.FaceSkillDirection(new Vector2(direction.x,direction.z));else OnPlayerDashStarting(direction);
             BeginActivation(PlayerDashSkillId);
             created=CreateMotionAction(PlayerDashSkillId,direction,out context);
+            if(guess)context.Mode=PNSkillMode.Predicted;
             var ownedMotion=created;
             created.BindMovementOwner(()=>{if(ReferenceEquals(playerDash,ownedMotion))CancelPlayerDash();});
             created.Start(context);created.Perform(context);
-            playerDash=created;playerDashContext=context;
+            playerDash=created;playerDashContext=context;dashTrack=CurrentInvocation?.Track(_=>CancelPlayerDash());
             if(!DashRecovery.TryConsume())throw new InvalidOperationException("Dash charges changed during activation.");
             CommitActivation(direction: direction);
             return true;
@@ -113,7 +120,7 @@ public partial class PNPlayerSkill
     }
     private void EndPlayerDash(bool cancelled)
     {
-        var active=playerDash;var context=playerDashContext;bool guess=predictedDash;playerDash=null;playerDashContext=null;predictedDash=false;
+        var active=playerDash;var context=playerDashContext;bool guess=CurrentInvocation!=null&&CurrentInvocation.Mode==PNSkillMode.Predicted;playerDash=null;playerDashContext=null;dashTrack?.Release();dashTrack=null;
         try {if(cancelled)active.Cancel(context);else active.Exit(context);}
         finally {try {active.Dispose();} finally {try {if(!guess)OnPlayerDashEnded(cancelled);} finally {EndActivation(cancelled);}}}
     }
@@ -129,7 +136,7 @@ public partial class PNPlayerSkill
     }
     protected override void Update()
     {
-        if(!HasGameplayAuthority){if(predictedDash)AdvancePredictedDash(playerDashClock!=null&&playerDashClock.isActiveAndEnabled?playerDashClock.DeltaTime:Time.deltaTime);return;}
+        if(!HasGameplayAuthority){if(IsPredictingDash)AdvancePlayerDash(playerDashClock!=null&&playerDashClock.isActiveAndEnabled?playerDashClock.DeltaTime:Time.deltaTime);return;}
         var delta = playerDashClock!=null&&playerDashClock.isActiveAndEnabled?playerDashClock.DeltaTime:Time.deltaTime;
         AdvanceAuxiliaryEffects(delta); AdvancePlayerDash(delta); AdvanceBindings(delta);
     }

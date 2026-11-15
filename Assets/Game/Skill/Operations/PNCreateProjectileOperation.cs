@@ -86,6 +86,7 @@ public class PNCreateProjectileOperation : PNSkillOperation
     {
         if (executed || context == null || context.Skill == null || !context.Skill.IsReady || !context.Direction.HasValue) throw new InvalidOperationException("Fresh Ready direction context required.");
         Validate(token, context.Registry); executed = true;
+        if (context.Mode != PNSkillMode.Authority) return; // a guess or a replay creates no projectile (G2)
 #if UNITY_5_3_OR_NEWER
         // Clients render the action but cannot create authoritative projectiles.
         if (!EveRegistrySession.Context.HasAuthority) return;

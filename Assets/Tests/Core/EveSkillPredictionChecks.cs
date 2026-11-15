@@ -95,11 +95,13 @@ public static class EveSkillPredictionChecks
             double charges = skill.DashRecovery.Current;
             Check(charges >= 2 && skill.CanInput, "the client Eve may take input and holds Dash charges (" + charges + ")");
 
-            // a press is guessed at once
-            Check(skill.Press(PNSkillSlots.Dash, PNSkillInputPhase.Started), "the press is accepted for forwarding");
+            // Dash is a press-only slot: the input layer delivers Started and Performed together. Returns the key of the press (its Started event).
+            long DashTap() { skill.Press(PNSkillSlots.Dash, PNSkillInputPhase.Started); long pressKey = remote.LastSentKey; skill.Press(PNSkillSlots.Dash, PNSkillInputPhase.Performed); return pressKey; }
+            // the gesture is guessed at once, through the same binding path as the authority's
+            Check(DashTap() == 1, "the press is accepted for forwarding");
             Check(skill.IsDashing && skill.IsPredictingDash && skill.DashRecovery.Current == charges - 1, "the client dashes at once and spends one charge on its replica (charges " + skill.DashRecovery.Current + ")");
-            Check(remote.PendingPredictions == 1 && remote.PredictedCount == 1 && wire.Sent.Count == 1, "one guess is waiting for the answer and the press went out");
-            Check(skill.CurrentInvocation == null, "the guess committed no activation (the authority's cast is the real one)");
+            Check(remote.PendingPredictions == 1 && remote.PredictedCount == 1 && wire.Sent.Count == 2, "one guess is waiting for the answer and both events went out");
+            Check(skill.CurrentInvocation != null && skill.CurrentInvocation.Mode == PNSkillMode.Predicted && skill.ActivationSerial == 0, "the guess is a Predicted invocation and committed no activation (the authority's cast is the real one)");
 
             // a refusal takes the guess back
             service.ReceiveState(target, PNSkillRemoteInput.ResultState, 1, 2, new JObject { ["ack"] = 1, ["p"] = 0, ["rej"] = new JArray((object)new JArray(1, "declined")) });
@@ -109,37 +111,44 @@ public static class EveSkillPredictionChecks
             // a pause stops new guesses
             service.ReceiveState(target, PNSkillRemoteInput.ResultState, 1, 3, new JObject { ["ack"] = 2, ["p"] = 1, ["rej"] = new JArray() });
             Check(remote.PredictionPaused, "the client reads the pause");
-            skill.Press(PNSkillSlots.Dash, PNSkillInputPhase.Started);
-            Check(!skill.IsDashing && skill.DashRecovery.Current == charges && remote.PendingPredictions == 0 && wire.Sent.Count == 3, "while paused the press still goes out but is not guessed");
+            DashTap();
+            Check(!skill.IsDashing && skill.DashRecovery.Current == charges && remote.PendingPredictions == 0 && wire.Sent.Count == 5, "while paused the press still goes out but is not guessed");
             skill.Release(PNSkillSlots.Dash);
             service.ReceiveState(target, PNSkillRemoteInput.ResultState, 1, 4, new JObject { ["ack"] = 4, ["p"] = 0, ["rej"] = new JArray() });
             Check(!remote.PredictionPaused, "the pause ends");
 
             // an acknowledged release confirms the guess
-            long before = remote.LastSentKey; skill.Press(PNSkillSlots.Dash, PNSkillInputPhase.Started); long startKey = remote.LastSentKey; skill.Release(PNSkillSlots.Dash);
+            long before = remote.LastSentKey; long startKey = DashTap(); skill.Release(PNSkillSlots.Dash);
             Check(skill.IsDashing && remote.PendingPredictions == 1, "a new press is guessed again (pending " + remote.PendingPredictions + ")");
-            service.ReceiveState(target, PNSkillRemoteInput.ResultState, 1, 5, new JObject { ["ack"] = startKey + 1, ["p"] = 0, ["rej"] = new JArray() });
+            service.ReceiveState(target, PNSkillRemoteInput.ResultState, 1, 5, new JObject { ["ack"] = startKey + 2, ["p"] = 0, ["rej"] = new JArray() });
             Check(remote.PendingPredictions == 0 && remote.RolledBackCount == 1 && skill.IsDashing && skill.DashRecovery.Current == charges - 1, "the acknowledged release confirms the guess: nothing rolled back, the charge stays spent");
-            skill.CancelPredictedDash();
+            skill.TryInterrupt(EveId.Parse("project_n:test"));
 
-            // a newer image under a waiting guess does not undo it; the refusal then gives back what the IMAGE held
+            // G6b2: a newer image under a waiting guess does not undo what it shows; the refusal then gives back what the IMAGE held, and an image under an ANSWERED guess is simply the truth
+            Action ViewEvent(string name) => (Action)typeof(PNSkillOwnerView).GetField(name, BindingFlags.NonPublic | BindingFlags.Instance).GetValue(view);
             var abilities = root.GetComponent<PNAbilityManager>().Abilities; var image = abilities.CaptureReplica().ToList(); double c0 = skill.DashRecovery.Current;
-            skill.Press(PNSkillSlots.Dash, PNSkillInputPhase.Started); long key2 = remote.LastSentKey;
+            long key2 = DashTap();
             Check(skill.DashRecovery.Current == c0 - 1, "a fresh guess spends a charge (" + skill.DashRecovery.Current + " of " + c0 + ")");
-            abilities.ApplyReplica(image); Check(skill.DashRecovery.Current == c0, "the stale image puts the charge back");
-            ((Action)typeof(PNSkillOwnerView).GetField("Applied", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(view))();
-            Check(skill.DashRecovery.Current == c0 - 1, "the waiting guess is laid over the new image again");
+            ViewEvent("Applying")(); abilities.ApplyReplica(image); Check(skill.DashRecovery.Current == c0, "the stale image puts the charge back");
+            ViewEvent("Applied")();
+            Check(skill.DashRecovery.Current == c0 - 1, "the waiting guess is shown on top of the image again (" + skill.DashRecovery.Current + ")");
             service.ReceiveState(target, PNSkillRemoteInput.ResultState, 1, 6, new JObject { ["ack"] = key2, ["p"] = 0, ["rej"] = new JArray((object)new JArray(key2, "declined")) });
             Check(skill.DashRecovery.Current == c0 && !skill.IsDashing, "the refusal then restores the charge the image held");
+            // a guess the authority already took is not laid over an image: the image is the truth
+            long key3 = DashTap(); skill.Release(PNSkillSlots.Dash);
+            service.ReceiveState(target, PNSkillRemoteInput.ResultState, 1, 7, new JObject { ["ack"] = key3 + 1, ["p"] = 0, ["rej"] = new JArray() });
+            ViewEvent("Applying")(); abilities.ApplyReplica(image); ViewEvent("Applied")();
+            Check(skill.DashRecovery.Current == c0, "an image after the authority took the press stands as it is (" + skill.DashRecovery.Current + ")");
+            service.ReceiveState(target, PNSkillRemoteInput.ResultState, 1, 8, new JObject { ["ack"] = key3 + 2, ["p"] = 0, ["rej"] = new JArray() });
+            skill.TryInterrupt(EveId.Parse("project_n:test"));
+            Check(remote.PendingPredictions == 0, "the release is answered and the press is settled");
             // a guess nobody answers is taken back
-            skill.Release(PNSkillSlots.Dash); skill.Press(PNSkillSlots.Dash, PNSkillInputPhase.Started); skill.Release(PNSkillSlots.Dash);
+            skill.Release(PNSkillSlots.Dash); DashTap(); skill.Release(PNSkillSlots.Dash);
             int rolled = remote.RolledBackCount; remote.ExpireGuesses(UnityEngine.Time.unscaledTime + 1f);
             Check(remote.RolledBackCount == rolled && remote.PendingPredictions == 1, "a young guess is kept");
             remote.ExpireGuesses(UnityEngine.Time.unscaledTime + PNSkillRemoteInput.GuessTimeoutReleased + 1f);
             Check(remote.RolledBackCount == rolled + 1 && remote.PendingPredictions == 0 && skill.DashRecovery.Current == c0 && !skill.IsDashing, "an unanswered guess times out and is taken back");
 
-            // an ordinary slot that names no cooldown is not guessed
-            Check(!skill.TryPredictSlotCooldown(PNSkillSlots.Attack, out _), "a slot whose profile names no cooldown Ability is not guessed");
             remote.OnUnbound(); view.OnUnbound(); service.Dispose();
         }
         finally { Cleanup(clientScene); }

@@ -180,7 +180,7 @@ public sealed class PNSkillContributionLease : IDisposable
     public void Dispose() { var owner = Owner; Owner = null; owner?.Release(this); }
 }
 
-public sealed class PNSkillInvocation : IDisposable
+public sealed partial class PNSkillInvocation : IDisposable
 {
     internal PNSkillEffectState State;
     internal readonly PNSkillContribution[] ActivationSnapshot;
@@ -193,16 +193,22 @@ public sealed class PNSkillInvocation : IDisposable
     public Guid GenerationId => State.GenerationId;
     public IReadOnlyList<EveId> AdmissionCategories { get; }
     public PNSkillMetadata Metadata { get; }
-    internal PNSkillInvocation(PNSkillEffectState state, long id, EveId skillId, PNSkillMetadata metadata)
+    // Where this cast runs relative to the authority (see PNSkillMode). Fixed for the life of the invocation.
+    public PNSkillMode Mode { get; }
+    // Predicted only: the Ability window the guess writes into (see PNAbilityPredictionScope). The invocation owns it: it stops recording when the invocation ends; `Rollback` stays possible afterwards.
+    public PNAbilityPredictionScope PredictionScope { get; internal set; }
+    internal PNSkillInvocation(PNSkillEffectState state, long id, EveId skillId, PNSkillMetadata metadata, PNSkillMode mode = PNSkillMode.Authority)
     {
-        State = state; Id = id; SkillId = skillId; Metadata = metadata; ActivationSnapshot = state.Snapshot();
+        State = state; Id = id; SkillId = skillId; Metadata = metadata; Mode = mode; ActivationSnapshot = state.Snapshot();
         AdmissionCategories = state.Categories(this, state.Combined(ActivationSnapshot));
     }
     public void Dispose()
     {
-        if (IsEnded) return; IsEnded = true;
+        if (IsEnded) return;
+        // Anything the cast still runs at this point was not finished by its owner: stop it (a cast that ends well leaves nothing registered).
+        try { CancelTracked("disposed"); } finally { IsEnded = true; }
         foreach (var context in Contexts.ToArray()) try { context.CancelEffects(); } catch (Exception error) { State.Report(error); }
-        State.End(this);
+        try { PredictionScope?.End(); } finally { try { State.End(this); } finally { Memory.Clear(); } }
     }
 }
 
@@ -222,6 +228,7 @@ public sealed class PNSkillEffectState : IDisposable
     public Guid GenerationId { get; } = Guid.NewGuid();
     public event Action<Exception> Failed;
     public event Action<PNSkillInvocation, string> Triggered;
+    internal PNSkill Skill => skill;
     internal PNSkillEffectState(PNSkill skill, EveRegistryHub hub) { this.skill = skill; this.hub = hub; source = skill.GetComponent<PNStat>(); if (source != null) source.Died += SourceDied; }
     private void SourceDied(PNDamageResult result) => CancelExecutions();
     private void RequireAuthority()
@@ -249,12 +256,22 @@ public sealed class PNSkillEffectState : IDisposable
         return PNSkillCategoryDefinition.ResolveTags(hub, categories, context.Data?.Action.PerformTags ?? Array.Empty<EveId>(),
             selected.SelectMany(x => x.AddTags), selected.SelectMany(x => x.SuppressTags));
     }
-    internal PNSkillInvocation Prepare(EveId id)
+    // A Predicted or Observed invocation exists only on a machine that is NOT the authority, and an Authority one only on the authority: a mismatch is a bug in the caller.
+    private void RequireMode(PNSkillMode mode)
     {
-        RequireAuthority(); var canonical = hub.Skills.ResolveIdentity(id);
-        var invocation = new PNSkillInvocation(this, checked(++nextInvocation), canonical, PNSkillMetadata.Parse(hub.Skills.GetEffective(id).Data, hub));
+        if (mode == PNSkillMode.Authority) { RequireAuthority(); return; }
+        if (IsDisposed || !skill.IsReady || !EveRegistrySession.IsReady || !ReferenceEquals(hub, EveRegistrySession.Current)) throw new InvalidOperationException("Skill effects require a loaded session.");
+        if (EveRegistrySession.Context.HasAuthority) throw new InvalidOperationException("A " + mode + " cast runs only on a machine without authority.");
+    }
+    internal PNSkillInvocation Prepare(EveId id, PNSkillMode mode = PNSkillMode.Authority)
+    {
+        RequireMode(mode); var canonical = hub.Skills.ResolveIdentity(id);
+        var invocation = new PNSkillInvocation(this, checked(++nextInvocation), canonical, PNSkillMetadata.Parse(hub.Skills.GetEffective(id).Data, hub), mode);
         invocations.Add(invocation); return invocation;
     }
+    // The skill's own end path when the invocation is the one it runs (hook + trigger + dispose); any other invocation is just disposed.
+    internal void CancelInvocation(PNSkillInvocation invocation, string reason)
+    { if (!skill.CancelInvocation(invocation, reason)) invocation.Dispose(); }
     internal void End(PNSkillInvocation invocation)
     { invocations.Remove(invocation); foreach (var auxiliary in auxiliaries.Where(x => x.Parent == invocation && !x.Independent).ToArray()) try { Retire(auxiliary, true); } catch (Exception error) { Report(error); } }
     internal void Report(Exception error)
@@ -355,14 +372,14 @@ public sealed class PNSkillEffectState : IDisposable
     }
     internal void CancelExecutions()
     {
-        foreach (var invocation in invocations.ToArray()) try { invocation.Dispose(); } catch (Exception error) { Report(error); }
+        foreach (var invocation in invocations.ToArray()) try { CancelInvocation(invocation, PNCastEnd.Executions); } catch (Exception error) { Report(error); }
         foreach (var auxiliary in auxiliaries.ToArray()) try { Retire(auxiliary, true); } catch (Exception error) { Report(error); }
     }
     public void Dispose()
     {
         if (IsDisposed) return; IsDisposed = true;
         if (source != null) source.Died -= SourceDied;
-        foreach (var invocation in invocations.ToArray()) try { invocation.Dispose(); } catch (Exception error) { Report(error); }
+        foreach (var invocation in invocations.ToArray()) try { CancelInvocation(invocation, PNCastEnd.Unloaded); } catch (Exception error) { Report(error); }
         foreach (var auxiliary in auxiliaries.ToArray()) try { Retire(auxiliary, true); } catch (Exception error) { Report(error); }
         foreach (var lease in leases) lease.Owner = null; leases.Clear(); Triggered = null; Failed = null;
     }

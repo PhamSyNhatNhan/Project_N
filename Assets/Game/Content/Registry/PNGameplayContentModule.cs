@@ -127,13 +127,14 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         hub.EntityModules().Register(new PNEntityModuleDefinition(EveId.Parse("project_n:rogue_buff_player"),PNEntityModuleRoles.Player,null,new[]{PNRunFeatures.RogueBuff},new[]{typeof(PNSyncEntity),typeof(PNRogueEntityView),typeof(PNRogueBuffManager)}));
         // The owner's skill state (Abilities + view binding), sent only to the owner (Docs/SkillNetworkingAPlan.md S1).
         hub.SyncStates().Register(new PNSyncStateDefinition(PNSkillOwnerView.State,1,PNSkillOwnerView.StateBytes,PNSyncTargets.Entity,true));
+        hub.SyncStates().Register(new PNSyncStateDefinition(PNSkillCastView.State,1,PNSkillCastView.StateBytes,PNSyncTargets.Entity));
         // The owner's skill input and its answer (S2): a command from the owner's client, the cast result back to the owner only.
         hub.SyncStates().Register(new PNSyncStateDefinition(PNSkillRemoteInput.ResultState,1,PNSkillRemoteInput.ResultBytes,PNSyncTargets.Entity,true));
         hub.SyncCommands().Register(new PNSyncCommandDefinition(PNSkillRemoteInput.Command,typeof(PNSkillInputCommandHandler),()=>new PNSkillInputCommandHandler(),PNSkillRemoteInput.CommandBytes,PNSyncTargets.Entity));
         // The hits the owner's client saw and its choices at decision points (S4-S5): proposals the authority checks, never orders.
         hub.SyncCommands().Register(new PNSyncCommandDefinition(PNSkillRemoteInput.HitCommand,typeof(PNSkillHitCommandHandler),()=>new PNSkillHitCommandHandler(),PNSkillRemoteInput.HitCommandBytes,PNSyncTargets.Entity));
         hub.SyncCommands().Register(new PNSyncCommandDefinition(PNSkillRemoteInput.DecisionCommand,typeof(PNSkillDecisionCommandHandler),()=>new PNSkillDecisionCommandHandler(),PNSkillRemoteInput.DecisionCommandBytes,PNSyncTargets.Entity));
-        hub.EntityModules().Register(new PNEntityModuleDefinition(EveId.Parse("project_n:skill_owner_player"),PNEntityModuleRoles.Player,null,new[]{PNRunFeatures.SkillSync},new[]{typeof(PNSyncEntity),typeof(PNSkillOwnerView),typeof(PNSkillRemoteInput)}));
+        hub.EntityModules().Register(new PNEntityModuleDefinition(EveId.Parse("project_n:skill_owner_player"),PNEntityModuleRoles.Player,null,new[]{PNRunFeatures.SkillSync},new[]{typeof(PNSyncEntity),typeof(PNSkillOwnerView),typeof(PNSkillRemoteInput),typeof(PNSkillCastView)}));
         // The two things an enemy owes a room (G6), answered by the world's features instead of flags on the role: the clear marker the room director counts and the loot source.
         hub.EntityModules().Register(new PNEntityModuleDefinition(EveId.Parse("project_n:room_clear_enemy"),PNEntityModuleRoles.None,new[]{PNEntityGameplayContent.Enemy},new[]{PNRunFeatures.RoomClear},new[]{typeof(PNRoomClearMarker)}));
         hub.EntityModules().Register(new PNEntityModuleDefinition(EveId.Parse("project_n:loot_enemy"),PNEntityModuleRoles.None,new[]{PNEntityGameplayContent.Enemy},new[]{PNRunFeatures.Loot},new[]{typeof(PNLootSource)}));
@@ -146,6 +147,7 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         hub.SyncCommands().Register(new PNSyncCommandDefinition(PNGridCommands.Break,typeof(PNGridBreakCommandHandler),()=>new PNGridBreakCommandHandler(),PNGridCommands.CommandBytes,PNSyncTargets.WorldObject));
 #endif
         PNShaderWarmupContent.Register(hub);
+        PNPrewarmContent.Register(hub);
         motionReferences.Clear();
         // Activation identities are not action profiles and do not duplicate their tuning.
         foreach (var entry in new[] { EveAttackEntry, EveSkillEntry, EveUltimateEntry, EveBurstEntry })
@@ -286,10 +288,20 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
             data.Action.ValidateTags(hub);
             var metadata = data.Skill as JObject;
             if (metadata?["abilities"] != null) PNAbilityDefinition.Parse(metadata["abilities"].ToString());
+            if (metadata?["stateEffects"] != null)
+            {
+                // G2c: state-bound effects. Each state must be one of the skill's own Abilities; modifiers and Buffs must resolve.
+                var declared = new HashSet<EveId>();
+                if (metadata["abilities"] is JArray owned) foreach (var item in owned) if (item?["id"]?.Type == JTokenType.String) declared.Add(EveId.Parse(item["id"].Value<string>()));
+                foreach (var effect in PNStateEffectData.ParseAll(metadata["stateEffects"]))
+                {
+                    if (metadata["abilities"] != null && !declared.Contains(effect.State)) throw new FormatException("stateEffects names an Ability the skill does not declare: " + effect.State);
+                    effect.Validate(hub);
+                }
+            }
             if (metadata?["tuning"] != null && definition.Id == EveId.Parse("project_n:eve_moveset"))
             {
                 var moveset=EveMovesetSettings.Parse(metadata["tuning"]);
-                hub.Buffs().Get(moveset.BlazingAssaultBuffId); hub.Buffs().Get(moveset.RisingMomentumBuffId);
                 PNSkillData Motion(EveId id)
                 {
                     var selected=PNSkillData.Parse(hub.Skills.GetEffective(id).Data);
@@ -332,8 +344,10 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         var tuning=(data.Skill as JObject)?["tuning"] as JObject;
         foreach(var key in new[]{"skillMotion","empoweredMotion","repeatMotion","ultimateMotion","retreatMotion"})
             if(tuning?[key]?.Type==JTokenType.String)motionReferences.Add((EveId.Parse(tuning[key].Value<string>()),contentNamespace,dependencies));
-        foreach (var key in new[] { "blazingAssaultBuffId", "risingMomentumBuffId" })
-            if (tuning?[key]?.Type == JTokenType.String) ValidateReference(EveId.Parse(tuning[key].Value<string>()), hub.Buffs(), contentNamespace, dependencies);
+        if ((data.Skill as JObject)?["stateEffects"] is JArray stateEffects)
+            foreach (var effect in stateEffects)
+                if (effect?["buffs"] is JArray effectBuffs)
+                    foreach (var buff in effectBuffs) if (buff.Type == JTokenType.String) ValidateReference(EveId.Parse(buff.Value<string>()), hub.Buffs(), contentNamespace, dependencies);
         foreach (var phasePayload in new[] { data.Action.Start, data.Action.Perform, data.Action.Exit, data.Action.Cancel })
         {
             var operation = (phasePayload as JObject)?["operationId"];

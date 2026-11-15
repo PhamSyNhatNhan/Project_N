@@ -8,11 +8,10 @@ public sealed class EveMovesetSettings
 {
     public float TargetRange, ComboReset;
     public EveId SkillMotion, EmpoweredMotion, RepeatMotion, UltimateMotion, RetreatMotion;
-    public EveId BlazingAssaultBuffId, RisingMomentumBuffId;
     public float EmpoweredStopDistance;
     public float TargetStopDistance, ChargeDuration;
     public int BurstCost, BurstInitialStacks, BurstEndRefund, AttackGauge, SkillGauge, UltimateGauge, AttackStacks, SkillStacks;
-    public float BurstAttackBonus, BurstAttackSpeedBonus, AttackUltimateReduction, SkillUltimateReduction, RepeatDelay, RepeatInterval;
+    public float AttackUltimateReduction, SkillUltimateReduction, RepeatDelay, RepeatInterval;
     public EveEnergySettings Energy;
     public EveWeaponSettings Weapon;
     // Compatibility views derived from the selected registry profiles, never duplicate tuning.

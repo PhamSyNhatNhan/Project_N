@@ -66,7 +66,7 @@ public abstract partial class PNAbility
     { this.owner = owner; Definition = definition; Handle = handle; }
     public PNAbilitySnapshot Snapshot() => new PNAbilitySnapshot(this);
     protected void RequireAttached()
-    { if (owner == null) throw new InvalidOperationException("Ability instance has been removed or unloaded."); owner.RequireMutable(); }
+    { if (owner == null) throw new InvalidOperationException("Ability instance has been removed or unloaded."); owner.RequireMutable(this); }
     protected void Changed(PNAbilityChangeReason reason, PNAbilitySnapshot before, int? quantity = null)
         => owner.Notify(new PNAbilityChange(reason, before, Snapshot(), quantity));
     internal void Detach() => owner = null;

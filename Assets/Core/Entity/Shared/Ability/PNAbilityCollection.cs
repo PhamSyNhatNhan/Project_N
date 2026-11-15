@@ -49,6 +49,17 @@ public sealed partial class PNAbilityCollection : IDisposable
         Batch(() => { definitions.Add(definition.Id, definition); created = CreateInstance(definition.Id); });
         return created;
     }
+    // G7: a skill binding profile declares Abilities (the pet's cooldown, ...). The authority defines them (`Define`); the owner's client defines the same ones locally so the authority's image has an instance
+    // to land on and a guess can write it. Only creates the missing instance of a replica; the values are the authority's (ApplyReplica) or the guess's (inside its scope).
+    internal PNAbility DefineBindingAbility(PNAbilityDefinition definition)
+    {
+        if (!IsReplica) return Define(definition);
+        if (disposed) throw new ObjectDisposedException(nameof(PNAbilityCollection)); if (definition == null) throw new ArgumentNullException(nameof(definition));
+        if (definitions.ContainsKey(definition.Id)) throw new ArgumentException("Duplicate ability definition: " + definition.Id);
+        PNAbility created = null;
+        Batch(() => { definitions.Add(definition.Id, definition); created = Create(definition, false); });
+        return created;
+    }
     public PNAbility CreateInstance(EveId id)
     {
         RequireMutable();
@@ -71,9 +82,11 @@ public sealed partial class PNAbilityCollection : IDisposable
         Notify(new PNAbilityChange(PNAbilityChangeReason.Created, null, ability.Snapshot()));
         return ability;
     }
+    // G7: a read. A replica may look an instance up (a skill reads its cooldown before it begins a guess); every change an instance takes is checked on the instance (PNAbility.RequireMutable), so a replica still
+    // cannot be changed outside a guess's scope.
     public IReadOnlyList<PNAbility> Find(EveId id)
     {
-        RequireMutable();
+        if (disposed) throw new ObjectDisposedException(nameof(PNAbilityCollection));
         if (!definitions.ContainsKey(id)) throw new KeyNotFoundException("Unknown ability: " + id);
         return instances.Values.Where(a => a.Id == id).OrderBy(a => a.Handle.Instance).ToList().AsReadOnly();
     }
@@ -99,8 +112,28 @@ public sealed partial class PNAbilityCollection : IDisposable
             throw new KeyNotFoundException("Unknown state ability: " + id);
         return Find(id).Cast<PNAbilityState>().ToList().AsReadOnly();
     }
+    // A guess on a replica (an open prediction scope) grants a state the way the authority would, but only through an instance the replica already holds: it never creates one (structural changes stay refused).
+    // Returns null when that would need a new instance (an Independent state, or no instance ready).
+    private PNAbilityState GrantStatePredicted(EveId id, double? duration)
+    {
+        if (duration.HasValue) PNAbilityDefinition.RequireSeconds(duration.Value, false);
+        if (!definitions.TryGetValue(id, out var definition) || definition.Kind != PNAbilityKind.State) throw new KeyNotFoundException("Unknown state ability: " + id);
+        var states = instances.Values.Where(a => a.Id == id).OrderBy(a => a.Handle.Instance).Cast<PNAbilityState>().ToList(); var active = states.Where(s => s.IsActive).ToArray(); double? seconds = duration ?? definition.Duration;
+        if (active.Length != 0)
+        {
+            if (definition.Reapply == PNAbilityReapply.Independent || active.Length != 1) return null;
+            var existing = active[0];
+            if (definition.Reapply == PNAbilityReapply.Refresh) { if (!seconds.HasValue) throw new InvalidOperationException("A refresh requires a timed duration."); existing.RefreshDuration(seconds.Value); }
+            else if (definition.Reapply == PNAbilityReapply.Extend) { if (!seconds.HasValue) throw new InvalidOperationException("An extension requires a timed duration."); existing.ExtendDuration(seconds.Value); }
+            return existing;
+        }
+        var ready = states.FirstOrDefault(s => s.CanActivate);
+        if (ready == null) return null;
+        ready.TryActivate(seconds); return ready;
+    }
     public PNAbilityState GrantState(EveId id, double? duration = null)
     {
+        if (IsReplica && prediction != null) return GrantStatePredicted(id, duration);
         RequireMutable(); PNAbilityState result = null;
         Batch(() => result = GrantStateInternal(id, duration)); return result;
     }

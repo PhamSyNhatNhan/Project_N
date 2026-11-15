@@ -84,13 +84,13 @@ public partial class EveCharacterSkill
         }
         else if(slot==PNSkillSlots.Attack&&input.Interaction==PNSkillInteraction.Repeat)
         {
-            if(performed){repeatHeld=true;TryRepeatAttack();}
+            if(performed)TryRepeatAttack();
             else if(canceled)ReleaseRepeat();
         }
         TrackLegacyBindingExecution();
     }
     // The held Attack gesture ended (released or its binding changed): the chain stops asking for more strokes.
-    private void ReleaseRepeat(){repeatHeld=false;ClearRepeatExhausted();if(CurrentCast!=EveCast.Repeat)EndRepeatChain();}
+    private void ReleaseRepeat(){ClearRepeatExhausted();if(CurrentCast!=EveCast.Repeat)EndRepeatChain();}
     protected override EveId DefaultDashBindingProfile=>PNGameSkillBindings.EveProfile(PNSkillSlots.Dash);
     protected override bool UsesCharacterBindings=>true;
     protected override bool CanBeginBindingExecution=>!IsBusy&&base.CanBeginBindingExecution;

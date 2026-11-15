@@ -11,7 +11,7 @@ using UnityEngine;
 public partial class EveCharacterSkill : PNPlayerSkill
 {
     private EveSweepAction attack;
-    private PNSkillActionContext attackContext;
+
     private EveTimeScale clock;
     [SerializeField] private Vector3 attackDirection = new Vector3(1f, 0f, 0f);
     public virtual bool IsAttacking => attack != null;
@@ -69,11 +69,12 @@ public partial class EveCharacterSkill : PNPlayerSkill
     protected virtual void AdvanceAttack(float deltaTime)
         => AdvanceMoveset(deltaTime);
 
+    private PNCastTrack attackTrack;
     private void FinishAttack(bool cancelled)
     {
         var active = attack;
         var context = attackContext;
-        attack = null; attackContext = null;
+        attack = null; attackContext = null; attackTrack?.Release(); attackTrack = null;
         if (active == null) return;
         try { if (cancelled) active.Cancel(context); else active.Exit(context); }
         finally { active.Dispose(); }
@@ -81,7 +82,7 @@ public partial class EveCharacterSkill : PNPlayerSkill
     protected override void OnDisable()
     {
         if(GetComponent<EveEntityIdentity>()?.IsChangingWorld==true)return;
-        try { CancelMoveset(); }
+        try { CancelMoveset(PNCastEnd.Disabled); }
         finally { base.OnDisable(); }
     }
     protected override void OnDestroy()

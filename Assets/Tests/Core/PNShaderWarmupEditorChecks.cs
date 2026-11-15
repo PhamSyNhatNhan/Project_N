@@ -56,6 +56,26 @@ public static class PNShaderWarmupEditorChecks
         bool rejected = false; try { PNGraphicsStateTools.Merge(new[] { installed, installed + ".missing" }, merged); } catch (InvalidOperationException) { rejected = true; }
         bool empty = false; try { PNGraphicsStateTools.Merge(new string[0], merged); } catch (ArgumentException) { empty = true; }
         Check(rejected && empty && !System.IO.File.Exists(merged), "merge rejects an unreadable input and an empty list without writing");
+        // Registered prewarm entries: run in order, a stepped entry takes several frames, a failing one is dropped, progress counts them, a generation is not prewarmed twice.
+        var log = new System.Collections.Generic.List<string>(); int slowCalls = 0;
+        var preHub = new EveRegistryHub(); var preRegistry = preHub.GetOrCreate<PNPrewarmDefinition>();
+        preRegistry.Register(new PNPrewarmDefinition(EveId.Parse("test:prewarm_b"), () => log.Add("b"), 5));
+        preRegistry.Register(new PNPrewarmDefinition(EveId.Parse("test:prewarm_a"), () => log.Add("a"), 0));
+        preRegistry.Register(new PNPrewarmDefinition(EveId.Parse("test:prewarm_slow"), budget => { log.Add("s"); return ++slowCalls >= 3; }, 1));
+        preRegistry.Register(new PNPrewarmDefinition(EveId.Parse("test:prewarm_bad"), () => throw new InvalidOperationException("expected test failure"), 2));
+        var preGeneration = Guid.NewGuid(); PNShaderWarmup.Begin(preHub, preGeneration);
+        Check(!PNShaderWarmup.IsDone && PNShaderWarmup.PrewarmCompleted == 0, "a prewarm entry holds the warm-up until it runs");
+        bool logs = Debug.unityLogger.logEnabled; Debug.unityLogger.logEnabled = false;      // the failing entry logs its exception on purpose
+        int prePumps = 0; float preLast = 0f; bool preMonotonic = true;
+        try { while (!PNShaderWarmup.Pump() && prePumps++ < 100) { preMonotonic &= PNShaderWarmup.Fraction >= preLast; preLast = PNShaderWarmup.Fraction; } } finally { Debug.unityLogger.logEnabled = logs; }
+        Check(string.Join("", log) == "asssb" && PNShaderWarmup.PrewarmCompleted == 4 && PNShaderWarmup.IsDone && PNShaderWarmup.Fraction == 1f && preMonotonic, "entries run by order, the stepped one over three frames, the failing one is dropped and the warm-up still finishes (" + string.Join("", log) + ", " + PNShaderWarmup.PrewarmCompleted + " done)");
+        PNShaderWarmup.Begin(preHub, preGeneration);
+        Check(PNShaderWarmup.IsDone && log.Count == 5, "the same content generation is not prewarmed twice");
+        // The game's own entries run clean and leave nothing behind.
+        var gameHub = new EveRegistryHub(); PNPrewarmContent.Register(gameHub);
+        Check(gameHub.Get<PNPrewarmDefinition>().Count == 2 && gameHub.Get<PNPrewarmDefinition>().Get(EveId.Parse("base:prewarm_eve_sweep")) != null && gameHub.Get<PNPrewarmDefinition>().Get(EveId.Parse("base:prewarm_lorica_shatter")) != null, "the game registers the lorica break and the Eve slash with base aliases");
+        foreach (var entry in gameHub.Get<PNPrewarmDefinition>().Snapshot().Values.OrderBy(x => x.Order)) Check(entry.Step(6), entry.Id + " runs to the end in one call without throwing");
+        Check(Resources.FindObjectsOfTypeAll<GameObject>().All(x => x.name != "Eve sweep warm-up" && x.name != "Sword sparks"), "the Eve slash prewarm leaves no object behind");
         string seconds = PNShaderWarmup.Seconds.ToString("0.000");
         PNShaderWarmup.Begin(hub, Guid.NewGuid());
         return "PASS " + checks + " native shader warm-up checks; " + compiled + " registry variants over " + frames + " pumps, " + seconds + " s of the scan run";

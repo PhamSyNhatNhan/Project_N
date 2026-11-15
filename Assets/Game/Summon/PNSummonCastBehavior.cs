@@ -41,17 +41,19 @@ public sealed class PNSummonCastBehavior : PNSkillBehavior
         if (casting) return false;
         var cooldown = context.Abilities.GetCooldown(cooldownId);
         if (!cooldown.CanConsume() || !context.TryBegin()) { Refusals++; return false; }
+        // G7: one code path for every execution mode. The summon Operation creates nothing in a guess (status Predicted) and the cooldown Ability write lands in the guess's scope,
+        // so on the owner's client the guess is the spent cooldown only (the authority's own image takes it back if no summon began).
         casting = true; PNSkillAction action = null; PNSkillActionContext actionContext = null; bool cancelled = false;
         try
         {
             action = context.CreateAction(actionId, out actionContext);
             action.Start(actionContext); action.Perform(actionContext);
             var status = ((PNSummonAction)action).Status;
-            bool started = status == PNSummonStatus.Spawning;
+            bool started = status == PNSummonStatus.Spawning || status == PNSummonStatus.Predicted;
             if (started && !cooldown.TryConsume()) throw new InvalidOperationException("Summon cooldown changed during the cast.");
             context.Commit();
             action.Exit(actionContext);
-            if (started) Casts++; else Refusals++;
+            if (status == PNSummonStatus.Spawning) Casts++; else if (!started) Refusals++;
             return started;
         }
         catch

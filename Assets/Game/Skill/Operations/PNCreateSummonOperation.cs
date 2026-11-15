@@ -10,7 +10,8 @@ using UnityEngine;
 public enum PNSummonFullPolicy { ReplaceOldest, Reject }
 // EN: Outcome of one create_summon.
 // VI: Kết quả một lần create_summon.
-public enum PNSummonStatus { Pending, Spawning, Rejected, QueueFull, NoAuthority }
+// `Predicted` (G7): the cast is the owner's guess; no summon is created here, the authority decides whether one exists. A cast treats it like `Spawning` for its own guess (the cooldown is shown spent).
+public enum PNSummonStatus { Pending, Spawning, Rejected, QueueFull, NoAuthority, Predicted }
 
 // Payload of create_summon (Docs/SummonPlan.md section 3.2); unknown fields are rejected:
 //   character (required): a registered character, what the summon IS (stats, prefab key in its `body` block, its own behavior data),
@@ -110,6 +111,7 @@ public class PNCreateSummonOperation : PNSkillOperation
     {
         if (executed || context == null || context.Skill == null || !context.Skill.IsReady) throw new InvalidOperationException("Fresh Ready context required.");
         Validate(token, context.Registry); executed = true;
+        if (context.Mode != PNSkillMode.Authority) { Status = context.Mode == PNSkillMode.Predicted ? PNSummonStatus.Predicted : PNSummonStatus.NoAuthority; return; } // a guess or a replay creates no summon (G2)
 #if UNITY_5_3_OR_NEWER
         // Clients render the action but only the machine with authority creates summons.
         if (!EveRegistrySession.Context.HasAuthority) { Status = PNSummonStatus.NoAuthority; return; }

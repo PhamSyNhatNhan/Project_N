@@ -81,19 +81,21 @@ public static class EveSkillReportChecks
             service.ReceiveCommand(owner, target, PNSkillRemoteInput.Command, Input(1, PNSkillSlots.Attack, PNSkillInputPhase.Started, attackProfile));
             service.ReceiveCommand(owner, target, PNSkillRemoteInput.Command, Input(2, PNSkillSlots.Attack, PNSkillInputPhase.Performed, attackProfile));
             Check(skill.CurrentCast == EveCast.Attack && skill.HitReceiverCount == 1, "the owner's Attack press starts a sweep that listens for reported hits (cast " + skill.CurrentCast + ", receivers " + skill.HitReceiverCount + ")");
-            service.ReceiveCommand(owner + 1, target, PNSkillRemoteInput.HitCommand, Hits(1, 0, behind.EntityId.Value));
+            // G6c: a hit travels under the cast's key (the input that began the cast, shifted), which the framework gave both the guess and this real cast
+            long ck = skill.CurrentInvocation.CastKey; Check(ck == PNSkillCastKey.FromInput(2), "the host's cast carries the key of the input that began it (" + ck + ")");
+            service.ReceiveCommand(owner + 1, target, PNSkillRemoteInput.HitCommand, Hits(ck, 0, behind.EntityId.Value));
             Check(remote.HitsApplied == 0 && Hp(behind) == behindHp, "a report from somebody who is not the owner is dropped as stale");
-            service.ReceiveCommand(owner, target, PNSkillRemoteInput.HitCommand, Hits(1, 0, behind.EntityId.Value));
+            service.ReceiveCommand(owner, target, PNSkillRemoteInput.HitCommand, Hits(ck, 0, behind.EntityId.Value));
             Check(remote.HitsApplied == 1 && Hp(behind) < behindHp, "a legal reported hit is applied with the sweep's own damage (hp " + behindHp + " -> " + Hp(behind) + ")");
             double afterFirst = Hp(behind);
-            service.ReceiveCommand(owner, target, PNSkillRemoteInput.HitCommand, Hits(1, 0, behind.EntityId.Value));
+            service.ReceiveCommand(owner, target, PNSkillRemoteInput.HitCommand, Hits(ck, 0, behind.EntityId.Value));
             Check(remote.HitsApplied == 1 && Hp(behind) == afterFirst, "the same target at the same step is not hit twice");
-            service.ReceiveCommand(owner, target, PNSkillRemoteInput.HitCommand, Hits(1, 1, behind.EntityId.Value));
+            service.ReceiveCommand(owner, target, PNSkillRemoteInput.HitCommand, Hits(ck, 1, behind.EntityId.Value));
             Check(remote.HitsApplied == 1 && Hp(behind) == afterFirst, "another step does not hit it again either: the sweep hits each target once per cast");
             int rejected = remote.HitsRejected;
-            service.ReceiveCommand(owner, target, PNSkillRemoteInput.HitCommand, Hits(1, 0, far.EntityId.Value, dead.EntityId.Value, 777000, 0, eveId));
+            service.ReceiveCommand(owner, target, PNSkillRemoteInput.HitCommand, Hits(ck, 0, far.EntityId.Value, dead.EntityId.Value, 777000, 0, eveId));
             Check(remote.HitsApplied == 1 && remote.HitsRejected == rejected + 5, "far, dead, unknown, zero and self targets are all refused (" + (remote.HitsRejected - rejected) + " of 5)");
-            service.ReceiveCommand(owner, target, PNSkillRemoteInput.HitCommand, Hits(99, 0, front.EntityId.Value));
+            service.ReceiveCommand(owner, target, PNSkillRemoteInput.HitCommand, Hits(PNSkillCastKey.FromInput(99), 0, front.EntityId.Value));
             Check(remote.HitsApplied == 1 && Hp(front) == frontHp, "a key from the future is refused");
             bool malformed = false; try { service.ReceiveCommand(owner, target, PNSkillRemoteInput.HitCommand, new JObject { ["k"] = 1, ["st"] = 0 }); } catch (FormatException) { malformed = true; }
             Check(malformed, "a report without targets is a protocol error");
@@ -103,34 +105,42 @@ public static class EveSkillReportChecks
             for (int i = 0; i < 400 && skill.IsBusy; i++) { skill.Tick(.01f); remote.Pump(.01); }
             Check(!skill.IsBusy && skill.HitReceiverCount == 0, "the sweep ended and stopped listening");
             double settled = Hp(behind); int applied = remote.HitsApplied;
-            service.ReceiveCommand(owner, target, PNSkillRemoteInput.HitCommand, Hits(1, 2, behind.EntityId.Value));
+            service.ReceiveCommand(owner, target, PNSkillRemoteInput.HitCommand, Hits(ck, 2, behind.EntityId.Value));
             Check(remote.HitsApplied == applied && Hp(behind) == settled, "a report that arrives after the sweep ended changes nothing");
 
             // ---- S5: decisions ----
             service.ReceiveCommand(owner + 1, target, PNSkillRemoteInput.DecisionCommand, Decision(2, "ult_retarget", new JObject { ["t"] = front.EntityId.Value }));
             Check(remote.DecisionsWaiting == 0, "a decision from a stranger is dropped");
-            bool bad = false; try { service.ReceiveCommand(owner, target, PNSkillRemoteInput.DecisionCommand, Decision(2, "not_a_point", new JObject())); } catch (FormatException) { bad = true; }
-            Check(bad, "an unknown decision point is a protocol error");
+            bool bad = false; try { service.ReceiveCommand(owner, target, PNSkillRemoteInput.DecisionCommand, Decision(2, "Not A Point", new JObject())); } catch (FormatException) { bad = true; }
+            Check(bad, "a decision point named with anything but lowercase letters, digits and underscores is a protocol error");
+            service.ReceiveCommand(owner, target, PNSkillRemoteInput.DecisionCommand, Decision(2, "nobody_asks", new JObject { ["v"] = 1 }));
+            Check(remote.DecisionsWaiting == 1, "a well named point nobody has declared is kept (a skill names its points at the Choose call)");
+            remote.ExpireDecisions(PNSkillRemoteInput.DecisionSeconds + 1); Check(remote.DecisionsWaiting == 0, "and expires when nobody asks");
             service.ReceiveCommand(owner, target, PNSkillRemoteInput.DecisionCommand, Decision(2, "repeat_continue", new JObject { ["v"] = 0 }));
             service.ReceiveCommand(owner, target, PNSkillRemoteInput.DecisionCommand, Decision(2, "repeat_continue", new JObject { ["v"] = 1 }));
-            Check(remote.DecisionsWaiting == 2 && remote.TryTake("repeat_continue", out var first) && (int)first["v"] == 0 && remote.TryTake("repeat_continue", out var second) && (int)second["v"] == 1 && !remote.TryTake("repeat_continue", out _), "decisions of one point are answered in the order they arrived");
-            for (int i = 0; i < 6; i++) service.ReceiveCommand(owner, target, PNSkillRemoteInput.DecisionCommand, Decision(2, "empowered_strike", new JObject { ["p"] = "empowered_left", ["i"] = i }));
+            Check(remote.DecisionsWaiting == 2 && !remote.TryTake(3, "repeat_continue", out _) && remote.TryTake(2, "repeat_continue", out var first) && (int)first["v"] == 0 && remote.TryTake(2, "repeat_continue", out var second) && (int)second["v"] == 1 && !remote.TryTake(2, "repeat_continue", out _), "decisions are answered only to the cast whose key they name, and in the order they arrived");
+            for (int i = 0; i < 6; i++) service.ReceiveCommand(owner, target, PNSkillRemoteInput.DecisionCommand, Decision(2, "empowered_strike", new JObject { ["v"] = "empowered_left", ["i"] = i }));
             Check(remote.DecisionsWaiting == PNSkillRemoteInput.MaxDecisionsPerPoint && remote.DecisionsExpired >= 2, "a point keeps at most " + PNSkillRemoteInput.MaxDecisionsPerPoint + " waiting answers (" + remote.DecisionsWaiting + ")");
             remote.ExpireDecisions(PNSkillRemoteInput.DecisionSeconds + 1);
             Check(remote.DecisionsWaiting == 0, "answers nobody asked for expire");
+            for (int i = 0; i < PNSkillRemoteInput.MaxDecisionsWaiting + 4; i++) service.ReceiveCommand(owner, target, PNSkillRemoteInput.DecisionCommand, Decision(2, "flood_" + i, new JObject { ["v"] = i }));
+            Check(remote.DecisionsWaiting == PNSkillRemoteInput.MaxDecisionsWaiting, "the host keeps at most " + PNSkillRemoteInput.MaxDecisionsWaiting + " waiting answers in all, whatever names arrive (" + remote.DecisionsWaiting + ")");
+            remote.ExpireDecisions(PNSkillRemoteInput.DecisionSeconds + 1); Check(remote.DecisionsWaiting == 0, "and they expire");
 
             // the ultimate: the owner names the front enemy while the authority's own rule (lowest health) would pick the other one
             int took = remote.DecisionsTaken; behind.SetCurrent(PNContentIds.Health, 1); skill.UltimateRecovery.Reset();
             Check(skill.TryUltimate(), "the ultimate starts");
-            service.ReceiveCommand(owner, target, PNSkillRemoteInput.DecisionCommand, Decision(2, "ult_retarget", new JObject { ["t"] = front.EntityId.Value }));
+            service.ReceiveCommand(owner, target, PNSkillRemoteInput.DecisionCommand, Decision(skill.CurrentInvocation.CastKey + 1, "ult_retarget", new JObject { ["t"] = far.EntityId.Value }));
+            service.ReceiveCommand(owner, target, PNSkillRemoteInput.DecisionCommand, Decision(skill.CurrentInvocation.CastKey, "ult_retarget", new JObject { ["t"] = front.EntityId.Value }));
             for (int i = 0; i < 2000 && skill.CurrentPhase != EveCastPhase.Rush && skill.IsBusy; i++) { skill.Tick(.01f); remote.Pump(.01); }
             Check(remote.DecisionsTaken == took + 1 && ReferenceEquals(skill.CastTarget, front), "the ultimate retargets to the enemy its owner named (taken " + (remote.DecisionsTaken - took) + ", target " + (skill.CastTarget != null ? skill.CastTarget.name : "none") + ")");
             for (int i = 0; i < 4000 && skill.IsBusy; i++) { skill.Tick(.01f); remote.Pump(.01); }
 
             // a named target that is not legal is ignored and the authority chooses itself
             skill.UltimateRecovery.Reset(); body.position = actor.transform.position = Vector3.zero; Physics.SyncTransforms();
+            remote.ExpireDecisions(PNSkillRemoteInput.DecisionSeconds + 1);
             Check(skill.TryUltimate(), "the ultimate starts again");
-            service.ReceiveCommand(owner, target, PNSkillRemoteInput.DecisionCommand, Decision(2, "ult_retarget", new JObject { ["t"] = far.EntityId.Value }));
+            service.ReceiveCommand(owner, target, PNSkillRemoteInput.DecisionCommand, Decision(skill.CurrentInvocation.CastKey, "ult_retarget", new JObject { ["t"] = far.EntityId.Value }));
             for (int i = 0; i < 2000 && skill.CurrentPhase != EveCastPhase.Rush && skill.IsBusy; i++) { skill.Tick(.01f); remote.Pump(.01); }
             Check(remote.DecisionsTaken == took + 2 && !ReferenceEquals(skill.CastTarget, far), "a target out of reach is ignored (the authority picked " + (skill.CastTarget != null ? skill.CastTarget.name : "none") + ")");
             remote.OnUnbound(); view.OnUnbound(); service.Dispose();
@@ -154,7 +164,7 @@ public static class EveSkillReportChecks
             Check(remote.SendHits(7, 0, new[] { new EveEntityId(995041), new EveEntityId(995042) }) && wire.Sent.Count == 1 && wire.Sent[0].Command == PNSkillRemoteInput.HitCommand.ToString() && (long)wire.Sent[0].Payload["k"] == 7 && ((JArray)wire.Sent[0].Payload["h"]).Count == 2, "the client sends the hits it saw");
             Check(!remote.SendHits(7, 0, new EveEntityId[0]) && !remote.SendHits(0, 0, new[] { new EveEntityId(995041) }) && !remote.SendHits(7, 0, Enumerable.Range(1, 17).Select(x => new EveEntityId(x)).ToArray()), "an empty, keyless or oversized report is not sent");
             Check(remote.SendDecision(7, "ult_retarget", new JObject { ["t"] = 995041 }) && wire.Sent.Count == 2 && wire.Sent[1].Command == PNSkillRemoteInput.DecisionCommand.ToString(), "the client sends its decision");
-            Check(!remote.SendDecision(7, "not_a_point", new JObject()), "an unknown decision point is not sent");
+            Check(!remote.SendDecision(7, "Not A Point", new JObject()), "a badly named decision point is not sent");
             remote.OnUnbound(); view.OnUnbound(); service.Dispose();
         }
         finally { Cleanup(clientScene); }

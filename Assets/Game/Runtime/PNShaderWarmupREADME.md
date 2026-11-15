@@ -20,8 +20,25 @@ registry.RegisterBase(EveId.Parse("base:shader_myeffect"), id, "project_n");    
 ```
 Game shaders are listed in `PNShaderWarmupContent.Names`. Every pass type the shader has is warmed (untagged = `Normal`, `SRPDefaultUnlit`, `UniversalForward`/custom
 light modes = `ScriptableRenderPipeline`); the types it lacks are skipped silently. A shader that is missing or unsupported logs one warning and never blocks the session.
-Keep a one-time CPU preparation (materials, meshes, textures built in code) out of the shader list: `PNShaderWarmup.Pump` calls `PNLoricaShatter.Warm()` once; add a similar
-call there for another system that builds assets lazily.
+Keep a one-time CPU preparation (materials, meshes, textures built in code, pools, particle systems, the first run of a code path) out of the shader list: register it as a
+`PNPrewarmDefinition` (below).
+
+## Prewarm entries (anything that is not a shader)
+`Core/Rendering/PNPrewarmDefinition.cs`: an id, an `Order` (ascending, then id; default 0) and a `Step(budgetMs)` that returns true when finished. The runtime knows no entry by name.
+```csharp
+var registry = hub.GetOrCreate<PNPrewarmDefinition>();
+var id = EveId.Parse("project_n:prewarm_myeffect");
+registry.Register(new PNPrewarmDefinition(id, MyEffect.Warm));                 // one call does it all (Action)
+registry.Register(new PNPrewarmDefinition(id2, budgetMs => StepMyPool(budgetMs), order: 10)); // or spread over frames (Func<double,bool>)
+registry.RegisterBase(EveId.Parse("base:prewarm_myeffect"), id, "project_n");  // game content only; mods use their own namespace
+```
+- A skill, Action, Buff visual, game system or mod registers its own entry in its content module (the game's own list is `PNPrewarmContent` in `PNShaderWarmup.cs`, called from
+  `PNGameplayContentModule`). Currently: `prewarm_lorica_shatter` (`PNLoricaShatter.Warm`) and `prewarm_eve_sweep` (`EveSweepVisual.Warm`: materials, dynamic mesh, trail, particle system and
+  one emit of an Eve slash).
+- Runs once per content generation, in `Pump`, before the shader variants of that frame, within the same 6 ms/frame budget as the atlas preload (the first call of a Pump always happens, so the
+  queue moves). An unfinished entry continues next frame. A step that throws is logged and dropped: it never blocks the session. `IsDone` and `Fraction` include the entries.
+- Write a `Warm` so that it builds what the real thing builds and then destroys it (nothing left in the scene; use `EveVfxUtility.DestroyResource` style Play/Edit-safe destruction).
+- Presentation only: no RulesVersion / NetworkVersion bump, no network flag in the entry.
 
 ## When it runs
 - `PNTransitionController.Bind` calls `PNShaderWarmup.Begin(session)`: once per **content generation** (`EveContentContext.GenerationId`), so later sessions with the same

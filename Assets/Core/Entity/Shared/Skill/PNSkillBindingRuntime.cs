@@ -14,6 +14,19 @@ public partial class PNSkill
     private readonly Dictionary<EveId,BehaviorState> bindingBehaviors=new Dictionary<EveId,BehaviorState>();
     private readonly Dictionary<(EveId Profile,EveId Slot),BehaviorState> slotBehaviors=new Dictionary<(EveId,EveId),BehaviorState>();
     private readonly Dictionary<EveId,BehaviorState> gestures=new Dictionary<EveId,BehaviorState>();
+    // G3b. The held gestures: a gesture that has Performed (a hold, a repeat) and not yet Canceled. The binding layer owns this state, on every side: the authority records it as it dispatches the input, a
+    // client as it forwards it (it has no behavior to dispatch to). A skill reads `IsGestureHeld`; the release hook of its behavior keeps its own side effects.
+    // VI: Cử chỉ đang giữ: đã Performed, chưa Canceled. Lớp binding giữ trạng thái này ở mọi phía; skill chỉ đọc.
+    private readonly HashSet<(EveId slot,PNSkillInteraction interaction)> heldGestures=new HashSet<(EveId,PNSkillInteraction)>();
+    public bool IsGestureHeld(EveId slot,PNSkillInteraction interaction)=>heldGestures.Contains((slot,interaction));
+    // The cast the gesture drove ended (interrupted, died): the gesture is still down but it is no longer held for that cast, until it Performs again.
+    protected void EndGestureHold(EveId slot,PNSkillInteraction interaction)=>heldGestures.Remove((slot,interaction));
+    private void TrackHold(EveId slot,PNSkillInputEvent input)
+    {
+        if(input.Interaction==PNSkillInteraction.Tap)return;
+        if(input.Phase==PNSkillInputPhase.Performed)heldGestures.Add((slot,input.Interaction));
+        else if(input.Phase==PNSkillInputPhase.Canceled)heldGestures.Remove((slot,input.Interaction));
+    }
     private readonly Dictionary<EveId,PNSkillInteraction> gestureInteractions=new Dictionary<EveId,PNSkillInteraction>();
     private readonly Dictionary<EveId,string> stateSchemas=new Dictionary<EveId,string>();
     private readonly Dictionary<EveId,bool> stateDeathPolicies=new Dictionary<EveId,bool>();
@@ -75,13 +88,13 @@ public partial class PNSkill
     protected virtual void OnEnable()=>UpdateBindingSelections();
     private void EnsureSelectedBindingAbilities()
     {
-        if(Bindings==null||!IsReady||!HasGameplayAuthority)return;
+        if(Bindings==null||!IsReady)return; // G7: the owner's client defines the same profile Abilities locally (DefineBindingAbility)
         foreach(var id in Bindings.Snapshot().Values.Distinct())
         {
             var profile=BindingProfile(id);
             foreach(var definition in profile.Abilities)
             {
-                if(!Abilities.Instances.Any(x=>x.Id==definition.Id))Abilities.Define(definition);
+                if(!Abilities.Instances.Any(x=>x.Id==definition.Id))Abilities.DefineBindingAbility(definition);
                 stateSchemas[definition.Id]=PNSkillBindingProfile.AbilitySchema(definition);bindingAbilityIds.Add(definition.Id);
             }
         }
@@ -160,7 +173,7 @@ public partial class PNSkill
         var profile=registry.Get<PNSkillBindingProfile>().GetEffective(id);ValidateBindingProfile(id);PrepareBindingProfiles(new Dictionary<EveId,EveId>{{slot,id}});
         foreach(var definition in profile.Abilities)
         {
-            if(!Abilities.Instances.Any(x=>x.Id==definition.Id))Abilities.Define(definition);
+            if(!Abilities.Instances.Any(x=>x.Id==definition.Id))Abilities.DefineBindingAbility(definition);
             stateSchemas[definition.Id]=PNSkillBindingProfile.AbilitySchema(definition);bindingAbilityIds.Add(definition.Id);
         }
         if(!slot.IsValid)return bindingBehaviors[profile.Id];
@@ -173,12 +186,29 @@ public partial class PNSkill
     }
     public bool RequestSlot(EveId slot,PNSkillInputEvent input)
     {
-        if(!HasGameplayAuthority)return CanForwardInput&&isActiveAndEnabled&&IsReady&&InputForwarder.Forward(slot,input);
+        if(!HasGameplayAuthority)
+        {
+            // The held state is set before the guess runs (it reads it) and is only kept when the input really went out.
+            bool hold=input.Phase==PNSkillInputPhase.Performed&&input.Interaction!=PNSkillInteraction.Tap;
+            if(hold)heldGestures.Add((slot,input.Interaction));
+            // G6a: the same event also runs through this machine's own binding path, as a guess (Predicted); the forwarder decides whether it may (paused, no key) and keeps what began with the press.
+            bool sent=CanForwardInput&&isActiveAndEnabled&&IsReady&&InputForwarder.Forward(slot,input,()=>DispatchSlot(slot,input));
+            if(hold&&!sent)heldGestures.Remove((slot,input.Interaction));
+            if(input.Phase==PNSkillInputPhase.Canceled)TrackHold(slot,input);
+            return sent;
+        }
         if(Bindings==null||Bindings.IsFaulted||!IsReady||!HasGameplayAuthority||bindingsDisposed||input.Phase!=PNSkillInputPhase.Canceled&&!AllowsBindingInput)return false;
+        return DispatchSlot(slot,input);
+    }
+    // The one path a slot input takes through the binding layer, on the authority and (as a guess) on the owner's client.
+    private bool DispatchSlot(EveId slot,PNSkillInputEvent input)
+    {
+        if(Bindings==null||Bindings.IsFaulted||bindingsDisposed||input.Phase!=PNSkillInputPhase.Canceled&&!AllowsBindingInput)return false;
         if(!Bindings.TryGet(slot,out var profile))return false;
         BehaviorState value;
         if(input.Phase==PNSkillInputPhase.Started){if(gestures.ContainsKey(slot))CancelGesture(slot,false);value=Behavior(profile,slot);gestures[slot]=value;gestureInteractions[slot]=input.Interaction;}
         else if(!gestures.TryGetValue(slot,out value))return false;
+        TrackHold(slot,input);
         bool result=SendInput(value,slot,input);
         if(input.Phase==PNSkillInputPhase.Canceled){gestures.Remove(slot);gestureInteractions.Remove(slot);}return result;
     }
@@ -191,7 +221,7 @@ public partial class PNSkill
         try{value.Behavior.Input(input);return true;}catch(Exception error){if(ReferenceEquals(executingBehavior,value))CancelBindingExecution();BindingError(error);return false;}finally{inputBehavior=null;inputSlot=default;while(bindingChanges.Count>0)ApplyBindingChange(bindingChanges.Dequeue());}
     }
     private void CancelGesture(EveId slot,bool changed)
-    {if(!gestures.TryGetValue(slot,out var owner))return;var interaction=gestureInteractions[slot];gestures.Remove(slot);gestureInteractions.Remove(slot);SendInput(owner,slot,new PNSkillInputEvent(PNSkillInputPhase.Canceled,interaction,changed));}
+    {if(!gestures.TryGetValue(slot,out var owner))return;var interaction=gestureInteractions[slot];gestures.Remove(slot);gestureInteractions.Remove(slot);heldGestures.Remove((slot,interaction));SendInput(owner,slot,new PNSkillInputEvent(PNSkillInputPhase.Canceled,interaction,changed));}
     private void BindingsChanged(PNSkillBindingChange change)
     {if(inputBehavior!=null){bindingChanges.Enqueue(change);return;}ApplyBindingChange(change);}
     private void ApplyBindingChange(PNSkillBindingChange change)
@@ -230,7 +260,7 @@ public partial class PNSkill
         try{var value=executingBehavior;if(value!=null){value.Behavior.Advance(delta);if(ReferenceEquals(executingBehavior,value)&&CurrentInvocation==null&&!LegacyBindingBusy){executingBehavior=null;executingSlot=default;}}}
         catch(Exception error){CancelBindingExecution();BindingError(error);}finally{bindingsTicking=false;}
     }
-    protected void CancelBindingInputs(){foreach(var slot in gestures.Keys.ToArray())CancelGesture(slot,false);CancelBindingExecution();}
+    protected void CancelBindingInputs(){try{foreach(var slot in gestures.Keys.ToArray())CancelGesture(slot,false);CancelBindingExecution();}finally{heldGestures.Clear();}}
     private void BindingDeath(PNDamageResult result)
     {
         try{CancelBindingInputs();}finally{SuspendBindingSelections();}

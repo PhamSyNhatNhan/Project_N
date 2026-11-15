@@ -60,14 +60,18 @@ public class PNDamageAction : PNSkillAction
         // This action explicitly defines one damage amount as the sum of its components.
         double amount = 0d;
         foreach (var component in values.Components) amount += component.Evaluate(caster);
-        Damage = caster.CreateDamage(amount, canCrit, iframeDuration, context.Data.Action.PerformTags.ToArray());
+        // G7: only the authority builds the damage packet (a guess or an observer reports / draws the hit through `context.Hit` and deals nothing).
+        bool deal = context.Mode == PNSkillMode.Authority;
+        if (deal) Damage = caster.CreateDamage(amount, canCrit, iframeDuration, context.Data.Action.PerformTags.ToArray());
         // EN: Mark spent before delivery; a later receiver failure must not retry already committed hits.
         // VI: Đánh dấu đã thi triển trước khi gửi; receiver sau lỗi không được thử lại hit đã ghi.
         performed = true;
-        var capture = caster.CaptureCombatSource();
+        var capture = deal ? caster.CaptureCombatSource() : null;
         foreach (var target in targets)
         {
-            results.Add(context.ReceiveHit(target, target.transform.position, Damage, amount, capture));
+            // G7: the one door for a hit (authority deals it and the skill hears OnHitConfirmed; a guess reports it under the cast key; an observer does nothing).
+            var outcome = context.Hit(target, target.transform.position, Damage, amount, capture);
+            if (outcome.Applied) results.Add(outcome.Result);
         }
     }
 

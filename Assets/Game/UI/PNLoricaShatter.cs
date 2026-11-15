@@ -40,7 +40,7 @@ public static class PNLoricaShatter
     }
 
     // Builds the materials, the environment image and the shard meshes ahead of the first break. The shader programs themselves are compiled by PNShaderWarmup
-    // (the shaders are registered in PNShaderWarmupContent); PNShaderWarmup calls this once per content generation, under the transition cover.
+    // (the shaders are registered in PNShaderWarmupContent); it is registered as a PNPrewarmDefinition (PNPrewarmContent) and PNShaderWarmup runs it once per content generation, under the transition cover.
     public static void Warm() => Prepare();
 
     // ---- Reflection environment -------------------------------------------------------------------------------------------------------------------------

@@ -28,11 +28,19 @@ public partial class PNSkill : EveSkill, EveIEntityLoadPreparation, EveIEntityCo
     public bool CanActivateSkill(EveId skillId)
     {
         if (ExecutingProfile.IsValid && (inputBehavior == null || !ReferenceEquals(inputBehavior, executingBehavior))) return false;
-        if (!IsReady || Effects == null || !EveRegistrySession.IsReady || !EveRegistrySession.Context.HasAuthority) return false;
-        prepared?.Dispose(); prepared = Effects.Prepare(skillId);
+        if (!IsReady || Effects == null || !EveRegistrySession.IsReady) return false;
+        // G6a: on the owner's client (no authority) the same admission opens a Predicted cast. What only the authority knows (a stun, a lock) counts as allowed there: if it refuses, the guess is taken back.
+        bool predicted = !EveRegistrySession.Context.HasAuthority;
+        if (predicted && !CanForwardInput) return false;
+        prepared?.Dispose(); prepared = predicted ? Effects.Prepare(skillId, PNSkillMode.Predicted) : Effects.Prepare(skillId);
+        var stat = GetComponent<PNStat>();
+        if (predicted)
+        {
+            if (stat != null && stat.IsDead) { prepared.Dispose(); prepared = null; return false; }
+            return true;
+        }
         var categories = prepared.AdmissionCategories;
         LastControlDecision = Controls.CheckSkill(categories.Select(x => registry.SkillCategories().Get(x).ControlPermissionId), skillId);
-        var stat = GetComponent<PNStat>();
         // A skill with no category is allowed; it bypasses category rights but never SkillAll or exact-skill leases.
         bool allowed = LastControlDecision.Allowed && (stat == null || !stat.IsDead) && (!prepared.Metadata.AffectedByAttackSpeed || stat != null && stat.IsReady && stat.Evaluate(PNContentIds.AttackSpeed) > 0);
         if (!allowed) { prepared.Dispose(); prepared = null; } return allowed;
@@ -43,29 +51,134 @@ public partial class PNSkill : EveSkill, EveIEntityLoadPreparation, EveIEntityCo
     {
         if (prepared == null || prepared.SkillId != registry.Skills.ResolveIdentity(skillId))
             throw new InvalidOperationException("Prepare activation before beginning it.");
-        EndActivation(true); CurrentInvocation = prepared; prepared = null;
+        var next = prepared; prepared = null;
+        EndActivation(true, PNCastEnd.Replaced);
+        // A guess writes the replica Abilities inside a scope the invocation owns (it ends with the cast; the owner can still roll it back).
+        if (next.Mode == PNSkillMode.Predicted)
+        {
+            try { next.PredictionScope = Abilities.BeginPrediction(); }
+            catch { next.Dispose(); throw; }
+        }
+        AssignCastKey(next);
+        CurrentInvocation = next;
+        if (next.Mode == PNSkillMode.Predicted) PredictedCastBegan?.Invoke(next);
     }
+    // G6c: the key the guess and the authority's cast share (see PNSkillCastKey): the input being dispatched, else the previous key + 1.
+    private void AssignCastKey(PNSkillInvocation cast)
+        => cast.CastKey = lastCastKey = PendingCastKey > 0 ? Math.Max(lastCastKey + 1, PNSkillCastKey.FromInput(PendingCastKey)) : lastCastKey + 1;
+    private long lastCastKey;
+    // Set by the wire layer around the dispatch of one input (the key that input travels under); 0 when no input is being dispatched.
+    public long PendingCastKey { get; set; }
+    public long LastCastKey => lastCastKey;
+    // G6a: raised on the owner's client when a guessed cast begins (the wire layer keeps it with the press that caused it, to take it back if the authority declines).
+    public event Action<PNSkillInvocation> PredictedCastBegan;
+    // Takes a guessed cast back: stops it if it still runs (the skill's own interrupt path) and puts its Ability writes back.
+    public void RollbackPredictedCast(PNSkillInvocation invocation)
+    {
+        if (invocation == null || invocation.Mode != PNSkillMode.Predicted) return;
+        try
+        {
+            if (ReferenceEquals(CurrentInvocation, invocation) && !invocation.IsEnded && !TryInterrupt(EveId.Parse("project_n:prediction_refused"))) CancelCast(PNCastEnd.Interrupted);
+        }
+        finally { invocation.PredictionScope?.Rollback(); }
+    }
+    // G1: a cast that runs on a machine without authority, as a guess (Predicted) or a replay for its pictures (Observed). It is never committed: no activation serial, no OnActivated.
+    // One invocation per skill at a time; end it with EndNonAuthorityInvocation. Nothing in Eve uses this yet (G6/G8 will).
+    public PNSkillInvocation BeginNonAuthorityInvocation(EveId skillId, PNSkillMode mode)
+    {
+        if (mode == PNSkillMode.Authority) throw new ArgumentException("Authority casts begin through the activation path.", nameof(mode));
+        if (!IsReady || Effects == null) throw new InvalidOperationException("Skill is not ready.");
+        if (CurrentInvocation != null) throw new InvalidOperationException("A cast is already running.");
+        var invocation = Effects.Prepare(skillId, mode);
+        // A guess writes the replica Abilities inside a prediction scope that the invocation owns: it ends with the cast, and the caller can still roll it back.
+        if (mode == PNSkillMode.Predicted)
+        {
+            try { invocation.PredictionScope = Abilities.BeginPrediction(); }
+            catch { invocation.Dispose(); throw; }
+        }
+        if (mode == PNSkillMode.Predicted) AssignCastKey(invocation);
+        return CurrentInvocation = invocation;
+    }
+    public void EndNonAuthorityInvocation(bool cancelled = false, string reason = null)
+    {
+        var value = CurrentInvocation;
+        if (value == null || value.Mode == PNSkillMode.Authority) return;
+        FinishInvocation(value, cancelled, reason);
+    }
+    // G3a: the end of a cast, one place for every way it can end. Order: the running things the cast registered are cancelled (cancelled only, last created first), the activation trigger fires
+    // (committed casts), the skill's `OnCastEnded` runs once (the cast memory is still readable), then the invocation is disposed and the memory dropped.
+    private void FinishInvocation(PNSkillInvocation value, bool cancelled, string reason)
+    {
+        if (value == null) return;
+        if (value.IsEnded) { if (ReferenceEquals(CurrentInvocation, value)) CurrentInvocation = null; return; }
+        if (value.Ending) return;
+        value.Ending = true;
+        try
+        {
+            if (cancelled) value.CancelTracked(reason ?? PNCastEnd.Interrupted);
+            try { if (value.Committed) value.ActivationContext?.Fire(cancelled ? "OnInvocationCancel" : "OnInvocationComplete"); }
+            finally
+            {
+                try { OnCastEnded(value, cancelled, reason); }
+                finally { if (ReferenceEquals(CurrentInvocation, value)) CurrentInvocation = null; }
+            }
+        }
+        finally { if (ReferenceEquals(CurrentInvocation, value)) CurrentInvocation = null; value.Dispose(); }
+    }
+    // The skill's one end hook: called exactly once for each invocation it ran, finished (`cancelled` false) or stopped (`reason` says why), while `CurrentInvocation` and its memory are still there.
+    // Put the reset of the skill's state machine here (L6); do not start another cast from it.
+    protected virtual void OnCastEnded(PNSkillInvocation invocation, bool cancelled, string reason) { }
+    // Stops the running cast through the single cancel path. False when nothing ran.
+    public bool CancelCast(string reason = null)
+    {
+        var value = CurrentInvocation; if (value == null || value.IsEnded) return false;
+        // A cast that is cancelled also lets go of the input behavior that was driving it (as ending the activation always did).
+        executingBehavior = null; executingSlot = default;
+        FinishInvocation(value, true, reason); return true;
+    }
+    internal bool CancelInvocation(PNSkillInvocation invocation, string reason)
+    {
+        if (!ReferenceEquals(CurrentInvocation, invocation)) return false;
+        FinishInvocation(invocation, true, reason); return true;
+    }
+    // G2: a stat source a cast sets or removes is the authority's state. In a guess or a replay the call is skipped (false) and the entity keeps the stats the authority sent; outside any cast it is the plain call.
+    protected bool SetStatSource(PNStat stat, EveId sourceId, IEnumerable<EveStatModifier> modifiers)
+    {
+        if (CurrentInvocation != null && CurrentInvocation.Mode != PNSkillMode.Authority) return false;
+        stat.SetSource(sourceId, modifiers); return true;
+    }
+    protected bool RemoveStatSource(PNStat stat, EveId sourceId)
+    {
+        if (CurrentInvocation != null && CurrentInvocation.Mode != PNSkillMode.Authority) return false;
+        stat.RemoveSource(sourceId); return true;
+    }
+    // G2: a hit of one of this skill's actions was applied (authority only, called by `PNSkillActionContext.Hit`). The one place where a skill reacts to a hit or a kill: rewards, stacks, follow-up Buffs.
+    public virtual void OnHitConfirmed(PNSkillActionContext context, PNStat target, PNDamageResult result) { }
     protected void CommitActivation(IEnumerable<PNStat> targets = null, Vector3? direction = null)
     {
         var value = CurrentInvocation;
-        if (value == null || value.IsEnded || value.Committed) return;
+        if (value == null || value.IsEnded || value.Committed || value.Mode != PNSkillMode.Authority) return; // a guess never commits an activation
         value.Committed = true; ActivationSerial++;
         var context = new PNSkillActionContext(this, value.SkillId, null, registry, targets, direction, value);
         context.ContributionSnapshot = value.ActivationSnapshot; value.ActivationContext = context;
         context.Fire("OnActivated");
     }
-    protected void EndActivation(bool cancelled = false)
+    protected void EndActivation(bool cancelled = false, string reason = null)
     {
         executingBehavior = null; executingSlot = default;
-        var value = CurrentInvocation; CurrentInvocation = null;
-        try { if (value != null && !value.IsEnded && value.Committed) value.ActivationContext?.Fire(cancelled ? "OnInvocationCancel" : "OnInvocationComplete"); }
-        finally { value?.Dispose(); }
+        FinishInvocation(CurrentInvocation, cancelled, reason);
     }
     protected float ExecutionSpeed => CurrentInvocation?.Metadata.AffectedByAttackSpeed == true ? (float)Math.Max(0, GetComponent<PNStat>().Evaluate(PNContentIds.AttackSpeed) / 100) : 1;
     protected void AdvanceAuxiliaryEffects(float delta) => Effects?.Advance(delta);
+    // G3b. The idle clock: how long the skill has stood without a cast, on the clock `delta` comes from (the Game clock). The framework runs it only while no cast is running; the skill resets it when
+    // the cast that should restart the count begins (Eve: a normal Attack). It is a plain float sum, so a skill that moves its timer here keeps the exact same values.
+    // VI: Đồng hồ nghỉ: skill đã đứng không cast bao lâu. Framework chỉ chạy khi không có cast; skill đặt lại khi cast cần tính lại bắt đầu.
+    public float IdleTime { get; private set; }
+    protected void AdvanceIdle(float delta) { if (CurrentInvocation == null) IdleTime += delta; }
+    protected void ResetIdle() => IdleTime = 0;
     protected virtual void Update()
     { if (!IsReady||!HasGameplayAuthority) return; var clock = GetComponent<EveTimeScale>(); var delta=clock != null && clock.isActiveAndEnabled ? clock.DeltaTime : Time.deltaTime; AdvanceAuxiliaryEffects(delta);AdvanceBindings(delta); }
-    protected virtual void OnDisable() { if(GetComponent<EveEntityIdentity>()?.IsChangingWorld==true)return;try{CancelBindingInputs();}finally{SuspendBindingSelections();prepared?.Dispose();prepared = null;EndActivation(true);Effects?.CancelExecutions();} }
+    protected virtual void OnDisable() { if(GetComponent<EveEntityIdentity>()?.IsChangingWorld==true)return;try{CancelBindingInputs();}finally{SuspendBindingSelections();prepared?.Dispose();prepared = null;EndActivation(true, PNCastEnd.Disabled);Effects?.CancelExecutions();} }
     protected virtual void OnDestroy() => Unload();
     public virtual void CancelWorldExecutions()
     {
@@ -91,6 +204,8 @@ public partial class PNSkill : EveSkill, EveIEntityLoadPreparation, EveIEntityCo
             throw new ArgumentException("Ability must belong to this skill's entity.", nameof(ability));
         if (!(ability is PNAbilityCooldown) && !(ability is PNAbilityState))
             throw new ArgumentException("Only Cooldown and State abilities have cooldowns.", nameof(ability));
+        // The reduction is the authority's number (an Ability definition change): a guess or a replica keeps what the authority sent (G2).
+        if (EveRegistrySession.IsReady && !EveRegistrySession.Context.HasAuthority) return;
         var stat = GetComponent<PNStat>();
         if (stat == null || !stat.IsInitialized)
             throw new InvalidOperationException("Cooldown reduction requires ready entity stats.");
@@ -171,7 +286,7 @@ public partial class PNSkill : EveSkill, EveIEntityLoadPreparation, EveIEntityCo
     {
         try { UnloadBindings(); }
         finally {
-        prepared?.Dispose(); prepared = null; EndActivation(true); Effects?.Dispose(); Effects = null;
+        prepared?.Dispose(); prepared = null; EndActivation(true, PNCastEnd.Unloaded); Effects?.Dispose(); Effects = null;
         registry = null;builtInData.Clear(); LastControlDecision = null;
         base.Unload();
         }

@@ -43,6 +43,27 @@ public static class PNShaderWarmupContent
     };
 }
 
+// EN: The game's own non-shader prewarm entries (see PNPrewarmDefinition). A system that builds assets lazily adds one here or, for a skill / Action / mod, in its own content module; the runtime below
+//     does not know any of them by name.
+// VI: Các mục prewarm không phải shader của game. Hệ dựng tài nguyên lười thêm một mục ở đây (hoặc trong module nội dung của mình).
+public static class PNPrewarmContent
+{
+    public static void Register(EveRegistryHub hub)
+    {
+        var registry = hub.GetOrCreate<PNPrewarmDefinition>();
+        void Add(string slug, Action work, int order = 0)
+        {
+            var id = EveId.Parse("project_n:prewarm_" + slug);
+            registry.Register(new PNPrewarmDefinition(id, work, order));
+            registry.RegisterBase(EveId.Parse("base:prewarm_" + slug), id, "project_n");
+        }
+#if UNITY_5_3_OR_NEWER
+        Add("lorica_shatter", PNLoricaShatter.Warm);                  // materials, environment image and meshes of the lorica break
+        Add("eve_sweep", EveSweepVisual.Warm);                        // the parts an Eve slash builds on its first use (trail, mesh, particles)
+#endif
+    }
+}
+
 #if UNITY_5_3_OR_NEWER
 public static class PNShaderWarmup
 {
@@ -56,7 +77,11 @@ public static class PNShaderWarmup
     private static readonly Queue<Item> pending = new Queue<Item>();
     private static readonly HashSet<string> seen = new HashSet<string>();
     private static readonly HashSet<object> scanned = new HashSet<object>();
-    private static Guid generation; private static bool begun, prepared; private static int total, done, frames;
+    private static Guid generation; private static bool begun; private static int total, done, frames;
+    // Registered prewarm entries (PNPrewarmDefinition), run in order under a millisecond budget per frame after the shaders' own work is queued.
+    private static readonly Queue<PNPrewarmDefinition> prewarm = new Queue<PNPrewarmDefinition>();
+    private static int prewarmTotal, prewarmDone;
+    public static int PrewarmCompleted => prewarmDone;
     // Recorded graphics states (phase B): pipeline state objects captured from a real run (PNGraphicsStateRecorder), warmed after the shader variants. Only on APIs that have
     // pipeline states (DX12, Vulkan, Metal) and only when a file recorded for this platform and API ships in StreamingAssets/GraphicsStates.
     private static GraphicsStateCollection states; private static JobHandle statesHandle;
@@ -66,14 +91,14 @@ public static class PNShaderWarmup
     public static int StatesTotal => states?.totalGraphicsStateCount ?? 0;
     public static int StatesCompleted => states == null ? 0 : states.completedWarmupCount;
     private static bool StatesDone => states == null || states.isWarmedUp;
-    public static bool IsDone => begun && prepared && pending.Count == 0 && StatesDone && !PNVisualRuntime.PreloadActive && !PNVisualRuntime.RebuildActive;
+    public static bool IsDone => begun && prewarm.Count == 0 && pending.Count == 0 && StatesDone && !PNVisualRuntime.PreloadActive && !PNVisualRuntime.RebuildActive;
     public static float Fraction
     {
         get
         {
             if (!begun) return 0f;
-            int preload = PNVisualRuntime.PreloadTotal; int rebuild = PNVisualRuntime.RebuildActive ? PNVisualRuntime.RebuildTotal : 0; int all = total + StatesTotal + preload + rebuild; if (all == 0) return 1f;
-            return Mathf.Clamp01((done + Mathf.Min(StatesCompleted, StatesTotal) + PNVisualRuntime.PreloadDone + (rebuild > 0 ? PNVisualRuntime.RebuildDone : 0)) / (float)all);
+            int preload = PNVisualRuntime.PreloadTotal; int rebuild = PNVisualRuntime.RebuildActive ? PNVisualRuntime.RebuildTotal : 0; int all = total + prewarmTotal + StatesTotal + preload + rebuild; if (all == 0) return 1f;
+            return Mathf.Clamp01((done + prewarmDone + Mathf.Min(StatesCompleted, StatesTotal) + PNVisualRuntime.PreloadDone + (rebuild > 0 ? PNVisualRuntime.RebuildDone : 0)) / (float)all);
         }
     }
     public static int Compiled => done;
@@ -81,7 +106,7 @@ public static class PNShaderWarmup
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void Reset() { Clear(); generation = default; }
-    private static void Clear() { states = null; statesHandle = default; pending.Clear(); seen.Clear(); scanned.Clear(); begun = prepared = false; total = done = frames = 0; Seconds = 0; }
+    private static void Clear() { states = null; statesHandle = default; pending.Clear(); seen.Clear(); scanned.Clear(); prewarm.Clear(); begun = false; total = done = frames = prewarmTotal = prewarmDone = 0; Seconds = 0; }
 
     // Once per content generation: later sessions that keep the same content find it already done (or already running).
     public static void Begin(EveSessionContext session) => Begin(session.Registry, PNGameBootstrap.Runtime?.Content?.GenerationId ?? default);
@@ -91,12 +116,20 @@ public static class PNShaderWarmup
         Clear(); generation = current; begun = true;
         try
         {
+            if (registry.Snapshot().ContainsKey(typeof(PNShaderWarmupDefinition)))
             foreach (var pair in registry.Get<PNShaderWarmupDefinition>().Snapshot())
             {
                 var definition = pair.Value; var shader = Shader.Find(definition.ShaderName);
                 if (shader == null || !shader.isSupported) { Debug.LogWarning("Shader warm-up skipped, shader missing or unsupported: " + definition.ShaderName); continue; }
                 Enqueue(shader, definition.Keywords.ToArray());
             }
+        }
+        catch (Exception error) { Debug.LogException(error); }
+        try
+        {
+            // A hub with no prewarm registry (a test hub, a headless run) has nothing to build.
+            if (registry.Snapshot().ContainsKey(typeof(PNPrewarmDefinition)))
+                foreach (var entry in registry.Get<PNPrewarmDefinition>().Snapshot().Values.OrderBy(x => x.Order).ThenBy(x => x.Id.ToString(), StringComparer.Ordinal)) { prewarm.Enqueue(entry); prewarmTotal++; }
         }
         catch (Exception error) { Debug.LogException(error); }
         try { PNVisualRuntime.BeginPreload(registry); } catch (Exception error) { Debug.LogException(error); }      // the visual atlas (and its ink bake) is built under the cover, a few ms per frame (Pump)
@@ -153,10 +186,18 @@ public static class PNShaderWarmup
     {
         if (!begun || IsDone) return IsDone;
         double start = Time.realtimeSinceStartupAsDouble;
-        if (!prepared)
+        // Registered prewarm entries: one call each per frame until finished, within the budget (the first call of a Pump always happens, so the queue always moves).
+        int ran = 0;
+        while (prewarm.Count > 0)
         {
-            prepared = true;
-            try { PNLoricaShatter.Warm(); } catch (Exception error) { Debug.LogException(error); }       // materials, environment image and meshes of the lorica break
+            double left = PreloadBudgetMs - (Time.realtimeSinceStartupAsDouble - start) * 1000.0;
+            if (left <= 0 && ran > 0) break;
+            ran++;
+            var entry = prewarm.Peek(); bool finished;
+            try { finished = entry.Step(Math.Max(0, left)); }
+            catch (Exception error) { Debug.LogException(error); finished = true; }      // a failing entry is dropped; it never blocks the session
+            if (finished) { prewarm.Dequeue(); prewarmDone++; }
+            else break;      // an unfinished entry continues next frame
         }
         if (PNVisualRuntime.PreloadActive) PNVisualRuntime.PreloadStep(PreloadBudgetMs);
         if (PNVisualRuntime.RebuildActive) PNVisualRuntime.RebuildStep(PreloadBudgetMs);       // the Settings Save changed the look: the atlas set is rebuilt under the cover

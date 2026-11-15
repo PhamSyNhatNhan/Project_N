@@ -19,6 +19,7 @@ public class PNCreateAreaOperation : PNSkillOperation
     {
         if (executed || context == null || !context.Skill.IsReady || !context.Position.HasValue) throw new InvalidOperationException("Fresh Ready position context required.");
         Validate(token, context.Registry); executed = true;
+        if (context.Mode != PNSkillMode.Authority) return; // a guess or a replay creates no area (G2); Result stays empty
 #if UNITY_5_3_OR_NEWER
         var data = (JObject)token; var caster = context.Skill.GetComponent<PNStat>();
         var manager = PNAreaManager.Resolve(EveRegistrySession.Context, caster.gameObject.scene);

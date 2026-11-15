@@ -46,7 +46,7 @@ public static class PNIFrameEditorChecks
         var missing = EveId.Parse("test:iframe_missing"); var zero = EveId.Parse("test:iframe_zero");
         var negative = EveId.Parse("test:iframe_negative"); var breaker = EveId.Parse("test:iframe_breaker");
         var hub = new EveRegistryHub(); var module = new PNGameplayContentModule();
-        new PNContentModule().Register(hub); module.Register(hub);
+        new EveBuiltInContentModule().Register(hub); new PNContentModule().Register(hub); module.Register(hub);
         void Register(EveId id, JToken duration)
         {
             var perform = JObject.Parse("{value:{amount:100},canCrit:false,tags:['base:true']}");

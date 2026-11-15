@@ -14,10 +14,20 @@ public interface IPNSkillHitReceiver
     bool AcceptReportedHit(PNStat target, int step, float tolerance);
 }
 
+// Where a client's own run of a cast sends what the authority needs to know (hits it saw, choices it made).
+public interface IPNSkillReportSink
+{
+    // `castKey` is the key of the cast that made the hit / the choice (`PNSkillInvocation.CastKey`); `step` tells the action contexts of one cast apart.
+    void ReportHit(long castKey, PNStat target, int step);
+    void ReportDecision(long castKey, string point, JToken value);
+}
+
 public interface IPNSkillDecisionSource
 {
-    // Takes the oldest answer for the named point, if one arrived (and has not expired).
-    bool TryTake(string point, out JToken value);
+    // Takes the answer the owner gave for the named point of the cast with this key, if one arrived (and has not expired).
+    bool TryTake(long castKey, string point, out JToken value);
+    // The slack (metres) an entity a remote owner named gets over the skill's own reach, for the time the proposal took to arrive.
+    float ReachSlack { get; }
 }
 
 public partial class PNSkill
@@ -25,7 +35,8 @@ public partial class PNSkill
     private readonly List<IPNSkillHitReceiver> hitReceivers = new List<IPNSkillHitReceiver>();
     // Set on the authority by the component that receives the remote owner's decisions; null for an own or offline player.
     public IPNSkillDecisionSource DecisionSource { get; set; }
-
+    // Set on the owner's client by the component that sends the reports.
+    public IPNSkillReportSink ReportSink { get; set; }
     private sealed class HitLease : IDisposable
     {
         private PNSkill owner; private IPNSkillHitReceiver receiver;
@@ -47,4 +58,28 @@ public partial class PNSkill
         foreach (var receiver in hitReceivers.ToArray()) if (receiver.AcceptReportedHit(target, step, tolerance)) return true;
         return false;
     }
+}
+
+// EN: What the AUTHORITY tells the other players' machines about a cast (Docs/SkillNetworkingAPlan.md S6): a picture to draw, never a state to keep. `Kind` names what to draw (a skill defines its own
+//     kinds), `Detail` which one, `X`/`Z` the planar direction, `Duration` how long (seconds). The observers' copy of the skill replays it with `PlayCastEvent` and touches nothing else:
+//     no Ability, no motion (the body's place comes from Move), no hit.
+// VI: Điều AUTHORITY báo cho máy người chơi khác về một cast: hình để vẽ, không phải trạng thái. Máy quan sát phát lại bằng `PlayCastEvent`, không đụng Ability / motion / hit.
+public readonly struct PNSkillCastEvent
+{
+    public readonly string Kind; public readonly string Detail; public readonly float X; public readonly float Z; public readonly float Duration;
+    public PNSkillCastEvent(string kind, string detail, float x, float z, float duration) { Kind = kind; Detail = detail; X = x; Z = z; Duration = duration; }
+}
+
+public partial class PNSkill
+{
+    // Raised on the authority only, for every picture a cast draws (see EveCharacterObserved.cs).
+    public event Action<PNSkillCastEvent> CastEvent;
+    protected void EmitCastEvent(string kind, string detail, float x, float z, float duration)
+    {
+        if (CastEvent != null && HasGameplayAuthority) CastEvent(new PNSkillCastEvent(kind, detail, x, z, duration));
+    }
+    // An observer's machine plays one event; the default draws nothing.
+    public virtual void PlayCastEvent(PNSkillCastEvent value) { }
+    // True on the machine of the entity's owner (its client forwards the owner's input): it drew the cast itself, so it ignores the events.
+    public bool IsOwnerClient => CanForwardInput;
 }

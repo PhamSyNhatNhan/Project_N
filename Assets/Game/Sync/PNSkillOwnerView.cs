@@ -32,6 +32,8 @@ public sealed class PNSkillOwnerView : MonoBehaviour, IPNSyncEntityListener, IPN
     public int AppliedCount { get; private set; }
     // Raised on a client right after a block replaced its Abilities (guesses still waiting must be laid over the new numbers).
     public event Action Applied;
+    // Raised just before an authoritative image is applied (G6b2: waiting guesses remember what they wrote).
+    public event Action Applying;
 
     public void OnBound(PNSyncService service, PNSyncTarget value)
     {
@@ -114,6 +116,7 @@ public sealed class PNSkillOwnerView : MonoBehaviour, IPNSyncEntityListener, IPN
     {
         var manager = GetComponent<PNAbilityManager>();
         if (pending == null || sync == null || manager == null || !manager.IsReady) return;
+        Applying?.Invoke();
         AppliedCount = manager.Abilities.ApplyReplica(pending); AppliedRevision = pendingRevision; pending = null; Applied?.Invoke();
     }
 }

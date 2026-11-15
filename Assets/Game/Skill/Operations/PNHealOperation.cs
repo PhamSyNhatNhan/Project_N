@@ -33,6 +33,8 @@ public class PNHealOperation : PNSkillOperation
     {
         if (executed || disposed) throw new InvalidOperationException("Heal operation cannot execute twice or after disposal.");
         if (context == null) throw new ArgumentNullException(nameof(context));
+        // Healing is the authority's: a guess or a replay skips it (empty result, no error; G2).
+        if (context.Mode != PNSkillMode.Authority) { executed = true; return; }
         var settings = PNHealSettings.Parse(data);
         settings.ValidateContent(context.Registry);
         var caster = context.Skill.GetComponent<PNStat>();

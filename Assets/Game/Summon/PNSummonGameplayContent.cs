@@ -21,7 +21,13 @@ public static class PNSummonGameplayContent
         hub.Actions().Register(new PNSkillActionDefinition(SummonAction, typeof(PNSummonAction), (action, registry) => PNSummonAction.Validate(action.Perform, registry), PNSkillContextRequirements.None,
             (data, context) => { var obj = PNBuffContentBatch.Object(data); context.Require<PNSkillOperationDefinition>(obj["operationId"], "operationId"); context.Registry.Operations().Get(context.Read(obj["operationId"], "operationId")).ValidateReferences(obj["data"], context); }));
         hub.Get<PNSkillBehaviorDefinition>().Register(new PNSkillBehaviorDefinition(CastBehavior, CastBehavior, c => new PNSummonCastBehavior(c), PNSummonCastBehavior.Validate, PNSummonCastBehavior.ValidateReferences));
+        hub.Get<PNSkillBehaviorDefinition>().Register(new PNSkillBehaviorDefinition(TargetStrikeBehavior, TargetStrikeBehavior, c => new PNTargetStrikeBehavior(c), PNTargetStrikeBehavior.Validate, PNTargetStrikeBehavior.ValidateReferences));
     }
+    // G7 trial character: Eve 2's Attack slot is a slash on the nearest enemy in reach (one decision point, no network code).
+    public static readonly EveId TargetStrikeBehavior = EveId.Parse("project_n:target_strike");
+    public static readonly EveId Eve2SlashSkill = EveId.Parse("project_n:eve2_slash_skill");
+    public static readonly EveId Eve2SlashProfile = EveId.Parse("project_n:binding_eve2_slash");
+    public static readonly EveId Eve2SlashReady = EveId.Parse("project_n:eve2_slash_ready");
 
     // Skill-slot binding of Eve 2: the Skill slot calls the pet (8 s cooldown, shown in the Ability UI) and Dash stays the shared Dash. Runs when the content is
     // finalized, after the characters (and so the skill data in their JSON) exist. Attack, Ultimate and Burst stay unmanaged (the empty legacy hooks).
@@ -32,9 +38,14 @@ public static class PNSummonGameplayContent
         var data = new JObject { ["cooldownAbilityId"] = Eve2PetReady.ToString(), ["actionDataId"] = Eve2PetSkill.ToString() };
         hub.Get<PNSkillBindingProfile>().Register(new PNSkillBindingProfile(Eve2PetProfile, Eve2PetSkill, CastBehavior, data, new PlayerSkillInputConfig { PressImmediately = true },
             actionDataIds: new[] { Eve2PetSkill }, abilities: new[] { cooldown }));
+        var slashCooldown = new PNAbilitySettings { Id = Eve2SlashReady.ToString(), Kind = PNAbilityKind.Cooldown, Clock = PNAbilityClock.Game, ShowInUI = true, Maximum = 1, InitialAmount = 1, AutoRecover = true, Cooldown = .6d, Recovery = PNAbilityRecovery.PerStack }.Create();
+        var slashData = new JObject { ["cooldownAbilityId"] = Eve2SlashReady.ToString(), ["actionDataId"] = Eve2SlashSkill.ToString(), ["reach"] = 3 };
+        hub.Get<PNSkillBindingProfile>().Register(new PNSkillBindingProfile(Eve2SlashProfile, Eve2SlashSkill, TargetStrikeBehavior, slashData, new PlayerSkillInputConfig { PressImmediately = true },
+            actionDataIds: new[] { Eve2SlashSkill }, abilities: new[] { slashCooldown }));
         if (!hub.Get<PNSkillBaseBindings>().TryGet(Eve2, out _))
             hub.Get<PNSkillBaseBindings>().Register(new PNSkillBaseBindings(Eve2, new[]
             {
+                new System.Collections.Generic.KeyValuePair<EveId, EveId>(PNSkillSlots.Attack, Eve2SlashProfile),
                 new System.Collections.Generic.KeyValuePair<EveId, EveId>(PNSkillSlots.Skill, Eve2PetProfile),
                 new System.Collections.Generic.KeyValuePair<EveId, EveId>(PNSkillSlots.Dash, PNGameSkillBindings.SharedDash)
             }));

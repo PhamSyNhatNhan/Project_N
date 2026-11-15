@@ -13,8 +13,15 @@ seconds and world VFX. No other elemental/Vulnerability Buff is attached to Eve.
 
 ## Blazing Assault and Rising Momentum
 
-Required tuning references blazingAssaultBuffId/risingMomentumBuffId select the
-registered profiles (default base:eve_blazing_assault/base:eve_rising_momentum).
+Rising Momentum (RulesVersion 168, G3c) is granted by the `project_n:eve_repeat_chain` state: the
+first hit of a Repeat chain activates it and its `stateEffects` entry applies the Buff, each later
+hit adds a tier, and the chain ending (release, exhaustion, interrupt, Burst end) ends the state.
+Burst's stat bonus (burstAttackBonus/burstAttackSpeedBonus before RulesVersion 167)
+and Blazing Assault are declared in the skill's `stateEffects` (G2c): each entry names an
+Ability state, an optional `statSource` {id, modifiers[]} and optional `buffs`. The authority
+applies them when the state starts and takes them back when it ends (expiry, End or Reset),
+then calls `OnAbilityEnded(state, reason)` (refund, stacks, visuals); a skill may hold them
+past the end with `KeepsStateEffects` (the finishing Ultimate). Clients never apply them.
 Parser, content/reference validation and runtime load validate these references;
 Skill owns conditions/lifetime and uses selected apply_buff factory with real
 invocation contexts. No new input/Visual/projectile/UI mechanism is added.
@@ -351,7 +358,8 @@ Shared player Dash keeps its own registered distance. See Core/Area/PNAreaREADME
   `eve_repeat_exhausted` (State without duration). `comboIdle` stays a local timer in the behavior: Abilities cannot pause while Eve casts and the timer runs only while idle.
 - Each cast is split in three: `Decide*` (read-only, returns `EveCastDecision`: cast, direction, target, step, reset, empowered, finisher, profile), `Begin*`/`Execute` (phases, motion, sweep, visuals),
   and `Host*` methods (hit rewards, Burst stat source, Blazing Assault, Rising Momentum, Burst refund) called at the same places as before. Named decision points inside `CompletePhase`:
-  `DecideUltimateRetarget`, `DecideEmpoweredStrike`, `DecideRepeatStroke`, `DecideRepeatContinue`.
+  `DecideUltimateRetarget`, `DecideEmpoweredStrike`, `DecideRepeatStroke`, `DecideRepeatContinue`. Since G4 the three that a remote owner can influence are `Choose` calls (`PNSkillInvocation.Choose<T>(point, compute, validate, reach)`):
+  the skill writes its own choice and its rule for a proposal, the framework carries the owner's choice (bool / int / string / entity) and falls back to `compute` when it is malformed, out of reach or refused. No `JObject`, report sink or decision source in Eve code.
 - Input: Eve's Attack/Skill/Ultimate/Burst profiles use behavior `project_n:eve_slot_skill` (`EveSlotSkillBehavior`, one per slot). `RequestSlot` -> `Input` -> `EveCharacterSkill.DispatchSlotInput(slot, input)`;
   a binding change cancels the gesture (clears the Repeat hold) and interrupts with `project_n:binding_changed`. The button-named hooks (`TapAttack`, `RepeatAttack`, `TapSkill`...) and
   `CanContinueEveRepeat` no longer exist for Eve; new characters write a behavior too. Shared Dash still uses `PNLegacySkillBehavior`.
