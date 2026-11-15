@@ -141,6 +141,8 @@ clock, collision and lifecycle implementation. Orbit is an example, not an imple
 
 ## Failure and evidence
 
+T2 timestamp contract (NetworkVersion25, Move wire schema2): all pose/control sampling stamps and host/owner model report stamps are unscaled seconds. Send cadence uses local unscaled seconds, independent of corrected presentation time. Observers read `PNTimeService.Sample().Presentation`; the common policy includes the additional `MoveInterpolationSeconds=.1` delay exactly once. It remains .1 real seconds at global scale0/.5/2; owner gameplay Advance, collision, prediction and correction permissions retain their existing semantics. The model holds its final pose when no later sample exists; no velocity extrapolation conversion is implied. `LastAcceptedTime` is report metadata, not a gameplay timeout/window.
+
 Malformed upstream packets return Malformed and retain LastProtocolError; wrong identity/owner/stale/fenced packets cannot
 write a body. Client malformed packets return false and retain LastError; later complete notices may recover. A host
 sampling failure is isolated per actor in SamplingFailure(identity); it retains the last accepted state/mirror and refuses

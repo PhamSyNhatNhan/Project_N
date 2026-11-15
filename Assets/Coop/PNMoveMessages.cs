@@ -57,7 +57,7 @@ namespace ProjectN.Coop
         }
         public static void WriteMovePacket(this NetworkWriter w,PNMovePacket p)
         {
-            int start=w.Position;Validate(p);w.WriteByte(1);w.WriteByte(p.Kind);Stream(w,p.Stream);w.WriteUInt(p.Request);w.WriteLong(p.Revision);w.WriteLong(p.Life);
+            int start=w.Position;Validate(p);w.WriteByte(2);w.WriteByte(p.Kind);Stream(w,p.Stream);w.WriteUInt(p.Request);w.WriteLong(p.Revision);w.WriteLong(p.Life);
             if(p.Kind<=2)MirrorState(w,p.Mirror);
             if(p.Kind<=1){var c=p.Correction;w.WriteUInt(c.Id);w.WriteUInt(c.Epoch);w.WriteUInt(c.MirrorRevision);State(w,c.State);Vector(w,c.Recovery.ResumeVelocity);Vector(w,c.Recovery.ResumeAngularVelocity);w.WriteByte((byte)(c.Recovery.AwaitingGroundDeparture?1:0));w.WriteByte((byte)c.Reason);w.WriteUInt(c.ReportSequenceFloor);w.WriteUInt(c.BaselineRequestId);}
             else if(p.Kind<=3){w.WriteUInt(p.Pose.Sequence);w.WriteUInt(p.Pose.Epoch);w.WriteDouble(p.Pose.SampleTime);State(w,p.Pose.State);}
@@ -66,7 +66,7 @@ namespace ProjectN.Coop
         }
         public static PNMovePacket ReadMovePacket(this NetworkReader r)
         {
-            int start=r.Position;if(r.ReadByte()!=1)throw new FormatException("Move schema.");var p=new PNMovePacket{Kind=r.ReadByte(),Stream=Stream(r),Request=r.ReadUInt(),Revision=r.ReadLong(),Life=r.ReadLong()};var id=p.Stream.Identity;
+            int start=r.Position;if(r.ReadByte()!=2)throw new FormatException("Move schema.");var p=new PNMovePacket{Kind=r.ReadByte(),Stream=Stream(r),Request=r.ReadUInt(),Revision=r.ReadLong(),Life=r.ReadLong()};var id=p.Stream.Identity;
             if(p.Kind>4)throw new FormatException("Move kind.");if(p.Kind<=2)p.Mirror=MirrorState(r,id);
             if(p.Kind<=1){uint cid=r.ReadUInt(),epoch=r.ReadUInt(),mirror=r.ReadUInt();var state=State(r);var v=Vector(r);var a=Vector(r);byte departure=r.ReadByte(),reason=r.ReadByte();if(departure>1)throw new FormatException("Move recovery.");p.Correction=new MoveCorrection(id,cid,epoch,mirror,state,new MoveRecovery(v,a,departure==1),(MoveCorrectionReason)reason,r.ReadUInt(),r.ReadUInt());}
             else if(p.Kind<=3){uint seq=r.ReadUInt(),epoch=r.ReadUInt();double time=r.ReadDouble();p.Pose=new MovePoseState(id,seq,epoch,time,State(r));}

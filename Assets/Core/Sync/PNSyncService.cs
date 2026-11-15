@@ -247,6 +247,18 @@ public sealed class PNSyncService : IDisposable
         dirty.RemoveAll(x => x.Item1.InWorld(world, incarnation));
     }
 
+    // Losing a replica's observation is not authority retirement: the same life may transfer/reappear.
+    // Transport must fence old play/world observations before admitting another image.
+    public void ForgetReplicaEntity(EveEntityId entity, long generation)
+    {
+        Live();
+        if (IsAuthority) throw new InvalidOperationException("Only a replica can forget an observation.");
+        var target = PNSyncTarget.ForEntity(entity, generation);
+        objects.Remove(target);
+        foreach (var key in entries.Keys.Where(x => x.Item1.Equals(target)).ToArray()) entries.Remove(key);
+        dirty.RemoveAll(x => x.Item1.Equals(target));
+    }
+
     // EN: One life of an entity is over (it retired, or its pooled shell is about to be reused): forget the objects, blocks, readers and writers of every generation up to this one
     //     and refuse them from now on. A newer generation of the same entity is a different target and is untouched.
     public void RemoveEntity(EveEntityId entity, long generation)

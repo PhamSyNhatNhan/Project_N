@@ -38,6 +38,7 @@ public sealed class PNGameSession : MonoBehaviour
         if(ReferenceEquals(service.Session,session))return service;
         service.agentGroups?.Dispose(); service.agentGroups = null;
         service.Session=session;
+        if(session.Role==EveSessionRole.Offline)PNTimeService.Attach(session,new PNLocalTimeline(session.SessionId,()=>Time.unscaledTimeAsDouble));
         service.WorldAssets=(runtime as EveGameRuntime)?.WorldAssets;service.WorldAssets?.BindSession(session);
         service.Scheduler=new EveEntityPreparationScheduler(session,PNGameBootstrap.Config.Preparation);
         service.Worlds=new PNWorldRuntime(session,service.Scheduler);

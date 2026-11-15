@@ -132,6 +132,17 @@ namespace ProjectN.Coop.Tests
             PNPlayerMove e1 = null, e2 = null;
             yield return Wait(() => (e1 = Of(o1)) != null && (e2 = Of(o2)) != null && e1.GetComponent<PNSkillOwnerView>() != null && e2.GetComponent<PNSkillOwnerView>() != null, "both client entities with the skill modules: " + string.Join(" | ", Players().Select(x => x.GetComponent<EveEntityIdentity>().OwnerId + ":" + string.Join(",", x.GetComponents<Component>().Select(c => c.GetType().Name)))) + " owners " + o1 + "," + o2); if (failed) yield break;
 
+            yield return Wait(() => PNTimeService.For(EveRegistrySession.Context).Sample().Ready, "session timeline ready"); if (failed) yield break;
+            try
+            {
+                var timeline = PNTimeService.For(EveRegistrySession.Context);
+                var sample = timeline.Sample();
+                Check(sample.Epoch == (host ? EveRegistrySession.Context.SessionId : EveRegistrySession.Context.Admission.AdmittedHostSession), "timeline epoch matches admitted play");
+                Check(Math.Abs(sample.Presentation - (host ? NetworkTime.localTime : Math.Max(0,NetworkTime.unscaledTime-manager.Profile.MoveInterpolationSeconds))) < .01, "one unscaled presentation buffer");
+            }
+            catch (Exception e) { Fail(e); yield break; }
+
+            if (PNTimeBaselineChecks.Enabled) { yield return PNTimeBaselineChecks.Run(folder, name, e1); yield break; }
             // ---- owner-only block ----
             if (!host)
             {
@@ -376,6 +387,7 @@ namespace ProjectN.Coop.Tests
                         // The host's own nearest enemy is `slashNear` (1.0 m); `slashFar` is at 1.8 m. Client1 will see them the other way round (see below), so only client1's proposal can make `slashFar` the one hit.
                         var ready = FindObjectsByType<PNEnemyStat>(FindObjectsSortMode.None).Where(x => x.IsReady).Take(2).ToArray(); slashNear = ready[0]; slashFar = ready[1];
                         slashNear.transform.position = e1.transform.position + new Vector3(1.0f, 0, 0); slashFar.transform.position = e1.transform.position + new Vector3(1.8f, 0, 0); Physics.SyncTransforms();
+                        File.WriteAllText(Path.Combine(folder,"slash-near-id"),slashNear.GetComponent<EveEntityIdentity>().Id.Value.ToString());
                         nearHealth = slashNear.GetCurrent(PNContentIds.Health); farHealth = slashFar.GetCurrent(PNContentIds.Health); Mark("slash-prey-ready");
                     } catch (Exception e) { Fail(e); yield break; }
                 }
@@ -384,7 +396,8 @@ namespace ProjectN.Coop.Tests
                 {
                     yield return Wait(() => FindObjectsByType<PNEnemyStat>(FindObjectsSortMode.None).Count(x => (x.transform.position - e1.transform.position).sqrMagnitude < 2.5f * 2.5f) >= 2, "both enemies show near the client's Eve on its own machine"); if (failed) yield break;
                     // On client1's own machine the nearer enemy is moved behind the other one, so ITS nearest enemy is the host's far one: a different choice from the host's own.
-                    var seenNear = FindObjectsByType<PNEnemyStat>(FindObjectsSortMode.None).OrderBy(x => (x.transform.position - e1.transform.position).sqrMagnitude).First();
+                    var nearId = long.Parse(File.ReadAllText(Path.Combine(folder,"slash-near-id")));
+                    var seenNear = FindObjectsByType<PNEnemyStat>(FindObjectsSortMode.None).Single(x => x.GetComponent<EveEntityIdentity>().Id.Value == nearId);
                     bool pinning = true; StartCoroutine(PinEnemy(seenNear, e1.transform, () => pinning));
                     yield return new WaitForSeconds(.4f);
                     seenNear.transform.position = e1.transform.position + new Vector3(2.4f, 0, 0); Physics.SyncTransforms(); yield return new WaitForSeconds(.25f);
@@ -394,6 +407,8 @@ namespace ProjectN.Coop.Tests
                     yield return Wait(() => SlashCharges() >= 1, "client1 has its slash ready", () => "charges " + SlashCharges()); if (failed) yield break;
                     try
                     {
+                        seenNear.transform.position = e1.transform.position + new Vector3(2.4f,0,0); Physics.SyncTransforms();
+                        Check(!ReferenceEquals(FindObjectsByType<PNEnemyStat>(FindObjectsSortMode.None).OrderBy(x => (x.transform.position-e1.transform.position).sqrMagnitude).First(),seenNear),"host-identified near enemy is not nearest at the press");
                         int guessedSlash = remote1.PredictedCount; int rolledSlash = remote1.RolledBackCount;
                         bool pressed = petSkill.RequestSlot(PNSkillSlots.Attack, new PNSkillInputEvent(PNSkillInputPhase.Started, PNSkillInteraction.Tap)); slashSent = remote1.LastSentKey;
                         Check(pressed && remote1.PredictedCount == guessedSlash + 1 && SlashCharges() < 1, "client1 guesses the slash and shows its cooldown spent at once (guesses " + (remote1.PredictedCount - guessedSlash) + ", charges " + SlashCharges() + ")");

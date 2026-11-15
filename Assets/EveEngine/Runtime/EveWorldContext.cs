@@ -34,6 +34,7 @@ namespace EveEngine
         public int ActivityLeaseCount=>leases.Values.Count(x=>x.Kind==EveWorldLeaseKind.Activity);
         public int PendingCleanup => cleanup.Count;
         public double GameplayTime { get; private set; }
+        public ulong ClockRestoreRevision { get; private set; }
 #if UNITY_5_3_OR_NEWER
         public UnityEngine.SceneManagement.Scene PhysicsOwner { get; private set; }
         public bool OwnsPhysicsSimulation { get; private set; }
@@ -101,7 +102,7 @@ namespace EveEngine
             if(CanExecute)GameplayTime+=delta;
         }
         public void RestoreClock(double time)
-        {if(!Session.HasAuthority||State!=EveWorldState.Ready&&State!=EveWorldState.Paused||Session.Entities.Snapshot(this).Count!=0||double.IsNaN(time)||double.IsInfinity(time)||time<0)throw new InvalidOperationException("Restore clock before restoring resident entities.");GameplayTime=time;}
+        {if(!Session.HasAuthority||State!=EveWorldState.Ready&&State!=EveWorldState.Paused||Session.Entities.Snapshot(this).Count!=0||double.IsNaN(time)||double.IsInfinity(time)||time<0)throw new InvalidOperationException("Restore clock before restoring resident entities.");ClockRestoreRevision=checked(ClockRestoreRevision+1);GameplayTime=time;}
         public void Fail(Exception error) { if(State==EveWorldState.Disposed)throw new InvalidOperationException(); Failure=error??throw new ArgumentNullException(nameof(error)); FirstFailure=FirstFailure??error; State=EveWorldState.Failed; }
         // Retry retains failed resources and the directory identity. Callers retire members first.
         public void Dispose()

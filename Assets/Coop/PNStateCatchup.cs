@@ -20,6 +20,7 @@ namespace ProjectN.Coop {
             string digest=BindingDigest(conn);
             if(!peerFences.TryGetValue(conn.connectionId,out var values)||values.Length==0||values[values.Length-1].Attempt!=peer.ResumeChallenge||values[values.Length-1].Digest!=digest)
             {
+                foreach(var entry in worldPeers.Values.Where(x=>x.Connection==conn&&!x.Closing))SendWorldClock(entry,true);
                 var list=new List<PNStateFence>();
                 foreach(var item in bindings.OrderBy(x=>x.Key))
                 {

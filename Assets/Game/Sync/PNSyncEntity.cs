@@ -7,7 +7,7 @@ using UnityEngine;
 
 // EN: A component on an entity that makes it addressable by the state-and-command layer (Docs/NetworkStatePlan.md N4): the entity's id + generation become a PNSyncTarget of kind Entity.
 //     It is an entity load step: it registers the target when the entity commits (before it is published, so a listener may register its writers and readers first) and, when the entity is
-//     unloaded or retired, tells the listeners and calls PNSyncService.RemoveEntity, which retires every generation up to this life: a pooled or rebuilt entity is a NEW generation, so state of an
+//     unloaded or retired, tells the listeners and calls RemoveEntity on authority, or ForgetReplicaEntity on a client losing observation. Authority retirement fences every generation up to this life: a pooled or rebuilt entity is a NEW generation, so state of an
 //     old life never reaches the new one. Add it only to entities that have a block or command to sync (a boss, a summon), not to every entity.
 // VI: Gắn vào entity để lớp đồng bộ nhắm tới được (id + generation). Là bước nạp: đăng ký khi entity commit, gỡ và retire khi entity dỡ.
 public interface IPNSyncEntityListener
@@ -53,7 +53,15 @@ public sealed class PNSyncEntity : MonoBehaviour, EveIEntityLoadStep, EveIEntity
         foreach (var listener in GetComponents<IPNSyncEntityListener>()) { try { listener.OnUnbound(); } catch (Exception error) { Debug.LogException(error, this); } }
         lease?.Dispose(); lease = null;
         var target = Target; Target = default;
-        try { sync?.RemoveEntity(target.Entity, target.Generation); } catch (ObjectDisposedException) { }
+        try
+        {
+            if (sync != null)
+            {
+                if (sync.IsAuthority) sync.RemoveEntity(target.Entity, target.Generation);
+                else sync.ForgetReplicaEntity(target.Entity, target.Generation);
+            }
+        }
+        catch (ObjectDisposedException) { }
         sync = null;
     }
 

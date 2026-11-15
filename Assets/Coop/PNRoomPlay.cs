@@ -72,6 +72,7 @@ namespace ProjectN.Coop
         private void ResetPlayState()
         {
             fatalSerialization=false;clientInputReady=false;clientInterrupted=hostInterrupted=-1;clientResumeFloor=0;
+            pendingFinalResume=null;timeRecovery.Reset();
             lastResponseSequence=0;lastHostTraffic=Time.realtimeSinceStartupAsDouble;lastStatCapture=lastMoveTick=0;
             fenceAttempt=0;fenceCount=-1;fenceDigest=null;clientFence.Clear();peerFences.Clear();LastFailure=null;
         }
@@ -149,6 +150,7 @@ namespace ProjectN.Coop
         }
         private void CleanupPlay()
         {
+            pendingFinalResume=null;timeRecovery.Reset();
             IsPlaying=false;playCleanupPending=true;clientInputReady=false;clientInterrupted=hostInterrupted=-1;
             foreach(var b in bindings.Values.Concat(awaitingSpawn).ToArray())SetInput(b,false);
             // Adapter failures keep bindings reachable for retry.

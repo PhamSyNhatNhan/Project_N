@@ -18,6 +18,7 @@ namespace ProjectN.Coop
             public PNGridPlacementSender Placements;
             public bool Loaded,Closing,Sent,AwaitingConfirmation,Confirmed,InitialCaptured,InitialReady;
             public double Started;
+            public long ClockRevision;public ulong ClockRestoreRevision;public double ClockRate;public bool ClockBaselineRequested;
             public ulong FenceRevision,ConfirmedRevision;
             public string Digest;
             public PNStateFence[] Targets;
@@ -44,7 +45,7 @@ namespace ProjectN.Coop
         private int pendingWorldBytes;
         public int PendingWorldBytes=>pendingWorldBytes;
         public int WorldSubscriptionCount=>NetworkServer.active?worldPeers.Count:clientWorlds.Count;
-        public bool ClientWorldReady(Guid world)=>clientWorlds.TryGetValue(world,out var s)&&s.Loaded&&s.Confirmed&&s.InitialReady&&!s.Closing;
+        public bool ClientWorldReady(Guid world)=>clientWorlds.TryGetValue(world,out var s)&&s.Loaded&&s.Confirmed&&s.InitialReady&&!s.Closing&&(NetworkServer.active||WorldClockPrepared(world));
         public PNWorldBindingScope CommandWorldScope(long entity,long generation)
         {var binding=bindings.Values.FirstOrDefault(x=>x.Metadata.Entity==entity&&x.Metadata.Generation==generation);return binding==null?default:Scope(binding,NetworkServer.active?NetworkServer.localConnection:null);}
         public PNWorldBindingScope BindingWorldScope(uint netId)=>bindings.TryGetValue(netId,out var binding)?Scope(binding):default;
@@ -60,6 +61,9 @@ namespace ProjectN.Coop
         private void InitializeWorldReplication()
         {
             if(Worlds==null)throw new InvalidOperationException("A play world runtime is required.");
+            RegisterStateAdapter(WorldClockKind,()=>NetworkServer.active||clientWorlds.Values.Where(x=>!x.Closing).All(x=>WorldClockPrepared(x.Offer.Ticket.World)));
+            if(NetworkServer.active)NetworkServer.ReplaceHandler<PNWorldClockRequest>(ReceiveWorldClockRequest);
+            RequiredAdapters.Add(WorldClockKind);
             Worlds.WorldReady+=WorldBecameReady;Worlds.WorldUnloading+=WorldWillUnload;
 
         }
@@ -115,7 +119,7 @@ namespace ProjectN.Coop
             entry.Offer=new PNWorldOffer{Descriptor=gridDescriptor,Ticket=WorldTicket(world,checked(++nextWorldSubscription)),Definition=world.DefinitionId.ToString(),ContentHash=world.ContentHash,Active=true,DefaultWorld=ReferenceEquals(world,Worlds.DefaultWorld),Paused=world.State==EveWorldState.Paused,Features=Worlds.Get(world).Features.Ids.Select(x=>x.ToString()).ToArray()};
             try{entry.DescriptorLease=ReserveWorld(512);entry.WorldLease=world.AcquireLease("world subscription");worldPeers.Add(key,entry);}
             catch{entry.DescriptorLease?.Dispose();entry.WorldLease?.Dispose();throw;}
-            if(connection is LocalConnectionToClient){entry.Loaded=true;entry.Confirmed=true;entry.InitialReady=true;}else connection.Send(entry.Offer);
+            if(connection is LocalConnectionToClient){entry.Loaded=true;entry.Confirmed=true;entry.InitialReady=true;}else {connection.Send(entry.Offer);SendWorldClock(entry,true);}
             return entry.Offer.Ticket.Subscription;
         }
         public void UnsubscribeWorld(NetworkConnectionToClient connection,Guid world)
@@ -154,7 +158,11 @@ namespace ProjectN.Coop
         {
             uint netId=binding.Shell==null?0:binding.Shell.netId;
             foreach(var entry in worldPeers.Values.Concat(clientWorlds.Values).Where(x=>x.Offer.Ticket.World==binding.Metadata.World))
-            {entry.Granted.Remove(netId);entry.Applied.Remove(netId);entry.InitialEntities.Remove(binding.Metadata.Entity);entry.AppliedEntities.Remove(binding.Metadata.Entity);}
+            {
+                entry.Granted.Remove(netId);entry.Applied.Remove(netId);bool initialChanged=entry.InitialEntities.Remove(binding.Metadata.Entity);entry.AppliedEntities.Remove(binding.Metadata.Entity);
+                // Retiring actors were already excluded from BindingDigest. Reconfirm the changed initial set even when that digest no longer changes.
+                if(NetworkServer.active&&initialChanged&&!entry.Closing&&!(entry.Connection is LocalConnectionToClient)){entry.Targets=null;entry.Sent=false;entry.Confirmed=false;}
+            }
         }
         private PNWorldBindingScope Scope(Binding binding,NetworkConnectionToClient peer=null)
         {
@@ -175,7 +183,7 @@ namespace ProjectN.Coop
                 var connection=binding.OwnerConnection;
                 return connection!=null&&worldPeers.TryGetValue((connection.connectionId,binding.Metadata.World),out var entry)&&entry.Loaded&&entry.InitialReady&&entry.Applied.Contains(binding.Shell.netId);
             }
-            return clientWorlds.TryGetValue(binding.Metadata.World,out var client)&&client.Loaded&&client.InitialReady&&!client.Closing&&client.Offer.Ticket.Subscription==binding.WorldSubscriptionRevision&&client.Applied.Contains(binding.Shell.netId);
+            return clientWorlds.TryGetValue(binding.Metadata.World,out var client)&&client.Loaded&&client.InitialReady&&!client.Closing&&WorldClockPrepared(binding.Metadata.World)&&client.Offer.Ticket.Subscription==binding.WorldSubscriptionRevision&&client.Applied.Contains(binding.Shell.netId);
         }
         private bool IsClientBindingCurrent(Binding binding)=>ClientScope(binding.Metadata,out var entry)&&entry.Offer.Ticket.Subscription==binding.WorldSubscriptionRevision;
         private bool RoomCatchupBinding(Binding binding,NetworkConnectionToClient peer=null)
@@ -226,7 +234,7 @@ namespace ProjectN.Coop
         }
         private void CloseClientWorld(WorldSubscription entry)
         {
-            if(entry.Closing)return;entry.Closing=true;clientWorlds.Remove(entry.Offer.Ticket.World);ForgetGridInbox(entry.Offer.Ticket.World);
+            if(entry.Closing)return;ForgetWorldClock(entry.Offer.Ticket);entry.Closing=true;clientWorlds.Remove(entry.Offer.Ticket.World);ForgetGridInbox(entry.Offer.Ticket.World);
             worldFloors[entry.Offer.Ticket.World]=entry.Offer.Ticket.Subscription;closingWorlds.Add(entry);
             try{RetireClientWorldBindings(entry.Offer.Ticket.World);}catch(Exception error){LastFailure="World cleanup pending: "+error.Message;}
             ForgetClientSyncEntities(entry.Offer.Ticket.World);
@@ -336,6 +344,7 @@ namespace ProjectN.Coop
                     bool pausedWorld=entry.World.State==EveWorldState.Paused;
                     if(pausedWorld!=entry.Offer.Paused){var offer=entry.Offer;offer.Paused=pausedWorld;entry.Offer=offer;if(!(entry.Connection is LocalConnectionToClient))entry.Connection.Send(offer);}
                     if(entry.Connection is LocalConnectionToClient)continue;
+                    SendWorldClock(entry,entry.ClockBaselineRequested);entry.ClockBaselineRequested=false;
                     if((!entry.Loaded||!entry.Confirmed)&&Time.realtimeSinceStartupAsDouble-entry.Started>60){UnsubscribeWorld(entry.Connection,entry.World.InstanceId);continue;}
                     if(entry.Chunks!=null&&(entry.World.State==EveWorldState.Ready||entry.World.State==EveWorldState.Paused))
                         try{PumpGridChunks(entry);PumpGridPlacements(entry);}catch(Exception error){LastFailure="Grid chunk channel failed: "+error.Message;UnsubscribeWorld(entry.Connection,entry.World.InstanceId);continue;}
@@ -362,7 +371,7 @@ namespace ProjectN.Coop
                 if(entry.Loaded)PumpGridResync(entry);
                 if(entry.World.State==EveWorldState.Failed||!entry.Loaded&&Time.realtimeSinceStartupAsDouble-entry.Started>60){NetworkClient.Send(new PNWorldLoaded{Ticket=entry.Offer.Ticket,Success=false});CloseClientWorld(entry);continue;}
                 if(!entry.Loaded&&entry.World.State==EveWorldState.Ready){entry.World.SetPaused(entry.Offer.Paused);entry.Loaded=true;NetworkClient.Send(new PNWorldLoaded{Ticket=entry.Offer.Ticket,Success=true});}
-                if(!entry.Loaded||entry.AwaitingConfirmation||entry.ConfirmedRevision==entry.FenceRevision||entry.Count<0||entry.Count!=entry.Incoming.Count||entry.Digest!=BindingDigest(null,entry.World.InstanceId)||!entry.Incoming.Values.All(TargetApplied))continue;
+                if(!entry.Loaded||!WorldClockPrepared(entry.Offer.Ticket.World)||entry.AwaitingConfirmation||entry.ConfirmedRevision==entry.FenceRevision||entry.Count<0||entry.Count!=entry.Incoming.Count||entry.Digest!=BindingDigest(null,entry.World.InstanceId)||!entry.Incoming.Values.All(TargetApplied))continue;
                 entry.AwaitingConfirmation=true;NetworkClient.Send(new PNWorldApplied{Ticket=entry.Offer.Ticket,Revision=entry.FenceRevision,Digest=entry.Digest});
             }
         }
@@ -382,6 +391,7 @@ namespace ProjectN.Coop
             if(Worlds!=null){Worlds.WorldReady-=WorldBecameReady;Worlds.WorldUnloading-=WorldWillUnload;}
             foreach(var entry in worldPeers.Values.Concat(clientWorlds.Values).Concat(closingWorlds).ToArray())ReleaseWorldSubscription(entry);
             foreach(var id in clientWorlds.Keys.Concat(closingWorlds.Select(x=>x.Offer.Ticket.World)).Concat(waitingWorldOffers.Keys).ToArray())ForgetGridInbox(id);
+            preparedWorldClocks.Clear();requestedWorldClocks.Clear();
             worldPeers.Clear();clientWorlds.Clear();closingWorlds.Clear();worldFloors.Clear();waitingWorldOffers.Clear();foreach(var lease in waitingOfferLeases.Values)lease.Dispose();waitingOfferLeases.Clear();
         }
     }

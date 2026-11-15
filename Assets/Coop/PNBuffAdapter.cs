@@ -221,7 +221,7 @@ namespace ProjectN.Coop
                 var waiting=buffPeers.Values.Where(x=>ReferenceEquals(x.Binding,b)&&x.Packets.Count>0).ToArray();
                 if(waiting.Length>0&&Time.realtimeSinceStartupAsDouble-b.RetiringAt<Profile.GraceSeconds)continue;
                 foreach(var peer in waiting){peer.Connection.Disconnect();RemoveBuffPeer(peer);}
-                var shell=b.Shell;CleanupBinding(b);bindings.Remove(shell.netId);NetworkServer.Destroy(shell.gameObject);
+                var shell=b.Shell;CleanupBinding(b);ForgetWorldActor(b);bindings.Remove(shell.netId);NetworkServer.Destroy(shell.gameObject);
             }
         }
         private static float BuffClockRate(Binding binding)=>binding.Candidate?.Loader?.LoadContext?.CanExecute==true?Time.timeScale:0;

@@ -123,7 +123,7 @@ namespace ProjectN.Coop
                 if(!movePeers.TryGetValue((conn.connectionId,p.Stream.NetId),out var stream)||!stream.Stream.Equals(p.Stream)||p.Request!=stream.Request||stream.Binding.Retiring)return;
                 if(stream.Binding.Metadata.Owner!=peer.Owner)throw new FormatException("Wrong Move owner.");
                 if(!PeerInputReady(conn)||!WorldInputAllowed(stream.Binding)||!AuthorizeWorldRequest(conn,stream.Binding,p.Stream.Scope)||!stream.Binding.Movement.Component.NetworkUsable)return;
-                var result=moveWorld.Receive(p.Report,peer.Owner,NetworkTime.time);
+                var result=moveWorld.Receive(p.Report,peer.Owner,NetworkTime.unscaledTime);
                 if(result==MoveReportResult.WrongOwner||result==MoveReportResult.Malformed)throw new FormatException("Move report rejected.");
             }
             catch(Exception error){LastFailure=error.Message;conn.Disconnect();}
@@ -144,7 +144,7 @@ namespace ProjectN.Coop
             if(owner)
             {
                 // Request IDs are per owner stream; retries never allocate a new epoch.
-                var result=moveWorld.Receive(new MoveBaselineRequest(peer.Stream.Identity,peer.Request),b.Metadata.Owner,NetworkTime.time);
+                var result=moveWorld.Receive(new MoveBaselineRequest(peer.Stream.Identity,peer.Request),b.Metadata.Owner,NetworkTime.unscaledTime);
                 if(result!=MoveReportResult.Accepted&&result!=MoveReportResult.Stale)return false;
             }
             var p=ControlPacket(peer,model,owner?(byte)0:(byte)2);QueueMove(peer,p);peer.NeedsBaseline=false;revision=p.Revision;return true;
@@ -152,7 +152,7 @@ namespace ProjectN.Coop
         private PNMovePacket ControlPacket(MovePeer peer,MoveHostModel model,byte kind)
         {
             peer.MirrorRevision=model.Mirror.Revision;peer.CorrectionId=model.LastCorrection.Id;
-            return new PNMovePacket{Kind=kind,Stream=peer.Stream,Request=peer.Request,Revision=checked(++peer.Revision),Life=model.Mirror.LifeRevision,Mirror=model.Mirror,Correction=model.LastCorrection,Pose=kind==2?model.Sample(NetworkTime.time):null};
+            return new PNMovePacket{Kind=kind,Stream=peer.Stream,Request=peer.Request,Revision=checked(++peer.Revision),Life=model.Mirror.LifeRevision,Mirror=model.Mirror,Correction=model.LastCorrection,Pose=kind==2?model.Sample(NetworkTime.unscaledTime):null};
         }
         private IDisposable ReserveMove(int size)
         {
@@ -219,10 +219,10 @@ namespace ProjectN.Coop
                 {
                     if(b.Movement.Pose.HasValue&&b.Movement.Pose.Value.Revision<=(long)b.Movement.Component.AppliedMovementControl)
                     {b.Movement.Component.ObserverMovement.Receive(b.Movement.Pose.Value.Pose,true);b.Movement.Pose=null;}
-                    if(!b.Movement.Component.MovementHeld)b.Movement.Component.ApplyObserverPose(Math.Max(0,NetworkTime.time-Profile.MoveInterpolationSeconds));
+                    if(!b.Movement.Component.MovementHeld)b.Movement.Component.ApplyObserverPose(PNTimeService.For(subscribedSession).Sample().Presentation);
                 }
             }
-            if(NetworkTime.time-lastMoveTick<Profile.MoveSendSeconds)return;lastMoveTick=NetworkTime.time;
+            if(NetworkTime.localTime-lastMoveTick<Profile.MoveSendSeconds)return;lastMoveTick=NetworkTime.localTime;
             foreach(var b in bindings.Values.Where(x=>!x.Retiring&&x.Movement.LatestReport!=null&&x.Movement.Component?.MovementHeld==false))
             {var p=new PNMovePacket{Kind=4,Stream=MovementStream(b),Request=b.Movement.Request,Revision=Math.Max(1,b.Movement.Received),Life=b.Movement.Component.OwnerMovement.Mirror.LifeRevision,Report=b.Movement.LatestReport};if(!TryMoveSend(null,p,Channels.Unreliable))break;b.Movement.LatestReport=null;}
         }
@@ -237,10 +237,10 @@ namespace ProjectN.Coop
                 moveWorld.Track(b.Movement.Component,b.Metadata.Owner>0);b.Movement.Attached=true;b.Movement.Component.SetMovementHeld(false);
                 if(b.Metadata.Owner==0)SetInput(b,hostInterrupted<0);
             }
-            moveWorld.Advance(NetworkTime.time);
+            moveWorld.Advance(NetworkTime.unscaledTime);
             foreach(var b in bindings.Values.Where(x=>!x.Retiring&&x.Movement.Attached))if(moveWorld.SamplingFailure(b.Movement.Component.NetworkIdentity(b.Metadata.HostSession)) is Exception error)throw new InvalidOperationException("Move capture failed.",error);
             var peers=movePeers.Values.ToArray();if(peers.Length==0)return;
-            bool tick=NetworkTime.time-lastMoveTick>=Profile.MoveSendSeconds;if(tick)lastMoveTick=NetworkTime.time;
+            bool tick=NetworkTime.localTime-lastMoveTick>=Profile.MoveSendSeconds;if(tick)lastMoveTick=NetworkTime.localTime;
             for(int i=0;i<peers.Length;i++)
             {
                 var peer=peers[(i+moveCursor)%peers.Length];var b=peer.Binding;
@@ -250,7 +250,7 @@ namespace ProjectN.Coop
                 else if(peer.MirrorRevision!=model.Mirror.Revision||peer.CorrectionId!=model.LastCorrection.Id)QueueMove(peer,ControlPacket(peer,model,b.Metadata.Owner==((PNPeer)peer.Connection.authenticationData).Owner?(byte)1:(byte)2));
                 while(peer.Queue.Count>0){var item=peer.Queue.Peek();if(!TryMoveSend(peer.Connection,item.Packet,Channels.Reliable))break;peer.Queue.Dequeue();peer.Bytes-=item.Bytes;hostMoveBytes-=item.Bytes;peer.SentRevision=item.Packet.Revision;}
                 if(tick&&peer.Queue.Count==0&&b.Metadata.Owner!=((PNPeer)peer.Connection.authenticationData).Owner)
-                    TryMoveSend(peer.Connection,new PNMovePacket{Kind=3,Stream=peer.Stream,Request=peer.Request,Revision=peer.SentRevision,Life=model.Mirror.LifeRevision,Pose=model.Sample(NetworkTime.time)},Channels.Unreliable);
+                    TryMoveSend(peer.Connection,new PNMovePacket{Kind=3,Stream=peer.Stream,Request=peer.Request,Revision=peer.SentRevision,Life=model.Mirror.LifeRevision,Pose=model.Sample(NetworkTime.unscaledTime)},Channels.Unreliable);
             }
             moveCursor++;
         }

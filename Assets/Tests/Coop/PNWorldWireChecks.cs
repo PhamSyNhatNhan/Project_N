@@ -53,7 +53,7 @@ namespace ProjectN.Coop.Tests
                 var actor=new GameObject("Unsubscribed authority actor");actor.SetActive(false);
                 try
                 {
-                    var identity=actor.AddComponent<NetworkIdentity>();actor.AddComponent<PNActorShell>().Metadata=new PNActorMetadata{World=ticket.World,WorldIncarnation=4};
+                    var identity=actor.AddComponent<NetworkIdentity>();typeof(PNActorShell).GetField("Metadata").SetValue(actor.AddComponent<PNActorShell>(),new PNActorMetadata{World=ticket.World,WorldIncarnation=4});
                     Check(!interest.OnCheckObserver(identity,connection),"initial actor denied without an authenticated world subscription");
                     Check(typeof(PNWorldInterestManagement).BaseType==typeof(InterestManagementBase),"world interest bypasses Mirror automatic authority-owner inclusion");
                 }

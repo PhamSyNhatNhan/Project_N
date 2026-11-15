@@ -48,6 +48,19 @@ namespace ProjectN.Coop.Tests
         private PNActorShell[] Shells()=>FindObjectsByType<PNActorShell>();
         private bool ReadyIn(Guid world)=>EveRegistrySession.IsReady&&manager.ClientInputReady&&manager.ClientWorldReady(world)&&EveRegistrySession.Context.Entities.Snapshot().Count>0&&Shells().All(x=>x.Metadata.World==world);
         private void Inject(string method,object value)=>typeof(PNNetworkManager).GetMethod(method,BindingFlags.NonPublic|BindingFlags.Instance).Invoke(manager,new[]{value});
+        private static object TimeField(object o,string name)=>o.GetType().GetField(name,BindingFlags.Instance|BindingFlags.NonPublic|BindingFlags.Public).GetValue(o);
+        private string TimeWorldDebug(string field)
+        {
+            var all=(System.Collections.IDictionary)TimeField(manager,field);var lines=new System.Collections.Generic.List<string>();
+            foreach(var entry in all.Values)
+            {
+                string fields=string.Join(" ",new[]{"Loaded","Confirmed","InitialReady","InitialCaptured","AwaitingConfirmation","FenceRevision","ConfirmedRevision","Count","SendCursor","ClockRevision"}.Select(n=>n+"="+TimeField(entry,n)));
+                var initial=((System.Collections.IEnumerable)TimeField(entry,"InitialEntities")).Cast<long>();var applied=((System.Collections.IEnumerable)TimeField(entry,"AppliedEntities")).Cast<long>();
+                fields+=" initial="+string.Join(",",initial)+" applied="+string.Join(",",applied)+" missing="+string.Join(",",initial.Except(applied));
+                fields+=" incoming="+((System.Collections.IDictionary)TimeField(entry,"Incoming")).Count+" granted="+((System.Collections.IEnumerable)TimeField(entry,"Granted")).Cast<object>().Count();lines.Add(fields);
+            }
+            return string.Join("\n",lines);
+        }
         private IEnumerator Start()
         {
             folder=Arg("--pn-world-test=");if(folder==null)yield break;
@@ -61,6 +74,30 @@ namespace ProjectN.Coop.Tests
             catch(Exception error){Fail(error);yield break;}
             yield return Wait(()=>NetworkClient.isConnected&&NetworkClient.connection.isAuthenticated&&NetworkClient.localPlayer!=null);if(failed)yield break;
             room=manager.RoomId;roomShell=NetworkClient.localPlayer.netId;Mark(role+"-lobby");
+            if(role=="reconnect")
+            {
+                yield return Wait(()=>
+                {
+                    var world=manager.Worlds.DefaultWorld;
+                    var mapping=world==null?PNClockRead.MissingBaseline:manager.ReadWorldPresentationClock(world.InstanceId,out _);
+                    var snapshot=PNTimeService.For(EveRegistrySession.Context).Sample();
+                    File.WriteAllText(Path.Combine(folder,"reconnect-state.txt"),"playing="+manager.IsPlaying+" input="+manager.ClientInputReady+" default="+world?.InstanceId+" state="+world?.State+" worlds="+manager.WorldSubscriptionCount+" worldReady="+(world!=null&&manager.ClientWorldReady(world.InstanceId))+" mapping="+mapping+" render="+snapshot.Presentation+" host="+snapshot.Host+" ready="+snapshot.Ready+" actors="+EveRegistrySession.Context.Entities.Snapshot().Count+"\n"+TimeWorldDebug("clientWorlds"));
+                    return manager.IsPlaying&&manager.ClientInputReady&&world!=null&&manager.ClientWorldReady(world.InstanceId)&&mapping==PNClockRead.Ready;
+                });if(failed)yield break;
+                try
+                {
+                    var id=manager.Worlds.DefaultWorld.InstanceId;
+                    Check(manager.ClientWorldRevision(id)>ulong.Parse(File.ReadAllText(Path.Combine(folder,"client3-clock-ticket"))),"reconnect obtains a fresh world subscription and clock baseline");
+                    Check(PNTimeService.For(EveRegistrySession.Context).Sample().Epoch==manager.PlaySession,"reconnect clock belongs to current host play");
+                    manager.ReadWorldPresentationClock(id,out var beforeClock);
+                    var staleClock=new PNWorldClock{Ticket=new PNWorldTicket{Room=manager.RoomId,RoomIncarnation=manager.RoomIncarnation,Play=manager.PlaySession,PlayRevision=manager.PlayRevision,World=id,Incarnation=manager.Worlds.DefaultWorld.Incarnation,Subscription=ulong.Parse(File.ReadAllText(Path.Combine(folder,"client3-clock-ticket")))},Revision=999,Stamp=NetworkTime.unscaledTime,Value=999,Rate=8,Baseline=true};
+                    Inject("ReceiveWorldClock",staleClock);
+                    staleClock.Ticket.Subscription=manager.ClientWorldRevision(id);staleClock.Ticket.Play=Guid.NewGuid();Inject("ReceiveWorldClock",staleClock);
+                    Check(manager.ReadWorldPresentationClock(id,out var afterClock)==PNClockRead.Ready&&Math.Abs(beforeClock-afterClock)<1e-8,"old subscription and old play clock packets cannot replace current mapping");
+                    Mark("reconnect-pass");File.WriteAllText(Path.Combine(folder,"reconnect.txt"),"PASS "+checks+" reconnect clock cases");Application.Quit(0);
+                }
+                catch(Exception error){Fail(error);}yield break;
+            }
             if(role=="host")yield return Host();else yield return Client();
         }
         private IEnumerator Host()
@@ -119,6 +156,8 @@ namespace ProjectN.Coop.Tests
             yield return Wait(()=>Has("client2-returned")&&Has("client3-negative-ready"));if(failed)yield break;
             Mark("bad-request-now");
             yield return Wait(()=>Has("client3.txt")&&NetworkServer.connections.Values.Count(c=>c.authenticationData is PNPeer p&&p.Owner>0)==2);if(failed)yield break;
+            if(Environment.GetCommandLineArgs().Contains("--pn-time-reconnect"))
+            {Mark("reconnect-now");yield return Wait(()=>{File.WriteAllText(Path.Combine(folder,"host-reconnect-state.txt"),TimeWorldDebug("worldPeers"));return Has("reconnect-pass");});if(failed)yield break;Check(true,"new connection reacquired coherent clock/input state");}
             yield return Wait(()=>manager.MovementAuthority.TrackedCount==EveRegistrySession.Context.Entities.Snapshot().Count(x=>x.GetComponent<PNMove>()!=null));if(failed)yield break;
             try{Check(true,"retired owner movement model is untracked after loader invalidation");}catch(Exception error){Fail(error);yield break;}
             try{Check(manager.IsPlaying&&EveRegistrySession.IsReady,"unauthorized report/request isolates offending peer");PNGameBootstrap.EndPlay();Mark("play-ended");}catch(Exception error){Fail(error);yield break;}
@@ -147,7 +186,7 @@ namespace ProjectN.Coop.Tests
             try
             {
                 Check(Shells().All(x=>x.Metadata.World==a),"initial state contains only the authorized world");
-                var owned=Shells().Single(x=>x.Metadata.Owner==manager.RoomOwner&&PNEntityRoles.IsPlayer(EveRegistrySession.Context.Registry,x.Metadata.Template));ownedNetId=owned.netId;oldScope=manager.BindingWorldScope(ownedNetId);oldNonce=(ulong)manager.BindingToken(ownedNetId);Mark(role+"-a");
+                var owned=Shells().Single(x=>x.Metadata.Owner==manager.RoomOwner&&PNEntityRoles.IsPlayer(EveRegistrySession.Context.Registry,x.Metadata.Template));ownedNetId=owned.netId;oldScope=manager.BindingWorldScope(ownedNetId);oldNonce=(ulong)manager.BindingToken(ownedNetId);Mark(role+"-clock-ticket",manager.ClientWorldRevision(a).ToString());Mark(role+"-a");
             }
             catch(Exception error){Fail(error);yield break;}
             yield return Wait(()=>Has("world-b"));if(failed)yield break;b=Guid.Parse(File.ReadAllText(Path.Combine(folder,"world-b")));

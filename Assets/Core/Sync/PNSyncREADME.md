@@ -18,7 +18,7 @@ VI: Một cách trung lập để gameplay công bố khối trạng thái nhỏ
 | `PNSyncService` | Core | The per-play service: objects, writers, readers, revisions, `Flush`, `Send`, `ReceiveState`, `ReceiveCommand`, `Snapshot`, `RemoveWorld`, `RemoveEntity`. Pure C#. Reached as `PNGameSession.Sync`. |
 | `PNWorldObject` | Core | Component on an authored object of a world scene: its key. **Not an entity.** |
 | `PNSyncWorldBinder` | Game | Registers the `PNWorldObject`s of every content slot when a world is ready, forgets them when it unloads. |
-| `PNSyncEntity` | Game | Component on an entity (an `EveIEntityLoadStep`): registers the entity's Entity target when it commits and, on unload, tells `IPNSyncEntityListener`s and calls `RemoveEntity`. Add it only to entities with a block or command to sync. |
+| `PNSyncEntity` | Game | Component on an entity (an `EveIEntityLoadStep`): registers the entity's Entity target when it commits and, on unload, tells `IPNSyncEntityListener`s and calls authority `RemoveEntity` or client `ForgetReplicaEntity`. Add it only to entities with a block or command to sync. |
 
 ## Rules
 
@@ -43,6 +43,7 @@ Smoke `Tests/EveEngine/PNSyncTests.cs`; native `PNSyncWorldChecks.Run()` (worlds
 
 - An Entity target is `(entity id, generation)`, the generation being the loader's `LoadContext.Generation`: a pooled or rebuilt entity is a new target, so state of an old life cannot reach the new one.
 - `RemoveEntity(entity, generation)` forgets objects, blocks, readers and writers of every generation up to it and retires them for good: `RegisterObject/Source/Sink` throw, `MarkDirty`/`Send`/`ReceiveCommand`/`ReceiveState` ignore it (stale, not hostile).
+- `ForgetReplicaEntity(entity, generation)` is client-only observation cleanup for exactly one life; it drops its object and cached blocks without creating or clearing a retirement tombstone. Losing observation or replacing a replica shell during keep-actor transfer does not end the authoritative life. `PNSyncEntity.Unload` uses this on clients and permanent `RemoveEntity` on authority. The transport removes the life from its previous-world observation index when a new world delivers its image, so closing the old world cannot erase the new observation. Old play/world packets remain subject to transport admission; this does not introduce an unscoped revival API on authority.
 - Wire (`PNSyncStateMessage`/`PNSyncCommandMessage` carry `Entity` and `Generation`; the world comes from the host's binding, never from the sender): the host sends an entity's state only to a peer that observes its shell, a first image when the peer starts to see it, and drops waiting messages of a life the peer lost. A client accepts the state only for a world it has loaded and keeps it in its service even before the entity appears, so the entity reads it when it binds. A client command is run only for a life the sender observes. A client world closing forgets the lives that world delivered.
 - Late join into a run is still refused by design, so "late joiner gets the state before the entity shows" is covered by the first image on observation, not by a real late client.
 

@@ -211,6 +211,7 @@ namespace ProjectN.Coop
             NetworkClient.RegisterHandler<PNPlayStatus>(ReceivePlayStatus);
             clientStartedAt=Time.realtimeSinceStartupAsDouble;
             NetworkClient.RegisterHandler<PNWorldOffer>(ReceiveWorldOffer);
+            NetworkClient.RegisterHandler<PNWorldClock>(ReceiveWorldClock);
             NetworkClient.RegisterHandler<PNWorldFence>(ReceiveWorldFence);
             NetworkClient.RegisterHandler<PNGridChunkPacket>(ReceiveGridChunks);
             NetworkClient.RegisterHandler<PNGridPlacementPacket>(ReceiveGridPlacements);
@@ -402,6 +403,26 @@ namespace ProjectN.Coop
         private double hostInterrupted=-1;
         private uint lastResponseSequence;
         private uint clientResumeFloor;
+        private PNResume? pendingFinalResume;
+        private readonly PNTimeRecovery timeRecovery=new PNTimeRecovery();
+        private bool ResumeStateApplied(uint attempt,string digest)
+            => AdaptersSettled() && bindings.Values.Where(x=>RoomCatchupBinding(x)).All(x=>x.Candidate?.Loader?.IsReady==true) && digest==BindingDigest() && FenceSettled(attempt,digest);
+        private void TryFinishPendingResume()
+        {
+            if(!pendingFinalResume.HasValue||paused||!IsPlaying||clientInterrupted<0)return;
+            var value=pendingFinalResume.Value;
+            if(!MatchPlay(value.Session,value.PlayRevision)||value.Sequence<clientResumeFloor||value.Sequence!=fenceAttempt)
+            {pendingFinalResume=null;return;}
+            if(value.BindingDigest!=fenceDigest||value.BindingDigest!=BindingDigest())
+            {pendingFinalResume=null;timeRecovery.Reset();clientResumeFloor=heartbeatSequence+1;SendHeartbeat();return;}
+            if(timeRecovery.Epoch!=value.Session||timeRecovery.Attempt!=value.Sequence||timeRecovery.Digest!=value.BindingDigest)
+            {
+                timeRecovery.Reset();timeRecovery.Begin(value.Session,value.Sequence,value.BindingDigest,clientInterrupted,GraceLimit);
+                timeRecovery.Acknowledge(value.Session,value.Sequence,value.BindingDigest);
+            }
+            if(!timeRecovery.TryComplete(Time.realtimeSinceStartupAsDouble,ResumeStateApplied(value.Sequence,value.BindingDigest)))return;
+            pendingFinalResume=null;clientInterrupted=-1;clientInputReady=true;foreach(var binding in bindings.Values)SetInput(binding,true);
+        }
         private double GraceLimit=>IsPlaying&&Policy!=null?Policy.GraceSeconds:Profile.GraceSeconds;
         public bool ClientInputReady=>clientInputReady;
         private void OnApplicationPause(bool value)
@@ -412,7 +433,7 @@ namespace ProjectN.Coop
             double now=Time.realtimeSinceStartupAsDouble;
             if(NetworkClient.isConnected&&!NetworkServer.active&&IsPlaying)
             {
-                if(value){if(clientInterrupted<0)clientInterrupted=now;clientInputReady=false;foreach(var binding in bindings.Values)SetInput(binding,false);}
+                if(value){pendingFinalResume=null;timeRecovery.Reset();if(clientInterrupted<0)clientInterrupted=now;clientInputReady=false;foreach(var binding in bindings.Values)SetInput(binding,false);}
                 if(!value)clientResumeFloor=heartbeatSequence+1;
                 SendHeartbeat();
             }
@@ -488,6 +509,15 @@ namespace ProjectN.Coop
             lastResponseSequence=value.Sequence;
             lastHostTraffic=Time.realtimeSinceStartupAsDouble;
             if(paused)return;
+            if(value.Acknowledged&&(clientInterrupted>=0||!clientInputReady))
+            {
+                if(value.Sequence==fenceAttempt&&value.BindingDigest==fenceDigest)
+                {
+                    if(clientInterrupted<0)clientInterrupted=Time.realtimeSinceStartupAsDouble;
+                    pendingFinalResume=value;TryFinishPendingResume();
+                }
+                return;
+            }
             if(!value.Acknowledged)
             {
                 if(clientInterrupted<0){clientInterrupted=Time.realtimeSinceStartupAsDouble;clientResumeFloor=value.Sequence;}
@@ -525,6 +555,7 @@ namespace ProjectN.Coop
             try{PumpWorldReplication();}catch(Exception error){ProtocolFailure(error,NetworkServer.active);}
             if(fatalSerialization){StopSession();return;}
             if(NetworkServer.active&&EveRegistrySession.IsReady&&EveRegistrySession.Context.Cleanup.Scheduler.QuarantineCount>0&&(Worlds==null||Scheduler.HasUnscopedResidents)){LastFailure="Authoritative cleanup quarantined; session consistency cannot be established.";StopHost();return;}
+            if(!NetworkServer.active)TryFinishPendingResume();
             double now=Time.realtimeSinceStartupAsDouble;
             if(!NetworkServer.active&&NetworkClient.active&&(NetworkClient.connection==null||!NetworkClient.connection.isAuthenticated)&&now-clientStartedAt>=Profile.AdmissionSeconds){LastFailure="Admission timeout.";StopClient();return;}
             if(NetworkServer.active)

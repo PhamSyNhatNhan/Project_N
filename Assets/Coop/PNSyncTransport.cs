@@ -191,6 +191,7 @@ namespace ProjectN.Coop
                     // The entity's world must be one this client has loaded under the host's current ticket; state may arrive before the entity itself (the service holds it for the entity to read).
                     if (!clientWorlds.TryGetValue(message.World, out var entry) || !entry.Loaded || entry.Closing || entry.World == null || entry.World.Incarnation != message.Incarnation) return;
                     target = PNSyncTarget.ForEntity(new EveEntityId(message.Entity), message.Generation);
+                    foreach (var observed in clientSyncEntities.Where(x=>x.Key!=message.World)) observed.Value.Remove((message.Entity,message.Generation));
                     if (!clientSyncEntities.TryGetValue(message.World, out var lives)) clientSyncEntities.Add(message.World, lives = new HashSet<(long, long)>());
                     if (!lives.Contains((message.Entity, message.Generation)) && lives.Count >= PNSyncLimits.MaxEntries) throw new FormatException("Sync entity bound.");
                     lives.Add((message.Entity, message.Generation));
@@ -208,7 +209,7 @@ namespace ProjectN.Coop
             if (!clientSyncEntities.TryGetValue(world, out var lives)) return;
             clientSyncEntities.Remove(world);
             if (sync == null || sync.IsAuthority) return;
-            foreach (var life in lives) { try { sync.RemoveEntity(new EveEntityId(life.Item1), life.Item2); } catch (Exception error) { Debug.LogWarning("Sync entity forget failed: " + error.Message); } }
+            foreach (var life in lives) { try { sync.ForgetReplicaEntity(new EveEntityId(life.Item1), life.Item2); } catch (Exception error) { Debug.LogWarning("Sync entity forget failed: " + error.Message); } }
         }
 
         // ---- client: command ----
