@@ -62,6 +62,22 @@ public sealed class PNActionRunBudget : IDisposable
 
 public sealed class PNActionRunStore : IDisposable
 {
+    // Opt-in, unbuffered measurement. Observe before admission/history coalescing;
+    // a failing recorder must never interrupt gameplay. Subscribers own cleanup.
+    public static event Action<PNActionRunStore, JObject> Measurement;
+    private void Measure(string kind, PNActionRunKey key, double stamp, double value = 0, double rate = 0, PNActionRunRecord candidate = null, double? begin = null)
+    {
+        var listeners = Measurement; if (listeners == null) return;
+        var image = new JObject { ["kind"] = kind, ["cast"] = key.Cast, ["ordinal"] = key.Ordinal,
+            ["stamp"] = stamp, ["value"] = value, ["rate"] = rate, ["reserved"] = ReservedBytes,
+            ["session"] = budget.Used, ["active"] = runs.Values.Count(r => r.End == PNActionRunEnd.Active),
+            ["terminal"] = runs.Values.Count(r => r.End != PNActionRunEnd.Active),
+            ["rowsBytes"] = PNActionRunWire.Bytes(PNActionRunWire.Capture(runs.Values.ToArray())) };
+        if (candidate != null) { image["candidate"] = PNActionRunWire.Row(candidate); image["candidateReservation"] = candidate.Reservation; }
+        if (begin.HasValue) image["begin"] = begin.Value;
+        foreach (Action<PNActionRunStore, JObject> listener in listeners.GetInvocationList())
+            try { listener(this, (JObject)image.DeepClone()); } catch { /* measurement is observational */ }
+    }
     public const int MaxActive = 4, MaxSlots = 16, MaxSegments = 16;
     public const int WireBytes = 4096, LegacyBytes = 1024, EnvelopeBytes = 512;
     public const double Retention = 3;
@@ -83,19 +99,27 @@ public sealed class PNActionRunStore : IDisposable
     { Prune(stamp); return runs.Values.OrderBy(x => x.Key.Cast).ThenBy(x => x.Key.Ordinal).Select(x => x.Copy()).ToArray(); }
     public void CaptureHolds(double stamp)
     {
+        Measure("seal", default, stamp);
         // Capture is after drivers. A run not advanced at this frame's source stamp is
         // held (world/permission/component stop); do not extrapolate its previous rate.
         foreach (var r in runs.Values.ToArray()) if (r.End == PNActionRunEnd.Active && r.Stamp < stamp)
         { Sample(r.Key, r.Stamp, r.Progress, 0); Sample(r.Key, stamp, r.Progress, 0); }
     }
     public void Advance(PNActionRunKey key, double stamp, double step, double rate)
+        => AdvanceInterval(key, rate > 0 ? Math.Max(0, stamp - step / rate) : stamp, stamp, step, rate);
+
+    // Driver-owned interval avoids reconstructing its beginning from a rounded float
+    // gameplay step. Explicit gaps, even very short ones, remain real holds.
+    public void AdvanceInterval(PNActionRunKey key, double begin, double stamp, double step, double rate)
     {
-        PNTimeMath.Nonnegative(stamp); PNTimeMath.Nonnegative(step); PNTimeMath.Nonnegative(rate);
+        PNTimeMath.Nonnegative(begin); PNTimeMath.Nonnegative(stamp); PNTimeMath.Nonnegative(step); PNTimeMath.Nonnegative(rate);
+        if (begin > stamp) throw new ArgumentException("Action interval order.");
+        Measure("driver", key, stamp, step, rate, begin: begin);
         if (disposed || !runs.TryGetValue(key, out var r) || r.End != PNActionRunEnd.Active) return;
         // The store owns the published boundary. Capture/hold and float phase budgets
         // must not make a driver use an older private copy of that boundary.
         stamp = Math.Max(stamp, r.Stamp);
-        double begin = rate > 0 ? Math.Max(r.Stamp, stamp - step / rate) : stamp;
+        begin = Math.Max(r.Stamp, begin);
         double progress = r.Progress;
         if (begin > r.Stamp) Sample(key, r.Stamp, progress, 0);
         Sample(key, begin, progress, rate);
@@ -116,15 +140,17 @@ public sealed class PNActionRunStore : IDisposable
         run.history.Add(new PNActionProgress(1, stamp, 0, 0));
         // Reserve all sixteen numeric anchors and the terminal at admission, including UTF8 ids.
         run.Reservation = PNActionRunWire.Reservation(run);
-        if (runs.Count >= MaxSlots) { Rejected++; SlotRejections++; return false; }
-        if (runs.Values.Count(v => v.End == PNActionRunEnd.Active) >= MaxActive) { Rejected++; ActiveRejections++; return false; }
-        if (run.Reservation > WireBytes - LegacyBytes - EnvelopeBytes - ReservedBytes) { Rejected++; ByteRejections++; return false; }
-        if (!budget.Take(run.Reservation)) { Rejected++; SessionRejections++; return false; }
-        runs.Add(key, run); ReservedBytes += run.Reservation; Revision++; return true;
+        Measure("attempt", key, stamp, candidate: run);
+        if (runs.Count >= MaxSlots) { Rejected++; SlotRejections++; Measure("refused-slots", key, stamp); return false; }
+        if (runs.Values.Count(v => v.End == PNActionRunEnd.Active) >= MaxActive) { Rejected++; ActiveRejections++; Measure("refused-active", key, stamp); return false; }
+        if (run.Reservation > WireBytes - LegacyBytes - EnvelopeBytes - ReservedBytes) { Rejected++; ByteRejections++; Measure("refused-bytes", key, stamp); return false; }
+        if (!budget.Take(run.Reservation)) { Rejected++; SessionRejections++; Measure("refused-session", key, stamp); return false; }
+        runs.Add(key, run); ReservedBytes += run.Reservation; Revision++; Measure("admitted", key, stamp); return true;
     }
     public void Sample(PNActionRunKey key, double stamp, double progress, double rate)
     {
         PNTimeMath.Nonnegative(stamp); PNTimeMath.Nonnegative(progress); PNTimeMath.Nonnegative(rate);
+        Measure("sample", key, stamp, progress, rate);
         if (disposed || !runs.TryGetValue(key, out var run) || run.End != PNActionRunEnd.Active) return;
         if (stamp < run.Stamp || progress < run.Progress) throw new ArgumentException("Action progress cannot go backwards.");
         if (stamp == run.Stamp && progress == run.Progress && rate == run.Rate) return;
@@ -135,7 +161,7 @@ public sealed class PNActionRunStore : IDisposable
         if (!linear)
         {
             if (run.history.Count == MaxSegments || stamp == anchor.Stamp && progress != anchor.Value)
-            { run.history.Clear(); run.Cut++; HistoryCuts++; }
+            { Measure("before-cut", key, stamp, progress, rate, run); run.history.Clear(); run.Cut++; HistoryCuts++; }
             run.history.Add(new PNActionProgress(run.Revision, stamp, progress, rate));
         }
         run.Stamp = stamp; run.Progress = progress; run.Rate = rate; Revision++;
@@ -143,9 +169,17 @@ public sealed class PNActionRunStore : IDisposable
     public void Finish(PNActionRunKey key, double stamp, PNActionRunEnd end)
     {
         if (end == PNActionRunEnd.Active) throw new ArgumentException(); PNTimeMath.Nonnegative(stamp);
+        Measure("finish-attempt", key, stamp, (int)end);
         if (disposed || !runs.TryGetValue(key, out var run) || run.End != PNActionRunEnd.Active) return;
         if (stamp < run.Stamp) throw new ArgumentException("Terminal precedes progress.");
         run.End = end; run.Terminal = stamp; run.Stamp = stamp; run.Rate = 0; run.Revision++; Revision++;
+        // Immutable terminal: exact row bytes plus one array delimiter. Outer array
+        // brackets remain covered by EnvelopeBytes. Return surplus exactly once.
+        int charge = PNActionRunWire.Bytes(PNActionRunWire.Row(run)) + 1;
+        int released = run.Reservation - charge;
+        if (released < 0) throw new InvalidOperationException("Terminal exceeded reserved bytes.");
+        run.Reservation = charge; ReservedBytes -= released; budget.Return(released);
+        Measure("terminal", key, stamp, candidate: run);
     }
     public void Prune(double stamp)
     {
@@ -179,6 +213,8 @@ public static class PNActionRunWire
         foreach (var r in next)
         {
             var old = previous.FirstOrDefault(p => p.Key.Equals(r.Key)); if (old == null) continue;
+            if (old.End != PNActionRunEnd.Active && !JToken.DeepEquals(Row(old), Row(r)))
+                throw new FormatException("Terminal Action row is immutable.");
             if (old.Entry != r.Entry || old.Data != r.Data || old.Action != r.Action || old.Start != r.Start || old.X != r.X || old.Z != r.Z
                 || r.Revision < old.Revision || r.Stamp < old.Stamp || r.Progress < old.Progress || r.Cut < old.Cut
                 || old.End != PNActionRunEnd.Active && (r.End != old.End || r.Terminal != old.Terminal || r.Progress != old.Progress))

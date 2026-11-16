@@ -358,6 +358,22 @@ depth 8 like `Fire`.
 
 ## T5.1 Action run producer (Rules170, Network28)
 
+A2 diagnostics add a `seal` measurement event before CaptureHolds, so test recorders
+can reconstruct holds for refused runs too. No subscribers means no diagnostic
+payload allocation. This is not a network event. A2 found constant-rate input can
+still create numeric micro-holds/cuts; see Docs/NetworkTimeT5A2Report.md and C0
+in the plan before using current anchor density to size a new history protocol.
+
+T5.1b A/B follow-up: terminal charge now shrinks at first Finish to exact UTF8
+row bytes plus one delimiter; entity/session release surplus once and retire only
+the remaining charge. Whole terminal rows, including revision/Cut/history, are
+immutable in successor validation. This supersedes the whole-lifetime reservation
+description below for completed runs; active reservation remains conservative.
+`PNActionRunStore.Measurement` is opt-in, unbuffered diagnostics before admission/
+cut, including refused-run driver/finish attempts. Subscribers own cleanup;
+recorder exceptions are isolated. No network message or gameplay policy changes.
+See Docs/NetworkTimeT5_1bABReport.md for evidence and remaining capacity limits.
+
 `PNSkillActionContext.ActionOrdinal` is allocated eagerly once at BeginAction, independently of lazy hit reporting and cast.Random. One context describes one run; duplicate BeginAction is idempotent and does not authorize sharing that context between Action instances. A completed/cancelled context cannot publish another start. Ordinal exhaustion returns0 and refuses presentation admission, without changing gameplay/hit/RNG. A positive CastKey uses the input namespace; an unkeyed invocation uses `-Invocation.Id`, scoped to the same life. Invalid/wrapped cast keys are not admitted.
 
 `PNSkill.BeginActionExecutionFrame(delta)` is the driver contract. `Advance(context, step, speed, callback)` forwards exactly the already selected gameplay step; the engine maps the consumed driver budget to unscaled PNTimeService stamps and captures actual supplied progress. `Hold(context)` records zero progress/rate. It does not reread AttackSpeed or apply entity/global scale again. Eve and the framework auxiliary driver use it; order, decisions and authority gameplay clocks remain unchanged. Selected definitions opt into `WithDriverProgress()` only when that progress-unit contract is supported. Currently the registered Eve sweep is audited; this does not declare safe visual seek or enable arbitrary observer Actions.
@@ -371,3 +387,17 @@ Rate anchors keep revisions, effective stamps, progress and rate; the image also
 Wire: `project_n:skill_cast` registration/root schema2,4096B; legacy `n/e` retained temporarily and new `a` envelope with schema1 (`v,e,w,n,i,g,t,r,f,b,d,a`). Epoch/world/incarnation/entity/generation are exact; `f=true` means full admitted set; `b=0` explicitly means ordinary image, NOT requested recovery baseline. Rows hold cast/ordinal, canonical entry/data/selected Action IDs, capability1, planar direction, start/sample/progress/rate, terminal kind/stamp, cut/revision/history. Reason kinds are Active/Completed/Cancelled; resource tail disposal is not a terminal event. Parser checks finite numbers, bounds, order, IDs, duplicate keys and immutable successor/terminal semantics. Transport revision rejects stale duplicates. T5.2 owns stream subscription nonce, applied-watermark ACK and requested baseline semantics; T5.3 owns the consumer. The validated received rows are shadow state and do not execute Actions.
 
 Checks: `PNActionRunContractChecks`, `EveCastViewChecks`, existing owner/input/prediction/chain/report suites, golden trace, smoke; `--pn-action-time --pn-action-producer` logs actual sweep elapsed and producer/received records in a Player. Historical PreT5 traces remain Before evidence, not the new schema's acceptance. See Docs/NetworkTimeT5_1Report.md for actual runs and limitations.
+## C0 driver interval (2026-11-17)
+
+The execution frame supplies `AdvanceInterval(key, begin, end, step, rate)` to the
+run store. Adjacent Unity frames share the previous exact source end; skipped
+frames retain their gap. Source placement uses that interval, while effective rate
+still uses the supplied gameplay delta/raw ratio. A step equal to the remaining
+float gameplay budget consumes the exact frame tail for timestamp mapping only.
+Gameplay callbacks receive the original step unchanged. Explicit gaps, including
+very short holds, are retained without a blanket epsilon.
+
+The older `Advance(key, stamp, step, rate)` infers its interval and is retained for
+compatibility/low-level tests; it cannot distinguish float rounding from an intended
+gap. New framework drivers use explicit intervals. Diagnostic driver events include
+`begin`; replay accepts older traces without it. This adds no wire field or consumer.

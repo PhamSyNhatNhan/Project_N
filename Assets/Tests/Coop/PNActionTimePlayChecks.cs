@@ -11,8 +11,8 @@ using UnityEngine;
 
 namespace ProjectN.Coop.Tests
 {
-    // PreT5 measurement only. No scheduler/wire changes; optional clone instrumentation
-    // records production boundaries separately (see the retained clone patch script).
+    // PreT5/T5 diagnostic fixture. A2 reconstructs refused-run history without
+    // changing admission, gameplay or the production observer/wire protocol.
     public static class PNActionTimePlayChecks
     {
         public static bool Enabled => Environment.GetCommandLineArgs().Contains("--pn-action-time");
@@ -21,13 +21,117 @@ namespace ProjectN.Coop.Tests
         { double until=Time.realtimeSinceStartupAsDouble+45;while(!ready()){if(Time.realtimeSinceStartupAsDouble>until)throw new TimeoutException(label);yield return null;} }
         public static IEnumerator Run(string folder,string peer,PNPlayerMove subject)
         {
+            using var a2 = new A2Recorder(Path.Combine(folder, peer + "-a2.jsonl"));
+            using var measurements = new StreamWriter(Path.Combine(folder, peer + "-all-runs.jsonl")) { AutoFlush = true };
+            var storeIds = new Dictionary<PNActionRunStore, int>();
+            void Record(PNActionRunStore store, Newtonsoft.Json.Linq.JObject item)
+            {
+                if (a2.Replaying) return;
+                if (!storeIds.TryGetValue(store, out var id)) storeIds.Add(store, id = storeIds.Count + 1);
+                item["store"] = id; item["frame"] = Time.frameCount;
+                measurements.WriteLine(item.ToString(Formatting.None));
+            }
+            PNActionRunStore.Measurement += Record;
             Exception failure=null;var stack=new Stack<IEnumerator>();stack.Push(Measure(folder,peer,subject));
             try { while(stack.Count>0){var e=stack.Peek();bool next=false;try{next=e.MoveNext();}catch(Exception x){failure=x;}
                 if(failure!=null)break;if(!next){(stack.Pop() as IDisposable)?.Dispose();continue;}
                 if(e.Current is IEnumerator child){stack.Push(child);continue;}yield return e.Current;} }
-            finally {while(stack.Count>0)(stack.Pop() as IDisposable)?.Dispose();}
+            finally {PNActionRunStore.Measurement -= Record; while(stack.Count>0)(stack.Pop() as IDisposable)?.Dispose();}
+            if (a2.Errors != 0) failure = new Exception("A2 recorder/oracle failures: " + a2.Errors);
             File.WriteAllText(Path.Combine(folder,peer+".txt"),failure==null?"PASS PreT5 measurement fixture":"FAIL PreT5 "+failure);
             if(failure!=null)Debug.LogException(failure);Application.Quit(failure==null?0:1);
+        }
+        // Diagnostic-only replay: one isolated budget per run, so production admission
+        // cannot censor holds/history. Calls only producer math, never gameplay effects.
+        public sealed class A2Recorder : IDisposable
+        {
+            private readonly StreamWriter writer;
+            private readonly Dictionary<PNActionRunStore, int> sources = new Dictionary<PNActionRunStore, int>();
+            private readonly Dictionary<string, PNActionRunStore> shadows = new Dictionary<string, PNActionRunStore>();
+            private readonly HashSet<string> active = new HashSet<string>();
+            private readonly Dictionary<string, double> captures = new Dictionary<string, double>();
+            private bool replaying;
+            public bool Replaying => replaying;
+            private int events;
+            private long written;
+            private readonly long byteLimit;
+            private void Write(Newtonsoft.Json.Linq.JObject e)
+            {
+                string text = e.ToString(Formatting.None);
+                written += System.Text.Encoding.UTF8.GetByteCount(text) + 1;
+                if (written > byteLimit) throw new Exception("A2 diagnostic file cap");
+                writer.WriteLine(text);
+            }
+            private readonly bool omitFirstDriver;
+            private bool omitted;
+            private int replaySource;
+            public int Errors { get; private set; }
+            public double ProgressFor(PNActionRunStore source, PNActionRunKey key, double stamp)
+                => shadows[sources[source] + ":" + key.Cast + ":" + key.Ordinal].Snapshot(stamp).Single().Progress;
+            public A2Recorder(string path, bool omitFirstDriver = false, long byteLimit = 512L * 1024 * 1024) { this.byteLimit = byteLimit; this.omitFirstDriver = omitFirstDriver; writer = new StreamWriter(path) { AutoFlush = true }; PNActionRunStore.Measurement += Record; }
+            private void Record(PNActionRunStore source, Newtonsoft.Json.Linq.JObject e)
+            {
+                if (replaying)
+                {
+                    string nestedKind = (string)e["kind"];
+                    if (nestedKind == "sample" || nestedKind == "before-cut")
+                    {
+                        try { if (++events > 2000000) throw new Exception("A2 event cap"); e["kind"] = "shadow-" + nestedKind; e["source"] = replaySource; Write(e); }
+                        catch { Errors++; PNActionRunStore.Measurement -= Record; }
+                    }
+                    return;
+                }
+                replaying = true;
+                try
+                {
+                    if (++events > 2000000) throw new Exception("A2 event cap");
+                    if (!sources.TryGetValue(source, out var id)) sources.Add(source, id = sources.Count + 1);
+                    replaySource = id;
+                    string kind = (string)e["kind"]; double stamp = (double)e["stamp"];
+                    if (kind == "driver" && omitFirstDriver && !omitted) { omitted = true; return; }
+                    long cast = (long)e["cast"], ordinal = (long)e["ordinal"];
+                    string prefix = id + ":", name = prefix + cast + ":" + ordinal;
+                    var key = cast == 0 ? default : new PNActionRunKey(cast, ordinal);
+                    if (kind == "attempt")
+                    {
+                        if (shadows.Count >= 8192) throw new Exception("A2 shadow cap");
+                        var row = (Newtonsoft.Json.Linq.JArray)e["candidate"];
+                        var shadow = new PNActionRunStore(new PNActionRunBudget());
+                        if (!shadow.Admit(key, (string)row[2], (string)row[3], (string)row[4], (double)row[6], (double)row[7], stamp)) throw new Exception("A2 isolated admission");
+                        shadows.Add(name, shadow);
+                        active.Add(name);
+                    }
+                    if (kind == "seal")
+                        foreach (var nameOfRun in active.Where(p => p.StartsWith(prefix, StringComparison.Ordinal))) shadows[nameOfRun].CaptureHolds(stamp);
+                    if (shadows.TryGetValue(name, out var run))
+                    {
+                        if (kind == "driver")
+                        {
+                            if (e["begin"] != null) run.AdvanceInterval(key, (double)e["begin"], stamp, (double)e["value"], (double)e["rate"]);
+                            else run.Advance(key, stamp, (double)e["value"], (double)e["rate"]);
+                            if (!captures.TryGetValue(name, out var previous) || stamp - previous >= .099999)
+                            { e["reconstructed"] = PNActionRunWire.Row(run.Snapshot(stamp).Single()); captures[name] = stamp; }
+                        }
+                        if (kind == "finish-attempt")
+                        {
+                            run.Finish(key, stamp, (PNActionRunEnd)(int)e["value"]);
+                            var record = run.Snapshot(stamp).Single();
+                            e["reconstructed"] = PNActionRunWire.Row(record);
+                            active.Remove(name);
+                        }
+                        if (kind == "terminal")
+                        {
+                            var actual = e["candidate"];
+                            var expected = PNActionRunWire.Row(run.Snapshot(stamp).Single());
+                            if (!Newtonsoft.Json.Linq.JToken.DeepEquals(actual, expected)) throw new Exception("A2 admitted terminal history mismatch " + name);
+                        }
+                    }
+                    e["source"] = id; Write(e);
+                }
+                catch (Exception ex) { Errors++; PNActionRunStore.Measurement -= Record; writer.WriteLine(JsonConvert.SerializeObject(new { error = ex.ToString() })); }
+                finally { replaying = false; }
+            }
+            public void Dispose() { PNActionRunStore.Measurement -= Record; foreach (var s in shadows.Values) s.Dispose(); writer.Dispose(); }
         }
         private static IEnumerator Measure(string folder,string peer,PNPlayerMove subject)
         {

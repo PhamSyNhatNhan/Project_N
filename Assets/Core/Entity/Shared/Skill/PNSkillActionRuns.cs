@@ -27,6 +27,8 @@ public partial class PNSkill
     public long ActionIdentityRejected { get; private set; }
     public long ActionCapabilityRejected { get; private set; }
     private PNActionExecutionFrame actionFrame;
+    private double previousActionFrameEnd;
+    private int previousActionFrameNumber = -2;
 
     internal bool ActionStamp(out double stamp)
     {
@@ -61,8 +63,10 @@ public partial class PNSkill
         var key = new PNActionRunKey(context.Invocation.CastKey != 0 ? context.Invocation.CastKey : -context.Invocation.Id, context.ActionOrdinal);
         if (actionFrame != null) stamp = actionFrame.Stamp;
         var direction = context.Direction.Value;
-        if (actionRuns.Admit(key, context.Registry.Skills.ResolveIdentity(context.EntrySkillId).ToString(), context.Registry.Skills.ResolveIdentity(context.SkillId).ToString(), definition.Id.ToString(), direction.x, direction.z, stamp))
-        { context.RunStore = actionRuns; context.RunKey = key; context.RunStamp = stamp; }
+        actionRuns.Admit(key, context.Registry.Skills.ResolveIdentity(context.EntrySkillId).ToString(), context.Registry.Skills.ResolveIdentity(context.SkillId).ToString(), definition.Id.ToString(), direction.x, direction.z, stamp);
+        // Keep observational driver/finish boundaries even for refused runs. Store
+        // mutation still requires admission; this does not publish refused rows.
+        context.RunStore = actionRuns; context.RunKey = key; context.RunStamp = stamp;
     }
     internal void EndActionRun(PNSkillActionContext context, bool cancelled)
     {
@@ -82,33 +86,48 @@ public partial class PNSkill
 #if UNITY_5_3_OR_NEWER
         raw = Time.unscaledDeltaTime;
 #endif
-        return actionFrame = new PNActionExecutionFrame(this, delta, raw, stamp);
+        double begin = Math.Max(0, stamp - raw);
+#if UNITY_5_3_OR_NEWER
+        // Adjacent frames share the exact source boundary. Float unscaledDeltaTime
+        // is not an exact difference of double source stamps.
+        if (previousActionFrameNumber == Time.frameCount - 1 && stamp >= previousActionFrameEnd)
+            begin = previousActionFrameEnd;
+        previousActionFrameNumber = Time.frameCount;
+        previousActionFrameEnd = stamp;
+#endif
+        return actionFrame = new PNActionExecutionFrame(this, delta, raw, stamp, begin);
     }
     public sealed class PNActionExecutionFrame : IDisposable
     {
         private readonly PNSkill skill;
-        private readonly double delta, raw, end;
+        private readonly double delta, raw, end, start;
         private double consumed;
         internal double Stamp { get; private set; }
         internal PNActionExecutionFrame(PNSkill skill, double delta, double raw, double end)
-        { PNTimeMath.Nonnegative(delta); this.skill = skill; this.delta = delta; this.raw = raw; this.end = end; Stamp = Math.Max(0, end - raw); }
+            : this(skill, delta, raw, end, Math.Max(0, end - raw)) { }
+        internal PNActionExecutionFrame(PNSkill skill, double delta, double raw, double end, double start)
+        { PNTimeMath.Nonnegative(delta); this.skill = skill; this.delta = delta; this.raw = raw; this.end = end; this.start = start; Stamp = start; }
         // Called for every phase, including phases without an Action. Callback receives
         // exactly the old gameplay step. Holds use Hold; no outside timer advances gameplay.
         public void Advance(PNSkillActionContext context, float step, double speed, Action<float> advance)
         {
             PNTimeMath.Nonnegative(step); if (speed <= 0 || double.IsInfinity(speed) || double.IsNaN(speed)) throw new ArgumentException(nameof(speed));
-            consumed += step / speed;
-            double next = delta > 0 ? Math.Min(end, Math.Max(0, end - raw) + raw * Math.Min(1, consumed / delta)) : end;
-            Record(context, next, step, raw > 0 ? delta / raw * speed : 0);
+            double begin = Stamp;
+            // Exhaustion is expressed in the same float step vocabulary as the
+            // gameplay caller; only the timestamp mapping consumes the exact tail.
+            bool exhausts = delta > consumed && step == (float)((delta - consumed) * speed);
+            consumed = exhausts ? delta : consumed + step / speed;
+            double next = delta > 0 ? Math.Min(end, start + (end - start) * Math.Min(1, consumed / delta)) : end;
+            Record(context, begin, next, step, raw > 0 ? delta / raw * speed : 0);
             Stamp = next; advance?.Invoke(step);
         }
-        public void Hold(PNSkillActionContext context) { Stamp = end; Record(context, end, 0, 0); }
-        private static void Record(PNSkillActionContext context, double stamp, double step, double rate)
+        public void Hold(PNSkillActionContext context) { var begin = Stamp; Stamp = end; Record(context, begin, end, 0, 0); }
+        private static void Record(PNSkillActionContext context, double begin, double stamp, double step, double rate)
         {
             if (context?.RunStore == null) return;
             stamp = Math.Max(stamp, context.RunStamp);
             context.RunProgress += step; context.RunStamp = stamp;
-            context.RunStore.Advance(context.RunKey, stamp, step, rate);
+            context.RunStore.AdvanceInterval(context.RunKey, Math.Min(begin, stamp), stamp, step, rate);
         }
         public void Dispose() { if (ReferenceEquals(skill.actionFrame, this)) skill.actionFrame = null; }
     }

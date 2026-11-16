@@ -39,15 +39,21 @@ public static class PNActionRunContractChecks
         double final = row.Progress; store.Finish(key, 3.5, PNActionRunEnd.Cancelled);
         store.Finish(key, 3.6, PNActionRunEnd.Completed); store.Sample(key, 4, 999, 1);
         row = store.Snapshot(4).Single();
+        int terminalCharge = PNActionRunWire.Bytes(PNActionRunWire.Row(row)) + 1;
+        Check(store.ReservedBytes == terminalCharge && budget.Used == terminalCharge && terminalCharge < reserved, "terminal shrinks entity/session charge once");
+        store.Finish(key, 4, PNActionRunEnd.Completed);
+        Check(budget.Used == terminalCharge, "duplicate finish cannot return charge twice");
         Check(!store.NeedsCapture(4) && store.NeedsCapture(6.5), "retained terminal does not poll; expiry publishes removal");
         Check(row.End == PNActionRunEnd.Cancelled && row.Terminal == 3.5 && row.Progress == final, "exact first terminal wins and prevents progress resurrection");
         Check(!store.Admit(key, "test:attack", "test:sweep", "test:action", 1, 0, 1), "terminal rejects delayed duplicate start");
         var other = new PNActionRunKey(257, 2);
-        Check(!store.Admit(other, "test:attack", "test:sweep", "test:action", 1, 0, 4), "byte pressure refuses admission without eviction");
-        Check(store.Snapshot(6.49).Single().Key.Equals(key), "terminal kept minimum retention under pressure");
-        Check(store.Snapshot(6.5).Count == 0 && budget.Used == 0, "terminal reservation released only after retention");
+        bool nextAdmitted = store.Admit(other, "test:attack", "test:sweep", "test:action", 1, 0, 4);
+        Check(store.Snapshot(6.49).Any(r => r.Key.Equals(key)), "terminal kept minimum retention under pressure");
+        Check(store.Snapshot(6.5).All(r => !r.Key.Equals(key)) && budget.Used == (nextAdmitted ? reserved : 0), "only retained terminal charge released at expiry");
+        if (nextAdmitted) store.Finish(other, 6.5, PNActionRunEnd.Completed);
+        store.Prune(10);
         Check(!store.NeedsCapture(7), "empty producer has no idle stream churn");
-        Check(store.Admit(other, "test:attack", "test:sweep", "test:action", 1, 0, 7), "admission after expiry");
+        Check(store.Admit(other, "test:attack", "test:sweep", "test:action", 1, 0, 10), "admission after expiry");
         Check(store.Snapshot(1000).Single().End == PNActionRunEnd.Active, "paused active never expires by TTL");
         store.Dispose(); store.Dispose(); Check(budget.Used == 0, "dispose idempotent cleanup");
 
@@ -61,6 +67,13 @@ public static class PNActionRunContractChecks
             Check(PNActionRunWire.Parse(good, 2).Single().End == PNActionRunEnd.Completed, "completed terminal round trip");
             var before = PNActionRunWire.Parse(good, 2);
             PNActionRunWire.ValidateSuccessor(before, PNActionRunWire.Parse(good, 2)); Check(true, "duplicate image idempotent");
+            foreach (int field in new[] { 14, 15 })
+            {
+                var changed = (JArray)good.DeepClone(); changed[0][field] = changed[0][field].Value<long>() + 1;
+                Bad(() => PNActionRunWire.ValidateSuccessor(before, PNActionRunWire.Parse(changed, 2)), "terminal cut/revision immutable " + field);
+            }
+            var changedHistory = (JArray)good.DeepClone(); changedHistory[0][15] = 10; changedHistory[0][16][0][0] = 2;
+            Bad(() => PNActionRunWire.ValidateSuccessor(before, PNActionRunWire.Parse(changedHistory, 2)), "terminal history immutable with newer revision");
             var resurrection = (JArray)good.DeepClone(); resurrection[0][12] = 0; resurrection[0][13] = 0;
             Bad(() => PNActionRunWire.ValidateSuccessor(before, PNActionRunWire.Parse(resurrection, 2)), "terminal before delayed start cannot resurrect");
             var conflict = (JArray)good.DeepClone(); conflict[0][3] = "test:other";
@@ -86,10 +99,73 @@ public static class PNActionRunContractChecks
             boundary.CaptureHolds(1.3); boundary.Advance(key, 1.3, .1, 1);
             Check(boundary.Snapshot(1.3).Single().Cut > 0, "same-frame correction requires explicit baseline cut");
         }
+        using (var interval = new PNActionRunStore(budget))
+        {
+            interval.Admit(key, "test:a", "test:b", "test:c", 1, 0, 1);
+            double progress = 0;
+            for (int i = 1; i <= 1000; i++)
+            {
+                interval.AdvanceInterval(key, 1 + (i - 1) * .01, 1 + i * .01, (float).01, 1);
+                progress += (float).01;
+                interval.CaptureHolds(1 + i * .01);
+                Check(Math.Abs(interval.Snapshot(1 + i * .01).Single().Progress - progress) <= 1e-12, "explicit interval preserves float progress");
+            }
+            var steadyRow = interval.Snapshot(11).Single();
+            Check(steadyRow.History.All(a => a.Rate != 0 || a.Stamp == 1), "constant interval has no false holds");
+            // A tiny explicitly supplied gap is real; no blanket epsilon may erase it.
+            interval.AdvanceInterval(key, 11 + 1e-10, 11.01, .01, 1);
+            Check(interval.Snapshot(11.01).Single().History.Any(a => a.Rate == 0 && a.Stamp == 11), "tiny explicit hold preserved");
+        }
         var stores = new System.Collections.Generic.List<PNActionRunStore>();
         for (int i = 0; i < 200; i++) { var s = new PNActionRunStore(budget); stores.Add(s); s.Admit(key, "test:a", "test:b", "test:c", 1, 0, 1); }
         Check(budget.Used <= PNActionRunBudget.SessionBytes && stores.Any(s => s.Rejected != 0), "shared session cap");
         foreach (var s in stores) s.Dispose(); Check(budget.Used == 0, "session overload cleanup");
+        Check(MeasureCapacity() > 0, "uncensored workload measurement and recorder cleanup");
         return "PASS " + checks + " Action run contracts";
+    }
+
+    // Deterministic producer pressure, not native gameplay/render/network acceptance.
+    public static int MeasureCapacity()
+    {
+        int events = 0, refusedDrivers = 0;
+        string folder = Environment.GetEnvironmentVariable("PN_ACTION_MEASURE_DIR");
+        System.IO.StreamWriter output = null;
+        if (!string.IsNullOrEmpty(folder)) { System.IO.Directory.CreateDirectory(folder); output = new System.IO.StreamWriter(System.IO.Path.Combine(folder, "capacity.jsonl")); }
+        string scenario = ""; int storeId = 0;
+        void Record(PNActionRunStore store, JObject item) { events++; item["scenario"] = scenario; item["store"] = storeId; output?.WriteLine(item.ToString(Newtonsoft.Json.Formatting.None)); }
+        Action<PNActionRunStore, JObject> broken = (s, j) => throw new Exception("recorder failure");
+        PNActionRunStore.Measurement += Record; PNActionRunStore.Measurement += broken;
+        try
+        {
+            foreach (var spec in new[] { ("baseline41", 1, 41, 1.0, 2), ("overlap", 4, 80, .05, 8), ("dense", 16, 80, .025, 40), ("long-pause", 4, 8, 10.0, 24) })
+            {
+                scenario = spec.Item1;
+                using (var shared = new PNActionRunBudget())
+                {
+                    var cohort = Enumerable.Range(0, spec.Item2).Select(_ => new PNActionRunStore(shared)).ToArray();
+                    var pending = cohort.Select(_ => new System.Collections.Generic.Queue<(PNActionRunKey key, double end)>()).ToArray();
+                    try {
+                    for (int i = 0; i < spec.Item3; i++)
+                    for (int entity = 0; entity < cohort.Length; entity++)
+                    {
+                        var store = cohort[entity]; storeId = entity + 1;
+                        var key = new PNActionRunKey(i + 1, 1); double start = 1 + i * spec.Item4;
+                        while (pending[entity].Count > 0 && pending[entity].Peek().end <= start)
+                        { var done = pending[entity].Dequeue(); store.Finish(done.key, done.end, PNActionRunEnd.Completed); }
+                        bool admitted = store.Admit(key, "test:attack", "test:sweep", "test:action", 1, 0, start);
+                        for (int t = 0; t < spec.Item5; t++)
+                            store.Advance(key, start + t * .001, .001, t % 2 == 0 ? 1 : 8);
+                        if (!admitted) refusedDrivers++;
+                        pending[entity].Enqueue((key, start + (scenario == "long-pause" ? 60 : .1)));
+                    }
+                    for (int entity = 0; entity < cohort.Length; entity++)
+                    { storeId = entity + 1; foreach (var done in pending[entity]) cohort[entity].Finish(done.key, done.end, PNActionRunEnd.Completed); }
+                    } finally { foreach (var store in cohort) store.Dispose(); }
+                }
+            }
+        }
+        finally { PNActionRunStore.Measurement -= Record; PNActionRunStore.Measurement -= broken; output?.Dispose(); }
+        if (refusedDrivers == 0) throw new Exception("Pressure fixture did not exercise refused-run driver capture");
+        return events;
     }
 }
