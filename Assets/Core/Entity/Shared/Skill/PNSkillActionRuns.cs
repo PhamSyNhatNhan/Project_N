@@ -14,6 +14,22 @@ public partial class PNSkill
 {
     private static readonly ConditionalWeakTable<EveSessionContext, PNActionRunBudget> actionBudgets = new ConditionalWeakTable<EveSessionContext, PNActionRunBudget>();
     private PNActionRunStore actionRuns;
+    private static readonly ConditionalWeakTable<EveSessionContext,PNActionPublicationBudget> publicationBudgets=new ConditionalWeakTable<EveSessionContext,PNActionPublicationBudget>();
+    private PNActionPublication actionPublication;
+    public PNActionPublication ActionPublication => actionPublication;
+    // Engine-owned opt-in shadow. No character or Action network branches.
+    private static bool publicationEnabled;
+    private static readonly HashSet<PNActionPublication> publications=new HashSet<PNActionPublication>();
+    public static bool ActionPublicationEnabled { get=>publicationEnabled; set {publicationEnabled=value;if(!value){foreach(var source in publications)source.Dispose();publications.Clear();}} }
+    public long ActionPublicationErrors { get; private set; }
+    #if UNITY_5_3_OR_NEWER
+    private static readonly Unity.Profiling.ProfilerMarker publicationMarker=new Unity.Profiling.ProfilerMarker("PN.ActionPublication");
+#endif
+    private void Publish(Action action) {
+#if UNITY_5_3_OR_NEWER
+        using(publicationMarker.Auto())
+#endif
+        try { action(); } catch (Exception) { ActionPublicationErrors++; if(actionPublication!=null){publications.Remove(actionPublication);actionPublication.Dispose();} } }
     private Guid actionEpoch, actionWorld;
     private ulong actionIncarnation;
     private long actionGeneration;
@@ -23,7 +39,7 @@ public partial class PNSkill
         if (actionRuns != null && (epoch != actionEpoch || world != actionWorld || incarnation != actionIncarnation || generation != actionGeneration)) ReleaseActionRuns();
         return actionRuns?.Snapshot(stamp) ?? Array.Empty<PNActionRunRecord>();
     }
-    public void SealActionRuns(double stamp) => actionRuns?.CaptureHolds(stamp);
+    public void SealActionRuns(double stamp) { actionRuns?.CaptureHolds(stamp); if(ActionPublicationEnabled && actionPublication!=null)Publish(()=>actionPublication.Seal(stamp)); }
     public long ActionIdentityRejected { get; private set; }
     public long ActionCapabilityRejected { get; private set; }
     private PNActionExecutionFrame actionFrame;
@@ -63,6 +79,9 @@ public partial class PNSkill
         var key = new PNActionRunKey(context.Invocation.CastKey != 0 ? context.Invocation.CastKey : -context.Invocation.Id, context.ActionOrdinal);
         if (actionFrame != null) stamp = actionFrame.Stamp;
         var direction = context.Direction.Value;
+        // A disposed/faulted source stays unavailable until a new life/scope.
+        if(ActionPublicationEnabled && actionPublication==null) {var shared=publicationBudgets.GetValue(session,owner=>{var budget=new PNActionPublicationBudget();owner.RegisterCleanup(()=>{foreach(var source in budget.Sources)publications.Remove(source);budget.Dispose();publicationBudgets.Remove(owner);});return budget;});actionPublication=new PNActionPublication(sessionBudget:shared);if(actionPublication.Complete)publications.Add(actionPublication); }
+        if(ActionPublicationEnabled && actionPublication!=null) Publish(()=>actionPublication.Begin(key,context.Registry.Skills.ResolveIdentity(context.EntrySkillId).ToString(),context.Registry.Skills.ResolveIdentity(context.SkillId).ToString(),definition.Id.ToString(),direction.x,direction.z,stamp));
         actionRuns.Admit(key, context.Registry.Skills.ResolveIdentity(context.EntrySkillId).ToString(), context.Registry.Skills.ResolveIdentity(context.SkillId).ToString(), definition.Id.ToString(), direction.x, direction.z, stamp);
         // Keep observational driver/finish boundaries even for refused runs. Store
         // mutation still requires admission; this does not publish refused rows.
@@ -72,9 +91,10 @@ public partial class PNSkill
     {
         if (context.RunStore == null || !ActionStamp(out var stamp)) return;
         if (actionFrame != null) stamp = actionFrame.Stamp;
+        if(ActionPublicationEnabled && actionPublication!=null)Publish(()=>actionPublication.End(context.RunKey,Math.Max(stamp,context.RunStamp),cancelled?PNActionRunEnd.Cancelled:PNActionRunEnd.Completed));
         context.RunStore.Finish(context.RunKey, Math.Max(stamp, context.RunStamp), cancelled ? PNActionRunEnd.Cancelled : PNActionRunEnd.Completed);
     }
-    private void ReleaseActionRuns() { actionRuns?.Dispose(); actionRuns = null; }
+    private void ReleaseActionRuns() { if(actionPublication!=null)publications.Remove(actionPublication);actionPublication?.Dispose();actionPublication=null; actionRuns?.Dispose(); actionRuns = null; }
 
     // Driver API: supply gameplay delta already selected by the caller. The frame maps
     // consumed driver seconds to the one unscaled source; it never reads attack stats.
@@ -127,6 +147,7 @@ public partial class PNSkill
             if (context?.RunStore == null) return;
             stamp = Math.Max(stamp, context.RunStamp);
             context.RunProgress += step; context.RunStamp = stamp;
+            if(ActionPublicationEnabled && context.Skill?.actionPublication!=null)context.Skill.Publish(()=>context.Skill.actionPublication.Advance(context.RunKey,Math.Min(begin,stamp),stamp,step,rate));
             context.RunStore.AdvanceInterval(context.RunKey, Math.Min(begin, stamp), stamp, step, rate);
         }
         public void Dispose() { if (ReferenceEquals(skill.actionFrame, this)) skill.actionFrame = null; }

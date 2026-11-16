@@ -401,3 +401,16 @@ The older `Advance(key, stamp, step, rate)` infers its interval and is retained 
 compatibility/low-level tests; it cannot distinguish float rounding from an intended
 gap. New framework drivers use explicit intervals. Diagnostic driver events include
 `begin`; replay accepts older traces without it. This adds no wire field or consumer.
+
+### C3 publication shadow (accepted shadow, 2026-11-17)
+
+PNActionPublication is an opt-in engine service source, independent of legacy
+PNActionRunStore admission. PNSkill.ActionPublicationEnabled defaults false; engine
+fixtures may enable it, and disabling disposes registered sources. Characters,
+Actions and Operations use the same gameplay path. Begin/driver/finish/Seal hooks
+preserve actual progress and isolate shadow failures from gameplay. No new consumer
+or Action transport is active. See Docs/NetworkTimeC3Report.md for accepted C3 workload and limits. ReadRequired/
+ReadLatest do not imply submission: Commit*Submitted confirms bounded local queue
+acceptance with a matching generation. Remote apply ACK remains T5.2. These interfaces
+are additive experimental APIs, not a final SDK/wire compatibility promise. Initial retrospective intervals can require R at
+original activation stamp; do not shift activation to remove those corrections.

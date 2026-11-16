@@ -82,7 +82,10 @@ public static class PNActionA2NativeChecks {
    return "PASS cap oracle; explicit constant-rate100steps cuts="+row.Cut+" anchors="+row.History.Count;
   }
  }
- public static string Run(string folder, int entities=1, int seconds=60, bool live=false, bool stagger=false, int density=0) {
+ public static string Run(string folder, int entities=1, int seconds=60, bool live=false, bool stagger=false, int density=0)
+  => RunInternal(folder,entities,seconds,live,stagger,density,1);
+ public static string RunHighOverlap(string folder) => RunInternal(folder,1,20,false,false,0,16);
+ private static string RunInternal(string folder,int entities,int seconds,bool live,bool stagger,int density,double lifetime) {
   if(EditorApplication.isPlaying || EveRegistrySession.State!=EveSessionState.Stopped) throw new Exception("Idle editor required");
   Directory.CreateDirectory(folder);
   File.WriteAllText(Path.Combine(folder,"manifest.json"),new JObject { ["entities"]=entities,["seconds"]=seconds,["live"]=live,["stagger"]=stagger,["density"]=density,["dt"]=.01,["driver"]="injected unscaled frame; native registered inert Action",["action"]="test:a2_action",["productionCoreAssembly"]=typeof(PNActionRunStore).Assembly.Location }.ToString());
@@ -107,13 +110,13 @@ public static class PNActionA2NativeChecks {
    }
    var ctor=typeof(PNSkill.PNActionExecutionFrame).GetConstructors(BindingFlags.NonPublic|BindingFlags.Instance).Single(c=>c.GetParameters().Length==5);
    var data=new PNSkillData(new JObject(),new PNSkillActionData(EveId.Parse("test:a2_action")));
-   int lastTick=(live||density>0)?seconds*100:seconds*100+100;
+   int lastTick=(live||density>0)?seconds*100:seconds*100+(int)(lifetime*100);
    for(int tick=0;tick<=lastTick;tick++) {
     now=1+tick*.01;
     foreach(var item in running.Where(x=>x.end<=now).ToArray()){if(Math.Abs(item.action.Progress-recorder.ProgressFor(skills[item.owner].ActionRuns,new PNActionRunKey(item.context.Invocation.CastKey,item.context.ActionOrdinal),now))>1e-5)throw new Exception("Actual Action progress oracle");item.action.Exit(item.context);item.action.Dispose();running.Remove(item);}
     if(tick<(live||density>0?100:seconds*100)) for(int i=0;i<entities;i++) { if((tick+(stagger?i:0))%25!=0)continue;
      var skill=skills[i];var context=new PNSkillActionContext(skill,EveId.Parse("project_n:eve_attack_right"),data,hub,null,Vector3.right,skill.CurrentInvocation);
-     var action=(PNActionA2Probe)hub.Actions().Get(data.Action.Id).Create();action.Start(context);action.Perform(context);running.Add((i,action,context,live||density>0?seconds+2:1+(tick+100)*.01));starts++;
+     var action=(PNActionA2Probe)hub.Actions().Get(data.Action.Id).Create();action.Start(context);action.Perform(context);running.Add((i,action,context,live||density>0?seconds+2:(lifetime==1?1+(tick+100)*.01:1+tick*.01+lifetime)));starts++;
     }
     peak=Math.Max(peak,running.Count);
     if(tick==lastTick)break;
@@ -129,10 +132,22 @@ public static class PNActionA2NativeChecks {
      }
     }
     foreach(var skill in skills)skill.SealActionRuns(now);
+    foreach(var item in running)if(PNSkill.ActionPublicationEnabled) {
+     var source=skills[item.owner].ActionPublication;
+     if(source==null||!source.Complete||Math.Abs(source.Progress(new PNActionRunKey(item.context.Invocation.CastKey,item.context.ActionOrdinal))-item.action.Progress)>1e-5)throw new Exception("C3 actual Action shadow progress");
+    }
     foreach(var item in running)if(Math.Abs(item.action.Progress-recorder.ProgressFor(skills[item.owner].ActionRuns,new PNActionRunKey(item.context.Invocation.CastKey,item.context.ActionOrdinal),now))>1e-5)throw new Exception("Per-capture Action progress oracle");
    }
    now+=2;int ended=0;foreach(var item in running){if(Math.Abs(item.action.Progress-recorder.ProgressFor(skills[item.owner].ActionRuns,new PNActionRunKey(item.context.Invocation.CastKey,item.context.ActionOrdinal),now))>1e-5)throw new Exception("Actual Action final progress oracle");if(live && ended++<2)item.action.Exit(item.context);else item.action.Cancel(item.context);item.action.Dispose();}running.Clear();foreach(var skill in skills)skill.CancelCast("A2 cleanup");
    if(recorder.Errors!=0)throw new Exception("Recorder failures "+recorder.Errors);
+   if(PNSkill.ActionPublicationEnabled)foreach(var skill in skills)
+   {
+    const BindingFlags scopeFlags=BindingFlags.NonPublic|BindingFlags.Instance;
+    var source=skill.ActionPublication;if(source==null)throw new Exception("C3 missing source after workload");
+    var type=typeof(PNSkill);var epoch=(Guid)type.GetField("actionEpoch",scopeFlags).GetValue(skill);var world=(Guid)type.GetField("actionWorld",scopeFlags).GetValue(skill);var incarnation=(ulong)type.GetField("actionIncarnation",scopeFlags).GetValue(skill);var generation=(long)type.GetField("actionGeneration",scopeFlags).GetValue(skill);
+    skill.CaptureActionRuns(epoch,world,incarnation,generation,now);if(!ReferenceEquals(source,skill.ActionPublication))throw new Exception("C3 same-life capture changed source");
+    skill.CaptureActionRuns(Guid.NewGuid(),world,incarnation,generation,now);if(!source.Disposed||source.CurrentBytes!=0||source.JournalBytes!=0||source.LeaseBytes!=0||skill.ActionPublication!=null)throw new Exception("C3 scope cleanup");
+   }
    var text="PASS A2 framework starts="+starts+" peak="+peak+" entities="+entities+" live="+live;File.WriteAllText(Path.Combine(folder,"result.txt"),text);return text;
   } finally {
    foreach(var item in running){try{item.action.Cancel(item.context);}finally{item.action.Dispose();}}

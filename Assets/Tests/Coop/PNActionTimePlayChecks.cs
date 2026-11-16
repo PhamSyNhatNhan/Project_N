@@ -138,7 +138,9 @@ namespace ProjectN.Coop.Tests
             bool host=NetworkServer.active,owner=peer=="client1";
             string P(string s)=>Path.Combine(folder,s);
             void Mark(string s)=>File.WriteAllText(P(s),"ok");
-            var skill=subject.GetComponent<EveCharacterSkill>();var cast=subject.GetComponent<PNSkillCastView>();
+            var skill=subject.GetComponent<EveCharacterSkill>();
+            using var c3=host&&PNActionC3Recorder.Enabled?new PNActionC3Recorder(skill,folder,peer):null;
+            var cast=subject.GetComponent<PNSkillCastView>();
             var remote=subject.GetComponent<PNSkillRemoteInput>();var session=EveRegistrySession.Context;
             if(skill==null||cast==null)throw new Exception("PreT5 needs Eve sweep character");
             var clock=PNTimeService.For(session);IPNCameraHandle camera=null;
@@ -158,7 +160,7 @@ namespace ProjectN.Coop.Tests
                 }
                 Action<NetworkDiagnostics.MessageInfo> incoming=info=>Packet("in",info),outgoing=info=>Packet("out",info);
                 NetworkDiagnostics.InMessageEvent+=incoming;NetworkDiagnostics.OutMessageEvent+=outgoing;
-                probe.Tick=()=>{if(!session.IsActive)return;var s=clock.Sample();var at=subject.transform.position;
+                probe.Tick=()=>{if(!session.IsActive)return;var s=clock.Sample();c3?.Tick(s.Local);var at=subject.transform.position;
                     if (Environment.GetCommandLineArgs().Contains("--pn-action-producer"))
                     {
                         var records = host ? PNSkillCastView.ParseRuns(cast.Capture(), out _) : cast.ReceivedRuns;
