@@ -367,7 +367,17 @@ public sealed class PNSkillEffectState : IDisposable
         var stat = skill.GetComponent<PNStat>();
         if (!skill.IsReady || stat == null || !stat.IsReady || stat.IsDead) { foreach (var value in auxiliaries.ToArray()) try { Retire(value, true); } catch (Exception error) { Report(error); } return; }
         foreach (var value in auxiliaries.ToArray())
-            try { float speed = value.Speed ? (float)Math.Max(0, stat.Evaluate(PNContentIds.AttackSpeed) / 100) : 1; if (value.Action.AdvanceAuxiliary(delta * speed)) Retire(value, false); }
+            try
+            {
+                float speed = value.Speed ? (float)Math.Max(0, stat.Evaluate(PNContentIds.AttackSpeed) / 100) : 1;
+                bool done = false;
+                using (var frame = skill.BeginActionExecutionFrame(delta))
+                {
+                    if (speed == 0 || delta == 0) { frame.Hold(value.Context); done = value.Action.AdvanceAuxiliary(delta * speed); }
+                    else frame.Advance(value.Context, delta * speed, speed, step => done = value.Action.AdvanceAuxiliary(step));
+                }
+                if (done) Retire(value, false);
+            }
             catch (Exception error) { try { Retire(value, true); } finally { Report(error); } }
     }
     internal void CancelExecutions()

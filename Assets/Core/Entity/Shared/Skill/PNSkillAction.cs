@@ -31,6 +31,10 @@ public class PNSkillActionContext
     public Guid InvocationGeneration => Invocation?.GenerationId ?? Guid.Empty;
     internal bool AllowContributions { get; }
     internal bool HasBegun => begun;
+    public long ActionOrdinal { get; private set; }
+    internal PNActionRunStore RunStore;
+    internal PNActionRunKey RunKey;
+    internal double RunProgress, RunStamp;
     // True when FreezeOnHit may be called now: a begun context of a live invocation that allows contributions.
     // The owner's CLIENT is running this action ahead of the authority (S3-S5): no lock, no damage; a hit is handed to `HitReporter` instead of being applied.
     // G1: the mode is the invocation's; a context with no invocation (the Eve moveset's) can be given one directly. `IsPrediction` is the old flag as a view of it.
@@ -104,15 +108,18 @@ public class PNSkillActionContext
     private void AnnounceEnd() { if (announced) { announced = false; Skill.AnnounceObservedActionEnd(SkillId); } }
     public void BeginAction()
     {
-        if (begun) return; begun = true;
+        if (begun || completed) return; begun = true;
+        ActionOrdinal = Invocation?.NextActionOrdinal() ?? 0;
+        if (Invocation != null && !Invocation.Contexts.Contains(this)) Invocation.Contexts.Add(this);
+        Skill?.BeginActionRun(this);
         if (Invocation != null) ContributionSnapshot = Invocation.State.Snapshot();
         if (Invocation != null && SkillId != Invocation.SkillId && Registry.Skills.GetEffective(SkillId).Data is JObject root && root["effects"] != null)
             AuthoredEffects = PNSkillMetadata.Parse(root, Registry).Effects;
         Fire("OnActionStart"); Announce();
         if (Invocation?.IsEnded == true) throw new OperationCanceledException("Invocation cancelled during Action start.");
     }
-    public void CompleteAction() { if (completed) return; completed = true; Fire("OnComplete"); AnnounceEnd(); }
-    public void CancelEffects() { if (completed) return; completed = true; Fire("OnCancel"); AnnounceEnd(); }
+    public void CompleteAction() { if (completed) return; completed = true; try { Fire("OnComplete"); } finally { Skill?.EndActionRun(this, false); AnnounceEnd(); } }
+    public void CancelEffects() { if (completed) return; completed = true; try { Fire("OnCancel"); } finally { Skill?.EndActionRun(this, true); AnnounceEnd(); } }
     public void Fire(string trigger, PNStat hit = null, Vector3? point = null)
     { if (Invocation != null) Invocation.State.Fire(this, trigger, hit, point); }
     public IReadOnlyList<EveId> EffectiveTags()

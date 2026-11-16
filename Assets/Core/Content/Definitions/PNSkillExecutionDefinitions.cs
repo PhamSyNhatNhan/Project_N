@@ -39,6 +39,10 @@ public class PNSkillActionDefinition : PNSkillExecutionDefinition<PNSkillAction>
     // G8b: an Action that draws something other players must see. The framework tells the other machines when the authority begins it and each of them plays the same Action in an Observed invocation
     // (no Ability, no motion, no hit: the services filter by mode). The Action itself has no code for it; its definition says so once.
     public bool ObserverReplay { get; private set; }
+    // The selected implementation consumes the driver-supplied progress units. This
+    // describes timing only; safe visual seek is a separate, not-yet-enabled capability.
+    public bool DriverProgress { get; private set; }
+    public PNSkillActionDefinition WithDriverProgress() { DriverProgress = true; return this; }
     public PNSkillActionDefinition ReplayOnObservers() { ObserverReplay = true; return this; }
     public PNSkillActionDefinition(EveId id, Type implementationType) : this(id, implementationType, null) { }
     public PNSkillActionDefinition(EveId id, Type implementationType, Action<PNSkillActionData, EveRegistryHub> validate) : this(id, implementationType, validate, PNSkillContextRequirements.None) { }

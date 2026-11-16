@@ -128,7 +128,7 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         // The owner's skill state (Abilities + view binding), sent only to the owner (Docs/SkillNetworkingAPlan.md S1).
         hub.SyncStates().Register(new PNSyncStateDefinition(PNSkillOwnerView.State,2,PNSkillOwnerView.StateBytes,PNSyncTargets.Entity,true));
         hub.SyncCommands().Register(new PNSyncCommandDefinition(PNSkillOwnerView.BaselineCommand,typeof(PNSkillOwnerBaselineHandler),()=>new PNSkillOwnerBaselineHandler(),32,PNSyncTargets.Entity));
-        hub.SyncStates().Register(new PNSyncStateDefinition(PNSkillCastView.State,1,PNSkillCastView.StateBytes,PNSyncTargets.Entity));
+        hub.SyncStates().Register(new PNSyncStateDefinition(PNSkillCastView.State,2,PNSkillCastView.StateBytes,PNSyncTargets.Entity));
         hub.SyncStates().Register(new PNSyncStateDefinition(PNPresentationSync.State,1,PNPresentationSync.StateBytes,PNSyncTargets.Entity));
         // The owner's skill input and its answer (S2): a command from the owner's client, the cast result back to the owner only.
         hub.SyncStates().Register(new PNSyncStateDefinition(PNSkillRemoteInput.ResultState,1,PNSkillRemoteInput.ResultBytes,PNSyncTargets.Entity,true));
@@ -164,7 +164,7 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         // Puts a locomotion on the skill body for a while (Docs/SandboxPlan.md G12): the registered way for a skill to fly or cross a hole. Not wired into any existing skill.
         hub.Actions().Register(new PNSkillActionDefinition(LocomotionAction, typeof(PNLocomotionAction), ValidateEffectAction, PNSkillContextRequirements.None));
 #endif
-        hub.Actions().Register(new PNSkillActionDefinition(SweepAction, typeof(EveSweepAction), ValidateEffectAction, PNSkillContextRequirements.Direction).ReplayOnObservers());
+        hub.Actions().Register(new PNSkillActionDefinition(SweepAction, typeof(EveSweepAction), ValidateEffectAction, PNSkillContextRequirements.Direction).ReplayOnObservers().WithDriverProgress());
         hub.Actions().Register(new PNSkillActionDefinition(MotionAction,typeof(PNMotionAction), ValidateEffectAction, PNSkillContextRequirements.Direction));
         hub.Actions().Register(new PNSkillActionDefinition(EveId.Parse("project_n:buff_action"), typeof(PNBuffAction), ValidateEffectAction, PNSkillContextRequirements.None,
             (data, context) => { var obj = PNBuffContentBatch.Object(data); context.Require<PNSkillOperationDefinition>(obj["operationId"], "operationId"); context.Registry.Operations().Get(context.Read(obj["operationId"], "operationId")).ValidateReferences(obj["data"], context); }));

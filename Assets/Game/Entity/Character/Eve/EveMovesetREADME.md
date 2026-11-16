@@ -364,3 +364,6 @@ Shared player Dash keeps its own registered distance. See Core/Area/PNAreaREADME
   a binding change cancels the gesture (clears the Repeat hold) and interrupts with `project_n:binding_changed`. The button-named hooks (`TapAttack`, `RepeatAttack`, `TapSkill`...) and
   `CanContinueEveRepeat` no longer exist for Eve; new characters write a behavior too. Shared Dash still uses `PNLegacySkillBehavior`.
 - Behavior is pinned by the golden trace `EveMovesetTraceChecks` (18 scenarios, baseline `Tests/EveEngine/Baselines/EveMovesetTrace.baseline.txt`, git-ignored): any change to Eve casts must keep it byte-identical.
+
+
+T5.1: the moveset forwards its unchanged `step` and live `ExecutionSpeed` through the Core Action execution frame. It contains no serialization, network mode flag or presentation clock policy for this feature. The engine records progress/holds for the registered sweep's driver capability; a single speed-at-start is not used. The ordinary observer still uses the legacy immediate path until T5.3.

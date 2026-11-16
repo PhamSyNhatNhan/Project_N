@@ -289,9 +289,8 @@ public partial class PNSkill : EveSkill, EveIEntityLoadPreparation, EveIEntityCo
     {
         try { EndObservedActions(); UnloadBindings(); }
         finally {
-        prepared?.Dispose(); prepared = null; EndActivation(true, PNCastEnd.Unloaded); Effects?.Dispose(); Effects = null;
-        registry = null;builtInData.Clear(); LastControlDecision = null;
-        base.Unload();
+        try { prepared?.Dispose(); prepared = null; EndActivation(true, PNCastEnd.Unloaded); Effects?.Dispose(); Effects = null; }
+        finally { ReleaseActionRuns(); registry = null;builtInData.Clear(); LastControlDecision = null; base.Unload(); }
         }
     }
 }

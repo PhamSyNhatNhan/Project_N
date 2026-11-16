@@ -367,23 +367,27 @@ public partial class EveCharacterSkill
             AdvanceIdle(delta);
             if (!IsBusy) return;
             double budget = delta;
+            using (var frame = BeginActionExecutionFrame(delta))
+            {
+            if (delta == 0) frame.Hold(attackContext);
             for (int transitions = 0; IsBusy && budget > 0 && transitions < 32; transitions++)
             {
                 double speed = ExecutionSpeed;
-                if (speed <= 0) break;
+                if (speed <= 0) { frame.Hold(attackContext); break; }
                 double available = budget * speed;
                 if (double.IsNaN(available) || double.IsInfinity(available)) throw new OverflowException("Eve cast delta overflow.");
                 float step = (float)Math.Min(phaseRemaining, available);
                 budget = Math.Max(0, budget - step / speed);
                 phaseRemaining = Math.Max(0, phaseRemaining - step);
                 if (motion != null) motion.Advance(step);
-                if (attack != null) attack.Advance(step);
+                frame.Advance(attackContext, step, speed, attack != null ? (Action<float>)attack.Advance : null);
 #if UNITY_5_3_OR_NEWER
                 if (CurrentPhase == EveCastPhase.Charge) EnsureEnergy().Charge(1 - phaseRemaining / moveset.ChargeDuration);
                 else MotionLook(motion != null);
 #endif
                 if (!IsBusy) break;
                 if (phaseRemaining <= .000001f) CompletePhase(); else break;
+            }
             }
         }
         catch (Exception error) { CancelMoveset(); Debug.LogException(error, this); }

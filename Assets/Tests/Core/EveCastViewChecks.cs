@@ -42,11 +42,12 @@ public static class EveCastViewChecks
         JObject Input(long key, EveId slot, PNSkillInputPhase phase, EveId profile) => new JObject { ["k"] = key, ["s"] = slot.ToString(), ["p"] = (int)phase, ["i"] = 0, ["f"] = profile.ToString() };
 
         // ---- the authority ----
-        JToken hostBlock = null;
+        JToken hostBlock = null; var epoch = Guid.NewGuid(); double now = 1;
         var hostScene = EditorSceneManager.NewPreviewScene();
         try
         {
             EveRegistrySession.Begin(); EveRegistrySession.Start(hub, EveSessionRole.Offline, EveContentCompatibility.Create(hub, docs, "test:s6_authority"));
+            PNTimeService.Attach(EveRegistrySession.Context, new PNLocalTimeline(epoch, () => now));
             var areaRoot = new GameObject("S6 area manager"); SceneManager.MoveGameObjectToScene(areaRoot, hostScene); areaRoot.AddComponent<PNAreaManager>().Initialize(EveRegistrySession.Context);
             var actor = Root(hostScene, "S6 host Eve", eveId, "project_n:eve", Vector3.zero, owner); actor.layer = PNLayers.Player; actor.AddComponent<EveCharacterStat>(); actor.AddComponent<PNAbilityManager>();
             var body = actor.AddComponent<Rigidbody>(); body.useGravity = false; var capsule = actor.AddComponent<CapsuleCollider>(); capsule.radius = .12f; capsule.height = .6f;
@@ -65,7 +66,21 @@ public static class EveCastViewChecks
             Check(events.Count == 1 && events[0].Event.Kind == PNSkill.ActionKind && events[0].Event.Detail.StartsWith("project_n:eve_attack_") && events[0].Event.X > .9f && latest == events[0].Serial,
                 "the block holds one Action start with its skill id and direction (" + string.Join(",", events.Select(e => e.Event.Kind + ":" + e.Event.Detail)) + ")");
             Check(hostBlock.ToString(Newtonsoft.Json.Formatting.None).Length < PNSkillCastView.StateBytes, "the block fits its byte bound");
-            for (int i = 0; i < 300 && skill.IsBusy; i++) skill.Tick(.01f);
+            var runs = PNSkillCastView.ParseRuns(hostBlock, out var envelope);
+            Check(runs.Count == 1 && runs[0].Key.Ordinal == 1 && runs[0].Key.Cast == skill.CurrentInvocation.CastKey, "eager Action identity before any hit");
+            var runKey = runs[0].Key;
+            var extra = new PNSkillActionContext(skill, EveId.Parse(runs[0].Data), skill.GetData(EveId.Parse(runs[0].Data)), hub, null, Vector3.right, skill.CurrentInvocation);
+            extra.BeginAction(); Check(extra.ActionOrdinal == 2, "same cast same definition has separate eager ordinal");
+            extra.CancelEffects();
+            var cancelled = new PNSkillActionContext(skill, EveId.Parse(runs[0].Data), skill.GetData(EveId.Parse(runs[0].Data)), hub, null, Vector3.right, skill.CurrentInvocation);
+            cancelled.CancelEffects(); cancelled.BeginAction(); Check(cancelled.ActionOrdinal == 0, "cancel before start cannot resurrect");
+            typeof(PNSkillInvocation).GetField("actionOrdinal", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).SetValue(skill.CurrentInvocation, long.MaxValue);
+            var exhausted = new PNSkillActionContext(skill, EveId.Parse(runs[0].Data), skill.GetData(EveId.Parse(runs[0].Data)), hub, null, Vector3.right, skill.CurrentInvocation);
+            exhausted.BeginAction(); exhausted.CancelEffects(); Check(exhausted.ActionOrdinal == 0 && skill.ActionIdentityRejected == 1, "ordinal exhaustion rejects only presentation");
+            view.OnUnbound(); view.OnBound(service, target);
+            Check(PNSkillCastView.ParseRuns(view.Capture(), out _).Single().Key.Equals(runKey), "same life rebind keeps producer key");
+
+            for (int i = 0; i < 300 && skill.IsBusy; i++) { now += .01; skill.Tick(.01f); }
             service.ReceiveCommand(owner, target, PNSkillRemoteInput.Command, Input(3, PNSkillSlots.Attack, PNSkillInputPhase.Canceled, attackProfile));
             Check(service.TryGetLatest(target, PNSkillCastView.State, out _, out hostBlock) && view.PlayedCount == 0, "the authority never plays its own pictures");
             ownerView.OnUnbound(); remote.OnUnbound(); view.OnUnbound(); service.Dispose();
@@ -78,6 +93,7 @@ public static class EveCastViewChecks
         {
             EveRegistrySession.Begin(); EveRegistrySession.Start(hub, EveSessionRole.Client, EveContentCompatibility.Create(hub, docs, "test:s6_observer"));
             typeof(EveSessionContext).GetMethod("AdmitLocalOwner", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).Invoke(EveRegistrySession.Context, new object[] { owner });
+            PNTimeService.Attach(EveRegistrySession.Context, new PNLocalTimeline(epoch, () => now));
             var areaRoot = new GameObject("S6 observer area manager"); SceneManager.MoveGameObjectToScene(areaRoot, clientScene); areaRoot.AddComponent<PNAreaManager>().Initialize(EveRegistrySession.Context);
             var actor = Root(clientScene, "S6 observed Eve", eveId, "project_n:eve", Vector3.zero, owner + 1); actor.layer = PNLayers.Player; actor.AddComponent<EveCharacterStat>(); actor.AddComponent<PNAbilityManager>();
             var body = actor.AddComponent<Rigidbody>(); body.useGravity = false; var capsule = actor.AddComponent<CapsuleCollider>(); capsule.radius = .12f; capsule.height = .6f;
@@ -88,9 +104,14 @@ public static class EveCastViewChecks
             var service = new PNSyncService(hub, false, owner, EveRegistrySession.Context);
             var view = actor.AddComponent<PNSkillCastView>(); service.RegisterObject(target, skill); view.OnBound(service, target);
             double hp = enemy.GetCurrent(PNContentIds.Health); string before = string.Join(";", abilities.CaptureReplica().Select(i => i.Id + ":" + i.Amount + ":" + i.Active));
-            ulong rev = 1; bool Send(JToken block) => service.ReceiveState(target, PNSkillCastView.State, 1, rev++, block.DeepClone());
-            JObject Block(long latest, params object[][] rows) => new JObject { ["n"] = latest, ["e"] = new JArray(rows.Select(r => (object)new JArray(r))) };
+            ulong rev = 1; bool Send(JToken block) => service.ReceiveState(target, PNSkillCastView.State, 2, rev++, block.DeepClone());
+            JObject Block(long latest, params object[][] rows) { var block = (JObject)hostBlock.DeepClone(); block["n"] = latest; block["e"] = new JArray(rows.Select(r => (object)new JArray(r))); return block; }
             Check(!skill.IsOwnerClient, "an observed Eve is not on its owner's machine");
+            var stale = Block(100); stale["a"]["g"] = target.Generation + 1;
+            Check(Send(stale) && view.LastSerial == -1 && view.ReceivedRuns.Count == 0, "old generation payload cannot affect observer");
+            stale = Block(100); stale["a"]["e"] = Guid.NewGuid().ToString("N");
+            Check(Send(stale) && view.LastSerial == -1, "other epoch payload cannot affect observer");
+
 
             Check(Send(Block(7)) && view.PlayedCount == 0 && view.LastSerial == 7, "the first block only sets the serial: a late joiner replays nothing");
             Check(Send(Block(7, new object[] { 7L, "action", "base:eve_attack_right", 1f, 0f, 0f })) && view.PlayedCount == 0, "an event the first block already counted is not played");
