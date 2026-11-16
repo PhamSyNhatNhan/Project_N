@@ -142,6 +142,8 @@ namespace ProjectN.Coop.Tests
             }
             catch (Exception e) { Fail(e); yield break; }
 
+            if (PNBuffViewPlayChecks.Enabled) { yield return PNBuffViewPlayChecks.Run(folder, name, e1); yield break; }
+            if (PNAbilityTimePlayChecks.Enabled) { yield return PNAbilityTimePlayChecks.Run(folder, name, e1); yield break; }
             if (PNTimeBaselineChecks.Enabled) { yield return PNTimeBaselineChecks.Run(folder, name, e1); yield break; }
             // ---- owner-only block ----
             if (!host)

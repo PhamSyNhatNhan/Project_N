@@ -1,7 +1,9 @@
 # Skill binding override — Rules75 / Mod API6
 
 Slot giữ binding; Skill sở hữu input, targeting, phases, cost, category và speed policy.
-Attack slot không thêm category Attack. Mirror Skill commands/replication chưa được thêm.
+Attack slot không thêm category Attack. Mirror owner state/input/prediction đã có;
+T4 dùng skill_owner schema2 (NetworkVersion27 / Rules169 / Mod API8), theo
+`Assets/Core/Entity/Shared/Ability/PNAbilityREADME.md` và báo cáo NetworkTimeT4.
 
 ## Content
 
@@ -10,6 +12,13 @@ PNSkillBehaviorDefinition chứa Id/ImplementationId/factory/validators. Factory
 mới, chỉ chuẩn bị, không chạy effect. Helper logic không bắt buộc đăng ký. Profile chứa
 EntrySkillId metadata, BehaviorId, Data/Input immutable, ActionDataIds, Abilities,
 DisplayAbilityIds và ResetAbilitiesOnDeath. Không đặt runtime state trong definition.
+
+Các Ability passive của profile đang chọn được khai báo trong PNSkill.CommitEntity,
+bên trong initialization/module scope của loader, trước publication. EntityPublished
+giữ bước kiểm và selection effects. Không dựa vào CanMutate=false để coi authority
+đang loading/held là replica và vượt quyền Define; nếu không pet/cooldown của binding
+có thể thiếu ở world vừa được publish. Framework sở hữu việc khai báo này, author
+không thêm nhánh mạng hoặc tự dời effect gameplay vào CommitEntity.
 
 Behavior gọi context.TryBegin trước cost; CreateAction dùng registry; Commit/Complete dùng
 invocation hiện có. Advance nhận entity-scaled delta; behavior chọn clock và áp speed theo

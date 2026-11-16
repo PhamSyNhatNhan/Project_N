@@ -15,6 +15,11 @@ using UnityEngine.SceneManagement;
 // same values, tick on by itself, and stay unable to mutate Abilities the normal way; 3) the authority refuses a replica. The wire (who receives an owner-only block) is checked in the Player run.
 public static class EveSkillOwnerStateChecks
 {
+    private sealed class Wire : IPNSyncTransport
+    {
+        public void SendState(PNSyncTarget t,PNSyncStateDefinition s,ulong r,JToken p) { }
+        public void SendCommand(PNSyncTarget t,PNSyncCommandDefinition c,JToken p) { }
+    }
     private sealed class Snap { public string Id; public int Index; public int? Amount; public bool Active; public double Cooldown; public double? Duration; }
     private static List<Snap> Read(PNAbilityCollection c)
     {
@@ -71,6 +76,7 @@ public static class EveSkillOwnerStateChecks
         try
         {
             EveRegistrySession.Begin(); EveRegistrySession.Start(hub, EveSessionRole.Offline, EveContentCompatibility.Create(hub, docs, "test:s1_host"));
+            PNAbilityOwnerFixture.Attach();
             var (root, skill) = Eve(hostScene, "S1 host Eve"); var hostAbilities = root.GetComponent<PNAbilityManager>().Abilities;
             var service = new PNSyncService(hub, true, 0, EveRegistrySession.Context); var view = root.AddComponent<PNSkillOwnerView>();
             service.RegisterObject(target, root); view.OnBound(service, target);
@@ -94,11 +100,13 @@ public static class EveSkillOwnerStateChecks
         try
         {
             EveRegistrySession.Begin(); EveRegistrySession.Start(hub, EveSessionRole.Client, EveContentCompatibility.Create(hub, docs, "test:s1_client"));
+            PNAbilityOwnerFixture.Attach();
+            typeof(EveSessionContext).GetMethod("AdmitLocalOwner",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic).Invoke(EveRegistrySession.Context,new object[]{1L});
             var (root, skill) = Eve(clientScene, "S1 client Eve"); var abilities = root.GetComponent<PNAbilityManager>().Abilities;
-            var service = new PNSyncService(hub, false, 5, EveRegistrySession.Context); var view = root.AddComponent<PNSkillOwnerView>();
+            var service = new PNSyncService(hub, false, 1, EveRegistrySession.Context) { Transport = new Wire() }; var view = root.AddComponent<PNSkillOwnerView>();
             service.RegisterObject(target, root); view.OnBound(service, target);
             Check(Compare(hostAtCapture, Read(abilities)) != null, "before the block arrives the client holds JSON defaults, different from the host");
-            Check(service.ReceiveState(target, PNSkillOwnerView.State, 1, revision, payload.DeepClone()), "the client's non-authority service accepts the block");
+            Check(service.ReceiveState(target, PNSkillOwnerView.State, 2, revision, payload.DeepClone()), "the client's non-authority service accepts the block");
             Check(view.AppliedCount == hostAtCapture.Count && view.AppliedRevision == revision, "every Ability row applied (" + view.AppliedCount + " of " + hostAtCapture.Count + ")");
             string diff = Compare(hostAtCapture, Read(abilities)); Check(diff == null, "client Abilities equal the host's at capture: " + diff);
             Check(view.Bindings.Count == hostBindings.Count && hostBindings.All(p => view.Bindings.TryGetValue(p.Key, out var v) && v == p.Value), "the client reads the same view binding");
@@ -108,7 +116,41 @@ public static class EveSkillOwnerStateChecks
             var bad = (JObject)payload.DeepClone(); ((JArray)bad["a"]).Add(new JArray("test:x")); bool refused = false;
             try { PNSkillOwnerView.Parse(bad, out _); } catch (FormatException) { refused = true; }
             Check(refused, "a malformed row is refused");
+            var delayed=(JObject)payload.DeepClone(); delayed["t"]=99.5; delayed["q"]=new JArray(2,2,2);
+            view.Apply(delayed,revision+1);
+            double original=hostAtCapture.First(x=>x.Id.EndsWith("eve_skill_ready")).Cooldown;
+            Check(Math.Abs(skill.SkillRecovery.CooldownRemaining-(original-1))<1e-6 && view.AppliedAge==.5,"T4 delayed owner image uses host age and authority rate, not buffered Presentation");
+            typeof(PNAbilityManager).GetMethod("Update",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic).Invoke(root.GetComponent<PNAbilityManager>(),null);
+            Check(Math.Abs(skill.SkillRecovery.CooldownRemaining-(original-1))<1e-6,"T4 apply frame does not tick the same elapsed twice");
+            PNAbilityOwnerFixture.Ready=false; view.Apply(payload.DeepClone(),revision+2);
+            Check(view.HasPending && view.AppliedRevision==revision+1,"T4 unready image waits without replacing current image");
+            PNAbilityOwnerFixture.Ready=true;
+            typeof(PNSkillOwnerView).GetMethod("Update",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic).Invoke(view,null);
+            Check(!view.HasPending && view.AppliedRevision==revision+2,"T4 pending image applies after readiness");
+            var expired=(JObject)payload.DeepClone(); expired["t"]=97; int requests=view.BaselineRequests;
+            view.Apply(expired,revision+3);
+            Check(!view.Prepared && view.BaselineRequests==requests+1 && view.AppliedRevision==revision+2,"T4 age beyond two seconds requests baseline instead of replay");
+            var recoveryDeadline=typeof(PNSkillOwnerView).GetField("deadline",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic);
+            double fixedDeadline=(double)recoveryDeadline.GetValue(view);PNAbilityOwnerFixture.Now=100.6;
+            typeof(PNSkillOwnerView).GetMethod("Update",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic).Invoke(view,null);
+            Check((double)recoveryDeadline.GetValue(view)==fixedDeadline && view.BaselineRequests>requests+1,"T4 retry traffic cannot extend original recovery deadline");
+            view.Apply(payload.DeepClone(),revision+4);
+            Check(view.Prepared && !view.HasPending,"T4 fresh baseline recovers owner input view");
+            var old=(JObject)payload.DeepClone(); old["e"]=Guid.NewGuid().ToString("N");view.Apply(old,revision+5);
+            Check(view.AppliedRevision==revision+4,"T4 stale epoch cannot replace image");
+            var history=PNTimeService.For(EveRegistrySession.Context).History;
+            Check(history.AnchorCount==3,"T4 owns exactly three clock baselines");
+            PNAbilityOwnerFixture.Now=103;
+            typeof(PNSkillOwnerView).GetMethod("Update",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic).Invoke(view,null);
+            Check(!view.Prepared,"T4 silent owner image stream also enters baseline recovery");
+            var fresh=(JObject)payload.DeepClone();fresh["t"]=103;view.Apply(fresh,revision+6);
+            Check(view.Prepared,"T4 fresh capture recovers a silent image stream");
+            view.Apply(expired,revision+7);
+            typeof(PNSkillOwnerView).GetField("deadline",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic).SetValue(view,99d);
+            typeof(PNSkillOwnerView).GetMethod("Update",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic).Invoke(view,null);
+            Check(EveRegistrySession.Context.ConnectionFailureCode=="ability_clock_timeout","T4 missing baseline expires through the actual session failure path");
             view.OnUnbound(); service.Dispose();
+            Check(history.AnchorCount==0 && root.GetComponent<PNAbilityManager>().ReplicaCanAdvance==null && root.GetComponent<PNAbilityManager>().ReplicaAuthorityDelta==null,"T4 unbound clears history and driver delegates");
         }
         finally { Cleanup(clientScene); }
 
@@ -117,6 +159,7 @@ public static class EveSkillOwnerStateChecks
         try
         {
             EveRegistrySession.Begin(); EveRegistrySession.Start(hub, EveSessionRole.Offline, EveContentCompatibility.Create(hub, docs, "test:s1_offline"));
+            PNAbilityOwnerFixture.Attach();
             var (root, _) = Eve(authorityScene, "S1 offline Eve"); bool refused = false;
             try { root.GetComponent<PNAbilityManager>().Abilities.ApplyReplica(new PNAbilityReplicaItem[0]); } catch (InvalidOperationException) { refused = true; }
             Check(refused, "ApplyReplica is refused on a machine with authority");

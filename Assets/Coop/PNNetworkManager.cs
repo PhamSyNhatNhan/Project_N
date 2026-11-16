@@ -424,6 +424,8 @@ namespace ProjectN.Coop
             pendingFinalResume=null;clientInterrupted=-1;clientInputReady=true;foreach(var binding in bindings.Values)SetInput(binding,true);
         }
         private double GraceLimit=>IsPlaying&&Policy!=null?Policy.GraceSeconds:Profile.GraceSeconds;
+        internal double RemainingClockRecoverySeconds => Math.Min(Math.Min(GraceLimit, Scheduler != null ? Scheduler.TimeoutMilliseconds/1000d : Profile.AdmissionSeconds),
+            clientInterrupted >= 0 ? Math.Max(0,clientInterrupted+GraceLimit-Time.realtimeSinceStartupAsDouble) : double.MaxValue);
         public bool ClientInputReady=>clientInputReady;
         private void OnApplicationPause(bool value)
             => NotifyApplicationPause(value);
@@ -469,7 +471,7 @@ namespace ProjectN.Coop
         private void SetInput(Binding binding,bool allowed)
         {
             var loader=binding.Candidate?.Loader;if(loader==null)return;
-            allowed=allowed&&WorldInputAllowed(binding)&&(binding.Shell?.HasMove!=true||binding.Movement.Attached&&(NetworkServer.active||binding.Movement.Component?.MovementBaselineApplied==true));
+            allowed=allowed&&WorldInputAllowed(binding)&&BuffClockPrepared(binding)&&(binding.Shell?.HasMove!=true||binding.Movement.Attached&&(NetworkServer.active||binding.Movement.Component?.MovementBaselineApplied==true));
             if(!allowed&&!NetworkServer.active&&IsClientBindingCurrent(binding)&&binding.Movement.Component?.MovementHeld==false&&binding.Shell.HasMove)RequestMove(binding,true);
             binding.Movement.Component?.SetMovementHeld(!allowed);
             var gate=loader.GetComponent<PNNetworkInputGate>()??loader.gameObject.AddComponent<PNNetworkInputGate>();

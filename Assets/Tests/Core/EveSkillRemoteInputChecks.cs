@@ -54,6 +54,7 @@ public static class EveSkillRemoteInputChecks
         try
         {
             EveRegistrySession.Begin(); EveRegistrySession.Start(hub, EveSessionRole.Offline, EveContentCompatibility.Create(hub, docs, "test:s2_authority"));
+            PNAbilityOwnerFixture.Attach();
             var areaRoot = new GameObject("S2 area manager"); SceneManager.MoveGameObjectToScene(areaRoot, hostScene); areaRoot.AddComponent<PNAreaManager>().Initialize(EveRegistrySession.Context);
             var (root, skill) = Eve(hostScene, "S2 host Eve"); root.GetComponent<PNAbilityManager>().enabled = false; var abilities = root.GetComponent<PNAbilityManager>().Abilities;
             var service = new PNSyncService(hub, true, 0, EveRegistrySession.Context);
@@ -111,13 +112,14 @@ public static class EveSkillRemoteInputChecks
         try
         {
             EveRegistrySession.Begin(); EveRegistrySession.Start(hub, EveSessionRole.Client, EveContentCompatibility.Create(hub, docs, "test:s2_client"));
+            PNAbilityOwnerFixture.Attach();
             var (root, skill) = Eve(clientScene, "S2 client Eve");
             var wire = new Wire(); var service = new PNSyncService(hub, false, owner, EveRegistrySession.Context) { Transport = wire };
             var view = root.AddComponent<PNSkillOwnerView>(); var remote = root.AddComponent<PNSkillRemoteInput>();
             service.RegisterObject(target, skill); view.OnBound(service, target); remote.OnBound(service, target);
             Check(!remote.IsActive && !skill.Slot(PNSkillSlots.Attack) && wire.Sent.Count == 0, "before the first skill_owner image the client forwards nothing (it does not know the bindings yet)");
             var bindings = new JObject(); foreach (var slot in PNSkillSlots.Player) bindings[slot.ToString()] = "project_n:eve_" + slot.ToString().Substring(slot.ToString().IndexOf("slot_", StringComparison.Ordinal) + 5);
-            service.ReceiveState(target, PNSkillOwnerView.State, 1, 1, new JObject { ["a"] = new JArray(), ["b"] = bindings });
+            service.ReceiveState(target, PNSkillOwnerView.State, 2, 1, PNAbilityOwnerFixture.Image(view, new JObject { ["a"] = new JArray(), ["b"] = bindings }));
             Check(remote.IsActive && ReferenceEquals(skill.InputForwarder, remote), "after the image the client's skill forwards through the component");
             Check(skill.Slot(PNSkillSlots.Attack) && wire.Sent.Count == 1, "a slot press on the client is sent, not run");
             var sent = wire.Sent[0];

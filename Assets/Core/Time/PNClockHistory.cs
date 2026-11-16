@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-public enum PNClockDomain { WorldGame, Entity, EntityWithoutMinimum, Instance }
+public enum PNClockDomain { WorldGame, Entity, EntityWithoutMinimum, Instance, BuffGame, AbilityGame, AbilityEntity, AbilityRaw }
 public readonly struct PNClockKey : IEquatable<PNClockKey>
 {
     public readonly Guid Epoch, World;

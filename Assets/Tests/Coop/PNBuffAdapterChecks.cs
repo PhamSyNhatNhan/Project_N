@@ -23,18 +23,20 @@ namespace ProjectN.Coop.Tests
             var frame=new PNBuffFrame(new PNBuffWireMessage(session,entity,3,8,PNBuffWireKind.Snapshot,new[]{state}),3,groups);
             var stream=new PNBuffStream{Scope=new PNWorldBindingScope{World=Guid.NewGuid(),Incarnation=2,Membership=3,Subscription=4},Session=session,NetId=5,Entity=7,Generation=3,Nonce=11};
             var body=PNBuffWire.Encode(frame);
-            var packet=new PNBuffPacket{Stream=stream,Transfer=1,Kind=0,Revision=8,Time=3,HostTime=4,Rate=1,Total=body.Length,Index=0,Count=1,Body=body};
+            var packet=new PNBuffPacket{Stream=stream,Transfer=1,Kind=0,Revision=8,Time=3,HostTime=4,Rate=1,ClockRevision=1,ClockStamp=4,ClockTime=3,ClockBaseline=true,Total=body.Length,Index=0,Count=1,Body=body};
             using(var writer=NetworkWriterPool.Get())
             {
                 writer.Write(packet);var copy=new NetworkReader(writer.ToArray()).Read<PNBuffPacket>();
                 Check(copy.Stream.Equals(stream)&&copy.Body.SequenceEqual(body),"actual Weaver packet and custom bounded reader");
+                Check(copy.ClockRevision==1&&copy.ClockStamp==4&&copy.ClockTime==3&&copy.ClockBaseline,"clock anchor belongs to the state revision and roundtrips through Weaver");
+                var oldSchema=writer.ToArray();oldSchema[0]=1;Reject(()=>new NetworkReader(oldSchema).ReadBuffPacket(),"old scaled clock packet schema refused");
                 var decoded=PNBuffWire.DecodeFrame(copy.Body,copy);
                 Check(decoded.State.States[0].Numbers.TopLeft==long.MaxValue&&decoded.State.States[0].Numbers.BottomRight==long.MinValue,"nullable Int64 wire exact");
                 Check(decoded.State.States[0].Stacks==null&&decoded.State.States[0].Expiration==null,"custom Buff no stack/no expiry");
                 Check(JToken.DeepEquals(decoded.State.States[0].DynamicData,data)&&decoded.Groups[id]==8,"custom payload and canonical group order");
             }
             var removed=new PNBuffChange(new PNBuffWireMessage(session,entity,3,9,PNBuffWireKind.Removed,removedId:12,endReason:PNBuffEndReason.Expired,cues:new[]{new PNBuffCue(1,12,"end",4)}),state,4,new Dictionary<EveId,long>());
-            packet.Kind=1;packet.Revision=9;var change=PNBuffWire.DecodeChange(PNBuffWire.Encode(removed),packet);
+            packet.Kind=1;packet.ClockBaseline=false;packet.Revision=9;var change=PNBuffWire.DecodeChange(PNBuffWire.Encode(removed),packet);
             Check(change.FinalState.InstanceId==12&&change.State.EndReason==PNBuffEndReason.Expired&&change.State.Cues[0].Name=="end","removal final state/reason/required cue");
             var empty=new PNBuffFrame(new PNBuffWireMessage(session,entity,3,0,PNBuffWireKind.Snapshot),0,new Dictionary<EveId,long>());
             packet.Revision=0;packet.Time=0;Check(PNBuffWire.DecodeFrame(PNBuffWire.Encode(empty),packet).State.States.Count==0,"empty baseline zero revision");
@@ -48,12 +50,13 @@ namespace ProjectN.Coop.Tests
             Check(decode.Advance()&&decode.Result.State.States.Count==12&&nodes>0,"decoded DOM nodes charged before allocation");
             var denied=new PNBuffWire.FrameDecoder(large,header,_=>throw new InvalidOperationException("quota"));Reject(()=>denied.Advance(),"DOM reservation rejects before payload construction");
             int reserved=0;int count=(large.Length+PNBuffWire.ChunkBytes-1)/PNBuffWire.ChunkBytes;
-            PNBuffPacket Part(int index){var bytes=large.Skip(index*PNBuffWire.ChunkBytes).Take(PNBuffWire.ChunkBytes).ToArray();return new PNBuffPacket{Stream=stream,Transfer=2,Kind=0,Revision=3,Total=large.Length,Index=index,Count=count,Body=bytes};}
+            PNBuffPacket Part(int index){var bytes=large.Skip(index*PNBuffWire.ChunkBytes).Take(PNBuffWire.ChunkBytes).ToArray();return new PNBuffPacket{Stream=stream,Transfer=2,Kind=0,Revision=3,ClockRevision=1,ClockBaseline=true,Total=large.Length,Index=index,Count=count,Body=bytes};}
             using(var assembly=new PNBuffBaselineAssembly(Part(0),0,size=>{reserved+=size;return new PNBuffRelease(()=>reserved-=size);}))
             {
                 Check(!assembly.Complete&&reserved>large.Length,"reserve peak ownership before assembly allocation");
                 Reject(()=>assembly.Body(),"partial baseline cannot apply");
                 Reject(()=>assembly.Add(Part(0)),"duplicate conflicting position rejected");
+                var conflict=Part(1);conflict.ClockTime=1;Reject(()=>assembly.Add(conflict),"fragments cannot replace clock metadata halfway through a state image");
                 for(int i=1;i<count;i++)assembly.Add(Part(i));
                 Check(assembly.Complete&&assembly.Body().SequenceEqual(large),"multi-chunk atomic assembly exact bytes");
             }
@@ -63,6 +66,15 @@ namespace ProjectN.Coop.Tests
             var inbox=new EveBindingInbox{MaximumTotalBytes=100};inbox.Reserve(1,1,2);var lease=inbox.ReserveBytes(1,1,98);
             Reject(()=>inbox.ReserveBytes(1,1,1),"assembly shares pending quota");lease.Dispose();lease.Dispose();Check(inbox.TotalBytes==2,"quota lease idempotent");inbox.Release(1,1);
             Check(inbox.TotalBytes==0,"no pending accounting after retirement");
+            var bad=Part(0);bad.ClockRevision=0;Reject(()=>PNBuffWire.ValidatePacket(bad),"required record needs clock revision");
+            bad=Part(0);bad.ClockStamp=1;Reject(()=>PNBuffWire.ValidatePacket(bad),"anchor cannot be newer than capture");
+            bad=Part(0);bad.Rate=double.NaN;Reject(()=>PNBuffWire.ValidatePacket(bad),"nonfinite clock rate refused");
+            bad=Part(0);bad.Kind=1;Reject(()=>PNBuffWire.ValidatePacket(bad),"delta cannot claim baseline reset");
+            using(var requestWriter=NetworkWriterPool.Get())
+            {
+                requestWriter.Write(new PNBuffBaselineRequest{Stream=stream,ClockRequest=3});var request=new NetworkReader(requestWriter.ToArray()).Read<PNBuffBaselineRequest>();
+                Check(request.Stream.Equals(stream)&&request.ClockRequest==3,"clock recovery requests retain binding identity and monotonic request id");
+            }
             return "PASS "+checks+" P3 wire/Weaver/assembly checks";
         }
     }

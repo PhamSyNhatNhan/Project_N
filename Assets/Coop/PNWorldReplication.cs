@@ -278,7 +278,7 @@ namespace ProjectN.Coop
         {
             if(!bindings.TryGetValue(target.NetId,out var b)||b.Retiring||b.Metadata.Entity!=target.Entity||b.Metadata.Generation!=target.Generation||!Scope(b).Equals(target.Scope)||b.Candidate?.Loader?.IsReady!=true)return false;
             if(target.Adapter==2)return (ulong)b.Token==target.Nonce&&b.Movement.Component?.MovementBaselineApplied==true&&b.Movement.Component.AppliedMovementControl>=(ulong)target.Revision&&!b.Movement.AwaitingBaseline;
-            if(target.Adapter==1)return (ulong)b.Token==target.Nonce&&b.Buffs.Component?.HasBaseline==true&&b.Buffs.Component.AppliedRevision>=target.Revision&&b.Buffs.Records.Count==0&&b.Buffs.Assembly==null;
+            if(target.Adapter==1)return (ulong)b.Token==target.Nonce&&b.Buffs.Component?.HasBaseline==true&&b.Buffs.Clock?.Prepared==true&&!b.Buffs.AwaitingClockBaseline&&b.Buffs.Component.AppliedRevision>=target.Revision&&b.Buffs.Records.Count==0&&b.Buffs.Assembly==null;
             return b.Candidate.Loader.GetComponent<PNStatReplication>()?.FullViewRevision>=target.Revision;
         }
         private void ReceiveWorldApplied(NetworkConnectionToClient connection,PNWorldApplied value)

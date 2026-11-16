@@ -1,72 +1,150 @@
 using System;
 using System.Collections.Generic;
-using EveEngine;
+using System.Linq;
 
-// EN: A window in which the owner's CLIENT may write its replica Abilities as a guess about a cast it is running ahead of the authority (Docs/SkillNetworkingAPlan.md S3, N1/N7). Inside it the ordinary
-//     per-Ability mutators work on a replica; the value each Ability held BEFORE its first write is kept, so `Rollback` puts all of them back (less the time that passed). Structural changes (define,
-//     grant, remove) stay refused. The authority's next image overwrites the Abilities anyway; the scope only decides what the owner sees until then. `End` stops recording and keeps the undo data.
-// VI: Cửa sổ trong đó client CHỦ NHÂN được ghi Ability replica của mình như một lần đoán cho cast nó chạy trước authority. Giá trị trước lần ghi đầu của mỗi Ability được giữ để `Rollback` trả lại.
-//     Thay đổi cấu trúc (define, grant, remove) vẫn bị từ chối. `End` ngừng ghi nhưng giữ dữ liệu hoàn tác.
+// A cast's passive writes, composed over an independent authority image.
+// Elapsed comes from actual Game/Entity/raw advancement, never wall time.
 public sealed class PNAbilityPredictionScope : IDisposable
 {
+    internal sealed class Write
+    {
+        internal PNAbility Ability;
+        internal PNAbilityReplicaItem Before, After;
+        internal PNAbilityClockValues At;
+        internal long Order;
+    }
     private readonly PNAbilityCollection owner;
-    private readonly Dictionary<PNAbility, PNAbilityReplicaItem> before = new Dictionary<PNAbility, PNAbilityReplicaItem>();
-    private long at = System.Diagnostics.Stopwatch.GetTimestamp();
+    internal readonly List<Write> Writes = new List<Write>();
+    private readonly HashSet<PNAbility> touched = new HashSet<PNAbility>();
+    private PNAbility pending;
+    private PNAbilityReplicaItem before;
     private bool recording = true, rolledBack;
-    // G6b2: what this guess had written, taken just before a newer authoritative image replaced the replica; `Rebase` lays it back on top of the image.
-    private Dictionary<PNAbility, PNAbilityReplicaItem> overlay;
+    internal long CastKey;
     internal PNAbilityPredictionScope(PNAbilityCollection owner) { this.owner = owner; }
     public bool IsRecording => recording;
-    public int Count => before.Count;
-    internal void Record(PNAbility ability) { if (recording && !before.ContainsKey(ability)) before.Add(ability, ability.CaptureReplica(0)); }
-    public void End() { if (!recording) return; recording = false; owner.EndPrediction(this); }
+    public int Count => touched.Count;
+    internal void Record(PNAbility ability)
+    {
+        pending = null;
+        if (!recording) return;
+        if (Writes.Count >= 512) throw new InvalidOperationException("Prediction passive-write limit exceeded.");
+        pending = ability; before = ability.CaptureReplica(0);
+    }
+    internal void Complete(PNAbility ability)
+    {
+        if (!recording || !ReferenceEquals(pending, ability)) return;
+        pending = null; touched.Add(ability);
+        Writes.Add(new Write { Ability = ability, Before = before, After = ability.CaptureReplica(0), At = owner.ClockValues, Order = owner.NextPredictionWrite() });
+    }
+    internal void ClearPending() { pending = null; }
+    internal void AcceptImage() { Writes.Clear(); pending = null; }
+    public void End() { if (!recording) return; recording = false; pending = null; owner.EndPrediction(this); }
     public void Dispose() => End();
-    // Call just BEFORE a newer authoritative image is applied, for a guess the authority has not answered yet: remembers the values the guess wrote, so `Rebase` can show them again.
-    public void CaptureOverlay()
-    {
-        if (rolledBack) return;
-        overlay = new Dictionary<PNAbility, PNAbilityReplicaItem>();
-        foreach (var key in before.Keys) if (key.IsAttached) overlay[key] = key.CaptureReplica(0);
-    }
-    // Call just AFTER the image was applied: what the scope would put back is now what the image holds (a refusal must restore that, not the older value), and the guess it captured is laid back on top,
-    // so a waiting guess does not blink away while the authority has not answered.
-    public void Rebase()
-    {
-        var lay = overlay; overlay = null;
-        if (rolledBack) return;
-        foreach (var key in new List<PNAbility>(before.Keys)) if (key.IsAttached) before[key] = key.CaptureReplica(0);
-        at = System.Diagnostics.Stopwatch.GetTimestamp();
-        if (lay != null) foreach (var pair in lay) if (pair.Key.IsAttached) pair.Key.ApplyReplica(pair.Value);
-    }
-    // Puts every Ability the scope wrote back to what it held at the guess, less the time since. Safe to call once, after End or not.
+    // Compatibility hooks: ApplyReplica now recomposes all overlays atomically.
+    public void CaptureOverlay() { }
+    public void Rebase() { }
     public void Rollback()
     {
-        if (rolledBack) return; rolledBack = true; overlay = null; End();
-        double elapsed = (System.Diagnostics.Stopwatch.GetTimestamp() - at) / (double)System.Diagnostics.Stopwatch.Frequency;
-        foreach (var pair in before)
-        {
-            if (!pair.Key.IsAttached) continue;
-            var item = pair.Value;
-            pair.Key.ApplyReplica(new PNAbilityReplicaItem(item.Id, item.Index, item.Amount, item.Maximum, item.Active, Math.Max(0, item.CooldownRemaining - elapsed), item.HasDuration, Math.Max(0, item.DurationRemaining - elapsed)));
-        }
-        before.Clear();
+        if (rolledBack) return;
+        rolledBack = true; End(); Writes.Clear(); owner.RemovePrediction(this);
     }
+}
+
+public readonly struct PNAbilityClockValues
+{
+    public readonly double Game, Entity, Raw;
+    public PNAbilityClockValues(double game, double entity, double raw)
+    { PNAbilityDefinition.RequireSeconds(game, true); PNAbilityDefinition.RequireSeconds(entity, true); PNAbilityDefinition.RequireSeconds(raw, true); Game = game; Entity = entity; Raw = raw; }
+    public double Read(PNAbilityClock clock) => clock == PNAbilityClock.Game ? Game : clock == PNAbilityClock.Entity ? Entity : Raw;
+    internal double Since(PNAbilityClockValues at, PNAbilityClock clock) => Math.Max(0, Read(clock) - at.Read(clock));
 }
 
 public sealed partial class PNAbilityCollection
 {
     private PNAbilityPredictionScope prediction;
+    private readonly List<PNAbilityPredictionScope> predictionLayers = new List<PNAbilityPredictionScope>();
+    private Dictionary<PNAbility, PNAbilityReplicaItem> predictionTruth;
+    private PNAbilityClockValues truthAt;
+    private long predictionWrite, predictionGrant;
+    private bool composingPrediction;
+    internal bool ComposingPrediction => composingPrediction;
+    public PNAbilityClockValues ClockValues { get; private set; }
+    private PNAbilityClockValues ReplicaTruthClocks;
     public bool IsPredicting => prediction != null;
-    // Client only (a replica). One scope at a time.
+    internal long NextPredictionGrant() => checked(--predictionGrant);
+    internal long NextPredictionWrite() => checked(++predictionWrite);
     public PNAbilityPredictionScope BeginPrediction()
     {
         if (disposed) throw new ObjectDisposedException(nameof(PNAbilityCollection));
         if (!IsReplica) throw new InvalidOperationException("Only a replica of the authority's Abilities is written as a guess.");
         if (prediction != null) throw new InvalidOperationException("A prediction scope is already open.");
-        return prediction = new PNAbilityPredictionScope(this);
+        if (predictionLayers.Count >= 64) throw new InvalidOperationException("Prediction scope limit exceeded.");
+        if (predictionLayers.Count == 0) { predictionTruth = Instances.ToDictionary(a => a, a => a.CaptureReplica(0)); truthAt = ReplicaTruthClocks; }
+        prediction = new PNAbilityPredictionScope(this); predictionLayers.Add(prediction); return prediction;
     }
     internal void EndPrediction(PNAbilityPredictionScope scope) { if (ReferenceEquals(prediction, scope)) prediction = null; }
-    // The per-Ability mutators call this: on a replica an open scope takes the write (and remembers the old value), otherwise it is refused as before.
+    internal void RemovePrediction(PNAbilityPredictionScope scope)
+    {
+        if (disposed || !predictionLayers.Remove(scope)) return;
+        RecomposePrediction();
+        if (predictionLayers.Count == 0) predictionTruth = null;
+    }
+    // A result ACK alone never removes an overlay before its matching image.
+    public int ApplyAuthorityReplica(IEnumerable<PNAbilityReplicaItem> items, long capturedCastKey)
+    {
+        if (capturedCastKey < 0) throw new ArgumentOutOfRangeException(nameof(capturedCastKey));
+        if (items == null) throw new ArgumentNullException(nameof(items));
+        var copy = items.ToArray();
+        foreach (var item in copy)
+            if (definitions.TryGetValue(item.Id, out var definition)) PNAbilityReplicaProjection.Validate(item, definition);
+        if (disposed || !IsReplica) throw new InvalidOperationException("Authority image requires a live replica.");
+        int result = 0;
+        Batch(() =>
+        {
+            SynchronizeReplicaShape(copy);
+            foreach (var scope in predictionLayers)
+                if (scope.CastKey > 0 && scope.CastKey <= capturedCastKey) scope.AcceptImage();
+            result = ApplyReplica(copy);
+        });
+        predictionLayers.RemoveAll(s => !s.IsRecording && s.Writes.Count == 0);
+        if (predictionLayers.Count == 0) predictionTruth = null;
+        return result;
+    }
+    private int ReplacePredictionTruth(PNAbilityReplicaItem[] items)
+    {
+        prediction?.ClearPending();
+        bool was = composingPrediction; composingPrediction = true;
+        try
+        {
+            int count = 0;
+            Batch(() =>
+            {
+                count = ApplyReplicaCore(items);
+                predictionTruth = Instances.ToDictionary(a => a, a => a.CaptureReplica(0)); truthAt = ReplicaTruthClocks;
+                RecomposePrediction();
+            });
+            return count;
+        }
+        finally { composingPrediction = was; }
+    }
+    private void RecomposePrediction()
+    {
+        if (predictionTruth == null) return;
+        bool was = composingPrediction; composingPrediction = true;
+        try
+        {
+            var state = predictionTruth.Where(p => p.Key.IsAttached).ToDictionary(p => p.Key,
+                p => PNAbilityReplicaProjection.Advance(p.Value, p.Key.Definition, ReplicaTruthClocks.Since(truthAt, p.Key.Definition.Clock)));
+            var written = new HashSet<PNAbility>();
+            foreach (var write in predictionLayers.SelectMany(s => s.Writes).OrderBy(w => w.Order))
+                if (state.TryGetValue(write.Ability, out var current))
+                    state[write.Ability] = PNAbilityReplicaProjection.Overlay(current, write.Before, write.After,
+                        write.Ability.Definition, ClockValues.Since(write.At, write.Ability.Definition.Clock), written.Add(write.Ability));
+            Batch(() => { foreach (var p in state) p.Key.ApplyReplica(p.Value); });
+        }
+        finally { composingPrediction = was; }
+    }
+    internal void RecordPredictionWrite(PNAbility ability) { if (!composingPrediction) prediction?.Complete(ability); }
     internal void RequireMutable(PNAbility who)
     {
         if (prediction != null && who != null && !disposed && IsReplica) { prediction.Record(who); return; }

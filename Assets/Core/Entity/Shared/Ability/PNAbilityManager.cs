@@ -24,6 +24,31 @@ public class PNAbilityManager : MonoBehaviour, EveIEntityLoadStep
     public PNAbilityCollection Abilities => IsReady || abilities != null && context != null && context.AllowsModuleAccess ? abilities : throw new InvalidOperationException("Entity abilities are not published.");
     public IReadOnlyList<PNAbilitySettings> InitialAbilities => initialAbilities.AsReadOnly();
     public event Action<PNAbilityChange> Changed;
+    // Engine-owned gate for a network owner's image. Prediction still advances by local gameplay delta.
+    public Func<bool> ReplicaCanAdvance { get; set; }
+    public Func<PNAbilityClockValues> ReplicaAuthorityDelta { get; set; }
+#if UNITY_5_3_OR_NEWER
+    private int reconciledFrame = -1;
+#endif
+    public void MarkReplicaReconciled()
+    {
+#if UNITY_5_3_OR_NEWER
+        reconciledFrame = Time.frameCount;
+#endif
+    }
+    public PNAbilityClockValues ClockRates
+    {
+        get
+        {
+            double globalRate = 1;
+#if UNITY_5_3_OR_NEWER
+            globalRate = Time.timeScale;
+#endif
+            double rate = IsReady && isActiveAndEnabled && gameObject.activeInHierarchy && context.CanSimulate ? globalRate : 0;
+            bool has = clock != null && clock.isActiveAndEnabled;
+            return new PNAbilityClockValues(rate, rate * (has ? clock.Scale : 1), rate * (has ? Math.Max(0, clock.RawScale) : 1));
+        }
+    }
 
     // EN: Code/JSON configuration is independent from skills. Runtime grants can be defined after load.
     // VI: Cấu hình code/JSON độc lập với skill; có thể khai báo trạng thái runtime sau load.
@@ -68,13 +93,23 @@ public class PNAbilityManager : MonoBehaviour, EveIEntityLoadStep
             if(entries!=null)content.AddRange(PNAbilityDefinition.Parse(entries.ToString()));
         }
         definitions = definitions.Concat(content);
-        abilities = new PNAbilityCollection(definitions, () => context.CanMutate || context.IsValid && context.AllowsModuleAccess);
+        abilities = new PNAbilityCollection(definitions, () => context.CanMutate || context.IsValid && context.AllowsModuleAccess, () => !context.Session.HasAuthority);
         this.context = context; clock = GetComponent<EveTimeScale>();
         abilities.Changed += ForwardChange;
         abilities.ObserverFailed += ReportObserver;
     }
     protected virtual void Update()
-    { if (IsReady && context.CanMutate) Advance(Time.deltaTime); else if (IsReady && isActiveAndEnabled && context.CanExecute) AdvanceReplica(Time.deltaTime); }
+    {
+        if (IsReady && context.CanMutate) Advance(Time.deltaTime);
+        else if (IsReady && isActiveAndEnabled && context.CanExecute && (ReplicaCanAdvance == null || ReplicaCanAdvance()))
+        {
+            bool reconciled = false;
+#if UNITY_5_3_OR_NEWER
+            reconciled = reconciledFrame == Time.frameCount;
+#endif
+            AdvanceReplica(Time.deltaTime, reconciled);
+        }
+    }
     public void Advance(double gameDeltaTime)
     {
         PNAbilityDefinition.RequireSeconds(gameDeltaTime, true);
@@ -85,10 +120,12 @@ public class PNAbilityManager : MonoBehaviour, EveIEntityLoadStep
         abilities.Advance(gameDeltaTime, hasClock ? clock.Scale : 1, hasClock ? clock.RawScale : 1);
     }
     // A machine without authority ticks the values it was told (the owner's client; see PNAbilityCollection.ApplyReplica).
-    private void AdvanceReplica(double gameDeltaTime)
+    private void AdvanceReplica(double gameDeltaTime, bool reconciled = false)
     {
         bool hasClock = clock != null && clock.isActiveAndEnabled;
-        abilities.AdvanceReplica(gameDeltaTime, hasClock ? clock.Scale : 1, hasClock ? clock.RawScale : 1);
+        if (reconciled) abilities.AdvanceReplica(gameDeltaTime, hasClock ? clock.Scale : 1, hasClock ? clock.RawScale : 1, default(PNAbilityClockValues));
+        else if (ReplicaAuthorityDelta != null) abilities.AdvanceReplica(gameDeltaTime, hasClock ? clock.Scale : 1, hasClock ? clock.RawScale : 1, ReplicaAuthorityDelta());
+        else abilities.AdvanceReplica(gameDeltaTime, hasClock ? clock.Scale : 1, hasClock ? clock.RawScale : 1);
     }
     private void ReportObserver(Exception error) => Debug.LogException(error, this);
     private void ForwardChange(PNAbilityChange change)
@@ -101,7 +138,7 @@ public class PNAbilityManager : MonoBehaviour, EveIEntityLoadStep
     // VI: Logic entity/skill chủ động quyết định khi chết; không theo dõi HP/death tại đây.
     public virtual void Unload()
     {
-        abilities?.Dispose(); abilities = null; context = null; clock = null; Changed = null;
+        abilities?.Dispose(); abilities = null; context = null; clock = null; Changed = null; ReplicaCanAdvance = null; ReplicaAuthorityDelta = null;
     }
     protected virtual void OnDestroy() => Unload();
 }

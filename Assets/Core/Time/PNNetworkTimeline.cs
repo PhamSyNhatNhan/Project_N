@@ -17,6 +17,9 @@ public static class PNOwnerImageAge
     {PNTimeMath.Nonnegative(captured);age=0;if(!now.Ready||epoch!=now.Epoch)return false;double elapsed=now.Host-captured;if(elapsed < -now.Uncertainty || elapsed>2)return false;age=Math.Max(0,elapsed);return true;}
 }
 public interface IPNNetworkTimeline { PNTimeSample Sample(); }
+// A transport/admission budget, separate from gameplay clocks. Sources supply the
+// actual selected policy and remaining original interruption grace.
+public interface IPNTimeRecoveryBudget { double RemainingRecoverySeconds { get; } }
 public sealed class PNLocalTimeline : IPNNetworkTimeline
 {
     private readonly Guid epoch;private readonly Func<double> clock;
@@ -36,6 +39,15 @@ public sealed class PNTimeService : IDisposable
     private static readonly ConditionalWeakTable<EveSessionContext,PNTimeService> sessions=new ConditionalWeakTable<EveSessionContext,PNTimeService>();
     private readonly EveSessionContext session;private readonly IPNNetworkTimeline source;private bool disposed;
     public PNClockHistory History {get;private set;}
+    public double RemainingRecoverySeconds
+    {
+        get
+        {
+            if(disposed||!session.IsActive)throw new ObjectDisposedException(nameof(PNTimeService));
+            if(!(source is IPNTimeRecoveryBudget budget))throw new InvalidOperationException("Timeline source has no recovery policy budget.");
+            double seconds=budget.RemainingRecoverySeconds;PNTimeMath.Nonnegative(seconds);return seconds;
+        }
+    }
     private PNTimeService(EveSessionContext session,IPNNetworkTimeline source){this.session=session;this.source=source;}
     public static PNTimeService Attach(EveSessionContext session,IPNNetworkTimeline source)
     {if(session==null||!session.IsActive||source==null)throw new ArgumentException();if(sessions.TryGetValue(session,out _))throw new InvalidOperationException("Timeline already attached.");var service=new PNTimeService(session,source);sessions.Add(session,service);session.RegisterCleanup(service.Dispose);return service;}

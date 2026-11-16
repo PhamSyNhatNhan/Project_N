@@ -13,12 +13,13 @@ namespace ProjectN.Coop
         public bool Equals(PNBuffStream other)=>Session==other.Session&&NetId==other.NetId&&Entity==other.Entity&&Generation==other.Generation&&Nonce==other.Nonce&&Scope.Equals(other.Scope);
         public void Validate(){Scope.Validate();if(Session==Guid.Empty||NetId==0||Entity<=0||Generation<=0||Nonce==0)throw new FormatException("Buff stream identity.");}
     }
-    public struct PNBuffBaselineRequest:NetworkMessage {public PNBuffStream Stream;}
+    public struct PNBuffBaselineRequest:NetworkMessage {public PNBuffStream Stream;public uint ClockRequest;}
     // Every fragment repeats the bounded transfer declaration. Completion is count+exact bytes, not a partial state apply.
     public struct PNBuffPacket:NetworkMessage
     {
         public PNBuffStream Stream;public ulong Transfer;public byte Kind;public long Revision;
         public double Time,HostTime,Rate;public int Total,Index,Count;public byte[] Body;
+        public long ClockRevision;public double ClockStamp,ClockTime;public bool ClockBaseline;
     }
     public static class PNBuffWire
     {
@@ -26,13 +27,15 @@ namespace ProjectN.Coop
         private static readonly Encoding Utf8=new UTF8Encoding(false,true);
         public static void WriteBuffPacket(this NetworkWriter w,PNBuffPacket p)
         {
-            ValidatePacket(p);w.WriteByte(1);w.Write(p.Stream);w.WriteULong(p.Transfer);w.WriteByte(p.Kind);w.WriteLong(p.Revision);
+            ValidatePacket(p);w.WriteByte(2);w.Write(p.Stream);w.WriteULong(p.Transfer);w.WriteByte(p.Kind);w.WriteLong(p.Revision);
+            w.WriteLong(p.ClockRevision);w.WriteDouble(p.ClockStamp);w.WriteDouble(p.ClockTime);w.WriteByte((byte)(p.ClockBaseline?1:0));
             w.WriteDouble(p.Time);w.WriteDouble(p.HostTime);w.WriteDouble(p.Rate);w.WriteInt(p.Total);w.WriteInt(p.Index);w.WriteInt(p.Count);w.WriteInt(p.Body.Length);w.WriteBytes(p.Body,0,p.Body.Length);
         }
         public static PNBuffPacket ReadBuffPacket(this NetworkReader r)
         {
-            if(r.ReadByte()!=1)throw new FormatException("Buff packet schema.");
-            var p=new PNBuffPacket {Stream=r.Read<PNBuffStream>(),Transfer=r.ReadULong(),Kind=r.ReadByte(),Revision=r.ReadLong(),Time=r.ReadDouble(),HostTime=r.ReadDouble(),Rate=r.ReadDouble(),Total=r.ReadInt(),Index=r.ReadInt(),Count=r.ReadInt()};
+            if(r.ReadByte()!=2)throw new FormatException("Buff packet schema.");
+            var p=new PNBuffPacket {Stream=r.Read<PNBuffStream>(),Transfer=r.ReadULong(),Kind=r.ReadByte(),Revision=r.ReadLong(),ClockRevision=r.ReadLong(),ClockStamp=r.ReadDouble(),ClockTime=r.ReadDouble()};
+            p.ClockBaseline=Bool(r);p.Time=r.ReadDouble();p.HostTime=r.ReadDouble();p.Rate=r.ReadDouble();p.Total=r.ReadInt();p.Index=r.ReadInt();p.Count=r.ReadInt();
             int size=r.ReadInt();ValidateHeader(p);if(size<1||size>ChunkBytes||size!=Math.Min(ChunkBytes,p.Total-p.Index*ChunkBytes))throw new FormatException("Buff fragment size.");
             p.Body=r.ReadBytes(size);return p;
         }
@@ -40,6 +43,8 @@ namespace ProjectN.Coop
         {
             p.Stream.Validate();if(p.Transfer==0||p.Kind>2||p.Revision<0||p.Total<1||p.Total>(p.Kind==0?BaselineBytes:RecordBytes)||p.Count!=(p.Total+ChunkBytes-1)/ChunkBytes||p.Index<0||p.Index>=p.Count)throw new FormatException("Buff transfer header.");
             PNBuffCollection.Seconds(p.Time,true);PNBuffCollection.Seconds(p.HostTime,true);PNBuffCollection.Seconds(p.Rate,true);
+            PNBuffCollection.Seconds(p.ClockStamp,true);PNBuffCollection.Seconds(p.ClockTime,true);
+            if(p.ClockRevision<0||p.Kind!=2&&p.ClockRevision==0||p.ClockStamp>p.HostTime||p.ClockBaseline&&p.Kind!=0||p.Stream.Scope.Incarnation>long.MaxValue)throw new FormatException("Buff clock declaration.");
         }
         public static void ValidatePacket(PNBuffPacket p){ValidateHeader(p);if(p.Body==null||p.Body.Length!=Math.Min(ChunkBytes,p.Total-p.Index*ChunkBytes))throw new FormatException("Buff fragment size.");}
         private static void Id(NetworkWriter w,EveId id){var b=Utf8.GetBytes(id.ToString());if(b.Length<1||b.Length>128)throw new FormatException("Buff ID length.");w.WriteByte((byte)b.Length);w.WriteBytes(b,0,b.Length);}

@@ -39,6 +39,7 @@ public static class EveChainPredictionChecks
         try
         {
             EveRegistrySession.Begin(); EveRegistrySession.Start(hub, EveSessionRole.Client, EveContentCompatibility.Create(hub, docs, "test:chain_prediction"));
+            PNAbilityOwnerFixture.Attach();
             typeof(EveSessionContext).GetMethod("AdmitLocalOwner", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(EveRegistrySession.Context, new object[] { owner });
             var areaRoot = new GameObject("chain area manager"); SceneManager.MoveGameObjectToScene(areaRoot, scene); areaRoot.AddComponent<PNAreaManager>().Initialize(EveRegistrySession.Context);
             var actor = Root("chain client Eve", eveId, "project_n:eve", Vector3.zero, owner); actor.layer = PNLayers.Player; actor.AddComponent<EveCharacterStat>(); actor.AddComponent<PNAbilityManager>();
@@ -50,7 +51,7 @@ public static class EveChainPredictionChecks
             var view = actor.AddComponent<PNSkillOwnerView>(); var remote = actor.AddComponent<PNSkillRemoteInput>();
             service.RegisterObject(target, skill); view.OnBound(service, target); remote.OnBound(service, target);
             var bindings = new JObject(); foreach (var slot in PNSkillSlots.Player) bindings[slot.ToString()] = "project_n:eve_" + slot.ToString().Substring(slot.ToString().IndexOf("slot_", StringComparison.Ordinal) + 5);
-            service.ReceiveState(target, PNSkillOwnerView.State, 1, 1, new JObject { ["a"] = new JArray(), ["b"] = bindings });
+            service.ReceiveState(target, PNSkillOwnerView.State, 2, 1, PNAbilityOwnerFixture.Image(view, new JObject { ["a"] = new JArray(), ["b"] = bindings }));
             double hp = enemy.GetCurrent(PNContentIds.Health); int combo = skill.ComboIndex;
             Check(skill.CanInput && !skill.IsBusy, "the client Eve may take input and is idle");
 

@@ -1,10 +1,11 @@
 # Entity Abilities
 
-Current lifecycle (RulesVersion67 / Mod API6): initial passive definitions/CDR setup
+Current lifecycle (introduced at RulesVersion67 / Mod API6): initial passive definitions/CDR setup
 may run in the loader's initialization scope. Manager.IsReady/Advance and cached
 collection mutation require publication/authority afterward. A Prepared actor never
 ticks or creates effects; invalidated context blocks stale handles before deferred
-Unload. Actor replication currently carries Buff presentation, not Ability state.
+Unload. Owner Ability replication is carried by `project_n:skill_owner` schema2
+(T4, NetworkVersion27 / RulesVersion169 / Mod API8); see below.
 
 Abilities are passive entity-owned counters, timers and flags. They never execute
 an action, spawn a GameObject, change stats/time scale, deal damage or implement
@@ -178,6 +179,87 @@ removal, recreate a known definition with `CreateInstance` if needed. Unload/des
 dispose runtime and observers. A new load restores definitions and a new handle
 scope. Session end makes manager inaccessible until unload/reload.
 
+The manager passes a stable replica-role delegate independently of its mutation
+permission. A paused/held authority is still authority: it cannot ApplyReplica,
+AdvanceReplica or BeginPrediction just because CanMutate temporarily became false.
+The original two-argument PNAbilityCollection constructor remains available;
+the three-argument overload supplies this stable role for engine managers.
+
+## Owner image and prediction clocks (T4)
+
+Character/skill/Action authors continue to use passive Ability APIs. Network mode,
+image reconciliation and undo live in the services, with no new author flags.
+The authority's existing Advance and order are unchanged. ClockValues records the
+actual accumulated Game/Entity/raw budgets from that driver, with the manager's
+own zero origin and holds; it is not the world or Buff manager clock.
+
+PNSkillOwnerView schema2 captures rows, slot bindings, admitted epoch, exact world/
+incarnation/entity/generation, unscaled capture stamp, three clock values/rates,
+last cast key and ACK/refusals together before enqueue. Rows include runtime base
+cooldown/reductions/autoRecover, transient state and each counter grant's identity,
+quantity and expiry. A current-period remaining alone cannot predict later charge
+periods or independent counter expiries. PNAbilityReplicaWire validates typed bounded
+rows; the whole block remains4096B, max256 rows and256 grants in total. Unknown
+definition IDs still require local declarations and are ignored as before; this is
+not an arbitrary runtime-definition replication protocol.
+
+At reconciliation, PNOwnerImageAge selects Host estimate/uncertainty (maximum age2s),
+never observer Presentation. Three owned AbilityGame/AbilityEntity/AbilityRaw keys
+prepare coherent baselines in shared history; ReadAt(Host) maps elapsed once.
+Projection is passive arithmetic before Applying/Applied callbacks and overlay
+composition. Counter/gauge/untimed state do not acquire invented elapsed effects.
+ApplyAuthorityReplica synchronizes known instance shape and invalidates removed
+handles; legacy ApplyReplica remains a partial-row write API. Capture indexes refer
+to the creation-order instances of an ID, not a network-global instance handle.
+
+Between images, authority state uses local unscaled frame delta times captured
+authority rates. Prediction writes age by local gameplay Game/Entity/raw budgets.
+The collection keeps these budgets separately; it never differences raw host-now
+estimates to advance gameplay. In a frame already reconciled to now, manager
+advances local prediction budgets but skips authority-image elapsed, so neither
+double advancement nor a lost prediction frame occurs. Engine-owned
+ReplicaCanAdvance/ReplicaAuthorityDelta delegates are cleared on unbind/unload.
+
+PNAbilityPredictionScope keeps bounded successful passive writes over a separate
+authority image. A newer image replaces that truth and recomposes outstanding
+writes; refusal removes only its own layer, preserving other guesses. Rollback,
+including PNAbilityPrediction, uses accumulated selected clocks, not Stopwatch.
+End/Dispose stops recording while retaining undo until image acceptance/rollback;
+collection unload clears every layer. Limits:64 scopes and512 writes per scope.
+CaptureOverlay/Rebase remain compatible hooks; ApplyReplica now performs atomic
+composition, so callers must not reapply another copy of the same elapsed.
+
+The image's cast watermark settles included writes. An independent cast-result ACK
+alone cannot retire the overlay before its image. A coherent image after a release
+also cancels extra predicted Repeat strokes the authority never ran. Refusal/pause
+can stop a guess immediately. Both result paths carry a monotonic logic sequence,
+because pause/refusal can change at the same ACK; an older image cannot undo that
+newer fast result. The standalone result block keeps schema1 with this additive
+field; current sources always publish it. Input/result watermarks remain monotonic
+through rebind. The image also supplies the received-input high-water mark (`h`),
+so a new client shell starts its next input above retained cast keys; an old image
+cannot mistake that new guess for an already included cast. Binding a forwarder
+refreshes InputActions even if the view was ready before it bound. Source resends on result/rate changes and at most.5s
+between idle refresh opportunities; unsent sync images may still coalesce.
+
+Unready sources hold the image/owner Skill forwarding. Age outside the bounded
+window requests `project_n:skill_owner_baseline`, authenticated for this owner/life.
+Readiness changes refresh InputActions once; ordinary image refreshes do not cancel
+a held Repeat. A silent owner-image stream also requests recovery after2s.
+Requests coalesce and retry at.5s; PNTimeService.RemainingRecoverySeconds reads the
+transport's IPNTimeRecoveryBudget: actual scheduler timeout, selected mode grace and
+remaining original interruption grace. Do not recreate this from the default config.
+The deadline starts once and is never extended by retries/invalid images.
+A valid coherent image restores readiness; timeout fails the connection. Observers
+receive no owner image and must not start an owner recovery timer. Use the session's
+admitted LocalOwnerId for that decision, not the sync service's command sender default0.
+Unbind removes three history keys, pending payload and manager delegates.
+
+Evidence and limits: `Docs/NetworkTimeT4Report.md`; standalone PNAbilityTimeTests,
+native EveSkillOwnerStateChecks / prediction / chain checks, and opt-in actual peers
+`--pn-ability-time`. Asymmetric host-now accuracy, Action alignment and load performance
+remain separate acceptance work. This timer contract does not change HUD layout.
+
 `Changed` is post-commit notification only. Immutable before/after snapshots,
 reason and actual `Quantity` distinguish Used/Added/Recovered/Expired/Reset/etc.
 Creation/removal are explicit notifications; created instances are attached and
@@ -199,5 +281,5 @@ Unity test substitutes. Run `Tests/EveEngine/EveRunSmokeTests.ps1` for regressio
 `PNAbilityEditorChecks.Run()` verifies real Unity component/load/disable/reload and
 clock behavior in a disposable preview scene outside Play Mode. It preserves the
 active scene and never saves/reloads it. UI rendering and a player build are outside
-these checks. Executable gameplay RulesVersion is `project_n:23`; Mod API stays 2
-(additive API, no existing signatures replaced).
+these checks. The original foundation milestone was RulesVersion23 / Mod API2;
+current T4 compatibility is RulesVersion169 / NetworkVersion27 / Mod API8.

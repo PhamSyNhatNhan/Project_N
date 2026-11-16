@@ -55,6 +55,7 @@ public static class EveSkillReportChecks
         try
         {
             EveRegistrySession.Begin(); EveRegistrySession.Start(hub, EveSessionRole.Offline, EveContentCompatibility.Create(hub, docs, "test:s45_authority"));
+            PNAbilityOwnerFixture.Attach();
             var areaRoot = new GameObject("S45 area manager"); SceneManager.MoveGameObjectToScene(areaRoot, hostScene); areaRoot.AddComponent<PNAreaManager>().Initialize(EveRegistrySession.Context);
             var actor = Root(hostScene, "S45 host Eve", eveId, "project_n:eve", Vector3.zero, owner); actor.layer = PNLayers.Player; actor.AddComponent<EveCharacterStat>(); actor.AddComponent<PNAbilityManager>();
             var body = actor.AddComponent<Rigidbody>(); body.useGravity = false; var capsule = actor.AddComponent<CapsuleCollider>(); capsule.radius = .12f; capsule.height = .6f;
@@ -152,6 +153,7 @@ public static class EveSkillReportChecks
         try
         {
             EveRegistrySession.Begin(); EveRegistrySession.Start(hub, EveSessionRole.Client, EveContentCompatibility.Create(hub, docs, "test:s45_client"));
+            PNAbilityOwnerFixture.Attach();
             typeof(EveSessionContext).GetMethod("AdmitLocalOwner", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(EveRegistrySession.Context, new object[] { owner });
             var actor = Root(clientScene, "S45 client Eve", eveId, "project_n:eve", Vector3.zero, owner); actor.layer = PNLayers.Player; actor.AddComponent<EveCharacterStat>(); actor.AddComponent<PNAbilityManager>();
             var body = actor.AddComponent<Rigidbody>(); body.useGravity = false; var capsule = actor.AddComponent<CapsuleCollider>(); capsule.radius = .12f; capsule.height = .6f;
@@ -160,7 +162,7 @@ public static class EveSkillReportChecks
             var view = actor.AddComponent<PNSkillOwnerView>(); var remote = actor.AddComponent<PNSkillRemoteInput>();
             service.RegisterObject(target, skill); view.OnBound(service, target); remote.OnBound(service, target);
             var bindings = new JObject(); foreach (var slot in PNSkillSlots.Player) bindings[slot.ToString()] = "project_n:eve_" + slot.ToString().Substring(slot.ToString().IndexOf("slot_", StringComparison.Ordinal) + 5);
-            service.ReceiveState(target, PNSkillOwnerView.State, 1, 1, new JObject { ["a"] = new JArray(), ["b"] = bindings });
+            service.ReceiveState(target, PNSkillOwnerView.State, 2, 1, PNAbilityOwnerFixture.Image(view, new JObject { ["a"] = new JArray(), ["b"] = bindings }));
             Check(remote.SendHits(7, 0, new[] { new EveEntityId(995041), new EveEntityId(995042) }) && wire.Sent.Count == 1 && wire.Sent[0].Command == PNSkillRemoteInput.HitCommand.ToString() && (long)wire.Sent[0].Payload["k"] == 7 && ((JArray)wire.Sent[0].Payload["h"]).Count == 2, "the client sends the hits it saw");
             Check(!remote.SendHits(7, 0, new EveEntityId[0]) && !remote.SendHits(0, 0, new[] { new EveEntityId(995041) }) && !remote.SendHits(7, 0, Enumerable.Range(1, 17).Select(x => new EveEntityId(x)).ToArray()), "an empty, keyless or oversized report is not sent");
             Check(remote.SendDecision(7, "ult_retarget", new JObject { ["t"] = 995041 }) && wire.Sent.Count == 2 && wire.Sent[1].Command == PNSkillRemoteInput.DecisionCommand.ToString(), "the client sends its decision");

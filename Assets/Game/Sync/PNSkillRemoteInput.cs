@@ -53,6 +53,7 @@ public sealed class PNSkillRemoteInput : MonoBehaviour, IPNSyncEntityListener, I
     private readonly List<Pending> queue = new List<Pending>();
     private readonly List<Refusal> refusals = new List<Refusal>();
     private long nextKey;
+    private long resultSequence, appliedResultSequence = -1;
     // Client: what this machine guessed for each press that has not been answered yet (S3). Keyed by the key of the press's Started input.
     private sealed class Press { public long Start, Release; public EveId Slot; public float Stamp; public readonly List<PNSkillInvocation> Casts = new List<PNSkillInvocation>(); public readonly List<long> CastKeys = new List<long>(); }
     private readonly Dictionary<long, Press> presses = new Dictionary<long, Press>();
@@ -85,11 +86,17 @@ public sealed class PNSkillRemoteInput : MonoBehaviour, IPNSyncEntityListener, I
 
     public void OnBound(PNSyncService service, PNSyncTarget value)
     {
-        sync = service; target = value; IsBound = true; AckedKey = 0; refusals.Clear(); queue.Clear(); nextKey = 0; presses.Clear(); openPress.Clear(); lastStart.Clear(); lastGuessSlot = default; dispatchSlot = default; track.Clear(); pausing = false; PredictionPaused = false; takenHits.Clear(); hitsPerCast.Clear(); decisions.Clear(); highestKey = 0; HitsApplied = HitsRejected = DecisionsTaken = DecisionsExpired = 0;
+        sync = service; target = value; IsBound = true; AckedKey = 0; refusals.Clear(); queue.Clear(); presses.Clear(); openPress.Clear(); lastStart.Clear(); lastGuessSlot = default; dispatchSlot = default; track.Clear(); pausing = false; PredictionPaused = false; takenHits.Clear(); hitsPerCast.Clear(); decisions.Clear(); HitsApplied = HitsRejected = DecisionsTaken = DecisionsExpired = 0;
+        resultSequence = checked(resultSequence + 1); appliedResultSequence = -1;
         skill = GetComponent<PNSkill>(); view = GetComponent<PNSkillOwnerView>(); channel = new Channel(this);
+        // Keep transfers rebind the stream while the skill's cast counter lives on.
+        // Never reuse lower input keys under that retained cast watermark.
+        long floor = PNSkillCastKey.InputOf(skill?.LastCastKey ?? 0);
+        highestKey = Math.Max(highestKey, floor); nextKey = Math.Max(nextKey, floor);
         if (service.IsAuthority) leases.Add(service.RegisterSource(value, channel));
         leases.Add(service.RegisterSink(value, channel));
         if (!service.IsAuthority && skill != null) { skill.InputForwarder = this; skill.ReportSink = this; skill.PredictedCastBegan += OnPredictedCast; }
+        if (!service.IsAuthority && skill is PNPlayerSkill player) player.RefreshInput();
         if (!service.IsAuthority && view != null) { view.Applying += BeforeImage; view.Applied += Reapply; }
         if (service.IsAuthority && skill != null) { skill.AcceptsRemoteInput = true; skill.DecisionSource = this; }
     }
@@ -108,7 +115,7 @@ public sealed class PNSkillRemoteInput : MonoBehaviour, IPNSyncEntityListener, I
     }
 
     // ---- client: forward ----
-    public bool IsActive => IsBound && sync != null && !sync.IsAuthority && view != null && view.Bindings.Count > 0;
+    public bool IsActive => IsBound && sync != null && !sync.IsAuthority && view != null && view.Prepared && view.Bindings.Count > 0;
 
     public bool Forward(EveId slot, PNSkillInputEvent input, Action predict)
     {
@@ -341,20 +348,56 @@ public sealed class PNSkillRemoteInput : MonoBehaviour, IPNSyncEntityListener, I
         refusals.Add(new Refusal(key, reason)); if (refusals.Count > KeptRefusals) refusals.RemoveAt(0); Touch();
         view?.Resync(); // the owner may have guessed a cooldown the authority does not hold: send the true Abilities again
     }
-    private void Touch() { if (IsBound && sync != null && sync.IsAuthority) sync.MarkDirty(target, ResultState); }
+    private void Touch() { if (IsBound && sync != null && sync.IsAuthority) { resultSequence = checked(resultSequence + 1); sync.MarkDirty(target, ResultState); view?.Resync(); } }
 
     private JToken CaptureResult()
-        => new JObject { ["ack"] = AckedKey, ["p"] = pausing ? 1 : 0, ["rej"] = new JArray(refusals.Select(r => new JArray(r.Key, r.Reason))) };
+        => new JObject { ["ack"] = AckedKey, ["p"] = pausing ? 1 : 0, ["n"] = resultSequence, ["h"] = Math.Max(highestKey,PNSkillCastKey.InputOf(skill?.LastCastKey ?? 0)), ["rej"] = new JArray(refusals.Select(r => new JArray(r.Key, r.Reason))) };
+
+    public JObject CaptureOwnerResult() => (JObject)CaptureResult();
+    public static void ValidateOwnerResult(JToken value)
+    {
+        if (!(value is JObject o) || PNAbilityReplicaWire.Long(o["ack"]) < 0 || !(o["rej"] is JArray rows) || rows.Count > KeptRefusals) throw new FormatException("Skill result.");
+        if (o["p"] != null) PNAbilityReplicaWire.Flag(o["p"]);
+        if (o["n"] != null && PNAbilityReplicaWire.Long(o["n"]) < 0) throw new FormatException("Skill result sequence.");
+        if (o["h"] != null && PNAbilityReplicaWire.Long(o["h"]) < 0) throw new FormatException("Skill input floor.");
+        foreach (var row in rows)
+            if (!(row is JArray r) || r.Count != 2 || PNAbilityReplicaWire.Long(r[0]) < 1 || r[1].Type != JTokenType.String || ((string)r[1]).Length > 64) throw new FormatException("Skill refusal.");
+    }
+    private long imageAck;
+    // This result was captured together with the Ability image.
+    public void PrepareOwnerImage(JObject result, long capturedCastKey)
+    {
+        ValidateOwnerResult(result); imageAck = PNAbilityReplicaWire.Long(result["ack"]); ApplyResult(result);
+        nextKey = Math.Max(nextKey,Math.Max(PNSkillCastKey.InputOf(capturedCastKey),PNAbilityReplicaWire.Long(result["h"] ?? new JValue(0))));
+        // The host has processed release but did not run an extra predicted Repeat
+        // stroke. Its coherent image closes that speculation too.
+        foreach (var press in presses.Values.Where(x => x.Release > 0 && x.Release <= imageAck).ToArray())
+            for (int i = press.Casts.Count - 1; i >= 0; i--)
+                if (press.Casts[i].CastKey > capturedCastKey) skill?.RollbackPredictedCast(press.Casts[i]);
+    }
+    public void CompleteOwnerImage()
+    {
+        foreach (var done in presses.Values.Where(x => x.Release > 0 && x.Release <= imageAck).ToArray()) presses.Remove(done.Start);
+    }
 
     private void ApplyResult(JToken value)
     {
         if (sync == null || sync.IsAuthority) return; // the authority already holds this
-        if (!(value is JObject o) || o["ack"] == null || !(o["rej"] is JArray list) || list.Count > KeptRefusals) throw new FormatException("Skill cast result.");
-        AckedKey = (long)o["ack"]; refusals.Clear(); PredictionPaused = o["p"] != null && o["p"].Type == JTokenType.Integer && (int)o["p"] != 0;
+        ValidateOwnerResult(value); var o = (JObject)value; var list = (JArray)o["rej"];
+        // Pause/refusal can change without advancing ACK. Both channels carry the
+        // same logic sequence, so an older image cannot undo a newer fast result.
+        if (o["n"] != null)
+        {
+            long sequence = PNAbilityReplicaWire.Long(o["n"]);
+            if (sequence < appliedResultSequence) return;
+            appliedResultSequence = sequence;
+        }
+        if ((long)o["ack"] < AckedKey) return;
+        AckedKey = (long)o["ack"]; refusals.Clear(); PredictionPaused = o["p"] != null && (int)o["p"] != 0;
         foreach (var row in list) { if (!(row is JArray r) || r.Count != 2) throw new FormatException("Skill cast refusal."); refusals.Add(new Refusal((long)r[0], (string)r[1])); }
         // What the authority answered settles the guesses: a refused press is taken back, a released one that was acknowledged and not refused is confirmed.
         foreach (var refusal in refusals) if (presses.TryGetValue(refusal.Key, out var refused)) RollBack(refused);
-        foreach (var done in presses.Values.Where(x => x.Release > 0 && x.Release <= AckedKey).ToArray()) presses.Remove(done.Start); // acknowledged: the guess stands until the authority's next image
+        // An independent ACK can overtake skill_owner; only its image settles overlays.
         if (PredictionPaused && skill is PNPlayerSkill) { foreach (var cast in presses.Values.Where(x => x.Casts.Count > 0).ToArray()) RollBack(cast); }
     }
 }

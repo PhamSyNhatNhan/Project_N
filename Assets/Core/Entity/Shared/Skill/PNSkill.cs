@@ -65,7 +65,10 @@ public partial class PNSkill : EveSkill, EveIEntityLoadPreparation, EveIEntityCo
     }
     // G6c: the key the guess and the authority's cast share (see PNSkillCastKey): the input being dispatched, else the previous key + 1.
     private void AssignCastKey(PNSkillInvocation cast)
-        => cast.CastKey = lastCastKey = PendingCastKey > 0 ? Math.Max(lastCastKey + 1, PNSkillCastKey.FromInput(PendingCastKey)) : lastCastKey + 1;
+    {
+        cast.CastKey = lastCastKey = PendingCastKey > 0 ? Math.Max(lastCastKey + 1, PNSkillCastKey.FromInput(PendingCastKey)) : lastCastKey + 1;
+        if (cast.PredictionScope != null) cast.PredictionScope.CastKey = cast.CastKey;
+    }
     private long lastCastKey;
     // Set by the wire layer around the dispatch of one input (the key that input travels under); 0 when no input is being dispatched.
     public long PendingCastKey { get; set; }

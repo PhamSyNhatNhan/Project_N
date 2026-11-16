@@ -53,6 +53,7 @@ public sealed class PNAbilityChange
 public abstract partial class PNAbility
 {
     private PNAbilityCollection owner;
+    internal PNAbilityCollection Owner => owner;
     public PNAbilityDefinition Definition { get; }
     public EveId Id => Definition.Id;
     public PNAbilityHandle Handle { get; }
@@ -68,7 +69,12 @@ public abstract partial class PNAbility
     protected void RequireAttached()
     { if (owner == null) throw new InvalidOperationException("Ability instance has been removed or unloaded."); owner.RequireMutable(this); }
     protected void Changed(PNAbilityChangeReason reason, PNAbilitySnapshot before, int? quantity = null)
-        => owner.Notify(new PNAbilityChange(reason, before, Snapshot(), quantity));
+    {
+        owner.RecordPredictionWrite(this);
+        if (owner.ComposingPrediction && before != null && before.Amount == Amount && before.Maximum == Maximum && before.IsActive == IsActive
+            && (before.CooldownRemaining == 0) == (CooldownRemaining == 0) && before.DurationRemaining.HasValue == DurationRemaining.HasValue) return;
+        owner.Notify(new PNAbilityChange(reason, before, Snapshot(), quantity));
+    }
     internal void Detach() => owner = null;
     internal abstract void Advance(double delta);
     public abstract void Reset();

@@ -214,7 +214,7 @@ namespace ProjectN.Coop
                 }
                 bool coherent=b.Movement.Component.MovementBaselineApplied&&!b.Movement.AwaitingBaseline&&(b.Movement.Component.OwnerMovement?.Mirror==null||life!=null&&b.Movement.Component.OwnerMovement.Mirror.LifeRevision==life.LifeRevision);
                 if(!b.Movement.Component.MovementHeld&&(clientInterrupted>=0||paused))RequestMove(b,true);
-                b.Movement.Component.SetMovementHeld(!coherent||!WorldInputAllowed(b)||!clientInputReady||clientInterrupted>=0||paused);
+                b.Movement.Component.SetMovementHeld(!coherent||!WorldInputAllowed(b)||!BuffClockPrepared(b)||!clientInputReady||clientInterrupted>=0||paused);
                 if(b.Movement.Component.NetworkRole==PNMoveNetworkRole.Observer&&coherent&&!paused&&clientInterrupted<0)
                 {
                     if(b.Movement.Pose.HasValue&&b.Movement.Pose.Value.Revision<=(long)b.Movement.Component.AppliedMovementControl)

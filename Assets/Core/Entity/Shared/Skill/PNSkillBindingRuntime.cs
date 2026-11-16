@@ -56,7 +56,9 @@ public partial class PNSkill
     protected virtual bool LegacyBindingBusy=>false;
     protected virtual void BeforeBindingTick() { }
     protected virtual void CancelLegacyBindingExecution()=>TryInterrupt(EveId.Parse("project_n:binding_changed"));
-    public virtual void CommitEntity(EveEntityLoadContext context) { }
+    // Passive profile declarations belong to the loader's initialization scope,
+    // before publication. A held/loading authority must never masquerade as replica.
+    public virtual void CommitEntity(EveEntityLoadContext context) { EnsureSelectedBindingAbilities(true); }
     public virtual void EntityPublished(EveEntityLoadContext context){EnsureSelectedBindingAbilities();UpdateBindingSelections();}
     private void UpdateBindingSelections()
     {
@@ -86,9 +88,9 @@ public partial class PNSkill
         }
     }
     protected virtual void OnEnable()=>UpdateBindingSelections();
-    private void EnsureSelectedBindingAbilities()
+    private void EnsureSelectedBindingAbilities(bool initializing = false)
     {
-        if(Bindings==null||!IsReady)return; // G7: the owner's client defines the same profile Abilities locally (DefineBindingAbility)
+        if(Bindings==null||!initializing&&!IsReady)return; // G7: the owner's client declares the same passive profile states.
         foreach(var id in Bindings.Snapshot().Values.Distinct())
         {
             var profile=BindingProfile(id);

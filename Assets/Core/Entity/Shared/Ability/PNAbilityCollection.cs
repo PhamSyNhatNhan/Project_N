@@ -23,6 +23,7 @@ public sealed partial class PNAbilityCollection : IDisposable
     private bool disposed, dispatching, advancing;
     private int batching;
     private readonly Func<bool> canMutate;
+    private readonly Func<bool> replicaRole;
     public event Action<PNAbilityChange> Changed;
     public event Action<Exception> ObserverFailed;
     public bool IsDisposed => disposed;
@@ -30,15 +31,18 @@ public sealed partial class PNAbilityCollection : IDisposable
     public IReadOnlyList<PNAbilityDefinition> Definitions => definitions.Values.OrderBy(d => d.Id).ToList().AsReadOnly();
 
     public PNAbilityCollection(IEnumerable<PNAbilityDefinition> definitions = null, Func<bool> canMutate = null)
+        : this(definitions, canMutate, null) { }
+    public PNAbilityCollection(IEnumerable<PNAbilityDefinition> definitions, Func<bool> canMutate, Func<bool> replicaRole)
     {
         var inputs = (definitions ?? Array.Empty<PNAbilityDefinition>()).ToArray();
         if (inputs.Any(d => d == null) || inputs.Select(d => d.Id).Distinct().Count() != inputs.Length)
             throw new ArgumentException("Ability definitions must be non-null with unique IDs.", nameof(definitions));
         foreach (var definition in inputs) Define(definition);
         this.canMutate = canMutate;
+        this.replicaRole = replicaRole;
     }
     // True on a machine whose Abilities are a replica of the authority's (it can never mutate them the normal way).
-    internal bool IsReplica => canMutate != null && !canMutate();
+    internal bool IsReplica => replicaRole != null ? replicaRole() : canMutate != null && !canMutate();
     internal void RequireMutable()
     { if (disposed) throw new ObjectDisposedException(nameof(PNAbilityCollection)); if (canMutate != null && !canMutate()) throw new InvalidOperationException("Ability mutation requires published authority."); }
     public PNAbility Define(PNAbilityDefinition definition)
@@ -212,19 +216,33 @@ public sealed partial class PNAbilityCollection : IDisposable
     // EN: A machine without authority keeps its replicated Abilities ticking between updates (Docs/SkillNetworkingAPlan.md S1); refused on a machine that may mutate.
     public void AdvanceReplica(double gameDeltaTime, double entityScale = 1, double rawScale = 1)
     {
-        if (canMutate == null || canMutate()) throw new InvalidOperationException("A replica ticks only on a machine without gameplay authority.");
+        if (disposed) throw new ObjectDisposedException(nameof(PNAbilityCollection));
+        if (!IsReplica) throw new InvalidOperationException("A replica ticks only on a machine without gameplay authority.");
         AdvanceCore(gameDeltaTime, entityScale, rawScale);
     }
-    private void AdvanceCore(double gameDeltaTime, double entityScale, double rawScale)
+    // The authority image has its own rates; prediction still uses the local gameplay clocks.
+    public void AdvanceReplica(double gameDeltaTime, double entityScale, double rawScale, PNAbilityClockValues authorityDelta)
+    {
+        if (disposed) throw new ObjectDisposedException(nameof(PNAbilityCollection));
+        if (!IsReplica) throw new InvalidOperationException("Replica advancement requires no gameplay authority.");
+        AdvanceCore(gameDeltaTime, entityScale, rawScale, authorityDelta);
+    }
+    private void AdvanceCore(double gameDeltaTime, double entityScale, double rawScale, PNAbilityClockValues? authorityDelta = null)
     {
         PNAbilityDefinition.RequireSeconds(gameDeltaTime, true);
         PNAbilityDefinition.RequireSeconds(entityScale, true);
         if (double.IsNaN(rawScale) || double.IsInfinity(rawScale)) throw new ArgumentOutOfRangeException(nameof(rawScale));
         if (advancing || dispatching) throw new InvalidOperationException("Ability clock cannot advance recursively or inside a change notification.");
         var work = Instances;
-        var deltas = work.Select(a => gameDeltaTime * (a.Definition.Clock == PNAbilityClock.Game ? 1 :
-            a.Definition.Clock == PNAbilityClock.Entity ? entityScale : Math.Max(0, rawScale))).ToArray();
+        var localDelta = new PNAbilityClockValues(gameDeltaTime, gameDeltaTime * entityScale, gameDeltaTime * Math.Max(0, rawScale));
+        var truthDelta = authorityDelta ?? localDelta;
+        var deltas = work.Select(a => truthDelta.Read(a.Definition.Clock)).ToArray();
         foreach (double delta in deltas) PNAbilityDefinition.RequireSeconds(delta, true);
+        prediction?.ClearPending();
+        ClockValues = new PNAbilityClockValues(ClockValues.Game + gameDeltaTime, ClockValues.Entity + gameDeltaTime * entityScale,
+            ClockValues.Raw + gameDeltaTime * Math.Max(0, rawScale));
+        ReplicaTruthClocks = new PNAbilityClockValues(ReplicaTruthClocks.Game + truthDelta.Game, ReplicaTruthClocks.Entity + truthDelta.Entity, ReplicaTruthClocks.Raw + truthDelta.Raw);
+        if (IsReplica && predictionLayers.Count > 0) { RecomposePrediction(); return; }
         Batch(() =>
         {
             advancing = true;
@@ -232,7 +250,7 @@ public sealed partial class PNAbilityCollection : IDisposable
             {
                 for (int i = 0; i < work.Count; i++) work[i].Advance(deltas[i]);
                 foreach (var state in work.OfType<PNAbilityState>())
-                    if (state.Transient && !state.IsActive && state.CooldownRemaining == 0) Remove(state.Handle);
+                    if (state.Transient && !state.IsActive && state.CooldownRemaining == 0 && !IsReplica) Remove(state.Handle);
             }
             finally { advancing = false; }
         });
@@ -270,6 +288,7 @@ public sealed partial class PNAbilityCollection : IDisposable
     {
         if (disposed) return;
         disposed = true;
+        predictionLayers.Clear(); predictionTruth = null; prediction = null;
         foreach (var ability in instances.Values) ability.Detach();
         instances.Clear(); definitions.Clear(); notices.Clear(); Changed = null; ObserverFailed = null;
     }

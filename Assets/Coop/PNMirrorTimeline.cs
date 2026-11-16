@@ -3,11 +3,12 @@ using EveEngine;
 using Mirror;
 namespace ProjectN.Coop
 {
-    public sealed class PNMirrorTimeline : IPNNetworkTimeline
+    public sealed class PNMirrorTimeline : IPNNetworkTimeline, IPNTimeRecoveryBudget
     {
         private readonly PNNetworkManager manager;private readonly EveSessionContext session;private readonly double delay;
         public PNMirrorTimeline(PNNetworkManager manager,EveSessionContext session,double additionalPresentationDelay=.1)
         {this.manager=manager??throw new ArgumentNullException(nameof(manager));this.session=session??throw new ArgumentNullException(nameof(session));PNTimeMath.Nonnegative(additionalPresentationDelay);delay=additionalPresentationDelay;}
+        public double RemainingRecoverySeconds => manager.RemainingClockRecoverySeconds;
         public PNTimeSample Sample()
         {
             bool authority=session.HasAuthority;

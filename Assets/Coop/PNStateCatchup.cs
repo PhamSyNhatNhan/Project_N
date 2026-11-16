@@ -77,7 +77,7 @@ namespace ProjectN.Coop {
             {
                 if(!bindings.TryGetValue(item.Key.Item1,out var b)||b.Metadata.Entity!=item.Value.Entity||b.Metadata.Generation!=item.Value.Generation||!Scope(b).Equals(item.Value.Scope))return false;
                 if(item.Key.Item2==2){if((ulong)b.Token!=item.Value.Nonce||b.Movement.Component?.MovementBaselineApplied!=true||b.Movement.Component.AppliedMovementControl<(ulong)item.Value.Revision||b.Movement.AwaitingBaseline)return false;continue;}
-                if(item.Key.Item2==1){if((ulong)b.Token!=item.Value.Nonce||b.Buffs.Component?.HasBaseline!=true||b.Buffs.Component.AppliedRevision<item.Value.Revision||b.Buffs.Records.Count>0||b.Buffs.Assembly!=null)return false;continue;}
+                if(item.Key.Item2==1){if((ulong)b.Token!=item.Value.Nonce||b.Buffs.Component?.HasBaseline!=true||b.Buffs.Clock?.Prepared!=true||b.Buffs.AwaitingClockBaseline||b.Buffs.Component.AppliedRevision<item.Value.Revision||b.Buffs.Records.Count>0||b.Buffs.Assembly!=null)return false;continue;}
                 var view=b.Candidate?.Loader?.GetComponent<PNStatReplication>()?.View;
                 if(view==null||b.Candidate.Loader.GetComponent<PNStatReplication>().FullViewRevision<item.Value.Revision)return false;
             }

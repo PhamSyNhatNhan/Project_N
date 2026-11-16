@@ -126,7 +126,8 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         // What a player carries in a world that has Roguelite Buff (before the entity modules the factory added these to every player everywhere): the buff manager, the numbers block and the sync binding that block needs.
         hub.EntityModules().Register(new PNEntityModuleDefinition(EveId.Parse("project_n:rogue_buff_player"),PNEntityModuleRoles.Player,null,new[]{PNRunFeatures.RogueBuff},new[]{typeof(PNSyncEntity),typeof(PNRogueEntityView),typeof(PNRogueBuffManager)}));
         // The owner's skill state (Abilities + view binding), sent only to the owner (Docs/SkillNetworkingAPlan.md S1).
-        hub.SyncStates().Register(new PNSyncStateDefinition(PNSkillOwnerView.State,1,PNSkillOwnerView.StateBytes,PNSyncTargets.Entity,true));
+        hub.SyncStates().Register(new PNSyncStateDefinition(PNSkillOwnerView.State,2,PNSkillOwnerView.StateBytes,PNSyncTargets.Entity,true));
+        hub.SyncCommands().Register(new PNSyncCommandDefinition(PNSkillOwnerView.BaselineCommand,typeof(PNSkillOwnerBaselineHandler),()=>new PNSkillOwnerBaselineHandler(),32,PNSyncTargets.Entity));
         hub.SyncStates().Register(new PNSyncStateDefinition(PNSkillCastView.State,1,PNSkillCastView.StateBytes,PNSyncTargets.Entity));
         hub.SyncStates().Register(new PNSyncStateDefinition(PNPresentationSync.State,1,PNPresentationSync.StateBytes,PNSyncTargets.Entity));
         // The owner's skill input and its answer (S2): a command from the owner's client, the cast result back to the owner only.

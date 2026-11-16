@@ -55,6 +55,7 @@ public static class EveSkillPredictionChecks
         try
         {
             EveRegistrySession.Begin(); EveRegistrySession.Start(hub, EveSessionRole.Offline, EveContentCompatibility.Create(hub, docs, "test:s3_authority"));
+            PNAbilityOwnerFixture.Attach();
             var (root, skill) = Eve(hostScene, "S3 host Eve"); root.GetComponent<PNAbilityManager>().enabled = false;
             var service = new PNSyncService(hub, true, 0, EveRegistrySession.Context);
             var view = root.AddComponent<PNSkillOwnerView>(); var remote = root.AddComponent<PNSkillRemoteInput>();
@@ -85,15 +86,24 @@ public static class EveSkillPredictionChecks
         try
         {
             EveRegistrySession.Begin(); EveRegistrySession.Start(hub, EveSessionRole.Client, EveContentCompatibility.Create(hub, docs, "test:s3_client"));
+            PNAbilityOwnerFixture.Attach();
             typeof(EveSessionContext).GetMethod("AdmitLocalOwner", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(EveRegistrySession.Context, new object[] { owner });
             var (root, skill) = Eve(clientScene, "S3 client Eve");
             var wire = new Wire(); var service = new PNSyncService(hub, false, owner, EveRegistrySession.Context) { Transport = wire };
             var view = root.AddComponent<PNSkillOwnerView>(); var remote = root.AddComponent<PNSkillRemoteInput>();
             service.RegisterObject(target, skill); view.OnBound(service, target); remote.OnBound(service, target);
             var bindings = new JObject(); foreach (var slot in PNSkillSlots.Player) bindings[slot.ToString()] = "project_n:eve_" + slot.ToString().Substring(slot.ToString().IndexOf("slot_", StringComparison.Ordinal) + 5);
-            service.ReceiveState(target, PNSkillOwnerView.State, 1, 1, new JObject { ["a"] = new JArray(), ["b"] = bindings });
+            service.ReceiveState(target, PNSkillOwnerView.State, 2, 1, PNAbilityOwnerFixture.Image(view, new JObject { ["a"] = new JArray(), ["b"] = bindings }));
             double charges = skill.DashRecovery.Current;
             Check(charges >= 2 && skill.CanInput, "the client Eve may take input and holds Dash charges (" + charges + ")");
+            Check(skill.PC.Controller.Dash.enabled,"T4 first ready owner image arms actual InputActions");
+            var applyResult=typeof(PNSkillRemoteInput).GetMethod("ApplyResult",BindingFlags.Instance|BindingFlags.NonPublic);
+            applyResult.Invoke(remote,new object[]{new JObject{["ack"]=0,["p"]=1,["n"]=2,["rej"]=new JArray()}});
+            remote.PrepareOwnerImage(new JObject{["ack"]=0,["p"]=0,["n"]=1,["rej"]=new JArray()},0);
+            Check(remote.PredictionPaused,"T4 old image cannot clear newer pause at the same ACK");
+            applyResult.Invoke(remote,new object[]{new JObject{["ack"]=0,["p"]=0,["n"]=3,["rej"]=new JArray()}});
+            remote.PrepareOwnerImage(new JObject{["ack"]=0,["p"]=1,["n"]=2,["rej"]=new JArray()},0);
+            Check(!remote.PredictionPaused,"T4 old image cannot re-pause newer ready result at the same ACK");
 
             // Dash is a press-only slot: the input layer delivers Started and Performed together. Returns the key of the press (its Started event).
             long DashTap() { skill.Press(PNSkillSlots.Dash, PNSkillInputPhase.Started); long pressKey = remote.LastSentKey; skill.Press(PNSkillSlots.Dash, PNSkillInputPhase.Performed); return pressKey; }
@@ -121,7 +131,10 @@ public static class EveSkillPredictionChecks
             long before = remote.LastSentKey; long startKey = DashTap(); skill.Release(PNSkillSlots.Dash);
             Check(skill.IsDashing && remote.PendingPredictions == 1, "a new press is guessed again (pending " + remote.PendingPredictions + ")");
             service.ReceiveState(target, PNSkillRemoteInput.ResultState, 1, 5, new JObject { ["ack"] = startKey + 2, ["p"] = 0, ["rej"] = new JArray() });
-            Check(remote.PendingPredictions == 0 && remote.RolledBackCount == 1 && skill.IsDashing && skill.DashRecovery.Current == charges - 1, "the acknowledged release confirms the guess: nothing rolled back, the charge stays spent");
+            Check(remote.PendingPredictions == 1 && skill.DashRecovery.Current == charges - 1, "ACK before image retains the pending guess");
+            var confirmed=(JObject)view.Capture(); confirmed["r"]=new JObject { ["ack"]=startKey+2, ["p"]=0, ["rej"]=new JArray() };
+            view.Apply(confirmed,2);
+            Check(remote.PendingPredictions == 0 && remote.RolledBackCount == 1 && skill.IsDashing && skill.DashRecovery.Current == charges - 1, "matching image settles the acknowledged guess without refund");
             skill.TryInterrupt(EveId.Parse("project_n:test"));
 
             // G6b2: a newer image under a waiting guess does not undo what it shows; the refusal then gives back what the IMAGE held, and an image under an ANSWERED guess is simply the truth
@@ -129,7 +142,7 @@ public static class EveSkillPredictionChecks
             var abilities = root.GetComponent<PNAbilityManager>().Abilities; var image = abilities.CaptureReplica().ToList(); double c0 = skill.DashRecovery.Current;
             long key2 = DashTap();
             Check(skill.DashRecovery.Current == c0 - 1, "a fresh guess spends a charge (" + skill.DashRecovery.Current + " of " + c0 + ")");
-            ViewEvent("Applying")(); abilities.ApplyReplica(image); Check(skill.DashRecovery.Current == c0, "the stale image puts the charge back");
+            ViewEvent("Applying")(); abilities.ApplyReplica(image); Check(skill.DashRecovery.Current == c0 - 1, "image and waiting overlay compose atomically");
             ViewEvent("Applied")();
             Check(skill.DashRecovery.Current == c0 - 1, "the waiting guess is shown on top of the image again (" + skill.DashRecovery.Current + ")");
             service.ReceiveState(target, PNSkillRemoteInput.ResultState, 1, 6, new JObject { ["ack"] = key2, ["p"] = 0, ["rej"] = new JArray((object)new JArray(key2, "declined")) });
@@ -137,8 +150,9 @@ public static class EveSkillPredictionChecks
             // a guess the authority already took is not laid over an image: the image is the truth
             long key3 = DashTap(); skill.Release(PNSkillSlots.Dash);
             service.ReceiveState(target, PNSkillRemoteInput.ResultState, 1, 7, new JObject { ["ack"] = key3 + 1, ["p"] = 0, ["rej"] = new JArray() });
-            ViewEvent("Applying")(); abilities.ApplyReplica(image); ViewEvent("Applied")();
-            Check(skill.DashRecovery.Current == c0, "an image after the authority took the press stands as it is (" + skill.DashRecovery.Current + ")");
+            var settled=(JObject)view.Capture(); settled["a"]=PNAbilityReplicaWire.Capture(image); settled["r"]=new JObject { ["ack"]=key3+2, ["p"]=0, ["rej"]=new JArray() };
+            view.Apply(settled,3);
+            Check(skill.DashRecovery.Current == c0, "a matching image settles the earlier guess and stands as truth");
             service.ReceiveState(target, PNSkillRemoteInput.ResultState, 1, 8, new JObject { ["ack"] = key3 + 2, ["p"] = 0, ["rej"] = new JArray() });
             skill.TryInterrupt(EveId.Parse("project_n:test"));
             Check(remote.PendingPredictions == 0, "the release is answered and the press is settled");
@@ -149,6 +163,18 @@ public static class EveSkillPredictionChecks
             remote.ExpireGuesses(UnityEngine.Time.unscaledTime + PNSkillRemoteInput.GuessTimeoutReleased + 1f);
             Check(remote.RolledBackCount == rolled + 1 && remote.PendingPredictions == 0 && skill.DashRecovery.Current == c0 && !skill.IsDashing, "an unanswered guess times out and is taken back");
 
+            long floor=remote.LastSentKey+10;
+            remote.PrepareOwnerImage(new JObject{["ack"]=remote.AckedKey,["p"]=0,["n"]=4,["h"]=floor,["rej"]=new JArray()},PNSkillCastKey.FromInput(floor));
+            Check(remote.LastSentKey==floor,"T4 a rebound owner starts above retained input/cast watermark");
+            var beforeRebound=abilities.CaptureReplica().ToList();double reboundCharges=skill.DashRecovery.Current;
+            DashTap();Check(PNSkillCastKey.InputOf(skill.LastCastKey)>floor,"T4 next predicted cast key exceeds the old stream watermark");
+            var oldStream=(JObject)view.Capture();oldStream["a"]=PNAbilityReplicaWire.Capture(beforeRebound);oldStream["k"]=PNSkillCastKey.FromInput(floor);
+            view.Apply(oldStream,4);
+            Check(skill.DashRecovery.Current==reboundCharges-1,"T4 a pre-input image after rebind cannot refund a new unacknowledged cast");
+            long serial=(long)remote.CaptureOwnerResult()["n"], high=remote.LastSentKey;
+            remote.OnUnbound();remote.OnBound(service,target);
+            Check((long)remote.CaptureOwnerResult()["n"]>serial&&remote.LastSentKey>=high,"T4 rebind retains monotonic input and result watermarks");
+            Check(skill.PC.Controller.Dash.enabled,"T4 a late-bound forwarder also refreshes actual InputActions");
             remote.OnUnbound(); view.OnUnbound(); service.Dispose();
         }
         finally { Cleanup(clientScene); }

@@ -133,6 +133,7 @@ public sealed partial class PNBuffManager : MonoBehaviour, EveIEntityLoadStep, E
     private void OnEnable() { if (GetComponent<EveEntityIdentity>()?.IsChangingWorld!=true && IsReady && session.HasAuthority && context.CanSimulate) collection.Suspend(false); }
     public void Unload()
     {
+        AuthoritativePresentationTime = null;
         typedStage?.Dispose();
         if (target != null) target.Died -= OnDied;
         collection?.Dispose(session != null && !session.IsActive ? PNBuffEndReason.SessionEnded : PNBuffEndReason.Unload);

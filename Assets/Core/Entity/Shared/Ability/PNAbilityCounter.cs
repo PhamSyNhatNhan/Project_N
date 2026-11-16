@@ -34,7 +34,7 @@ public sealed partial class PNAbilityCounter : PNAbility
     private void AddInternal(int amount, double? duration)
     {
         if (Definition.Lifetime == PNAbilityLifetime.Shared && grants.Count > 0) grants[0].Count += amount;
-        else grants.Add(new Grant { Id = checked(++nextGrant), Count = amount, Remaining = duration });
+        else grants.Add(new Grant { Id = IsReplica && Owner.IsPredicting ? Owner.NextPredictionGrant() : checked(++nextGrant), Count = amount, Remaining = duration });
         current += amount;
     }
     public int Add(int amount, double? duration = null)

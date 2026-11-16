@@ -24,7 +24,7 @@ namespace ProjectN.Coop
         public void Add(PNBuffPacket p)
         {
             PNBuffWire.ValidatePacket(p);var h=Header;
-            if(!p.Stream.Equals(h.Stream)||p.Transfer!=h.Transfer||p.Kind!=h.Kind||p.Revision!=h.Revision||p.Time!=h.Time||p.HostTime!=h.HostTime||p.Rate!=h.Rate||p.Total!=h.Total||p.Count!=h.Count||p.Index!=next)throw new FormatException("Conflicting/out-of-order Buff transfer.");
+            if(!p.Stream.Equals(h.Stream)||p.Transfer!=h.Transfer||p.Kind!=h.Kind||p.Revision!=h.Revision||p.Time!=h.Time||p.HostTime!=h.HostTime||p.Rate!=h.Rate||p.ClockRevision!=h.ClockRevision||p.ClockStamp!=h.ClockStamp||p.ClockTime!=h.ClockTime||p.ClockBaseline!=h.ClockBaseline||p.Total!=h.Total||p.Count!=h.Count||p.Index!=next)throw new FormatException("Conflicting/out-of-order Buff transfer.");
             Buffer.BlockCopy(p.Body,0,bytes,position,p.Body.Length);position+=p.Body.Length;next++;
         }
         public byte[] Body(){if(!Complete||position!=bytes.Length)throw new InvalidDataException("Incomplete Buff transfer.");return bytes;}
