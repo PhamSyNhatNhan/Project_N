@@ -77,7 +77,7 @@ namespace ProjectN.Coop
                 {
                     if(peer.OptionalFrame!=Time.frameCount){peer.OptionalFrame=Time.frameCount;peer.OptionalCount=peer.OptionalBytes=0;}
                     if(peer.OptionalCount>=32||peer.OptionalBytes>=16384)continue;body=body??PNBuffWire.Encode(cue);
-                    if(peer.OptionalBytes+body.Length>16384||peer.Bytes+body.Length+movePeers.Values.Where(x=>x.Connection==peer.Connection).Sum(x=>(long)x.Bytes)>8*1024*1024||(long)hostBuffBytes+hostMoveBytes+body.Length>32*1024*1024)continue;
+                    if(peer.OptionalBytes+body.Length>16384||peer.Bytes+body.Length+ActionPeerBytes(peer.Connection.connectionId)+movePeers.Values.Where(x=>x.Connection==peer.Connection).Sum(x=>(long)x.Bytes)>8*1024*1024||(long)hostBuffBytes+hostMoveBytes+actionSendLedger.Used+body.Length>32*1024*1024)continue;
                     peer.OptionalCount++;peer.OptionalBytes+=body.Length;EnqueueBuff(peer,2,b.Buffs.Component.AppliedRevision,time,body);
                 }
             };
@@ -120,7 +120,7 @@ namespace ProjectN.Coop
         private void EnqueueBuff(BuffPeer peer,byte kind,long revision,double time,byte[] bytes,bool clockBaseline=false)
         {
             int count=(bytes.Length+PNBuffWire.ChunkBytes-1)/PNBuffWire.ChunkBytes;int charged=checked(bytes.Length+count*256);
-            if(peer.Bytes+charged+movePeers.Values.Where(x=>x.Connection==peer.Connection).Sum(x=>(long)x.Bytes)>8*1024*1024||(long)hostBuffBytes+hostMoveBytes+charged>32*1024*1024){peer.Connection.Disconnect();RemoveBuffPeer(peer);return;}
+            if(peer.Bytes+charged+ActionPeerBytes(peer.Connection.connectionId)+movePeers.Values.Where(x=>x.Connection==peer.Connection).Sum(x=>(long)x.Bytes)>8*1024*1024||(long)hostBuffBytes+hostMoveBytes+actionSendLedger.Used+charged>32*1024*1024){peer.Connection.Disconnect();RemoveBuffPeer(peer);return;}
             ulong transfer=checked(++buffTransfer);
             double captured=PNTimeService.For(subscribedSession).Sample().Local,rate=BuffClockRate(peer.Binding);
             if(kind!=2&&(clockBaseline||peer.ClockRevision==0||peer.ClockRate!=rate||Math.Abs(peer.ClockTime+(captured-peer.ClockStamp)*rate-time)>1e-6*Math.Max(1,time)))
@@ -138,7 +138,7 @@ namespace ProjectN.Coop
             => ReserveBuffCore(size,false);
         private IDisposable ReserveBuffCore(int size,bool countEvent)
         {
-            if(size<0||(long)pendingBuffBytes+inbox.TotalBytes+size>Profile.PendingBytes||countEvent&&(long)pendingBuffEvents+inbox.TotalEvents>=Profile.PendingEvents)throw new InvalidOperationException("Global pending Stat/Buff byte/event bound.");
+            if(size<0||ActionsEnabled&&(long)pendingBuffBytes+inbox.TotalBytes+actionReceiveLedger.Used+size>Profile.ActionReceiveBytes||(long)pendingBuffBytes+inbox.TotalBytes+size>Profile.PendingBytes||countEvent&&(long)pendingBuffEvents+inbox.TotalEvents>=Profile.PendingEvents)throw new InvalidOperationException("Global pending Stat/Buff byte/event bound.");
             pendingBuffBytes+=size;if(countEvent)pendingBuffEvents++;UpdateInboxBudget();
             return new PNBuffRelease(()=>{pendingBuffBytes-=size;if(countEvent)pendingBuffEvents--;UpdateInboxBudget();});
         }

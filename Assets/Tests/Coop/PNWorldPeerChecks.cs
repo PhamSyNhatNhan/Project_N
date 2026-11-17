@@ -164,7 +164,7 @@ namespace ProjectN.Coop.Tests
             yield return Wait(()=>manager.CanBeginPlay&&Has("client1-ended")&&Has("client2-ended"));if(failed)yield break;
             try
             {
-                Check(manager.PendingWorldBytes==0&&manager.PendingBuffBytes==0&&manager.PendingMoveBytes==0&&manager.WorldSubscriptionCount==0,"host required resource ledgers drain to zero");
+                Check(manager.PendingWorldBytes==0&&manager.PendingBuffBytes==0&&manager.PendingMoveBytes==0&&manager.WorldSubscriptionCount==0&&manager.ActionQueuedBytes==0&&manager.ActionReceiveBytes==0&&manager.ActionPeerCount==0,"host required resource ledgers including Action drain to zero");
                 Check(manager.RoomId==room&&NetworkClient.localPlayer.netId==roomShell,"room/control shell survives world operations and play end");
                 PNGameBootstrap.CloseRoom();Mark("host-closed");File.WriteAllText(Path.Combine(folder,"host.txt"),"PASS "+checks+" world host cases");
             }
@@ -223,6 +223,8 @@ namespace ProjectN.Coop.Tests
                     long revision=stat.FullViewRevision;var frame=new PNStatFrame(shell.State.Revision+10000,shell.State.LifeRevision+1,true,shell.State.Resources.ToDictionary(x=>x.Key,x=>new PNResourceValue(0,x.Value.Max)));
                     Inject("ReceiveStatMessage",new PNStatNotice{NetId=shell.netId,Session=shell.Metadata.HostSession,Entity=shell.Metadata.Entity,Generation=shell.Metadata.Generation,Scope=oldScope,State=frame});
                     Inject("ReceiveBuffPacket",new PNBuffPacket{Stream=new PNBuffStream{Session=shell.Metadata.HostSession,Entity=shell.Metadata.Entity,Generation=shell.Metadata.Generation,NetId=shell.netId,Nonce=oldNonce,Scope=oldScope},Transfer=1,Kind=0,Revision=0,Time=0,HostTime=0,Rate=1,Total=1,Index=0,Count=1,Body=new byte[]{255}});
+                    var staleAction=new PNActionStream{Session=shell.Metadata.HostSession,Entity=shell.Metadata.Entity,Generation=shell.Metadata.Generation,NetId=shell.netId,Nonce=oldNonce,Scope=oldScope,Source=Guid.NewGuid(),Subscription=1};
+                    Check(!(bool)typeof(PNNetworkManager).GetMethod("AuthorizeActionHost",BindingFlags.Instance|BindingFlags.NonPublic).Invoke(manager,new object[]{staleAction}),"old Action world/nonce is refused before receiver apply");
                     var ticket=new PNWorldTicket{Room=manager.RoomId,RoomIncarnation=manager.RoomIncarnation,Play=manager.PlaySession,PlayRevision=manager.PlayRevision,World=a,Incarnation=oldScope.Incarnation,Subscription=oldScope.Subscription};
                     Inject("ReceiveWorldConfirmation",new PNWorldApplied{Ticket=ticket,Revision=ulong.MaxValue,Digest=new string('a',64),Confirmed=true});
                     Check(stat.FullViewRevision==revision&&manager.ClientWorldReady(a)&&manager.IsPlaying,"stale Stat/Buff packets and old applied callback cannot change/release the new binding");

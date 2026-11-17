@@ -414,3 +414,68 @@ ReadLatest do not imply submission: Commit*Submitted confirms bounded local queu
 acceptance with a matching generation. Remote apply ACK remains T5.2. These interfaces
 are additive experimental APIs, not a final SDK/wire compatibility promise. Initial retrospective intervals can require R at
 original activation stamp; do not shift activation to remove those corrections.
+
+
+### T5.2-A authoritative recovery (2026-11-17)
+
+PNSkill owns a bounded PNActionPublicationRecovery live census before legacy
+admission, independent of publication success. RecoverActionPublication(stamp,
+originalDeadline) runs only after execution frames; it builds complete current
+state with original keys/context/start and actual driver progress under a new
+source GUID. It invents no past lifecycle/history. Resource staging failure is
+Pending with a fixed deadline; incomplete census/invariant/expiry is Failed.
+Scope/session cleanup releases census and candidate resources. A does not change
+readiness or send a baseline: Coop B/C must pump recovery and gate on actual apply.
+See Docs/NetworkTimeT5_2Report.md for evidence, budgets and remaining work.
+
+
+### T5.2-C production adapter (2026-11-17)
+
+PNNetworkManager owns Action publication preparation and network subscription
+lifecycle. PrepareActionPublication(stamp, originalDeadline) can establish a
+complete empty authority source before the first attack, or use A's full census
+for a rebuild after drivers. Character/Action authors do not invoke this API.
+PublicationCut seals at the supplied unscaled capture stamp and allocates
+an owned capture revision without copying a full baseline. Coop queues, actual
+baseline ACK, readiness, shared budgets and recovery are documented in
+Docs/NetworkTimeT5_2Report.md. This does not enable observed seek/render.
+### T5.2-D verification and allocation paths
+
+Parallel drivers on one entity reuse the exact Unity-frame start boundary. Opening
+another execution frame in that same Unity frame must not recompute its start by
+subtracting a rounded float delta. Scope retirement clears this cache.
+
+Publication records retain their compatible JSON view. Required records also expose
+`ToArray()`, a fresh mutable copy of frozen primitives; mutating that copy cannot
+change journal history. Latest samples freeze timestamp/progress/rate/history and
+dependency values, with a lazy JSON view. Typed transports build arrays from these
+values without stringify/parse round trips. Read/Commit and enqueue-before-Commit
+contracts remain unchanged. Budgets are logical charges, not CLR heap measurements.
+
+The sender fills the existing byte budget (up to256 required records, binary chunk
+still3584 bytes); it no longer limits an otherwise valid batch to8 records. The
+receiver validates each record once and prunes retention once per atomic batch.
+Its candidate copies touched runs and changed anchor lists; immutable identity,
+context and numeric anchors may be shared. A failed later record rolls back the
+whole candidate. Effective history coverage is the run floor combined with the
+decoder's global retention floor; future seek consumers must respect both.
+
+`PNActionDeliveryPlayChecks` is an opt-in Player fixture. Registered inert Actions
+start inside the framework frame, use actual Advance callbacks and multiple cast
+keys, and keep the legacy drawing consumer. `--pn-action-delivery-quiet` buffers
+fixed-size metric structs; `--pn-action-delivery-control` disables hot diagnostic
+callbacks; `--pn-action-delivery-without-service` is a matched performance control
+configured before admission on every peer. It is not delivery evidence. The
+`--pn-action-delivery-boundary` supplement tests synthetic maximum-field baselines,
+not registered Action capacity. Report/manifests in Docs/NetworkTimeT5_2Report.md
+and `.utmp/NetworkTime/T5_2/D` decide acceptance; fixture assertion PASS alone does
+not establish every latency/allocation target or presentation/Android acceptance.
+
+
+## T5.2-D1 transport views and receiver validation
+
+Required exposes frozen read-only scalar getters for infrastructure encoders (RecordKind,RunKey,RunRevision,RunHistoryGeneration,selected IDs,direction/start,record time/progress/rate,reset/terminal kind). Json and fresh-copy ToArray remain compatible. Authors still use engine services; no character/Action/Operation network branches. This additive view preserves author data/callbacks and ModAPI8; SDK is re-exported.
+
+Coop encodes required/latest directly with unchanged binary grammar/caps and enqueue-before-Commit. Homogeneous U decodes to bounded scalar rows before any apply; mixed rows retain full decoder. COW/needN/floors/full-packet rollback and baseline actual-apply ACK remain. Incremental logical charges and canonical duplicate text are checked against independent enumeration/original JSON formatting; logical bytes are not physical heap.
+
+D1 initial PC matrix improves CPU/mean allocation, but client peak allocation,120ms apply-age and host-pending evidence still block acceptance. Legacy draws; seek/render/cutover remains T5.3. Current evidence: Docs/NetworkTimeT5_2Report.md and .utmp/NetworkTime/T5_2/D1/Candidates/Canonical.

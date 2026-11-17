@@ -84,8 +84,9 @@ public static class PNActionA2NativeChecks {
  }
  public static string Run(string folder, int entities=1, int seconds=60, bool live=false, bool stagger=false, int density=0)
   => RunInternal(folder,entities,seconds,live,stagger,density,1);
+ public static string RunRecovery(string folder) => RunInternal(folder,1,20,false,false,0,16,true);
  public static string RunHighOverlap(string folder) => RunInternal(folder,1,20,false,false,0,16);
- private static string RunInternal(string folder,int entities,int seconds,bool live,bool stagger,int density,double lifetime) {
+ private static string RunInternal(string folder,int entities,int seconds,bool live,bool stagger,int density,double lifetime,bool recovery=false) {
   if(EditorApplication.isPlaying || EveRegistrySession.State!=EveSessionState.Stopped) throw new Exception("Idle editor required");
   Directory.CreateDirectory(folder);
   File.WriteAllText(Path.Combine(folder,"manifest.json"),new JObject { ["entities"]=entities,["seconds"]=seconds,["live"]=live,["stagger"]=stagger,["density"]=density,["dt"]=.01,["driver"]="injected unscaled frame; native registered inert Action",["action"]="test:a2_action",["productionCoreAssembly"]=typeof(PNActionRunStore).Assembly.Location }.ToString());
@@ -109,6 +110,15 @@ public static class PNActionA2NativeChecks {
     if(skill.CurrentInvocation==null)throw new Exception("No invocation");
    }
    var ctor=typeof(PNSkill.PNActionExecutionFrame).GetConstructors(BindingFlags.NonPublic|BindingFlags.Instance).Single(c=>c.GetParameters().Length==5);
+   // Real BeginActionExecutionFrame must reuse the exact boundary for parallel
+   // drivers even when subtraction of float unscaledDeltaTime differs by ulps.
+   foreach(var skill in skills) {
+    var t=typeof(PNSkill);const BindingFlags ff=BindingFlags.NonPublic|BindingFlags.Instance;
+    t.GetField("previousActionFrameNumber",ff).SetValue(skill,Time.frameCount-1);
+    t.GetField("previousActionFrameEnd",ff).SetValue(skill,.9375);
+    for(int parallel=0;parallel<64;parallel++)using(var frame=skill.BeginActionExecutionFrame(.01f))
+     if((double)typeof(PNSkill.PNActionExecutionFrame).GetProperty("Stamp",ff).GetValue(frame)!=.9375)throw new Exception("D parallel frame boundary");
+   }
    var data=new PNSkillData(new JObject(),new PNSkillActionData(EveId.Parse("test:a2_action")));
    int lastTick=(live||density>0)?seconds*100:seconds*100+(int)(lifetime*100);
    for(int tick=0;tick<=lastTick;tick++) {
@@ -132,6 +142,15 @@ public static class PNActionA2NativeChecks {
      }
     }
     foreach(var skill in skills)skill.SealActionRuns(now);
+    if(recovery && (tick==50||tick==1650))foreach(var skill in skills) {
+     var old=skill.ActionPublication;
+     using(var lease=old.Capture(PNActionC2Codec.MakeScope(1),now))using(var peer=new PNActionPublication.Subscription(old)) {
+     if(tick==50){var c=running.First(x=>x.owner==skills.IndexOf(skill)).context;old.Begin(new PNActionRunKey(c.Invocation.CastKey,c.ActionOrdinal),"test:e","test:d","test:a",1,0,now);}else old.Dispose();
+     if(skill.RecoverActionPublication(now,now+3)!=PNActionRecoveryState.Recovered||skill.ActionPublication.Source==old.Source)throw new Exception("T5.2-A generation recovery");
+     if(!peer.Disposed||lease.Json!=null)throw new Exception("T5.2-A old generation cleanup");
+     using(var snapshot=skill.ActionPublication.Capture(PNActionC2Codec.MakeScope(1),now))if(snapshot==null||JArray.Parse(snapshot.Json)[5].Count()!=skill.ActionPublicationRecovery.Count)throw new Exception("T5.2-A complete cut");
+     }
+    }
     foreach(var item in running)if(PNSkill.ActionPublicationEnabled) {
      var source=skills[item.owner].ActionPublication;
      if(source==null||!source.Complete||Math.Abs(source.Progress(new PNActionRunKey(item.context.Invocation.CastKey,item.context.ActionOrdinal))-item.action.Progress)>1e-5)throw new Exception("C3 actual Action shadow progress");

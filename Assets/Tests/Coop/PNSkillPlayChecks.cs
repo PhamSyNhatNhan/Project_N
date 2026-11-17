@@ -107,6 +107,7 @@ namespace ProjectN.Coop.Tests
         {
             folder = Arg("--pn-skill-test="); if (folder == null) yield break;
             bool host = PNGameBootstrap.Config.Role == EveSessionRole.Host; name = host ? "host" : Arg("--pn-skill-client=") ?? "client1";
+            if(Environment.GetCommandLineArgs().Contains("--pn-action-delivery-without-service"))PNGameBootstrap.Config.Network.ActionReplication=false;
             try { PNGameBootstrap.OpenRoom(PNGameBootstrap.Config); } catch (Exception e) { Fail(e); yield break; }
             yield return Wait(() => NetworkClient.isConnected && NetworkClient.connection.isAuthenticated, "room connection"); if (failed) yield break;
             var manager = (PNNetworkManager)NetworkManager.singleton; Mark(name + "-lobby");
@@ -142,6 +143,7 @@ namespace ProjectN.Coop.Tests
             }
             catch (Exception e) { Fail(e); yield break; }
 
+            if (PNActionDeliveryPlayChecks.Enabled) { yield return PNActionDeliveryPlayChecks.Run(folder, name, e1); yield break; }
             if (PNActionTimePlayChecks.Enabled) { yield return PNActionTimePlayChecks.Run(folder, name, e1); yield break; }
             if (PNBuffViewPlayChecks.Enabled) { yield return PNBuffViewPlayChecks.Run(folder, name, e1); yield break; }
             if (PNAbilityTimePlayChecks.Enabled) { yield return PNAbilityTimePlayChecks.Run(folder, name, e1); yield break; }

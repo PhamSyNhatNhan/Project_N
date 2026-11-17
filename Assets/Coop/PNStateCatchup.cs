@@ -17,6 +17,10 @@ namespace ProjectN.Coop {
         private bool AdaptersSettled()=>RequiredAdapters.All(x=>stateAdapters.TryGetValue(x,out var check)&&check())&&RequiredStateSettled();
         private bool SendFence(NetworkConnectionToClient conn,PNPeer peer)
         {
+            bool actionReady=true;
+            foreach(var binding in bindings.Values.Where(b=>!b.Retiring&&RoomCatchupBinding(b,conn)&&b.Shell.netIdentity.observers.ContainsKey(conn.connectionId)))
+                if(!ActionPeerPrepared(binding,conn,peer.ResumeChallenge))actionReady=false;
+            if(!actionReady)return false;
             string digest=BindingDigest(conn);
             if(!peerFences.TryGetValue(conn.connectionId,out var values)||values.Length==0||values[values.Length-1].Attempt!=peer.ResumeChallenge||values[values.Length-1].Digest!=digest)
             {

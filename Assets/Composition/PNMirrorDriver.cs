@@ -35,14 +35,17 @@ namespace ProjectN.Composition
             manager=root.AddComponent<PNNetworkManager>();
             try
             {
-                var transport=root.AddComponent<KcpTransport>();transport.Timeout=profile.TransportTimeoutMs;transport.Port=profile.Port;
+                var fault=ReadDatagramSimulation();
+                var transport=fault.HasValue?(KcpTransport)root.AddComponent<PNKcpFaultTransport>():root.AddComponent<KcpTransport>();
+                if(transport is PNKcpFaultTransport f){f.DatagramLatencyMs=fault.Value.Latency;f.DatagramLossPercent=fault.Value.Loss;f.Seed=fault.Value.Seed;}
+                transport.Timeout=profile.TransportTimeoutMs;transport.Port=profile.Port;
                 var auth=root.AddComponent<PNNetworkAuthenticator>();auth.Manager=manager;
                 Transport active=transport;
                 // Test aid: --pn-sim-latency=<ms>[,<loss%>] wraps KCP in Mirror's latency simulation (off by default).
-                if(TryReadSimulation(out var latency,out var loss))
+                if(TryReadSimulation(out var latency,out var loss,out var jitter))
                 {
-                    var simulation=root.AddComponent<LatencySimulation>();simulation.wrap=transport;simulation.latency=latency;simulation.jitter=.05f;simulation.unreliableLoss=loss;simulation.unreliableScramble=loss/2f;
-                    active=simulation;Debug.LogWarning("Network latency simulation on: "+latency+" ms, "+loss+"% unreliable loss.");
+                    var simulation=root.AddComponent<LatencySimulation>();simulation.wrap=transport;simulation.latency=latency;simulation.jitter=jitter;simulation.unreliableLoss=loss;simulation.unreliableScramble=loss/2f;
+                    active=simulation;Debug.LogWarning("Network latency simulation on: "+latency+" ms, "+loss+"% unreliable loss, jitter "+jitter+" seconds.");
                 }
                 manager.transport=active;manager.authenticator=auth;manager.autoCreatePlayer=false;
                 manager.onlineScene="";manager.offlineScene="";manager.dontDestroyOnLoad=true;
@@ -107,15 +110,23 @@ namespace ProjectN.Composition
         public IReadOnlyList<PNLanRoomInfo> Rooms=>discovery!=null?discovery.Rooms():Array.Empty<PNLanRoomInfo>();
         public IReadOnlyList<string> LocalAddresses=>PNLanDiscovery.LocalAddresses();
         public int Port=>manager!=null?manager.Profile.Port:PNGameBootstrap.Config.Network.Port;
-        private static bool TryReadSimulation(out float latency,out float loss)
+        private static (float Latency,float Loss,int Seed)? ReadDatagramSimulation()
         {
-            latency=0;loss=0;
+            var arg=Environment.GetCommandLineArgs().FirstOrDefault(a=>a.StartsWith("--pn-sim-kcp=",StringComparison.Ordinal));if(arg==null)return null;
+            var p=arg.Substring("--pn-sim-kcp=".Length).Split(',');var culture=System.Globalization.CultureInfo.InvariantCulture;
+            if(p.Length!=3||!float.TryParse(p[0],System.Globalization.NumberStyles.Float,culture,out float latency)||!float.TryParse(p[1],System.Globalization.NumberStyles.Float,culture,out float loss)||!int.TryParse(p[2],out int seed)||float.IsNaN(latency)||float.IsInfinity(latency)||latency<0||latency>2000||float.IsNaN(loss)||float.IsInfinity(loss)||loss<0||loss>20)throw new ArgumentException("Expected --pn-sim-kcp=<latencyMs>,<lossPercent>,<seed>");
+            return (latency,loss,seed);
+        }
+        private static bool TryReadSimulation(out float latency,out float loss,out float jitter)
+        {
+            latency=0;loss=0;jitter=.05f;
             foreach(var argument in Environment.GetCommandLineArgs())
             {
                 if(!argument.StartsWith("--pn-sim-latency=",StringComparison.Ordinal))continue;
                 var parts=argument.Substring("--pn-sim-latency=".Length).Split(',');
                 if(!float.TryParse(parts[0],System.Globalization.NumberStyles.Float,System.Globalization.CultureInfo.InvariantCulture,out latency)||latency<0||latency>2000)return false;
                 if(parts.Length>1&&!float.TryParse(parts[1],System.Globalization.NumberStyles.Float,System.Globalization.CultureInfo.InvariantCulture,out loss))loss=0;
+                if(parts.Length>2&&(!float.TryParse(parts[2],System.Globalization.NumberStyles.Float,System.Globalization.CultureInfo.InvariantCulture,out jitter)||float.IsNaN(jitter)||float.IsInfinity(jitter)||jitter<0||jitter>1))throw new ArgumentException("Invalid simulation jitter seconds");
                 loss=Mathf.Clamp(loss,0f,20f);return true;
             }
             return false;

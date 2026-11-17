@@ -16,6 +16,18 @@ public partial class PNSkill
     private PNActionRunStore actionRuns;
     private static readonly ConditionalWeakTable<EveSessionContext,PNActionPublicationBudget> publicationBudgets=new ConditionalWeakTable<EveSessionContext,PNActionPublicationBudget>();
     private PNActionPublication actionPublication;
+    private PNActionPublicationRecovery publicationRecovery;
+    public PNActionPublicationRecovery ActionPublicationRecovery => publicationRecovery;
+    public PNActionRecoveryState RecoverActionPublication(double stamp, double originalDeadline)
+    {
+        if(!ActionPublicationEnabled || publicationRecovery==null) return PNActionRecoveryState.Failed;
+        if(actionFrame!=null) throw new InvalidOperationException("Recover after the execution frame is disposed.");
+        var old=actionPublication;
+        var result=publicationRecovery.Recover(ref actionPublication,stamp,originalDeadline);
+        if(old!=null&&old.Disposed)publications.Remove(old);
+        if(result==PNActionRecoveryState.Recovered)publications.Add(actionPublication);
+        return result;
+    }
     public PNActionPublication ActionPublication => actionPublication;
     // Engine-owned opt-in shadow. No character or Action network branches.
     private static bool publicationEnabled;
@@ -30,6 +42,7 @@ public partial class PNSkill
         using(publicationMarker.Auto())
 #endif
         try { action(); } catch (Exception) { ActionPublicationErrors++; if(actionPublication!=null){publications.Remove(actionPublication);actionPublication.Dispose();} } }
+    private void TrackAuthority(Action action) { try { action(); } catch(Exception) { publicationRecovery?.Invalidate();ActionPublicationErrors++; } }
     private Guid actionEpoch, actionWorld;
     private ulong actionIncarnation;
     private long actionGeneration;
@@ -39,11 +52,12 @@ public partial class PNSkill
         if (actionRuns != null && (epoch != actionEpoch || world != actionWorld || incarnation != actionIncarnation || generation != actionGeneration)) ReleaseActionRuns();
         return actionRuns?.Snapshot(stamp) ?? Array.Empty<PNActionRunRecord>();
     }
-    public void SealActionRuns(double stamp) { actionRuns?.CaptureHolds(stamp); if(ActionPublicationEnabled && actionPublication!=null)Publish(()=>actionPublication.Seal(stamp)); }
+    public void SealActionRuns(double stamp) { actionRuns?.CaptureHolds(stamp); publicationRecovery?.Seal(stamp); if(ActionPublicationEnabled && actionPublication!=null)Publish(()=>actionPublication.Seal(stamp)); }
     public long ActionIdentityRejected { get; private set; }
     public long ActionCapabilityRejected { get; private set; }
     private PNActionExecutionFrame actionFrame;
     private double previousActionFrameEnd;
+    private double currentActionFrameStart;
     private int previousActionFrameNumber = -2;
 
     internal bool ActionStamp(out double stamp)
@@ -52,6 +66,32 @@ public partial class PNSkill
         if (!EveRegistrySession.IsReady || !EveRegistrySession.Context.HasAuthority) return false;
         try { stamp = PNTimeService.For(EveRegistrySession.Context).Sample().Local; return true; }
         catch (InvalidOperationException) { return false; } // standalone/custom hosts must attach the explicit timeline
+    }
+    private PNActionPublicationBudget PublicationBudget(EveSessionContext session)
+        =>publicationBudgets.GetValue(session,owner=>{var budget=new PNActionPublicationBudget();owner.RegisterCleanup(()=>{foreach(var source in budget.Sources)publications.Remove(source);budget.Dispose();publicationBudgets.Remove(owner);});return budget;});
+    private void EnsureActionScope(EveSessionContext session,Guid epoch,Guid world,ulong incarnation,long generation)
+    {
+        if (actionRuns == null || actionEpoch != epoch || actionWorld != world || actionIncarnation != incarnation || actionGeneration != generation)
+        {
+            ReleaseActionRuns(); actionEpoch = epoch; actionWorld = world; actionIncarnation = incarnation; actionGeneration = generation;
+            actionRuns = new PNActionRunStore(actionBudgets.GetValue(session, owner =>
+            {
+                var budget = new PNActionRunBudget();
+                owner.RegisterCleanup(() => { budget.Dispose(); actionBudgets.Remove(owner); });
+                return budget;
+            }));
+        }
+    }
+    public PNActionRecoveryState PrepareActionPublication(double stamp,double originalDeadline)
+    {
+        if(!ActionPublicationEnabled||!EveRegistrySession.IsReady||!EveRegistrySession.Context.HasAuthority)return PNActionRecoveryState.Failed;
+        if(actionFrame!=null)throw new InvalidOperationException("Prepare after drivers");
+        var session=EveRegistrySession.Context;var load=GetComponent<EveEntityLoader>()?.LoadContext;
+        if(load==null)return PNActionRecoveryState.Pending;
+        var sample=PNTimeService.For(session).Sample();var world=load.Identity.World;
+        EnsureActionScope(session,sample.Epoch,world?.InstanceId??sample.Epoch,world?.Incarnation??1,load.Generation);
+        if(publicationRecovery==null)publicationRecovery=new PNActionPublicationRecovery(PublicationBudget(session));
+        return RecoverActionPublication(stamp,originalDeadline);
     }
     internal void BeginActionRun(PNSkillActionContext context)
     {
@@ -66,22 +106,20 @@ public partial class PNSkill
         if (load == null) return;
         var sample = PNTimeService.For(session).Sample(); var world = load.Identity.World;
         var worldId = world?.InstanceId ?? sample.Epoch; var incarnation = world?.Incarnation ?? 1;
-        if (actionRuns == null || actionEpoch != sample.Epoch || actionWorld != worldId || actionIncarnation != incarnation || actionGeneration != load.Generation)
-        {
-            ReleaseActionRuns(); actionEpoch = sample.Epoch; actionWorld = worldId; actionIncarnation = incarnation; actionGeneration = load.Generation;
-            actionRuns = new PNActionRunStore(actionBudgets.GetValue(session, owner =>
-            {
-                var budget = new PNActionRunBudget();
-                owner.RegisterCleanup(() => { budget.Dispose(); actionBudgets.Remove(owner); });
-                return budget;
-            }));
-        }
+        EnsureActionScope(session,sample.Epoch,worldId,incarnation,load.Generation);
         var key = new PNActionRunKey(context.Invocation.CastKey != 0 ? context.Invocation.CastKey : -context.Invocation.Id, context.ActionOrdinal);
         if (actionFrame != null) stamp = actionFrame.Stamp;
         var direction = context.Direction.Value;
-        // A disposed/faulted source stays unavailable until a new life/scope.
-        if(ActionPublicationEnabled && actionPublication==null) {var shared=publicationBudgets.GetValue(session,owner=>{var budget=new PNActionPublicationBudget();owner.RegisterCleanup(()=>{foreach(var source in budget.Sources)publications.Remove(source);budget.Dispose();publicationBudgets.Remove(owner);});return budget;});actionPublication=new PNActionPublication(sessionBudget:shared);if(actionPublication.Complete)publications.Add(actionPublication); }
-        if(ActionPublicationEnabled && actionPublication!=null) Publish(()=>actionPublication.Begin(key,context.Registry.Skills.ResolveIdentity(context.EntrySkillId).ToString(),context.Registry.Skills.ResolveIdentity(context.SkillId).ToString(),definition.Id.ToString(),direction.x,direction.z,stamp));
+        var shared=PublicationBudget(session);
+        if(publicationRecovery==null)publicationRecovery=new PNActionPublicationRecovery(shared);
+        var entry=context.Registry.Skills.ResolveIdentity(context.EntrySkillId).ToString();
+        var data=context.Registry.Skills.ResolveIdentity(context.SkillId).ToString();
+        var action=definition.Id.ToString();
+        TrackAuthority(()=>publicationRecovery.Begin(key,entry,data,action,direction.x,direction.z,stamp));
+        // Initial source only at the start of a complete census. Mid-life enable
+        // requires the explicit safe-cut recovery API, never an empty new source.
+        if(ActionPublicationEnabled && actionPublication==null && publicationRecovery.Complete && publicationRecovery.Count==1) {actionPublication=new PNActionPublication(sessionBudget:shared);if(actionPublication.Complete)publications.Add(actionPublication);}
+        if(ActionPublicationEnabled && actionPublication!=null) Publish(()=>actionPublication.Begin(key,entry,data,action,direction.x,direction.z,stamp));
         actionRuns.Admit(key, context.Registry.Skills.ResolveIdentity(context.EntrySkillId).ToString(), context.Registry.Skills.ResolveIdentity(context.SkillId).ToString(), definition.Id.ToString(), direction.x, direction.z, stamp);
         // Keep observational driver/finish boundaries even for refused runs. Store
         // mutation still requires admission; this does not publish refused rows.
@@ -89,12 +127,14 @@ public partial class PNSkill
     }
     internal void EndActionRun(PNSkillActionContext context, bool cancelled)
     {
-        if (context.RunStore == null || !ActionStamp(out var stamp)) return;
+        if (context.RunStore == null || !ReferenceEquals(context.RunStore,actionRuns)) return;
+        publicationRecovery?.End(context.RunKey);
+        if(!ActionStamp(out var stamp))return;
         if (actionFrame != null) stamp = actionFrame.Stamp;
         if(ActionPublicationEnabled && actionPublication!=null)Publish(()=>actionPublication.End(context.RunKey,Math.Max(stamp,context.RunStamp),cancelled?PNActionRunEnd.Cancelled:PNActionRunEnd.Completed));
         context.RunStore.Finish(context.RunKey, Math.Max(stamp, context.RunStamp), cancelled ? PNActionRunEnd.Cancelled : PNActionRunEnd.Completed);
     }
-    private void ReleaseActionRuns() { if(actionPublication!=null)publications.Remove(actionPublication);actionPublication?.Dispose();actionPublication=null; actionRuns?.Dispose(); actionRuns = null; }
+    private void ReleaseActionRuns() { previousActionFrameNumber=-2;currentActionFrameStart=previousActionFrameEnd=0;if(actionPublication!=null)publications.Remove(actionPublication);actionPublication?.Dispose();actionPublication=null; publicationRecovery?.Dispose();publicationRecovery=null; actionRuns?.Dispose(); actionRuns = null; }
 
     // Driver API: supply gameplay delta already selected by the caller. The frame maps
     // consumed driver seconds to the one unscaled source; it never reads attack stats.
@@ -110,10 +150,19 @@ public partial class PNSkill
 #if UNITY_5_3_OR_NEWER
         // Adjacent frames share the exact source boundary. Float unscaledDeltaTime
         // is not an exact difference of double source stamps.
-        if (previousActionFrameNumber == Time.frameCount - 1 && stamp >= previousActionFrameEnd)
-            begin = previousActionFrameEnd;
-        previousActionFrameNumber = Time.frameCount;
-        previousActionFrameEnd = stamp;
+        // Parallel Actions execute separate frames in the same Unity frame. They
+        // all share its exact start; recomputing start from the float delta for
+        // the second Action manufactured sub-nanosecond hold/resume boundaries.
+        if (previousActionFrameNumber == Time.frameCount)
+            begin = currentActionFrameStart;
+        else
+        {
+            if (previousActionFrameNumber == Time.frameCount - 1 && stamp >= previousActionFrameEnd)
+                begin = previousActionFrameEnd;
+            currentActionFrameStart = begin;
+            previousActionFrameNumber = Time.frameCount;
+            previousActionFrameEnd = stamp;
+        }
 #endif
         return actionFrame = new PNActionExecutionFrame(this, delta, raw, stamp, begin);
     }
@@ -144,9 +193,10 @@ public partial class PNSkill
         public void Hold(PNSkillActionContext context) { var begin = Stamp; Stamp = end; Record(context, begin, end, 0, 0); }
         private static void Record(PNSkillActionContext context, double begin, double stamp, double step, double rate)
         {
-            if (context?.RunStore == null) return;
+            if (context?.RunStore == null || !ReferenceEquals(context.RunStore,context.Skill?.actionRuns)) return;
             stamp = Math.Max(stamp, context.RunStamp);
             context.RunProgress += step; context.RunStamp = stamp;
+            if(context.Skill?.publicationRecovery!=null)context.Skill.TrackAuthority(()=>context.Skill.publicationRecovery.Advance(context.RunKey,stamp,step,rate));
             if(ActionPublicationEnabled && context.Skill?.actionPublication!=null)context.Skill.Publish(()=>context.Skill.actionPublication.Advance(context.RunKey,Math.Min(begin,stamp),stamp,step,rate));
             context.RunStore.AdvanceInterval(context.RunKey, Math.Min(begin, stamp), stamp, step, rate);
         }

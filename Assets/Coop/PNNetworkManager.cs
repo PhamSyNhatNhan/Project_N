@@ -21,6 +21,7 @@ namespace ProjectN.Coop
             public double RetiringAt;
             public NetworkConnectionToClient OwnerConnection;
             public double AwaitingAt;
+            public readonly ActionBindingState Actions=new ActionBindingState();
             public readonly StatBindingState Stats=new StatBindingState();
             public readonly BuffBindingState Buffs=new BuffBindingState();
             public readonly MoveBindingState Movement=new MoveBindingState();
@@ -42,6 +43,7 @@ namespace ProjectN.Coop
             InitializeMove();
             InitializeWorldReplication();
             InitializeSync();
+            InitializeActions();
             if(Transfers==null)throw new InvalidOperationException("World transfer service is not attached.");
             Transfers.Transport=this;
         }
@@ -57,7 +59,7 @@ namespace ProjectN.Coop
             }
             // Keep adapter services reachable if binding cleanup needs a retry.
             if(errors.Count!=0)throw new AggregateException("Binding cleanup failed.",errors);
-            DisposeSync();DisposeWorldReplication();DisposeBuff();DisposeMove();
+            DisposeActions();DisposeSync();DisposeWorldReplication();DisposeBuff();DisposeMove();
             foreach(var value in initialStates)if(inbox.Contains(value.Key,value.Value.Token))inbox.Release(value.Key,value.Value.Token);
             initialStates.Clear();peerFences.Clear();clientFence.Clear();stateAdapters.Clear();subscribedSession=null;
         }
@@ -70,6 +72,7 @@ namespace ProjectN.Coop
         private void CleanupBinding(Binding binding)
         {
             var errors=new List<Exception>();
+            CleanupStep(errors,()=>UnhookAction(binding));
             CleanupStep(errors,()=>UnhookMove(binding));
             CleanupStep(errors,()=>UnhookBuff(binding));
             CleanupStep(errors,()=>UnhookStat(binding));
@@ -96,7 +99,7 @@ namespace ProjectN.Coop
         {
             if(stopping||!IsPlaying)return;
             if(fatalSerialization){StopSession();return;}
-            try{PumpMove();PumpBuff();PumpSync();}catch(Exception error){ProtocolFailure(error,NetworkServer.active);return;}
+            try{PumpMove();PumpBuff();PumpActions();PumpSync();}catch(Exception error){ProtocolFailure(error,NetworkServer.active);return;}
             if(!NetworkServer.active)return;
             try
             {
@@ -284,7 +287,7 @@ namespace ProjectN.Coop
                 var binding=new Binding {Shell=shell,Metadata=metadata,Token=initial.Token,WorldSubscriptionRevision=worldSubscription.Offer.Ticket.Subscription,WorldLease=request.World.AcquireLease("replication binding",EveWorldLeaseKind.Resident)};bindings.Add(shell.netId,binding);initialStates.Remove(shell.netId);
                 binding.Candidate=PNEntitySpawner.Enqueue(Scheduler,Factory,request,loader=>
                 {ConfigureMove(binding,loader);loader.GetComponent<EveEntityIdentity>().Assign(new EveEntityId(metadata.Entity),EveId.Parse(metadata.Character),metadata.Owner,metadata.Generation);},loader=>
-                {PublishBindingStages(binding);PublishBuff(binding);Factory.Published(loader);PublishMove(binding);inbox.Release(shell.netId,binding.Token);SetInput(binding,clientInputReady);},error=>FailActor(binding,error),loader=>{CommitBuff(binding);StageStat(binding,loader);inbox.Apply(shell.netId,binding.Token,bytes=>ApplyLatestState(loader,bytes),bytes=>ApplyRequiredEvent(loader,bytes));},loader=>PrepareBuff(binding,loader)&&PrepareMove(binding,loader),()=>!session.Entities.IsReserved(new EveEntityId(metadata.Entity)),factoryPublished:false);
+                {PublishBindingStages(binding);PublishBuff(binding);Factory.Published(loader);PublishMove(binding);inbox.Release(shell.netId,binding.Token);SetInput(binding,clientInputReady);},error=>FailActor(binding,error),loader=>{CommitBuff(binding);StageStat(binding,loader);inbox.Apply(shell.netId,binding.Token,bytes=>ApplyLatestState(loader,bytes),bytes=>ApplyRequiredEvent(loader,bytes));},loader=>PrepareBuff(binding,loader)&&PrepareMove(binding,loader)&&PrepareAction(binding,loader),()=>!session.Entities.IsReserved(new EveEntityId(metadata.Entity)),factoryPublished:false);
                 if(shell.HasMove)RequestMove(binding,true);
                 if(shell.HasBuff)NetworkClient.Send(new PNBuffBaselineRequest{Stream=Stream(binding)});
             }
@@ -471,7 +474,7 @@ namespace ProjectN.Coop
         private void SetInput(Binding binding,bool allowed)
         {
             var loader=binding.Candidate?.Loader;if(loader==null)return;
-            allowed=allowed&&WorldInputAllowed(binding)&&BuffClockPrepared(binding)&&(binding.Shell?.HasMove!=true||binding.Movement.Attached&&(NetworkServer.active||binding.Movement.Component?.MovementBaselineApplied==true));
+            allowed=allowed&&WorldInputAllowed(binding)&&BuffClockPrepared(binding)&&ActionPrepared(binding)&&(binding.Shell?.HasMove!=true||binding.Movement.Attached&&(NetworkServer.active||binding.Movement.Component?.MovementBaselineApplied==true));
             if(!allowed&&!NetworkServer.active&&IsClientBindingCurrent(binding)&&binding.Movement.Component?.MovementHeld==false&&binding.Shell.HasMove)RequestMove(binding,true);
             binding.Movement.Component?.SetMovementHeld(!allowed);
             var gate=loader.GetComponent<PNNetworkInputGate>()??loader.gameObject.AddComponent<PNNetworkInputGate>();

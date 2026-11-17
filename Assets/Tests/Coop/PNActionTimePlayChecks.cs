@@ -160,7 +160,7 @@ namespace ProjectN.Coop.Tests
                 }
                 Action<NetworkDiagnostics.MessageInfo> incoming=info=>Packet("in",info),outgoing=info=>Packet("out",info);
                 NetworkDiagnostics.InMessageEvent+=incoming;NetworkDiagnostics.OutMessageEvent+=outgoing;
-                probe.Tick=()=>{if(!session.IsActive)return;var s=clock.Sample();c3?.Tick(s.Local);var at=subject.transform.position;
+                probe.Tick=()=>{if(!session.IsActive)return;var actionManager=NetworkManager.singleton as PNNetworkManager;var s=clock.Sample();c3?.Tick(s.Local);var at=subject.transform.position;
                     if (Environment.GetCommandLineArgs().Contains("--pn-action-producer"))
                     {
                         var records = host ? PNSkillCastView.ParseRuns(cast.Capture(), out _) : cast.ReceivedRuns;
@@ -171,6 +171,7 @@ namespace ProjectN.Coop.Tests
                             producerFailure = new Exception("T5.1 producer progress differs from actual sweep elapsed");
                     }
                     output.WriteLine(JsonConvert.SerializeObject(new{pulse=currentPulse,frame=Time.frameCount,local=s.Local,host=s.Host,presentation=s.Presentation,ready=s.Ready,uncertainty=s.Uncertainty,
+                        actionSent=actionManager?.ActionPacketsSent??0,actionPeers=actionManager?.ActionPeerCount??0,actionPrepared=actionManager?.ActionPreparedBindings??0,actionSequence=actionManager?.ActionAppliedSequence??0,actionQueue=actionManager?.ActionQueuedBytes??0,actionReceive=actionManager?.ActionReceiveBytes??0,actionRecoveries=actionManager?.ActionRecoveries??0,actionVisibleSkipped=actionManager?.ActionKnownVisibleSkipped??0,actionUnknownResets=actionManager?.ActionUnknownCoverageResets??0,
                         x=at.x,z=at.z,role=subject.NetworkRole.ToString(),observed=skill.ObservedActionCount,played=cast.PlayedCount,serial=cast.LastSerial,busy=skill.IsBusy,
                         pending=remote.PendingPredictions,ack=remote.AckedKey,castKey=skill.CurrentInvocation?.CastKey??0,
                         attackSpeed=host?stat.Evaluate(PNContentIds.AttackSpeed):0,globalRate=Time.timeScale,entityRate=entityClock!=null?entityClock.Scale:1}));

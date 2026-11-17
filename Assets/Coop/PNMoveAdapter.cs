@@ -134,7 +134,7 @@ namespace ProjectN.Coop
         {
             int size=MovePacketBytes(p);
             long peerTotal=movePeers.Values.Where(x=>x.Connection==peer.Connection).Sum(x=>(long)x.Bytes)+buffPeers.Values.Where(x=>x.Connection==peer.Connection).Sum(x=>(long)x.Bytes);
-            if(peer.Queue.Count>=64||peer.Bytes+size>262144||peerTotal+size>8*1024*1024||(long)hostMoveBytes+hostBuffBytes+size>32*1024*1024)throw new InvalidOperationException("Move required send queue bound.");
+            if(peer.Queue.Count>=64||peer.Bytes+size>262144||peerTotal+ActionPeerBytes(peer.Connection.connectionId)+size>8*1024*1024||(long)hostMoveBytes+hostBuffBytes+actionSendLedger.Used+size>32*1024*1024)throw new InvalidOperationException("Move required send queue bound.");
             peer.Queue.Enqueue((p,size));peer.Bytes+=size;hostMoveBytes+=size;
         }
         private bool QueueMoveBaseline(MovePeer peer,out long revision)
@@ -214,7 +214,7 @@ namespace ProjectN.Coop
                 }
                 bool coherent=b.Movement.Component.MovementBaselineApplied&&!b.Movement.AwaitingBaseline&&(b.Movement.Component.OwnerMovement?.Mirror==null||life!=null&&b.Movement.Component.OwnerMovement.Mirror.LifeRevision==life.LifeRevision);
                 if(!b.Movement.Component.MovementHeld&&(clientInterrupted>=0||paused))RequestMove(b,true);
-                b.Movement.Component.SetMovementHeld(!coherent||!WorldInputAllowed(b)||!BuffClockPrepared(b)||!clientInputReady||clientInterrupted>=0||paused);
+                b.Movement.Component.SetMovementHeld(!coherent||!WorldInputAllowed(b)||!BuffClockPrepared(b)||!ActionPrepared(b)||!clientInputReady||clientInterrupted>=0||paused);
                 if(b.Movement.Component.NetworkRole==PNMoveNetworkRole.Observer&&coherent&&!paused&&clientInterrupted<0)
                 {
                     if(b.Movement.Pose.HasValue&&b.Movement.Pose.Value.Revision<=(long)b.Movement.Component.AppliedMovementControl)
@@ -263,13 +263,25 @@ namespace ProjectN.Coop
             b.Movement.Component=null;
         }
         private void DisposeMove(){foreach(var p in movePeers.Values.ToArray())RemoveMovePeer(p);moveWorld?.Dispose();moveWorld=null;}
-        private int sendBudgetFrame=-1,sendBudgetBytes,sendBudgetMessages;
+        private int sendBudgetFrame=-1,sendBudgetBytes,sendBudgetMessages,otherSendBytes,actionFrameBytes,actionFrameMessages;
         private readonly Dictionary<int,(int Bytes,int Messages)> peerSendBudget=new Dictionary<int,(int,int)>();
-        private bool TakeSendBudget(int connection,int bytes)
+        private readonly Dictionary<int,int> actionFramePeerMessages=new Dictionary<int,int>();
+        private readonly Dictionary<int,int> actionFramePeerBytes=new Dictionary<int,int>();
+        private readonly Dictionary<int,int> otherPeerBytes=new Dictionary<int,int>();
+        private bool TakeSendBudget(int connection,int bytes,bool action=false)
         {
-            if(sendBudgetFrame!=Time.frameCount){sendBudgetFrame=Time.frameCount;sendBudgetBytes=sendBudgetMessages=0;peerSendBudget.Clear();}
+            if(sendBudgetFrame!=Time.frameCount){sendBudgetFrame=Time.frameCount;sendBudgetBytes=sendBudgetMessages=otherSendBytes=actionFrameBytes=actionFrameMessages=0;peerSendBudget.Clear();otherPeerBytes.Clear();actionFramePeerBytes.Clear();actionFramePeerMessages.Clear();}
             peerSendBudget.TryGetValue(connection,out var used);
             if(sendBudgetMessages>=512||sendBudgetBytes+bytes>256*1024||used.Messages>=128||used.Bytes+bytes>64*1024)return false;
+            actionFramePeerMessages.TryGetValue(connection,out int actionMessages);
+            if(ActionsEnabled&&!action&&(sendBudgetMessages-actionFrameMessages>=384||used.Messages-actionMessages>=96))return false;
+            if(action&&(actionFrameMessages>=128||actionMessages>=32))return false;
+            otherPeerBytes.TryGetValue(connection,out int other);
+            if(ActionsEnabled&&!action&&(otherSendBytes+bytes>192*1024||other+bytes>48*1024))return false;
+            actionFramePeerBytes.TryGetValue(connection,out int actionUsed);
+            if(action&&(actionFrameBytes+bytes>64*1024||actionUsed+bytes>16*1024))return false;
+            if(action){actionFrameMessages++;actionFramePeerMessages[connection]=actionMessages+1;actionFrameBytes+=bytes;actionFramePeerBytes[connection]=actionUsed+bytes;}
+            if(!action){otherPeerBytes[connection]=other+bytes;otherSendBytes+=bytes;}
             sendBudgetMessages++;sendBudgetBytes+=bytes;peerSendBudget[connection]=(used.Bytes+bytes,used.Messages+1);return true;
         }
         private bool TryMoveSend(NetworkConnectionToClient connection,PNMovePacket packet,int channel)
