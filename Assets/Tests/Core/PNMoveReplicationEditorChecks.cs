@@ -131,7 +131,7 @@ public static class PNMoveReplicationEditorChecks
         {
             Physics.simulationMode=SimulationMode.Script;
             Begin(EveSessionRole.Host);var session=EveRegistrySession.Context;hostId=session.SessionId;session.Admission.AdmitPeer(7,compatibility);session.Admission.AdmitPeer(8,compatibility);
-            Floor();var local=Actor(5001,0);var remote=Actor(5002,7);var body=local.Body;
+            Floor();var local=Actor(5001,0);var remote=Actor(5002,7,"shared");var body=local.Body;
             Physics.SyncTransforms();for(int i=0;i<40;i++){local.Tick();Physics.Simulate(.02f);}local.Tick();Check(local.IsGrounded,"native ground sensing on real collider pos="+local.Body.position+" vel="+local.Body.linearVelocity+" bounds="+local.GetComponent<CapsuleCollider>().bounds+" ready="+local.IsReady+" scale="+local.MovementTimeScale+" hits="+Physics.SphereCastAll(local.Body.position, .2f, Vector3.down, 4).Length);
             local.SetMoveDirection(Vector2.right);var start=body.position;for(int i=0;i<5;i++){local.Tick();Physics.Simulate(.02f);}
             Check(body.position.x>start.x+.1f,"native locomotion integrates real Rigidbody");
@@ -142,6 +142,24 @@ public static class PNMoveReplicationEditorChecks
                 world.Track(local,false);world.Track(remote,true);Check(remote.Body.isKinematic && !remote.IsReady,"host remote body has no locomotion writer");
                 var remoteId=remote.NetworkIdentity(session.SessionId);
                 Check(world.Receive(new MoveBaselineRequest(remoteId,1),7,.9)==MoveReportResult.Accepted,"actual adapter answers owner bootstrap request");
+                var remoteSkill = remote.GetComponent<PNSkill>();
+                using (var motion = (PNMotionAction)remoteSkill.CreateAction(PNGameplayContentModule.PlayerDash, out var motionContext, direction: Vector3.right))
+                {
+                    remote.Body.interpolation = RigidbodyInterpolation.Interpolate;
+                    var position = remote.Body.position;
+                    var transformPosition = remote.transform.position;
+                    motion.BindMovementOwner(() => { });
+                    motion.Start(motionContext);
+                    motion.Perform(motionContext);
+                    Check(remote.HasActiveMotion && !remote.CanMove, "remote owner host retains motion registration and control lock");
+                    motion.Advance(PNMotionSettings.Parse(motionContext.Data.Action.Perform).Duration);
+                    Check(motion.IsComplete && remote.Body.position == position && remote.transform.position == transformPosition &&
+                        remote.Body.interpolation == RigidbodyInterpolation.Interpolate,
+                        "remote owner host completes the motion timeline without writing pose or interpolation");
+                    motion.Exit(motionContext);
+                    Check(!remote.HasActiveMotion && remote.CanMove, "remote owner host releases registration and control lock at Exit");
+                    remote.Body.interpolation = RigidbodyInterpolation.None;
+                }
                 local.TeleportToPoint(new Vector2(local.Body.position.x+1,local.Body.position.z),0);
                 void Collect(long peer,double time,List<object> sink)
                 {
@@ -225,7 +243,7 @@ public static class PNMoveReplicationEditorChecks
             End();
 
             Begin(EveSessionRole.Client);session=EveRegistrySession.Context;session.Admission.AdmitHost(hostId,compatibility,7);Floor();
-            var owner=Actor(5002,7);var other=Actor(5001,0);body=owner.Body;
+            var owner=Actor(5002,7,"shared");var other=Actor(5001,0,"shared");body=owner.Body;
             using(var client=new PNMoveNativeClient(session,hostId))
             {
                 client.Bind(owner);client.Bind(other);Check(!owner.IsReady && !owner.CanWriteMotion,"owner blocked until coherent Move baseline");
@@ -236,6 +254,28 @@ public static class PNMoveReplicationEditorChecks
                 owner.SetMoveDirection(Vector2.right);start=body.position;for(int i=0;i<5;i++){owner.Tick();Physics.Simulate(.02f);}
                 Check(body.position.x>start.x+.1f,"native owner prediction moves client Rigidbody");
                 object[] reports=null;Check(client.SendReports(batch=>{reports=batch;return true;}) && reports.Length>0 && reports.All(b=>b is MovePoseReport),"native per-fixed reports on compact channel");
+                var ownerSkill = owner.GetComponent<PNSkill>();
+                using (var motion = (PNMotionAction)ownerSkill.CreateAction(PNGameplayContentModule.PlayerDash, out var motionContext, direction: Vector3.right))
+                {
+                    motionContext.Mode = PNSkillMode.Predicted;
+                    owner.Body.interpolation = RigidbodyInterpolation.Interpolate;
+                    int cancellations = 0;
+                    motion.BindMovementOwner(() => cancellations++);
+                    var position = owner.Body.position;
+                    var duration = PNMotionSettings.Parse(motionContext.Data.Action.Perform).Duration;
+                    motion.Start(motionContext);
+                    motion.Perform(motionContext);
+                    motion.Advance(duration / 2);
+                    Check(owner.Body.position.x > position.x + .1f && owner.HasActiveMotion &&
+                        owner.Body.interpolation == RigidbodyInterpolation.None && owner.CanMove,
+                        "predicted owner dash moves the real Rigidbody without an authority control lock");
+                    owner.CancelWorldMotion();
+                    position = owner.Body.position;
+                    motion.Advance(duration);
+                    Check(cancellations == 1 && !owner.HasActiveMotion && owner.Body.position == position &&
+                        owner.Body.interpolation == RigidbodyInterpolation.Interpolate,
+                        "world transfer invalidates owner motion, restores interpolation and fences stale pose writes");
+                }
                 var identity=owner.NetworkIdentity(hostId);var old=owner.OwnerMovement.Mirror;
                 var frozen=new MoveMirror(identity,MoveOrder.Next(old.Revision),old.LifeRevision,false,old.Rights,old.MoveSpeed,old.JumpSpeed,0,0,old.MotionPermissions);
                 client.Receive((frozen));
@@ -248,6 +288,24 @@ public static class PNMoveReplicationEditorChecks
                 Check(body.linearVelocity.y>5.9f && body.constraints==RigidbodyConstraints.FreezeRotation && body.useGravity,"native thaw uses corrected resume velocity and restores owned physics");
                 foreach(var bytes in observerWire)client.Receive(bytes);client.AdvanceObservers(1.15);
                 Check(other.Body.isKinematic && other.ObserverMovement.Count>0,"native observer applies compact samples without locomotion");
+                var observerSkill = other.GetComponent<PNSkill>();
+                using (var motion = (PNMotionAction)observerSkill.CreateAction(PNGameplayContentModule.PlayerDash, out var motionContext, direction: Vector3.right))
+                {
+                    motionContext.Mode = PNSkillMode.Observed;
+                    other.Body.interpolation = RigidbodyInterpolation.Interpolate;
+                    var position = other.Body.position;
+                    var transformPosition = other.transform.position;
+                    motion.Start(motionContext);
+                    motion.Perform(motionContext);
+                    var duration = PNMotionSettings.Parse(motionContext.Data.Action.Perform).Duration;
+                    motion.Advance(duration / 2);
+                    Check(!motion.IsComplete && !other.HasActiveMotion, "observed motion advances without registering a writer");
+                    motion.Advance(duration);
+                    motion.Exit(motionContext);
+                    Check(motion.IsComplete && other.Body.position == position && other.transform.position == transformPosition &&
+                        other.Body.interpolation == RigidbodyInterpolation.Interpolate,
+                        "observed motion completes without writing pose or interpolation");
+                }
                 other.GetComponent<EveEntityLoader>().Unload();client.AdvanceObservers(2);
                 Check(other.ObserverMovement==null,"client adapter retires unloaded observer");
                 owner.DisableMove();Check(!owner.CanWriteMotion && owner.OwnerMovement==null,"disable invalidates prediction and pending state");

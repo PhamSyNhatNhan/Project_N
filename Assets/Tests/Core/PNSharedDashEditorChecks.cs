@@ -53,7 +53,19 @@ public static class PNSharedDashEditorChecks
             Check(!first.IsDashing && body.interpolation==RigidbodyInterpolation.Interpolate,"Disabling player skill leaked motion/interpolation state.");first.EnableSkill();
             first.GetComponent<EveEntityLoader>().Unload();first.GetComponent<EveEntityLoader>().Load(hub);
             Check(first.DashRecovery.Current==3 && !first.IsDashing,"Reload leaked shared Dash state.");
-            return "PASS "+checks+" native shared Dash checks; two non-Eve players, no Eve content, Rigidbody movement, independent recovery and lifecycle.";
+            var start = body.position;
+            var wall = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            SceneManager.MoveGameObjectToScene(wall, preview);
+            wall.transform.position = start + new Vector3(.65f, .3f, 0);
+            wall.transform.localScale = new Vector3(.2f, 2f, 2f);
+            Physics.SyncTransforms();
+            Check(first.TryDash(), "Shared dash starts towards a real wall.");
+            first.TickDash(.2f);
+            float progress = body.position.x - start.x;
+            Check(progress > .2f && progress < .5f && !first.IsDashing &&
+                body.interpolation == RigidbodyInterpolation.Interpolate,
+                "Planar sweep clips dash on the wall and restores interpolation.");
+            return "PASS "+checks+" native shared Dash checks; real Rigidbody, wall clipping, independent recovery and lifecycle.";
         }
         finally
         {

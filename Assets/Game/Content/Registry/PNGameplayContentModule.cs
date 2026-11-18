@@ -127,6 +127,7 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         hub.EntityModules().Register(new PNEntityModuleDefinition(EveId.Parse("project_n:rogue_buff_player"),PNEntityModuleRoles.Player,null,new[]{PNRunFeatures.RogueBuff},new[]{typeof(PNSyncEntity),typeof(PNRogueEntityView),typeof(PNRogueBuffManager)}));
         // The owner's skill state (Abilities + view binding), sent only to the owner (Docs/SkillNetworkingAPlan.md S1).
         hub.SyncStates().Register(new PNSyncStateDefinition(PNSkillOwnerView.State,2,PNSkillOwnerView.StateBytes,PNSyncTargets.Entity,true));
+        hub.SyncStates().Register(new PNSyncStateDefinition(PNSkillScaleState.State,1,PNSkillScaleState.StateBytes,PNSyncTargets.Entity));
         hub.SyncCommands().Register(new PNSyncCommandDefinition(PNSkillOwnerView.BaselineCommand,typeof(PNSkillOwnerBaselineHandler),()=>new PNSkillOwnerBaselineHandler(),32,PNSyncTargets.Entity));
         hub.SyncStates().Register(new PNSyncStateDefinition(PNSkillCastView.State,2,PNSkillCastView.StateBytes,PNSyncTargets.Entity));
         hub.SyncStates().Register(new PNSyncStateDefinition(PNPresentationSync.State,1,PNPresentationSync.StateBytes,PNSyncTargets.Entity));
@@ -136,7 +137,7 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         // The hits the owner's client saw and its choices at decision points (S4-S5): proposals the authority checks, never orders.
         hub.SyncCommands().Register(new PNSyncCommandDefinition(PNSkillRemoteInput.HitCommand,typeof(PNSkillHitCommandHandler),()=>new PNSkillHitCommandHandler(),PNSkillRemoteInput.HitCommandBytes,PNSyncTargets.Entity));
         hub.SyncCommands().Register(new PNSyncCommandDefinition(PNSkillRemoteInput.DecisionCommand,typeof(PNSkillDecisionCommandHandler),()=>new PNSkillDecisionCommandHandler(),PNSkillRemoteInput.DecisionCommandBytes,PNSyncTargets.Entity));
-        hub.EntityModules().Register(new PNEntityModuleDefinition(EveId.Parse("project_n:skill_owner_player"),PNEntityModuleRoles.Player,null,new[]{PNRunFeatures.SkillSync},new[]{typeof(PNSyncEntity),typeof(PNSkillOwnerView),typeof(PNSkillRemoteInput),typeof(PNSkillCastView),typeof(PNPresentationSync)}));
+        hub.EntityModules().Register(new PNEntityModuleDefinition(EveId.Parse("project_n:skill_owner_player"),PNEntityModuleRoles.Player,null,new[]{PNRunFeatures.SkillSync},new[]{typeof(PNSyncEntity),typeof(PNSkillOwnerView),typeof(PNSkillRemoteInput),typeof(PNSkillCastView),typeof(PNPresentationSync),typeof(PNSkillScaleState)}));
         // The two things an enemy owes a room (G6), answered by the world's features instead of flags on the role: the clear marker the room director counts and the loot source.
         hub.EntityModules().Register(new PNEntityModuleDefinition(EveId.Parse("project_n:room_clear_enemy"),PNEntityModuleRoles.None,new[]{PNEntityGameplayContent.Enemy},new[]{PNRunFeatures.RoomClear},new[]{typeof(PNRoomClearMarker)}));
         hub.EntityModules().Register(new PNEntityModuleDefinition(EveId.Parse("project_n:loot_enemy"),PNEntityModuleRoles.None,new[]{PNEntityGameplayContent.Enemy},new[]{PNRunFeatures.Loot},new[]{typeof(PNLootSource)}));
@@ -164,7 +165,11 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         // Puts a locomotion on the skill body for a while (Docs/SandboxPlan.md G12): the registered way for a skill to fly or cross a hole. Not wired into any existing skill.
         hub.Actions().Register(new PNSkillActionDefinition(LocomotionAction, typeof(PNLocomotionAction), ValidateEffectAction, PNSkillContextRequirements.None));
 #endif
-        hub.Actions().Register(new PNSkillActionDefinition(SweepAction, typeof(EveSweepAction), ValidateEffectAction, PNSkillContextRequirements.Direction).ReplayOnObservers().WithDriverProgress());
+        var sweep = new PNSkillActionDefinition(SweepAction, typeof(EveSweepAction), ValidateEffectAction, PNSkillContextRequirements.Direction).ReplayOnObservers().WithDriverProgress();
+#if UNITY_5_3_OR_NEWER
+        sweep.WithScaledPresentation(PNContentIds.MeleeScale,EveSweepVisual.CreatePresentation);
+#endif
+        hub.Actions().Register(sweep);
         hub.Actions().Register(new PNSkillActionDefinition(MotionAction,typeof(PNMotionAction), ValidateEffectAction, PNSkillContextRequirements.Direction));
         hub.Actions().Register(new PNSkillActionDefinition(EveId.Parse("project_n:buff_action"), typeof(PNBuffAction), ValidateEffectAction, PNSkillContextRequirements.None,
             (data, context) => { var obj = PNBuffContentBatch.Object(data); context.Require<PNSkillOperationDefinition>(obj["operationId"], "operationId"); context.Registry.Operations().Get(context.Read(obj["operationId"], "operationId")).ValidateReferences(obj["data"], context); }));
@@ -265,6 +270,11 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         // A room names the map it is played on: the world must be registered (that its keys exist in the map is checked when the world loads).
         foreach(var room in hub.RogueliteRooms().Snapshot().Values)
             if(!hub.Get<PNWorldDefinition>().TryGet(room.World,out _))throw new FormatException("Room "+room.Id+" uses unknown world "+room.World+".");
+#endif
+        foreach (var action in hub.Actions().Snapshot().Values)
+            if (action.PresentationScaleTag.HasValue) hub.Get<PNTagDefinition>().Get(action.PresentationScaleTag.Value);
+#if UNITY_5_3_OR_NEWER
+        PNSkillScaleState.SelectFactors(hub);
 #endif
         PNSkillBindingContent.Validate(hub);
         PNPetSettings.ValidateAll(hub);

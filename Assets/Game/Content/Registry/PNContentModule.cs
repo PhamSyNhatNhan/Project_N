@@ -81,7 +81,11 @@ public class PNContentModule : EveIContentModule, EveIContentFinalizeModule, Eve
             tags.Register(new PNTagDefinition(id));
         foreach (var id in new[] { PNContentIds.AttackTag, PNContentIds.SkillTag, PNContentIds.UltimateTag, PNContentIds.DashTag, PNContentIds.BurstTag })
             tags.Register(new PNTagDefinition(id));
-        foreach (var id in new[] { PNContentIds.ProjectileSpeed, PNContentIds.ProjectileScale, PNContentIds.ProjectileDamage, PNContentIds.ProjectileLifetime, PNContentIds.SummonDamage, PNContentIds.SummonScale, PNContentIds.AreaScale, PNContentIds.AreaDamage, PNContentIds.MeleeScale, PNContentIds.MeleeDamage, PNContentIds.BlastScale, PNContentIds.BlastDamage })
+        foreach (var id in new[] { PNContentIds.ProjectileSpeed, PNContentIds.ProjectileScale, PNContentIds.ProjectileLifetime,
+            PNContentIds.SummonScale, PNContentIds.AreaScale, PNContentIds.MeleeScale, PNContentIds.BlastScale })
+            tags.Register(new PNTagDefinition(id, skillReplicaFactor: true));
+        foreach (var id in new[] { PNContentIds.ProjectileDamage, PNContentIds.SummonDamage, PNContentIds.AreaDamage,
+            PNContentIds.MeleeDamage, PNContentIds.BlastDamage })
             tags.Register(new PNTagDefinition(id));
 
         var calculations = hub.GetOrCreate<PNStatCalculationDefinition>();

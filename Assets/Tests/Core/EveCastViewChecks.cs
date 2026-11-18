@@ -9,12 +9,14 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using ProjectN.Coop;
 
 // Docs/SkillNetworkingAPlan.md S6, Edit Mode, no Mirror: the authority's Eve raises a picture for each slash it starts, the block `project_n:skill_cast` carries the last few to every client, and an
 // observer's Eve plays them as pictures only (a slash arc, a motion trail, Burst on / off): no damage, no report, no Ability written; a replayed block plays nothing twice; the first block only sets the serial.
 public static class EveCastViewChecks
 {
-    public static string Run()
+    public static string Run() => Run(null);
+    public static string Run(string captureFolder)
     {
         if (EditorApplication.isPlaying || EveRegistrySession.State != EveSessionState.Stopped) throw new InvalidOperationException("Idle stopped Edit Mode required.");
         int n = 0; void Check(bool ok, string what) { if (!ok) throw new Exception("Cast view check " + n + ": " + what); n++; }
@@ -56,6 +58,9 @@ public static class EveCastViewChecks
             var service = new PNSyncService(hub, true, 0, EveRegistrySession.Context);
             var ownerView = actor.AddComponent<PNSkillOwnerView>(); var remote = actor.AddComponent<PNSkillRemoteInput>(); var view = actor.AddComponent<PNSkillCastView>();
             service.RegisterObject(target, skill); ownerView.OnBound(service, target); remote.OnBound(service, target); view.OnBound(service, target);
+            var scaleModifier = EveId.Parse("test:o1_report_scale");
+            var caster = actor.GetComponent<PNStat>();
+            caster.SetSource(scaleModifier, new[] { new EveStatModifier(PNContentIds.MeleeScale, 1d, 1) });
             skill.Bindings.TryGet(PNSkillSlots.Attack, out var attackProfile);
             Check(((JArray)view.Capture()["e"]).Count == 0, "before any cast the authority has nothing to show");
             service.ReceiveCommand(owner, target, PNSkillRemoteInput.Command, Input(1, PNSkillSlots.Attack, PNSkillInputPhase.Started, attackProfile));
@@ -69,6 +74,22 @@ public static class EveCastViewChecks
             var runs = PNSkillCastView.ParseRuns(hostBlock, out var envelope);
             Check(runs.Count == 1 && runs[0].Key.Ordinal == 1 && runs[0].Key.Cast == skill.CurrentInvocation.CastKey, "eager Action identity before any hit");
             var runKey = runs[0].Key;
+            caster.RemoveSource(scaleModifier);
+            var hitOrigin = actor.transform.position + skill.WeaponRig.HandOffset(Vector3.right);
+            var reportTarget = Root(hostScene, "O1 report target", 995061, "project_n:dummy", hitOrigin + Vector3.right * 3, 0);
+            var reportStat = reportTarget.AddComponent<PNEnemyStat>();
+            reportTarget.layer = PNLayers.Enemy;
+            reportTarget.AddComponent<EveEntityLoader>().Load(hub);
+            reportTarget.SetActive(true);
+            var health = reportStat.GetCurrent(PNContentIds.Health);
+            Check(skill.HitReceiverCount == 1 && !skill.DeliverReportedHit(reportStat, 0, 0),
+                "live sweep refuses a report outside its captured radius");
+            reportTarget.transform.position = hitOrigin + Vector3.right * 1.8f;
+            Check(skill.DeliverReportedHit(reportStat, 0, 0) && reportStat.GetCurrent(PNContentIds.Health) < health && !reportStat.IsDead,
+                "a report outside base reach applies authority damage at the captured scale");
+            var afterReport = reportStat.GetCurrent(PNContentIds.Health);
+            Check(!skill.DeliverReportedHit(reportStat, 0, 0) && reportStat.GetCurrent(PNContentIds.Health) == afterReport,
+                "the report cannot damage the same live target twice");
             var extra = new PNSkillActionContext(skill, EveId.Parse(runs[0].Data), skill.GetData(EveId.Parse(runs[0].Data)), hub, null, Vector3.right, skill.CurrentInvocation);
             extra.BeginAction(); Check(extra.ActionOrdinal == 2, "same cast same definition has separate eager ordinal");
             extra.CancelEffects();
@@ -81,6 +102,7 @@ public static class EveCastViewChecks
             Check(PNSkillCastView.ParseRuns(view.Capture(), out _).Single().Key.Equals(runKey), "same life rebind keeps producer key");
 
             for (int i = 0; i < 300 && skill.IsBusy; i++) { now += .01; skill.Tick(.01f); }
+            Check(skill.HitReceiverCount == 0, "completion releases the hit report receiver");
             service.ReceiveCommand(owner, target, PNSkillRemoteInput.Command, Input(3, PNSkillSlots.Attack, PNSkillInputPhase.Canceled, attackProfile));
             Check(service.TryGetLatest(target, PNSkillCastView.State, out _, out hostBlock) && view.PlayedCount == 0, "the authority never plays its own pictures");
             ownerView.OnUnbound(); remote.OnUnbound(); view.OnUnbound(); service.Dispose();
@@ -135,6 +157,104 @@ public static class EveCastViewChecks
             skill.AdvanceObservedActions(.01f);
             Check(string.Join(";", abilities.CaptureReplica().Select(i => i.Id + ":" + i.Amount + ":" + i.Active)) == before, "no Ability was written by anything the observer drew");
             Check(wireIsEmpty(skill), "nothing was sent or reported (no sink on an observer)");
+            if (captureFolder != null)
+            {
+                skill.SetObservedActionPresentation(true);
+                int legacyInvocations=EveSweepAction.Invocations;
+                Check(Send(Block(17,new object[]{17L,"action","base:eve_attack_right",1f,0f,0f}))&&
+                    skill.ObservedActionCount==0,"cutover suppresses the legacy sweep");
+                string dataId=hub.Skills.ResolveIdentity(EveId.Parse("base:eve_attack_right")).ToString();
+                string actionId=PNGameplayContentModule.SweepAction.ToString();
+                var settings=EveSweepSettings.Parse(skill.GetData(EveId.Parse(dataId)).Action.Perform);
+                Check(skill.CanPresentObservedAction(dataId,actionId),"selected definition supplies the sweep presentation");
+                var run=new PNActionRunKey(20,1);
+                using var source=new PNActionPublication();
+                var stream=new PNActionStream{Session=epoch,Source=source.Source,Entity=eveId,Generation=1,
+                    NetId=12,Nonce=1,Subscription=1,Scope=new PNWorldBindingScope{World=epoch,Incarnation=1,Membership=1,Subscription=1}};
+                var budget=new PNActionReceiveBudget();
+                using var receiver=new PNActionReceiver(budget,stream,1,8);
+                var frameRows=new List<PNObservedAction>();
+                var trace=new JArray();
+                Directory.CreateDirectory(captureFolder);
+                void Drain(PNActionSender sender,double stamp)
+                {
+                    while(sender.DrainOne(stamp,_=>true,packet=>Check(receiver.Receive(packet,stamp),"apply sweep payload"))){}
+                }
+                PNActionPresentationCoverage Draw(double stamp)
+                {
+                    var status=receiver.ReadPresentation(stamp,frameRows);
+                    foreach(var row in frameRows)
+                        skill.PresentObservedAction(row.Key,row.DataId,Vector3.right,row.Progress,true);
+                    skill.ReconcileObservedActionPresentation(status!=PNActionPresentationCoverage.Unknown,_=>null);
+                    trace.Add(new JObject{["presentation"]=stamp,["coverage"]=status.ToString(),
+                        ["cast"]=frameRows.Count==0?0:frameRows[0].Key.Cast,["ordinal"]=frameRows.Count==0?0:frameRows[0].Key.Ordinal,
+                        ["progress"]=frameRows.Count==0?0:frameRows[0].Progress});
+                    return status;
+                }
+                EveSweepVisual Visible()=>actor.GetComponentsInChildren<EveSweepVisual>().SingleOrDefault();
+                source.Begin(run,dataId,dataId,actionId,1,0,1);
+                source.Advance(run,1,1.1,settings.Duration*.36,settings.Duration*3.6);
+                using(var sender=new PNActionSender(source,stream,1,1.1,8,budget))
+                {
+                    Drain(sender,1.1);
+                    var ack=receiver.TryApply(1.1);
+                    Check(ack.HasValue&&sender.Confirm(ack.Value,1.1),"late join baseline ACK");
+                    Check(Draw(1.1)==PNActionPresentationCoverage.Active,"late join has active mid-sweep");
+                    var first=Visible();
+                    int firstStarts=skill.ObservedPresentationsStarted;
+                    Check(first!=null&&Math.Abs(first.Progress-.36f)<.0001f&&first.BladeSamples>1&&first.LiveParticles==0,
+                        "first frame renders current blade and recent ribbon without historical sparks");
+                    CaptureSweep(clientScene,first,captureFolder,"late-join");
+                    source.Advance(run,1.1,1.15,0,0);
+                    sender.Capture(1.15);Drain(sender,1.15);
+                    Check(Draw(1.15)==PNActionPresentationCoverage.Active&&Visible()==first&&Math.Abs(first.Progress-.36f)<.0001f,
+                        "hold keeps progress and the same renderer");
+                    CaptureSweep(clientScene,first,captureFolder,"before-recovery");
+                    var other=new PNActionRunKey(20,2);
+                    skill.PresentObservedAction(run,dataId,Vector3.right,settings.Duration*.36,false);
+                    skill.PresentObservedAction(other,dataId,Vector3.forward,settings.Duration*.4,true);
+                    skill.ReconcileObservedActionPresentation(true,_=>null);
+                    var second=actor.GetComponentsInChildren<EveSweepVisual>().Single(v=>v!=first);
+                    Check(Vector3.Distance(skill.WeaponRig.BladeTip,second.HeadPosition)<.001f,"one blade owner for overlapping run views");
+                    Draw(1.15);
+                    Check(Visible()==first&&Vector3.Distance(skill.WeaponRig.BladeTip,first.HeadPosition)<.001f,
+                        "retiring the previous blade owner leaves its replacement visible");
+                    stream.Subscription++;
+                    receiver.Reset(stream,2,8);
+                    Check(Draw(1.18)==PNActionPresentationCoverage.Unknown&&Visible()==null,"recovery hides on missing coverage");
+                    source.Advance(run,1.15,1.2,settings.Duration*.16,settings.Duration*3.2);
+                    using var recovery=new PNActionSender(source,stream,2,1.2,8,budget);
+                    Drain(recovery,1.2);
+                    ack=receiver.TryApply(1.2,1.15);
+                    Check(ack.HasValue&&recovery.Confirm(ack.Value,1.2),"recovery baseline ACK");
+                    Check(Draw(1.15)==PNActionPresentationCoverage.Active&&Visible()==first&&Math.Abs(first.Progress-.36f)<.0001f,
+                        "committed baseline retains covered older pose before cut");
+                    Check(Draw(1.2)==PNActionPresentationCoverage.Active&&Visible()==first&&Math.Abs(first.Progress-.52f)<.0001f&&
+                        skill.ObservedPresentationsStarted==firstStarts+1,
+                        "recovery at the cut shows the same sweep at resumed progress");
+                    CaptureSweep(clientScene,first,captureFolder,"recovery-cut");
+                    source.End(run,1.2,PNActionRunEnd.Cancelled);
+                    stream.Subscription++;
+                    receiver.Reset(stream,3,8);
+                    using var ended=new PNActionSender(source,stream,3,1.21,8,budget);
+                    Drain(ended,1.21);
+                    ack=receiver.TryApply(1.21,1.2);
+                    Check(ack.HasValue&&ended.Confirm(ack.Value,1.21),"ended-at-cut baseline applied");
+                    Check(Draw(1.21)==PNActionPresentationCoverage.Empty&&Visible()==null,"ended-at-cut sweep never reappears");
+                    source.Begin(other,dataId,dataId,actionId,1,0,1.22);
+                    source.Advance(other,1.22,1.32,settings.Duration*.4,settings.Duration*4);
+                    ended.Capture(1.32);Drain(ended,1.32);
+                    source.End(other,1.32,PNActionRunEnd.Cancelled);
+                    ended.Capture(1.33);Drain(ended,1.33);
+                    Check(Draw(1.31)==PNActionPresentationCoverage.Active&&Visible()!=null,"received cancellation remains visible before terminal");
+                    Check(Draw(1.32)==PNActionPresentationCoverage.Empty&&Visible()==null,"cancellation removes the sweep at terminal");
+                    Check(EveSweepAction.Invocations==legacyInvocations&&enemy.GetCurrent(PNContentIds.Health)==hp&&
+                        skill.CurrentInvocation==null&&wireIsEmpty(skill),"seek does not invoke gameplay, damage or reporting");
+                    Check(string.Join(";",abilities.CaptureReplica().Select(i=>i.Id+":"+i.Amount+":"+i.Active))==before,
+                        "seek does not mutate Ability");
+                }
+                File.WriteAllText(Path.Combine(captureFolder,"presentation.json"),trace.ToString());
+            }
 
             foreach (var bad in new JToken[] {
                 new JObject { ["n"] = 1 }, new JObject { ["e"] = new JArray() }, Block(1, new object[] { 1L, "sweep", "x", 0f }), Block(2, new object[] { 2L, "sweep", "x", 1f, 0f, 1f }, new object[] { 1L, "sweep", "x", 1f, 0f, 1f }),
@@ -151,5 +271,40 @@ public static class EveCastViewChecks
     }
 
     private static bool wireIsEmpty(EveCharacterSkill skill) => skill.ReportSink == null && skill.InputForwarder == null;
+
+    private static void CaptureSweep(Scene scene,EveSweepVisual sweep,string folder,string label)
+    {
+        var root=new GameObject("Sweep verification camera");
+        SceneManager.MoveGameObjectToScene(root,scene);
+        var camera=root.AddComponent<Camera>();
+        camera.enabled=false;camera.scene=scene;camera.orthographic=true;camera.orthographicSize=sweep.Radius*1.25f;
+        camera.clearFlags=CameraClearFlags.SolidColor;camera.backgroundColor=new Color(.02f,.02f,.03f);
+        camera.cullingMask=1<<sweep.gameObject.layer;
+        var pivot=sweep.AttackRoot.position;
+        root.transform.position=pivot+new Vector3(0,7,-4);
+        root.transform.LookAt(pivot);
+        var texture=new RenderTexture(480,480,24);
+        var output=new Texture2D(480,480,TextureFormat.RGB24,false);
+        var previous=RenderTexture.active;
+        try
+        {
+            texture.Create();
+            camera.targetTexture=texture;
+            camera.Render();
+            RenderTexture.active=texture;
+            output.ReadPixels(new Rect(0,0,480,480),0,0);
+            output.Apply();
+            if(output.GetPixels32().Count(p=>p.r>55&&p.r>p.b*1.2f)<20)
+                throw new Exception("Expected rendered sweep pixels at "+label);
+            File.WriteAllBytes(Path.Combine(folder,label+".png"),output.EncodeToPNG());
+        }
+        finally
+        {
+            RenderTexture.active=previous;
+            UnityEngine.Object.DestroyImmediate(root);
+            UnityEngine.Object.DestroyImmediate(output);
+            UnityEngine.Object.DestroyImmediate(texture);
+        }
+    }
 }
 #endif

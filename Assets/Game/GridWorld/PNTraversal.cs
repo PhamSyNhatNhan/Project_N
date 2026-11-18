@@ -79,6 +79,16 @@ public sealed class PNTraversal : MonoBehaviour, IPNLocomotionSource
         pushes.Clear(); registry = null; own = effective = replicated = null; layers = null; body = null; began = false; hasSafe = false; Falls = 0; nextHandle = 0; revision = 0;
     }
 
+    internal static PNTraversal ForAction(PNSkillActionContext context)
+    {
+        if (context.Mode != PNSkillMode.Authority) return null;
+        return context.Skill.GetComponent<PNTraversal>() ??
+            throw new InvalidOperationException("Locomotion action needs a body with a traversal (an entity spawned by the factory).");
+    }
+
+    internal int PushForAction(PNSkillActionContext context, EveId locomotion)
+        => context.Mode == PNSkillMode.Authority ? Push(locomotion) : 0;
+
     // Puts a locomotion on the body until it is popped; returns the handle to pop. The id must be registered.
     public int Push(EveId locomotion)
     {

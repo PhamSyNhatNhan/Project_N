@@ -120,12 +120,18 @@ namespace ProjectN.Coop.Tests
                 using var receiver=new PNActionReceiver(budget,stream,1,3);
                 long baseline=sender.SubmittedSequence;
                 int terminalCount=0;
+                bool sawComplete=false;
                 void Check(bool ok,string message){if(!ok)throw new Exception("Required backlog: "+message);}
                 void Drain(double now)
                 {
                     while(sender.DrainOne(now,_=>true,packet=>{
                         Check(receiver.Receive(Copy(packet),now),"receiver rejected packet");
                         if(packet.Kind!=1)return;
+                        if(packet.CompleteThroughCapture)
+                        {
+                            Check(packet.N==source.Sequence,"coverage advertised while required journal had unread rows");
+                            sawComplete=true;
+                        }
                         foreach(JArray row in PNActionWire.Decode(packet.Body))
                         {
                             if((int)row[0]!=4)continue;
@@ -146,6 +152,8 @@ namespace ProjectN.Coop.Tests
                 Drain(secondStamp);
                 double sample=secondStamp+.125;
                 Check(terminalCount>0&&terminalCount<keys.Length&&sender.Count==0,"expected unread terminals with an empty sender queue");
+                Check(!sawComplete&&receiver.ReadPresentation(secondStamp,null)==PNActionPresentationCoverage.Unknown,
+                    "partial drain cannot prove empty");
                 Check(sender.SubmittedSequence==baseline+terminalCount&&sender.OldestRequired(sample)==sample-secondStamp,"partial submission advances to second stamp");
                 Check(sender.OldestPending(sample)==sample-secondStamp,"combined age includes journal");
                 trace.Add(new JObject{["stall"]=stall,["submitted"]=sender.SubmittedSequence,["published"]=source.Sequence,["queueCount"]=sender.Count,["requiredAge"]=sender.OldestRequired(sample)});
@@ -164,11 +172,13 @@ namespace ProjectN.Coop.Tests
                     Drain(now);
                 }
                 Check(terminalCount==keys.Length&&receiver.AppliedSequence==source.Sequence,"terminal stream did not drain");
+                Check(sawComplete&&receiver.ReadPresentation(secondStamp,null)==PNActionPresentationCoverage.Empty,
+                    "final required prefix proves empty at terminal boundary");
                 Check(sender.OldestRequired(.5)==0&&sender.OldestPending(.5)==0,"drained age");
             }
             Directory.CreateDirectory(folder);
             File.WriteAllText(Path.Combine(folder,"required-backlog.json"),trace.ToString());
-            return "PASS required journal age, FIFO drain and ACK-gated recovery predicate";
+            return "PASS required journal age, FIFO drain, certified coverage and ACK-gated recovery predicate";
         }
         public static string RunDependencyClosure()
         {
@@ -200,6 +210,83 @@ namespace ProjectN.Coop.Tests
                 throw new Exception("Dependency closure did not drain");
             return $"PASS blocked needN: {eligible.Count} eligible and {released.Count} released";
         }
+        public static string RunPresentation()
+        {
+            int checks=0;
+            void Check(bool ok,string label)
+            {
+                if(!ok)throw new Exception("Action presentation "+label);
+                checks++;
+            }
+            var stream=new PNActionStream{Session=Guid.NewGuid(),Source=Guid.NewGuid(),NetId=1,Entity=2,
+                Generation=3,Subscription=1,Nonce=4,Scope=new PNWorldBindingScope{
+                    World=Guid.NewGuid(),Incarnation=1,Membership=1,Subscription=1}};
+            var budget=new PNActionReceiveBudget();
+            var rows=new System.Collections.Generic.List<PNObservedAction>();
+            using(var receiver=new PNActionReceiver(budget,stream,1,10))
+            {
+                long request=1;
+                JArray Key(long ordinal)=>new JArray(8L,ordinal);
+                JArray Context(double start)=>new JArray("test:e","test:d","test:a",1L,0d,1d,start);
+                void Baseline(double stamp,long seq,JArray runs,double? pose=null)
+                {
+                    var identity=new JArray(stream.Session.ToString("N"),stream.Scope.World.ToString("N"),
+                        1L,stream.Entity,stream.Generation,stream.Source.ToString("N"));
+                    foreach(var packet in PNActionWire.Pack(stream,request,1,stamp,seq,
+                        new JArray(2L,identity,1L,stamp,seq,runs),true))
+                        Check(receiver.Receive(Copy(packet),stamp),"accept baseline fragment");
+                    Check(receiver.TryApply(stamp,pose).HasValue,"commit baseline");
+                }
+                void Live(double stamp,long seq,bool complete,params JArray[] records)
+                {
+                    var batch=new JArray();
+                    foreach(var row in records)batch.Add(row);
+                    var packet=PNActionWire.Pack(stream,request,2,stamp,seq,batch,false).Single();
+                    packet.CompleteThroughCapture=complete;
+                    var roundtrip=Copy(packet);
+                    Check(roundtrip.CompleteThroughCapture==complete,"coverage bit roundtrip");
+                    Check(receiver.Receive(roundtrip,stamp),"apply live");
+                }
+                var unknown=PNActionPresentationCoverage.Unknown;
+                var empty=PNActionPresentationCoverage.Empty;
+                var active=PNActionPresentationCoverage.Active;
+                PNActionPresentationCoverage At(double stamp)=>receiver.ReadPresentation(stamp,rows);
+                Check(At(0)==unknown,"uncommitted");
+                Baseline(1,0,new JArray());
+                Check(At(.99)==unknown&&At(1)==empty&&At(1.01)==unknown,"initial cut");
+                Live(2.5,2,false,new JArray(0,1,Key(1),Context(2)),
+                    new JArray(2,2,Key(1),1,2,new JArray(2d,0d,2d)));
+                Check(At(2)==unknown&&rows.Count==0,"partial prefix does not certify");
+                Live(3.5,7,true,new JArray(0,3,Key(2),Context(2.25)),
+                    new JArray(2,4,Key(2),1,2,new JArray(2.25,0d,1d)),
+                    new JArray(2,5,Key(1),1,3,new JArray(2.5,1d,0d)),
+                    new JArray(4,6,Key(2),3,2,3d,.75,1),
+                    new JArray(2,7,Key(1),1,4,new JArray(3.5,1d,2d)));
+                Check(At(1.99)==empty,"known empty before start");
+                Check(At(2.375)==active&&rows.Count==2&&rows.Single(r=>r.Key.Ordinal==1).Progress==.75,"overlap at selected stamp");
+                Check(At(2.99)==active&&rows.Count==2,"cancel already received remains visible before end");
+                Check(At(3)==active&&rows.Count==1&&rows[0].Progress==1&&rows[0].Rate==0,"half-open end and hold");
+                Check(At(3.5)==active&&rows[0].Rate==2&&At(3.51)==unknown,"resume boundary and no extrapolation");
+                stream.Subscription++;request++;
+                receiver.Reset(stream,request,10);
+                Check(At(3.25)==active,"same-life recovery preserves covered pose");
+                Baseline(4,7,new JArray{new JArray(Key(1),Context(2),5,1,2d,2d)},3.25);
+                Check(At(3.25)==active&&rows[0].Progress==1&&At(3.75)==unknown,"early baseline preserves only known pre-cut data");
+                Check(At(4)==active&&rows.Count==1&&rows[0].Progress==2,"exact cut selects baseline for same run");
+                Live(4.5,7,true,new JArray(1,Key(1),6,4.5,3d,2d,1,7));
+                Check(At(4.25)==active&&rows[0].Progress==2.5,"post-cut seek");
+                Live(5,8,true,new JArray(3,8,Key(1),2,7,1,new JArray(4.75,3.5,0d)));
+                Check(At(4.5)==unknown&&rows.Count==0,"reset lost history");
+                Live(9,9,true,new JArray(4,9,Key(1),8,1,5d,3.5,2));
+                Check(At(5)==unknown&&At(6)==empty,"retention floor hides pruned terminal history");
+                stream.Subscription++;stream.Generation++;request++;
+                receiver.Reset(stream,request,12);
+                Check(At(6)==unknown&&budget.Used==0,"new life releases old coverage and charges");
+            }
+            Check(budget.Used==0,"dispose charge");
+            return $"PASS {checks} Action presentation checks";
+        }
+
         public static string Run(string folder)
         {
             int checks=0;void C(bool ok,string why){if(!ok)throw new Exception("Action B "+why);checks++;}
@@ -247,7 +334,7 @@ namespace ProjectN.Coop.Tests
             using(var scalarSource=new PNActionPublication())using(var scalarReader=new PNActionPublication.Subscription(scalarSource))
             {
                 var key=new PNActionRunKey(long.MinValue,long.MaxValue);
-                scalarSource.Begin(key,"test:e","test:d","test:a",0,-1,1);scalarSource.Advance(key,1,2,1,1);scalarSource.Advance(key,2,2,.25,1);scalarSource.Advance(key,2,2,.25,1);scalarSource.End(key,2,(PNActionRunEnd)1);
+                scalarSource.Begin(key,"test:e","test:d","test:a",0,-1,1,2.5);scalarSource.Advance(key,1,2,1,1);scalarSource.Advance(key,2,2,.25,1);scalarSource.Advance(key,2,2,.25,1);scalarSource.End(key,2,(PNActionRunEnd)1);
                 var records=scalarReader.ReadRequired(3000,256);
                 C(new[]{0,2,3,4}.All(kind=>records.Any(row=>row.RecordKind==kind)),"required parity fixture covers S/A/R/E");
                 var stream=new PNActionStream{Session=Guid.NewGuid(),Source=scalarSource.Source,NetId=4,Entity=5,Generation=6,Subscription=1,Nonce=7,Scope=new PNWorldBindingScope{World=Guid.NewGuid(),Incarnation=1,Membership=1,Subscription=1}};

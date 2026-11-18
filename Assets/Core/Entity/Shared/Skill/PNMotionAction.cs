@@ -2,9 +2,6 @@ using System;
 using UnityEngine;
 using Newtonsoft.Json.Linq;
 using EveEngine;
-#if UNITY_5_3_OR_NEWER
-using UnityEngine.SceneManagement;
-#endif
 
 // EN: Motion parameters are registered action data; skills only evaluate a shorter distance.
 // VI: Tham số di chuyển nằm trong dữ liệu action đã đăng ký; skill chỉ giới hạn khoảng cách.
@@ -47,24 +44,16 @@ public class PNMotionAction : PNSkillAction, IPNSkillMotionAction
 {
     public override bool HasAuxiliaryTimeline => true;
     public override bool AdvanceAuxiliary(float delta) { Advance(delta); return IsComplete; }
-    private Vector3 direction;
     private float distance, duration;
-    private bool ignoreEntities;
     private float elapsed, moved;
     private PNSkillActionContext context;
-    private PNSkillOperation movementLock;
+    private PNSkillPlanarMotion motion;
     private bool performed, disposed;
-    private PNMoveExecution movementExecution;
     private Action movementOwner;
     public void BindMovementOwner(Action cancel)
     { if(context!=null || disposed)throw new InvalidOperationException("Bind motion owner before Start."); movementOwner=cancel??throw new ArgumentNullException(nameof(cancel)); }
-#if UNITY_5_3_OR_NEWER
-    private RaycastHit[] sweepHits = new RaycastHit[16];
-    private Rigidbody movingBody;
-    private RigidbodyInterpolation previousInterpolation;
-#endif
-    // Set before Start by the owner's client when it only guesses this motion (Docs/SkillNetworkingAPlan.md S3): no Control lease is taken.
-    // G1: also true when the action's context says Predicted (its invocation's mode); the flag stays for callers that have no invocation.
+    // Compatibility for callers that still read/write this property in ModAPI 8.
+    // Execution uses the context and the Move role.
     private bool predictionFlag;
     public bool IsPrediction { get => predictionFlag || context != null && context.Mode == PNSkillMode.Predicted; set => predictionFlag = value; }
     public virtual bool IsComplete => elapsed >= duration;
@@ -72,36 +61,30 @@ public class PNMotionAction : PNSkillAction, IPNSkillMotionAction
     {
         if (context != null || disposed) throw new InvalidOperationException("Motion already started or disposed.");
         var settings=PNMotionSettings.Parse(value?.Data.Action.Perform);
-        if (value != null && !value.Skill.Controls.IsAllowed(settings.PermissionId)) throw new InvalidOperationException("Motion permission denied: " + settings.PermissionId);
         if(value==null || !value.Direction.HasValue)throw new ArgumentException("Motion needs a direction.");
-        direction=value.Direction.Value;direction.y=0;
+        var direction=value.Direction.Value;direction.y=0;
         double magnitude=Math.Sqrt((double)direction.x*direction.x+(double)direction.z*direction.z);
         if(magnitude==0)throw new ArgumentException("Motion needs a planar direction.");
         direction=new Vector3((float)(direction.x/magnitude),0,(float)(direction.z/magnitude));
-        duration=settings.Duration;ignoreEntities=settings.IgnoreEntities;
+        duration=settings.Duration;
         distance=(value as PNMotionActionContext)?.Distance ?? settings.Distance;
         if(float.IsNaN(distance)||float.IsInfinity(distance)||distance<0||distance>settings.Distance)
             throw new ArgumentOutOfRangeException(nameof(distance),"Evaluated motion distance must be inside registered maximum.");
-        var move=value.Skill.GetComponent<PNMove>();
-        if(move!=null && movementOwner==null)throw new InvalidOperationException("Motion on PNMove requires its execution owner before Start.");
-        context = value ?? throw new ArgumentNullException(nameof(value));
-        context.BeginAction();
-        if(move!=null && movementOwner!=null)
-            movementExecution=move.RegisterMotion(settings.PermissionId,()=>{try { movementOwner?.Invoke(); } finally { Dispose(); }});
-        // The lock Operation takes the Control lease only in Authority mode (a guess or a replay holds none).
-        movementLock = CreateOperation(context,EveId.Parse("base:lock_movement")); movementLock.Execute(context, null);
-#if UNITY_5_3_OR_NEWER
-        // EN: Update-driven motion must use the physics pose, never a delayed interpolated Transform.
-        // VI: Chuyển động trong Update dùng vị trí vật lý, không cộng vào Transform nội suy trễ.
-        movingBody=context.Skill.GetComponent<Rigidbody>();
-        if(movingBody!=null)
+        motion = new PNSkillPlanarMotion(value, settings, direction, movementOwner != null);
+        context = value;
+        try
         {
-            previousInterpolation=movingBody.interpolation;
-            movingBody.interpolation=RigidbodyInterpolation.None;
-            context.Skill.transform.position=movingBody.position;
-            Physics.SyncTransforms();
+            context.BeginAction();
+            motion.Begin(settings.PermissionId,
+                () => { try { movementOwner?.Invoke(); } finally { Dispose(); } },
+                () => CreateOperation(context, EveId.Parse("base:lock_movement")));
         }
-#endif
+        catch
+        {
+            motion?.Dispose();
+            motion = null;
+            throw;
+        }
     }
     public override void Perform(PNSkillActionContext value)
     {
@@ -112,64 +95,21 @@ public class PNMotionAction : PNSkillAction, IPNSkillMotionAction
     {
         if (float.IsNaN(delta) || float.IsInfinity(delta) || delta < 0) throw new ArgumentOutOfRangeException(nameof(delta));
         if (!performed || disposed || context == null || IsComplete || delta == 0) return;
-        if(!PNWorldGameplay.CanExecute(context.Skill))return;
-        if(movementExecution!=null && !movementExecution.IsValid)return;
-        // Host runs authoritative Skill effects for remote owners but never becomes a second pose writer.
-        var move=context.Skill.GetComponent<PNMove>();
-        bool remoteHost=move!=null && move.NetworkRole==PNMoveNetworkRole.RemoteOwnerHost;
-        if(move!=null && !remoteHost && !move.CanWriteMotion)return;
+        if (motion?.CanAdvance != true) return;
         elapsed = Math.Min(duration, elapsed + delta);
         float next = distance * elapsed / duration;
-        float step = Math.Max(0, next - moved); moved = next;
-        if(remoteHost)return;
-#if UNITY_5_3_OR_NEWER
-        var root = context.Skill;
-        var capsule = root.GetComponent<CapsuleCollider>();
-        if (capsule != null && step > 0)
-        {
-            var bounds = capsule.bounds;
-            float r = Math.Max(.02f, Math.Min(bounds.extents.x, bounds.extents.z) * .95f);
-            // EN: Leave vertical contact skin: a floor-touching cast can report -direction at distance zero.
-            // VI: Chừa khe tiếp xúc dọc; cast chạm sàn có thể trả pháp tuyến -direction và khoảng cách 0.
-            float half = Math.Max(0, bounds.extents.y - r - .02f);
-            int count;
-            do
-            {
-                count = root.gameObject.scene.GetPhysicsScene().CapsuleCast(bounds.center + Vector3.up * half,
-                    bounds.center - Vector3.up * half, r, direction, sweepHits, step + .03f, ~0, QueryTriggerInteraction.Ignore);
-                if (count < sweepHits.Length) break;
-                Array.Resize(ref sweepHits, sweepHits.Length * 2);
-            } while (true);
-            for (int i = 0; i < count; i++)
-            {
-                var hit = sweepHits[i];
-                if (hit.collider == null || hit.collider.transform.IsChildOf(root.transform)) continue;
-                if (ignoreEntities && hit.collider.GetComponentInParent<PNStat>() != null) continue;
-                // Physical enemy bodies may overlap; this does not disable hurtbox queries.
-                if (root.GetComponent<PNEnemyStat>() != null && (hit.collider.GetComponentInParent<PNEnemyStat>() != null ||
-                    Physics.GetIgnoreLayerCollision(root.gameObject.layer, hit.collider.gameObject.layer))) continue;
-                if (Vector3.Dot(direction, hit.normal) >= -.001f) continue;
-                step = Math.Min(step, Math.Max(0, hit.distance - .03f));
-            }
-        }
-        var position = (movingBody != null ? movingBody.position : root.transform.position) + direction * step;
-        if (movingBody != null) movingBody.position = position;
-        root.transform.position = position;
-        Physics.SyncTransforms();
-#else
-        context.Skill.transform.position += direction * step;
-#endif
+        float step = Math.Max(0, next - moved);
+        moved = next;
+        motion.Step(step);
     }
     public override void Exit(PNSkillActionContext value) { value.CompleteAction(); Dispose(); }
     public override void Cancel(PNSkillActionContext value) { value?.CancelEffects(); Dispose(); }
     public override void Dispose()
     {
         if(disposed)return;disposed=true;
-        movementExecution?.Dispose(); movementExecution=null; movementOwner=null;
-#if UNITY_5_3_OR_NEWER
-        if(movingBody!=null) movingBody.interpolation=previousInterpolation;
-        movingBody=null;
-#endif
-        movementLock?.Dispose(); movementLock = null; context = null;
+        motion?.Dispose();
+        motion = null;
+        movementOwner = null;
+        context = null;
     }
 }

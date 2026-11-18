@@ -7,9 +7,14 @@ public class PNTagDefinition : EveIIdentified
 {
     public virtual EveId Id { get; }
 
-    public PNTagDefinition(EveId id)
+    public bool SkillReplicaFactor { get; }
+
+    public PNTagDefinition(EveId id) : this(id, skillReplicaFactor: false) { }
+
+    public PNTagDefinition(EveId id, bool skillReplicaFactor)
     {
         if (!id.IsValid) throw new ArgumentException("Tag ID is required.", nameof(id));
         Id = id;
+        SkillReplicaFactor = skillReplicaFactor;
     }
 }

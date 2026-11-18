@@ -219,7 +219,15 @@ namespace ProjectN.Coop
                 {
                     if(b.Movement.Pose.HasValue&&b.Movement.Pose.Value.Revision<=(long)b.Movement.Component.AppliedMovementControl)
                     {b.Movement.Component.ObserverMovement.Receive(b.Movement.Pose.Value.Pose,true);b.Movement.Pose=null;}
-                    if(!b.Movement.Component.MovementHeld)b.Movement.Component.ApplyObserverPose(PNTimeService.For(subscribedSession).Sample().Presentation);
+                    if(!b.Movement.Component.MovementHeld)
+                    {
+                        double stamp=PNTimeService.For(subscribedSession).Sample().Presentation;
+                        if(b.Movement.Component.ApplyObserverPose(stamp))
+                        {
+                            b.Actions.PoseStamp=stamp;
+                            b.Actions.PoseFrame=Time.frameCount;
+                        }
+                    }
                 }
             }
             if(NetworkTime.localTime-lastMoveTick<Profile.MoveSendSeconds)return;lastMoveTick=NetworkTime.localTime;

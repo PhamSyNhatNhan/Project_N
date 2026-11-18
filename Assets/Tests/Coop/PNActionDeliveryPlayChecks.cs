@@ -81,8 +81,21 @@ namespace ProjectN.Coop.Tests
             var raw=UnityEngine.Object.FindAnyObjectByType<ProjectN.Composition.PNKcpFaultTransport>();
             bool quiet=Environment.GetCommandLineArgs().Contains("--pn-action-delivery-quiet");
             bool quietFaults=Environment.GetCommandLineArgs().Contains("--pn-action-delivery-quiet-faults");
+            const string loadPrefix="--pn-action-delivery-load=";
+            var loadArgs=Environment.GetCommandLineArgs().Where(arg=>arg.StartsWith(loadPrefix,StringComparison.Ordinal)).ToArray();
+            bool fixedWorkload=loadArgs.Length!=0;
+            int load=64;
+            if(fixedWorkload)
+            {
+                Need(quiet&&!quietFaults&&loadArgs.Length==1,"explicit workload requires quiet normal delivery");
+                Need(int.TryParse(loadArgs[0].Substring(loadPrefix.Length),out load)&&(load==32||load==64),"workload must be 32 or 64");
+            }
             bool stageEnabled=!Environment.GetCommandLineArgs().Contains("--pn-action-delivery-no-stages");
-            var stageSamples=new List<StageSample>(262144);
+            bool testStageOverflow=host&&Environment.GetCommandLineArgs().Contains("--pn-action-delivery-test-stage-overflow");
+            Need(!testStageOverflow||(quiet&&quietFaults&&stageEnabled),"stage overflow test requires quiet faults and stage recording");
+            int stageCapacity=testStageOverflow?256:host&&quietFaults?524288:262144;
+            var stageSamples=new List<StageSample>(stageCapacity);
+            long droppedStageSamples=0;
             bool control=Environment.GetCommandLineArgs().Contains("--pn-action-delivery-control");
             bool withoutService=Environment.GetCommandLineArgs().Contains("--pn-action-delivery-without-service");
             Need(!control||quiet,"control requires quiet performance matrix");
@@ -107,7 +120,13 @@ namespace ProjectN.Coop.Tests
             var protocolInjected=new HashSet<string>();
             void Event(string kind,int connection,PNActionPacket? p,PNActionReceiver r,double now,double value)
             {
-                if(stageEnabled){Need(stageSamples.Count<262144,"bounded D2 stage buffer");var v=p.GetValueOrDefault();stageSamples.Add(new StageSample{Kind=kind,Phase=phase,Peer=connection,Frame=Time.frameCount,Tick=System.Diagnostics.Stopwatch.GetTimestamp(),Now=now,Value=value,Bytes=v.Body?.Length??0,Tag=p.HasValue?v.Kind:-1,N=v.N,Request=v.Request,Subscription=v.Stream.Subscription,Entity=v.Stream.Entity,Source=v.Stream.Source,Capture=v.T,AppliedN=r?.AppliedSequence??-1});}
+                if(stageEnabled&&stageSamples.Count==stageCapacity)
+                    droppedStageSamples++;
+                else if(stageEnabled)
+                {
+                    var v=p.GetValueOrDefault();
+                    stageSamples.Add(new StageSample{Kind=kind,Phase=phase,Peer=connection,Frame=Time.frameCount,Tick=System.Diagnostics.Stopwatch.GetTimestamp(),Now=now,Value=value,Bytes=v.Body?.Length??0,Tag=p.HasValue?v.Kind:-1,N=v.N,Request=v.Request,Subscription=v.Stream.Subscription,Entity=v.Stream.Entity,Source=v.Stream.Source,Capture=v.T,AppliedN=r?.AppliedSequence??-1});
+                }
                 if(r!=null)receivers[r.Stream.Entity]=r;
                 if(kind=="pump"||kind=="receive"){int slot=Time.frameCount%cpuSamples.Length;if(cpuFrames[slot]!=Time.frameCount){cpuFrames[slot]=Time.frameCount;cpuSamples[slot]=0;}cpuSamples[slot]+=value;}
                 if((kind=="receive"||kind=="live-outcome")&&p.HasValue&&p.Value.Kind==1&&r!=null&&r.State==PNActionReceiveState.Prepared&&p.Value.Stream.Equals(r.Stream)&&p.Value.Request==r.Request)
@@ -140,6 +159,18 @@ namespace ProjectN.Coop.Tests
             var casts=new Dictionary<PNSkill,List<PNSkillInvocation>>();
             var positions=skills.ToDictionary(x=>x,x=>x.transform.position);
             PNBuffHandle competitor=default;double nextBuff=0;long buffPulses=0;
+            var phaseWorkload=new JObject();
+            var castStarts=new int[skills.Length,4];
+            var entityStarts=new int[skills.Length];
+            int phasePeak=0;
+            bool TakeBeat(double begin,double now,double interval,int limit,ref int beat,ref int missed)
+            {
+                int previous=beat;
+                while(beat<limit&&now>=begin+beat*interval)beat++;
+                if(beat==previous)return false;
+                missed+=beat-previous-1;
+                return true;
+            }
             var data=new PNSkillData(new JObject(),new PNSkillActionData(EveId.Parse("delivery_probe:action")));
             void Start(PNSkill skill,double end,bool instant=false)
             {
@@ -147,7 +178,10 @@ namespace ProjectN.Coop.Tests
                     pool=new List<PNSkillInvocation>();casts[skill]=pool;
                     for(int i=0;i<4;i++){var cast=(PNSkillInvocation)typeof(PNSkillEffectState).GetMethod("Prepare",F).Invoke(skill.Effects,new object[]{EveId.Parse("project_n:eve_attack_right"),PNSkillMode.Authority});
                         typeof(PNSkill).GetMethod("AssignCastKey",F).Invoke(skill,new object[]{cast});pool.Add(cast);invocations.Add(cast);}}
-                var invocation=pool[(int)(starts%pool.Count)];
+                int entity=fixedWorkload?Array.IndexOf(skills,skill):-1;
+                int castIndex=fixedWorkload?entityStarts[entity]++%pool.Count:(int)(starts%pool.Count);
+                if(fixedWorkload)castStarts[entity,castIndex]++;
+                var invocation=pool[castIndex];
                 var c=new PNSkillActionContext(skill,EveId.Parse("project_n:eve_attack_right"),data,EveRegistrySession.Current,null,Vector3.right,invocation);
                 var a=(PNActionDeliveryProbe)EveRegistrySession.Current.Actions().Get(data.Action.Id).Create();
                 // Match the actual driver: start at the framework interval's
@@ -155,13 +189,14 @@ namespace ProjectN.Coop.Tests
                 // wall-end and giving it the full delta manufactures a reset.
                 using(var frame=skill.BeginActionExecutionFrame(Time.deltaTime)){a.Start(c);a.Perform(c);if(instant){a.Exit(c);a.Dispose();starts++;ends++;return;}}
                 live.Add(new Live{Skill=skill,Action=a,Context=c,End=end});starts++;peak=Math.Max(peak,live.Count);
+                if(fixedWorkload)phasePeak=Math.Max(phasePeak,live.Count);
             }
             void End(Live item,bool cancel=false){if(cancel)item.Action.Cancel(item.Context);else item.Action.Exit(item.Context);item.Action.Dispose();live.Remove(item);ends++;}
-            void Tick(double rate)
+            void Tick(double rate,bool pulseBuff)
             {
                 // Real Move/Buff producers share the same observation window.
                 foreach(var skill in skills)skill.transform.position=positions[skill]+new Vector3((float)Math.Sin(Now*2)*.15f,0,0);
-                if(Now>=nextBuff){if(competitor.IsAlive)skills[0].GetComponent<PNBuffManager>().Buffs.Remove(competitor);var receipt=skills[0].GetComponent<PNBuffManager>().Buffs.Apply(new PNBuffApplyRequest(EveId.Parse("project_n:timescale_reduction"),PNCombatSource.Capture(skills[0].GetComponent<PNStat>()),new JObject{["duration"]=1,["reduction"]=0,["minimumReduction"]=0}));Need(receipt.Status==PNBuffStatus.Applied,"Buff competitor admission");competitor=receipt.Handle;nextBuff=Now+.2;buffPulses++;}
+                if(pulseBuff){if(competitor.IsAlive)skills[0].GetComponent<PNBuffManager>().Buffs.Remove(competitor);var receipt=skills[0].GetComponent<PNBuffManager>().Buffs.Apply(new PNBuffApplyRequest(EveId.Parse("project_n:timescale_reduction"),PNCombatSource.Capture(skills[0].GetComponent<PNStat>()),new JObject{["duration"]=1,["reduction"]=0,["minimumReduction"]=0}));Need(receipt.Status==PNBuffStatus.Applied,"Buff competitor admission");competitor=receipt.Handle;nextBuff=Now+.2;buffPulses++;}
                 foreach(var item in live.ToArray()){
                     if(Now>=item.End){End(item);continue;}
                     using(var f=item.Skill.BeginActionExecutionFrame(Time.deltaTime)){
@@ -194,9 +229,18 @@ namespace ProjectN.Coop.Tests
                     foreach(var label in phases)
                     {
                         phase=label;Publish(Path.Combine(folder,"phase-"+(phaseIndex++).ToString("D2")+"-"+label+".mark"),"");double begin=Now,next=begin;long recoveryBefore=manager.ActionRecoveries;
-                        long startsBefore=starts;bool continuous=label=="overlap64";int count=label=="control"||label=="retirement"||label=="short"?0:64;
-                        if(!continuous)for(int i=0;i<count;i++)Start(skills[label=="distributed64"?i%skills.Length:0],double.MaxValue);
+                        long startsBefore=starts,endsBefore=ends,buffsBefore=buffPulses;
+                        int frameStart=frameSamples.Count;
+                        int actionBeat=0,buffBeat=0,missedActionBeats=0,missedBuffBeats=0;
+                        bool continuous=label=="overlap64",shortPhase=label=="short",distributed=label=="distributed64";
+                        int count=label=="control"||label=="retirement"||shortPhase?0:load;
+                        phasePeak=0;
+                        Array.Clear(castStarts,0,castStarts.Length);
+                        Array.Clear(entityStarts,0,entityStarts.Length);
+                        if(!continuous)for(int i=0;i<count;i++)Start(skills[distributed?i%skills.Length:0],double.MaxValue);
                         double duration=label=="control"?8:label=="overlap64"?20:8;
+                        int expectedActionBeats=shortPhase||continuous?(int)duration*10:0;
+                        int expectedBuffBeats=(int)duration*5;
                         if(label.StartsWith("send"))blockedUntil=Now+int.Parse(label.Substring(4))/1000d;
                         if(label=="budgetzero")blockedUntil=Now+2;
                         if(label.StartsWith("send")||label=="budgetzero")Event("send-stall-start",blockedPeer,null,null,Now,blockedUntil-Now);
@@ -204,15 +248,24 @@ namespace ProjectN.Coop.Tests
                         void ResumeCut(double origin){var cut=new JObject();foreach(var sk in skills){var src=sk.ActionPublication;var id=sk.GetComponent<EveEntityIdentity>().Id.Value;using(var snapshot=src.Capture(new JArray(Guid.NewGuid().ToString("N"),Guid.NewGuid().ToString("N"),1,id,1,src.Source.ToString("N")),Now)){Need(snapshot!=null,"resume complete cut");cut[id.ToString()]=new JObject{["n"]=src.Sequence,["source"]=src.Source.ToString("N"),["rows"]=JArray.Parse(snapshot.Json)[5]};}}Publish(Path.Combine(folder,label+"-freshness-cut.json"),new JObject{["origin"]=origin,["cutStamp"]=Now,["entities"]=cut}.ToString());}
                         while(Now-begin<duration)
                         {
-                            double elapsed=Now-begin,rate=1;
+                            double frameTime=Now,elapsed=frameTime-begin,rate=1;
                             if(quietFaults&&!resumeCaptured&&(label.StartsWith("send")||label=="budgetzero")&&Now>=blockedUntil){resumeCaptured=true;ResumeCut(blockedUntil);var cut=new JObject();foreach(var sk in skills){var src=sk.ActionPublication;cut[sk.GetComponent<EveEntityIdentity>().Id.Value.ToString()]=new JObject{["n"]=src.Sequence,["source"]=src.Source.ToString("N")};}Publish(Path.Combine(folder,label+"-resume-cut.json"),cut.ToString());Event("resume-required-cut",blockedPeer,null,null,Now,0);}
                             if(quietFaults&&!resumeCaptured&&label.StartsWith("apply")&&File.Exists(Path.Combine(folder,label+"-resumed"))){resumeCaptured=true;ResumeCut(Now);}
-                            foreach(var expired in live.Where(x=>Now>=x.End).ToArray())End(expired);
-                            if(label=="short"&&Now>=next){for(int i=0;i<8;i++)Start(skills[0],Now,true);next=Now+.1;}
-                            if(continuous&&Now>=next){for(int i=0;i<8;i++)Start(skills[0],Now+.8);next=Now+.1;}
+                            foreach(var expired in live.Where(x=>frameTime>=x.End).ToArray())End(expired);
+                            if(fixedWorkload)
+                            {
+                                if(TakeBeat(begin,frameTime,.1,expectedActionBeats,ref actionBeat,ref missedActionBeats))
+                                    for(int i=0;i<load/8;i++)Start(skills[0],begin+(actionBeat-1+8)*.1,shortPhase);
+                            }
+                            else
+                            {
+                                if(shortPhase&&Now>=next){for(int i=0;i<8;i++)Start(skills[0],Now,true);next=Now+.1;}
+                                if(continuous&&Now>=next){for(int i=0;i<8;i++)Start(skills[0],Now+.8);next=Now+.1;}
+                            }
                             if(label=="hold-rate64")rate=new[]{1d,2,0,8,0,1}[(int)elapsed%6];
                             if(label=="dense64")rate=((int)(elapsed*4)%2)==0?1:8;
-                            long driverBegin=System.Diagnostics.Stopwatch.GetTimestamp();Tick(rate);driverMs=(System.Diagnostics.Stopwatch.GetTimestamp()-driverBegin)*1000d/System.Diagnostics.Stopwatch.Frequency;
+                            bool pulseBuff=fixedWorkload?TakeBeat(begin,frameTime,.2,expectedBuffBeats,ref buffBeat,ref missedBuffBeats):Now>=nextBuff;
+                            long driverBegin=System.Diagnostics.Stopwatch.GetTimestamp();Tick(rate,pulseBuff);driverMs=(System.Diagnostics.Stopwatch.GetTimestamp()-driverBegin)*1000d/System.Diagnostics.Stopwatch.Frequency;
                             if(label=="source-rebuild"&&!rebuilt&&elapsed>1){var old=skills[0].ActionPublication;old.Dispose();Need(skills[0].PrepareActionPublication(Now,Now+3)==PNActionRecoveryState.Recovered,"source rebuild");rebuilt=true;}
                             Frame();yield return null;
                         }
@@ -225,14 +278,27 @@ namespace ProjectN.Coop.Tests
                         Event("checkpoint-published",-1,null,null,Now,0);
                         Publish(Path.Combine(folder,label+"-checkpoint.json"),expected.ToString());
                         phaseStarts[label]=starts-startsBefore;
+                        if(fixedWorkload)
+                        {
+                            var byCast=new JArray();
+                            for(int entity=0;entity<skills.Length;entity++)
+                                byCast.Add(new JArray(castStarts[entity,0],castStarts[entity,1],castStarts[entity,2],castStarts[entity,3]));
+                            phaseWorkload[label]=new JObject{
+                                ["starts"]=starts-startsBefore,["ends"]=ends-endsBefore,["peak"]=phasePeak,
+                                ["startsByEntityAndCast"]=byCast,["missedActionBeats"]=missedActionBeats+expectedActionBeats-actionBeat,
+                                ["buffPulses"]=buffPulses-buffsBefore,["missedBuffBeats"]=missedBuffBeats+expectedBuffBeats-buffBeat,
+                                ["moveTicksPerEntity"]=frameSamples.Count-frameStart,["liveAfterSeal"]=live.Count};
+                        }
                         yield return Wait(()=>File.Exists(Path.Combine(folder,"client1-"+label+"-ok"))&&File.Exists(Path.Combine(folder,"client2-"+label+"-ok")),"checkpoint "+label);
                         if(label=="control"||label=="short"||label=="overlap64"||label=="distributed64"||label=="hold-rate64"||label=="dense64")Need(manager.ActionRecoveries==recoveryBefore,"routine recovery under supported "+label);
                         phase="drain";double drain=Now+1;while(Now<drain){Frame();yield return null;}
                     }
                     File.WriteAllText(Path.Combine(folder,"delivery-finished"),"done");
                     yield return Wait(()=>File.Exists(Path.Combine(folder,"client1-delivery-done"))&&File.Exists(Path.Combine(folder,"client2-delivery-done")),"client completion");
-                    File.WriteAllText(Path.Combine(folder,"workload.json"),new JObject{["starts"]=starts,["ends"]=ends,["phaseStarts"]=phaseStarts,["peak"]=peak,["entities"]=skills.Length,["castsPerEntity"]=4,["buffPulses"]=buffPulses,["protocolInjected"]=new JArray(protocolInjected)}.ToString());
-                    Need(starts==ends&&peak>=64,"lifecycle and network overlap coverage");
+                    var workload=new JObject{["starts"]=starts,["ends"]=ends,["phaseStarts"]=phaseStarts,["peak"]=peak,["entities"]=skills.Length,["castsPerEntity"]=4,["buffPulses"]=buffPulses,["protocolInjected"]=new JArray(protocolInjected)};
+                    if(fixedWorkload){workload["load"]=load;workload["phases"]=phaseWorkload;}
+                    File.WriteAllText(Path.Combine(folder,"workload.json"),workload.ToString());
+                    Need(starts==ends&&peak>=load,"lifecycle and network overlap coverage");
                 }
                 else
                 {
@@ -269,8 +335,9 @@ namespace ProjectN.Coop.Tests
                 GC.Collect();GC.WaitForPendingFinalizers();GC.Collect();File.WriteAllText(Path.Combine(folder,peer+"-retained.json"),new JObject{["before"]=retainedBefore,["after"]=GC.GetTotalMemory(false),["note"]="explicit full collections outside active measurement; after retirement"}.ToString());
             }
             finally{PNActionDiagnostics.Sample-=Event;NetworkDiagnostics.InMessageEvent-=incoming;NetworkDiagnostics.OutMessageEvent-=outgoing;PNActionDiagnostics.BlockSend=null;foreach(var item in live.ToArray())End(item,true);foreach(var invocation in invocations)invocation.Dispose();if(host&&competitor.IsAlive)skills[0].GetComponent<PNBuffManager>().Buffs.Remove(competitor);if(host)foreach(var pair in positions)if(pair.Key!=null)pair.Key.transform.position=pair.Value;
+                if(testStageOverflow)Need(stageSamples.Count==stageCapacity&&droppedStageSamples>0,"forced stage overflow");
                 using(var stages=new StreamWriter(Path.Combine(folder,peer+"-stages.jsonl")))foreach(var sample in stageSamples)stages.WriteLine(sample.Json().ToString(Formatting.None));
-                File.WriteAllText(Path.Combine(folder,peer+"-stages-summary.json"),new JObject{["enabled"]=stageEnabled,["count"]=stageSamples.Count,["capacity"]=262144,["overflow"]=false,["quietFaults"]=quietFaults,["note"]="sample overflow throws fixture failure; monotonic ticks are process-local; callbacks disabled in matched allocation controls"}.ToString());
+                File.WriteAllText(Path.Combine(folder,peer+"-stages-summary.json"),new JObject{["enabled"]=stageEnabled,["count"]=stageSamples.Count,["capacity"]=stageCapacity,["overflow"]=droppedStageSamples>0,["dropped"]=droppedStageSamples,["quietFaults"]=quietFaults,["note"]="overflow makes stage metrics incomplete. Monotonic ticks are process-local. Callbacks are disabled in matched allocation controls."}.ToString());
                 using(var committed=new StreamWriter(Path.Combine(folder,peer+"-live-outcomes.jsonl")))
                     foreach(var sample in applySamples)(sample.ConfirmedOutcome?committed:applied).WriteLine(sample.Json().ToString(Formatting.None));
                 foreach(var sample in frameSamples)frames.WriteLine(sample.Json(cpuFrames[sample.Frame%cpuSamples.Length]==sample.Frame?cpuSamples[sample.Frame%cpuSamples.Length]:double.NaN).ToString(Formatting.None));}

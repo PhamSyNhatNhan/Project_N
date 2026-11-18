@@ -35,6 +35,15 @@ public class PNSkillActionContext
     internal PNActionRunStore RunStore;
     internal PNActionRunKey RunKey;
     internal double RunProgress, RunStamp;
+    internal double? PendingRunStart;
+    internal double PresentationScale = 1;
+    public void CommitPresentationScale(double scale)
+    {
+        PNTimeMath.Nonnegative(scale);
+        if (completed || !begun) throw new InvalidOperationException("Presentation requires a running Action.");
+        PresentationScale = scale;
+        Skill?.BeginActionRun(this, commitPresentation: true);
+    }
     // True when FreezeOnHit may be called now: a begun context of a live invocation that allows contributions.
     // The owner's CLIENT is running this action ahead of the authority (S3-S5): no lock, no damage; a hit is handed to `HitReporter` instead of being applied.
     // G1: the mode is the invocation's; a context with no invocation (the Eve moveset's) can be given one directly. `IsPrediction` is the old flag as a view of it.
@@ -145,6 +154,40 @@ public class PNSkillActionContext
         if (Invocation != null) Invocation.State.Fire(this, "OnHit", target, point, values, hitIndex);
         return result;
     }
+    public PNSkillDamageCapture PrepareDamage(PNSkillValues values, bool canCrit, double? iframeDuration)
+    {
+        if (Mode != PNSkillMode.Authority) return new PNSkillDamageCapture(1);
+
+        var caster = Skill.GetComponent<PNStat>();
+        var amount = values.Components.Sum(component => component.Evaluate(caster));
+        var packet = caster.CreateDamage(amount, canCrit, iframeDuration, Data.Action.PerformTags.ToArray());
+        return new PNSkillDamageCapture(1, amount, caster.CaptureCombatSource(), packet);
+    }
+
+    public PNSkillDamageCapture PrepareMeleeDamage(PNSkillValues values, double? iframeDuration, Func<double> readOwnerScale)
+    {
+        PNSkillDamageCapture damage;
+        if (Mode == PNSkillMode.Authority)
+        {
+            var caster = Skill.GetComponent<PNStat>();
+            var amount = values.Components.Sum(component => component.Evaluate(caster));
+            var capture = PNHitCapture.Melee(caster.CaptureCombatSource(), Data.Action.PerformTags);
+            damage = new PNSkillDamageCapture(capture.ScaleFactor, amount, capture.Source,
+                prepared: capture.Prepare(amount, true, iframeDuration));
+        }
+        else
+        {
+            var scale = Mode == PNSkillMode.Predicted ? readOwnerScale() : PresentationScale;
+            damage = new PNSkillDamageCapture(scale);
+        }
+
+        CommitPresentationScale(damage.Scale);
+        return damage;
+    }
+
+    public PNHitOutcome Hit(PNStat target, Vector3? point, PNDamage packet, PNSkillDamageCapture damage, int hitIndex = 0)
+        => Hit(target, point, packet, damage.Amount, damage.Source, hitIndex);
+
     // The one door for a hit made by a cast (G2). Authority: damage is dealt (`ReceiveHit`) and the skill hears `OnHitConfirmed`. Predicted: the hit goes to `HitReporter` (if any) and nothing is dealt.
     // Observed: nothing happens. Actions call this and never branch on the mode themselves.
     public PNHitOutcome Hit(PNStat target, Vector3? point, PNDamage original, double amount, PNCombatSourceSnapshot capture, int hitIndex = 0)

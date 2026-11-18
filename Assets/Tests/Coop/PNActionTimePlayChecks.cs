@@ -16,6 +16,7 @@ namespace ProjectN.Coop.Tests
     public static class PNActionTimePlayChecks
     {
         public static bool Enabled => Environment.GetCommandLineArgs().Contains("--pn-action-time");
+        static bool PresentationAcceptance => Environment.GetCommandLineArgs().Contains("--pn-action-presentation-acceptance");
         private const BindingFlags Flags=BindingFlags.Instance|BindingFlags.Public|BindingFlags.NonPublic;
         private static IEnumerator Wait(Func<bool> ready,string label)
         { double until=Time.realtimeSinceStartupAsDouble+45;while(!ready()){if(Time.realtimeSinceStartupAsDouble>until)throw new TimeoutException(label);yield return null;} }
@@ -32,14 +33,230 @@ namespace ProjectN.Coop.Tests
                 measurements.WriteLine(item.ToString(Formatting.None));
             }
             PNActionRunStore.Measurement += Record;
-            Exception failure=null;var stack=new Stack<IEnumerator>();stack.Push(Measure(folder,peer,subject));
+            Exception failure=null;var stack=new Stack<IEnumerator>();
+            stack.Push(PresentationAcceptance?MeasurePresentation(folder,peer,subject):Measure(folder,peer,subject));
             try { while(stack.Count>0){var e=stack.Peek();bool next=false;try{next=e.MoveNext();}catch(Exception x){failure=x;}
                 if(failure!=null)break;if(!next){(stack.Pop() as IDisposable)?.Dispose();continue;}
                 if(e.Current is IEnumerator child){stack.Push(child);continue;}yield return e.Current;} }
             finally {PNActionRunStore.Measurement -= Record; while(stack.Count>0)(stack.Pop() as IDisposable)?.Dispose();}
             if (a2.Errors != 0) failure = new Exception("A2 recorder/oracle failures: " + a2.Errors);
-            File.WriteAllText(Path.Combine(folder,peer+".txt"),failure==null?"PASS PreT5 measurement fixture":"FAIL PreT5 "+failure);
+            string label=PresentationAcceptance?"T5.3-C presentation fixture":"PreT5 measurement fixture";
+            File.WriteAllText(Path.Combine(folder,peer+".txt"),failure==null?"PASS "+label:"FAIL "+label+" "+failure);
             if(failure!=null)Debug.LogException(failure);Application.Quit(failure==null?0:1);
+        }
+        private static IEnumerator MeasurePresentation(string folder,string peer,PNPlayerMove subject)
+        {
+            string PathFor(string name)=>Path.Combine(folder,name);
+            bool Has(string name)=>File.Exists(PathFor(name));
+            void Mark(string name)=>File.WriteAllText(PathFor(name),"ok");
+            var manager=(PNNetworkManager)NetworkManager.singleton;
+            var skill=subject.GetComponent<EveCharacterSkill>();
+            var stat=subject.GetComponent<PNStat>();
+            bool host=peer=="host",observer=peer=="client2";
+            long secondOwner=long.Parse(File.ReadAllText(PathFor("client2.owner")));
+            var secondSkill=EveRegistrySession.Context.Entities.Snapshot().Single(x=>
+                x.LoadContext?.Identity.OwnerId==secondOwner&&x.GetComponent<EveCharacterSkill>()!=null).GetComponent<EveCharacterSkill>();
+            var entity=subject.GetComponent<EveEntityIdentity>().Id.Value;
+            var spawned=host?NetworkServer.spawned:NetworkClient.spawned;
+            var shell=spawned.Values.Select(x=>x.GetComponent<PNActorShell>()).Single(x=>x!=null&&x.Metadata.Entity==entity);
+            var bindings=(IDictionary)typeof(PNNetworkManager).GetField("bindings",Flags).GetValue(manager);
+            object binding=bindings[shell.netId];
+            object actions=binding.GetType().GetField("Actions",Flags).GetValue(binding);
+            var receiverField=actions.GetType().GetField("Receiver",Flags);
+            PNActionReceiver Receiver()=>(PNActionReceiver)receiverField.GetValue(actions);
+            var request=typeof(PNNetworkManager).GetMethod("RequestAction",Flags);
+            var views=(IDictionary)typeof(PNSkill).GetField("presentedActions",Flags).GetValue(skill);
+            uint netId=shell.netId;
+            var expected=new List<PNObservedAction>();
+            var modifier=EveId.Parse("test:t53_sweep_speed");
+            var scaleModifier=EveId.Parse("test:o1_sweep_scale");
+            const double expectedScale=2;
+            var factors = new[] { (PNContentIds.MeleeScale, expectedScale), (PNContentIds.ProjectileScale, 1.25),
+                (PNContentIds.ProjectileSpeed, 1.5), (PNContentIds.ProjectileLifetime, 1.75),
+                (PNContentIds.AreaScale, 2.25), (PNContentIds.BlastScale, 2.5), (PNContentIds.SummonScale, 2.75) };
+            bool HasInitialScales()
+            {
+                var view = subject.GetComponent<PNSkillScaleState>();
+                return view != null && factors.All(factor => view.ReadScale(factor.Item1) == factor.Item2);
+            }
+            bool HasUpdatedScale() => subject.GetComponent<PNSkillScaleState>()?.ReadScale(PNContentIds.MeleeScale) == 1.5;
+            var sweepData=skill.GetData(EveId.Parse("project_n:eve_attack_right")).Action.Perform;
+            float expectedRadius=EveSweepSettings.Parse(sweepData).Radius*(float)expectedScale;
+            bool Scaled(EveSweepVisual visual)=>visual!=null&&Math.Abs(visual.Radius-expectedRadius)<.0001;
+
+            double baseSpeed=host?stat.Evaluate(PNContentIds.AttackSpeed):0;
+            void Speed(double value)=>stat.SetSource(modifier,new[]{new EveStatModifier(PNContentIds.AttackSpeed,value-baseSpeed,0)});
+            using var frames=new StreamWriter(PathFor(peer+"-presentation.jsonl")){AutoFlush=true};
+            using var packets=new StreamWriter(PathFor(peer+"-action-packets.jsonl")){AutoFlush=true};
+            PNActionRunKey key=default;
+            EveSweepVisual visible=null,first=null;
+            double progress=0,firstProgress=0;
+            bool hasComparison=false;
+            string phase="steady";
+            Exception problem=null;
+            void Packet(NetworkDiagnostics.MessageInfo info)
+            {
+                if(info.message is PNActionPacket packet&&packet.Stream.NetId==netId&&packet.Kind!=1)
+                    packets.WriteLine(JsonConvert.SerializeObject(new {frame=Time.frameCount,packet.Kind,packet.T,packet.N,
+                        packet.Request,packet.Stream.Subscription,packet.Stream.Generation}));
+            }
+            void Observe()
+            {
+                try
+                {
+                    var viewRows=new List<object>();
+                    PNActionPresentationCoverage coverage=manager.ReadObservedActions(netId,expected,out var stamp);
+                    visible=null;
+                    var seenKeys=new HashSet<PNActionRunKey>();
+                    foreach(DictionaryEntry pair in views)
+                    {
+                        var value=(EveSweepVisual)pair.Value.GetType().GetField("View",Flags).GetValue(pair.Value);
+                        if(value==null||!value.gameObject.activeInHierarchy)continue;
+                        var drawnKey=(PNActionRunKey)pair.Key;
+                        if(!observer||!seenKeys.Add(drawnKey)||coverage!=PNActionPresentationCoverage.Active)
+                            throw new Exception("Unexpected or duplicated observed view "+drawnKey.Cast);
+                        var row=expected.Single(x=>x.Key.Equals(drawnKey));
+                        var settings=EveSweepSettings.Parse(skill.GetData(EveId.Parse(row.DataId)).Action.Perform);
+                        if(row.PresentationScale!=expectedScale||!Scaled(value))
+                            throw new Exception("Observer sweep radius differs from captured scale");
+                        double normalized=Math.Min(1,row.Progress/settings.Duration);
+                        if(Math.Abs(value.Progress-normalized)>.0001||skill.ObservedActionCount!=0||skill.CurrentInvocation!=null)
+                            throw new Exception("Rendered sweep disagrees with committed pose-time model");
+                        key=drawnKey;visible=value;progress=value.Progress;hasComparison=true;
+                        viewRows.Add(new {drawnKey.Cast,drawnKey.Ordinal,progress=value.Progress,absolute=row.Progress,
+                            row.Rate,row.PresentationScale,radius=value.Radius,objectId=value.GetEntityId().GetHashCode(),bladeSamples=value.BladeSamples});
+                    }
+                    var authority=host?subject.GetComponentInChildren<EveSweepVisual>():null;
+                    var secondary=secondSkill==null?null:secondSkill.GetComponentInChildren<EveSweepVisual>();
+                    frames.WriteLine(JsonConvert.SerializeObject(new {frame=Time.frameCount,phase,role=subject.NetworkRole.ToString(),
+                        stamp,coverage=coverage.ToString(),subscription=Receiver()?.Stream.Subscription,
+                        receiveState=Receiver()?.State.ToString(),active=expected.Count,views=viewRows,
+                        authority=authority?.Progress,secondary=secondary?.Progress,
+                        attackSpeed=host?stat.Evaluate(PNContentIds.AttackSpeed):0}));
+                }
+                catch(Exception error){problem??=error;}
+            }
+            IEnumerator Until(Func<bool> ready,string description)
+            {
+                yield return Wait(()=>problem!=null||ready(),description);
+                if(problem!=null)throw problem;
+            }
+            void Attack(EveCharacterSkill actor)
+            {
+                if(!actor.RequestSlot(PNSkillSlots.Attack,new PNSkillInputEvent(PNSkillInputPhase.Started,PNSkillInteraction.Tap))||
+                    !actor.RequestSlot(PNSkillSlots.Attack,new PNSkillInputEvent(PNSkillInputPhase.Performed,PNSkillInteraction.Tap)))
+                    throw new Exception("owner sweep input declined");
+                actor.RequestSlot(PNSkillSlots.Attack,new PNSkillInputEvent(PNSkillInputPhase.Canceled,PNSkillInteraction.Tap));
+            }
+            NetworkLoop.OnLateUpdate+=Observe;
+            if(!host)NetworkDiagnostics.InMessageEvent+=Packet;
+            IPNCameraHandle camera=null;
+            try
+            {
+                if(observer)camera=PNCameraServices.Resolve(EveRegistrySession.Context).RequestCinematic(subject,"t53-acceptance",
+                    PNCinematicShot.Follow(subject.transform,new Vector3(0,2.8f,-2.8f),new Vector3(45,0,0),
+                    fieldOfView:38,blendIn:0,blendOut:0,priority:100,aimTarget:subject.transform,aimOffset:new Vector3(0,.5f,0)));
+                Mark(peer+"-presentation-ready");
+                yield return Until(()=>Has("host-presentation-ready")&&Has("client1-presentation-ready")&&Has("client2-presentation-ready"),"presentation peers ready");
+                yield return new WaitForSecondsRealtime(.5f);
+                phase="live-sweep";
+                if(host)
+                {
+                    Speed(30);
+                    stat.SetSource(scaleModifier, factors.Select(factor => new EveStatModifier(factor.Item1, factor.Item2 - 1, 1)));
+                    Mark("sweep-ready");
+                    yield return Until(()=>subject.GetComponentsInChildren<EveSweepVisual>().Any(x=>Scaled(x)&&x.Progress>=.35f&&x.Progress<.65f),"live authority sweep reaches hold point");
+                    Speed(0);
+                    stat.SetSource(scaleModifier, new[] { new EveStatModifier(PNContentIds.MeleeScale, .5, 1) });
+                    Mark("sweep-held");
+                    yield return Until(()=>Has("observer-recovered"),"observer recovers held live sweep");
+                    var connection=NetworkServer.connections.Values.Single(c=>c.authenticationData is PNPeer p&&p.Owner==secondOwner);
+                    var removeObserver=typeof(InterestManagementBase).GetMethod("RemoveObserver",Flags);
+                    removeObserver.Invoke(NetworkServer.aoi,new object[]{connection,shell.netIdentity});
+                    Mark("observer-hidden");
+                    yield return Until(()=>Has("observer-retired"),"observer retires old binding");
+                    NetworkServer.RebuildObservers(shell.netIdentity,false);
+                    yield return Until(()=>Has("observer-rebound"),"new observer binding seeks held sweep");
+                    Speed(120);
+                    yield return Until(()=>!skill.IsBusy,"authority resumed and completed sweep");
+                    stat.RemoveSource(modifier);
+                    Mark("sweep-finished");
+                }
+                else if(!observer)
+                {
+                    yield return Until(()=>Has("sweep-ready")&&Has("observer-scale-ready")&&!skill.IsBusy&&HasInitialScales(),"owner ready");
+                    Attack(skill);
+                    yield return Until(()=>subject.GetComponentsInChildren<EveSweepVisual>().Any(Scaled),"owner predicts scaled sweep");
+                    yield return Until(()=>Has("overlap-input")&&secondSkill.ObservedPresentationsStarted>0&&
+                        secondSkill.GetComponentInChildren<EveSweepVisual>()!=null,"client1 observes client2 sweep during primary hold");
+                    Mark("overlap-observed");
+                }
+                else
+                {
+                    yield return Until(()=>Has("sweep-ready")&&HasInitialScales(),"observer receives the seven entity factors");
+                    Mark("observer-scale-ready");
+                    yield return Until(()=>Has("sweep-held")&&visible!=null&&progress>=.2&&HasUpdatedScale(),"observer renders the frozen sweep with a newer entity scale");
+                    first=visible;firstProgress=progress;
+                    var originalKey=key;
+                    Attack(secondSkill);
+                    Mark("overlap-input");
+                    yield return Until(()=>Has("overlap-observed")&&visible==first,"both clients render overlapping authority sweeps");
+                    var capture=typeof(PNTimeBaselineChecks).GetMethod("CaptureClockFrame",BindingFlags.Static|BindingFlags.NonPublic);
+                    capture.Invoke(null,new object[]{PathFor("observer-before-recovery.png")});
+                    phase="recovery";
+                    long subscription=Receiver().Stream.Subscription;
+                    request.Invoke(manager,new[]{binding,(object)true});
+                    yield return Until(()=>Receiver()?.Stream.Subscription>subscription&&Receiver().State==PNActionReceiveState.Prepared&&
+                        visible!=null&&key.Equals(originalKey),"observer renders same sweep after baseline");
+                    if(visible!=first||progress+.0001<firstProgress)throw new Exception("Recovery restarted or rewound sweep");
+                    capture.Invoke(null,new object[]{PathFor("observer-after-recovery.png")});
+                    phase="move-role-transition";
+                    subject.DetachNetwork();
+                    if(subject.NetworkRole!=PNMoveNetworkRole.Local||
+                        manager.ReadObservedActions(netId,expected,out _)!=PNActionPresentationCoverage.Unknown)
+                        throw new Exception("Local Move role still exposes observed presentation");
+                    yield return Until(()=>subject.NetworkRole==PNMoveNetworkRole.Observer&&visible!=null&&key.Equals(originalKey),
+                        "observer Move role and presentation recover");
+                    Mark("observer-recovered");
+                    phase="rebind";
+                    yield return Until(()=>Has("observer-hidden")&&!bindings.Contains(netId),"old observer binding retired by Mirror");
+                    if(views.Count!=0||first!=null&&first.gameObject.activeInHierarchy)
+                        throw new Exception("Retired observer binding still owns a sweep view");
+                    Mark("observer-retired");
+                    yield return Until(()=>bindings.Contains(netId)&&EveRegistrySession.Context.Entities.Snapshot().Any(x=>
+                        x.LoadContext?.Identity.Id.Value==entity&&x.GetComponent<EveCharacterSkill>()?.IsReady==true),"new observer binding ready");
+                    binding=bindings[netId];
+                    actions=binding.GetType().GetField("Actions",Flags).GetValue(binding);
+                    subject=EveRegistrySession.Context.Entities.Snapshot().Single(x=>x.LoadContext?.Identity.Id.Value==entity).GetComponent<PNPlayerMove>();
+                    skill=subject.GetComponent<EveCharacterSkill>();
+                    views=(IDictionary)typeof(PNSkill).GetField("presentedActions",Flags).GetValue(skill);
+                    yield return Until(()=>visible!=null&&key.Equals(originalKey)&&HasUpdatedScale(),"fresh observer receives current entity scale and seeks the frozen run");
+                    if(visible==first||progress+.0001<firstProgress)throw new Exception("Rebind reused stale view or replayed startup");
+                    capture.Invoke(null,new object[]{PathFor("observer-rebound.png")});
+                    Mark("observer-rebound");
+                }
+                yield return Until(()=>Has("sweep-finished"),"sweep completion");
+                if(observer)
+                {
+                    yield return Until(()=>visible==null&&views.Count==0,"observer retires completed sweep");
+                    if(!hasComparison)throw new Exception("No model/render join");
+                }
+                yield return new WaitForSecondsRealtime(.35f);
+                var stats=Enum.GetValues(typeof(PNActionPresentationPhase)).Cast<PNActionPresentationPhase>().Select(p=>{
+                    var s=manager.ActionPresentationStats(p);
+                    return new {phase=p.ToString(),s.Samples,s.Unknown,s.MissingPose,s.LongestUnknownFrames,s.LongestUnknownMilliseconds,s.UnknownRatio};
+                }).ToArray();
+                File.WriteAllText(PathFor(peer+"-presentation-stats.json"),JsonConvert.SerializeObject(stats,Formatting.Indented));
+                Mark(peer+"-presentation-done");
+                yield return Until(()=>Has("host-presentation-done")&&Has("client1-presentation-done")&&Has("client2-presentation-done"),"finish barrier");
+            }
+            finally
+            {
+                NetworkLoop.OnLateUpdate-=Observe;
+                NetworkDiagnostics.InMessageEvent-=Packet;
+                if(host&&stat!=null&&stat.IsReady){stat.RemoveSource(modifier);stat.RemoveSource(scaleModifier);}
+                camera?.Dispose();
+            }
         }
         // Diagnostic-only replay: one isolated budget per run, so production admission
         // cannot censor holds/history. Calls only producer math, never gameplay effects.
@@ -144,7 +361,7 @@ namespace ProjectN.Coop.Tests
             var remote=subject.GetComponent<PNSkillRemoteInput>();var session=EveRegistrySession.Context;
             if(skill==null||cast==null)throw new Exception("PreT5 needs Eve sweep character");
             var clock=PNTimeService.For(session);IPNCameraHandle camera=null;
-            var stat=subject.GetComponent<PNStat>();var speedSource=EveId.Parse("test:pret5_speed");int captures=0;int lastPlayed=cast.PlayedCount;int currentPulse=-1;
+            var stat=subject.GetComponent<PNStat>();var speedSource=EveId.Parse("test:pret5_speed");int captures=0;int lastPlayed=skill.ObservedActionsPlayed+skill.ObservedPresentationsStarted;int currentPulse=-1;
             Exception producerFailure = null;
             float originalGlobalRate=Time.timeScale;
             var entityClock=subject.GetComponent<EveTimeScale>();long entityModifier=0,minReduction=0;
@@ -172,11 +389,12 @@ namespace ProjectN.Coop.Tests
                     }
                     output.WriteLine(JsonConvert.SerializeObject(new{pulse=currentPulse,frame=Time.frameCount,local=s.Local,host=s.Host,presentation=s.Presentation,ready=s.Ready,uncertainty=s.Uncertainty,
                         actionSent=actionManager?.ActionPacketsSent??0,actionPeers=actionManager?.ActionPeerCount??0,actionPrepared=actionManager?.ActionPreparedBindings??0,actionSequence=actionManager?.ActionAppliedSequence??0,actionQueue=actionManager?.ActionQueuedBytes??0,actionReceive=actionManager?.ActionReceiveBytes??0,actionRecoveries=actionManager?.ActionRecoveries??0,actionVisibleSkipped=actionManager?.ActionKnownVisibleSkipped??0,actionUnknownResets=actionManager?.ActionUnknownCoverageResets??0,
-                        x=at.x,z=at.z,role=subject.NetworkRole.ToString(),observed=skill.ObservedActionCount,played=cast.PlayedCount,serial=cast.LastSerial,busy=skill.IsBusy,
+                        x=at.x,z=at.z,role=subject.NetworkRole.ToString(),observed=skill.ObservedActionCount,played=cast.PlayedCount,scheduled=skill.ObservedPresentationsStarted,serial=cast.LastSerial,busy=skill.IsBusy,
                         pending=remote.PendingPredictions,ack=remote.AckedKey,castKey=skill.CurrentInvocation?.CastKey??0,
                         attackSpeed=host?stat.Evaluate(PNContentIds.AttackSpeed):0,globalRate=Time.timeScale,entityRate=entityClock!=null?entityClock.Scale:1}));
-                    if(peer=="client2"&&cast.PlayedCount!=lastPlayed&&skill.ObservedActionCount>0&&captures<6)
-                    {lastPlayed=cast.PlayedCount;typeof(PNTimeBaselineChecks).GetMethod("CaptureClockFrame",BindingFlags.Static|BindingFlags.NonPublic).Invoke(null,new object[]{P("observed-"+(captures++)+".png")});}
+                    int drawn=skill.ObservedActionsPlayed+skill.ObservedPresentationsStarted;
+                    if(peer=="client2"&&drawn!=lastPlayed&&skill.GetComponentInChildren<EveSweepVisual>()!=null&&captures<6)
+                    {lastPlayed=drawn;typeof(PNTimeBaselineChecks).GetMethod("CaptureClockFrame",BindingFlags.Static|BindingFlags.NonPublic).Invoke(null,new object[]{P("observed-"+(captures++)+".png")});}
                 };
                 try
                 {

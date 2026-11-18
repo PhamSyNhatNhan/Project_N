@@ -6,6 +6,21 @@ using Mirror;
 using UnityEngine;
 namespace ProjectN.Coop
 {
+    public enum PNActionPresentationPhase { LateJoin, Steady, Recovery }
+
+    public readonly struct PNActionPresentationStats
+    {
+        public readonly long Samples, Unknown, MissingPose, LongestUnknownFrames;
+        public readonly double LongestUnknownMilliseconds;
+        public double? UnknownRatio => Samples==0?(double?)null:(double)Unknown/Samples;
+
+        internal PNActionPresentationStats(long samples,long unknown,long missing,long longest,double milliseconds)
+        {
+            Samples=samples;Unknown=unknown;MissingPose=missing;
+            LongestUnknownFrames=longest;LongestUnknownMilliseconds=milliseconds;
+        }
+    }
+
     public sealed partial class PNNetworkManager
     {
         const string ActionKind="project_n:action";
@@ -18,6 +33,19 @@ namespace ProjectN.Coop
             public double Deadline,LastRequest,LastTraffic;
             public PNActionReceiver Receiver;
             public PNActionPacket? Ack;
+            public int PoseFrame=-1, MeasuredFrame=-1;
+            public double PoseStamp;
+            public bool PresentedBaseline;
+            public long PresentedSubscription;
+            public PNActionPresentationPhase MeasuredPhase;
+            public long UnknownFrames;
+            public double UnknownSince;
+            public PNSkill Skill;
+            public readonly Func<PNActionRunKey,PNActionRunEnd?> EndAtPose;
+            public ActionBindingState()
+            {
+                EndAtPose=key=>Receiver?.PresentationEnd(PoseStamp,key);
+            }
         }
         sealed class ActionPeer
         {
@@ -31,6 +59,100 @@ namespace ProjectN.Coop
         PNActionTransport actionTransport;
         bool previousPublicationFlag,actionAuthority;
         int actionCursor;
+        readonly PNActionPresentationStats[] actionPresentationStats=new PNActionPresentationStats[3];
+        readonly List<PNObservedAction> observedRuns=new List<PNObservedAction>();
+        readonly List<PNObservedAction> supportedRuns=new List<PNObservedAction>();
+        public PNActionPresentationStats ActionPresentationStats(PNActionPresentationPhase phase)
+            =>actionPresentationStats[(int)phase];
+
+        bool CanReadActionPresentation(Binding b) => ActionsEnabled&&!NetworkServer.active&&!b.Retiring&&
+            b.Actions.HasSkill&&b.Movement.Component?.NetworkRole==PNMoveNetworkRole.Observer;
+
+        public PNActionPresentationCoverage ReadObservedActions(uint netId,List<PNObservedAction> destination,out double? presentation)
+        {
+            if(bindings.TryGetValue(netId,out var binding)&&CanReadActionPresentation(binding)&&
+                binding.Actions.PoseFrame==Time.frameCount)
+            {
+                presentation=binding.Actions.PoseStamp;
+                if(binding.Actions.Receiver!=null)
+                    return binding.Actions.Receiver.ReadPresentation(presentation.Value,destination);
+            }
+            else presentation=null;
+            destination?.Clear();
+            return PNActionPresentationCoverage.Unknown;
+        }
+
+        void MeasureActionPresentation()
+        {
+            if(!ActionsEnabled||NetworkServer.active)return;
+            int frame=Time.frameCount;
+            double now=ActionNow;
+            foreach(var b in bindings.Values)
+            {
+                var a=b.Actions;
+                if(!CanReadActionPresentation(b)){a.UnknownFrames=0;a.Skill?.ClearObservedActionPresentation();continue;}
+                if(a.MeasuredFrame==frame)continue;
+                bool hasPose=a.PoseFrame==frame;
+                var receiver=a.Receiver;
+                bool atBaseline=hasPose&&receiver!=null&&a.PoseStamp>=receiver.BaselinePresentation;
+                bool settled=atBaseline&&receiver.State==PNActionReceiveState.Prepared;
+                var phase=!a.PresentedBaseline?PNActionPresentationPhase.LateJoin:
+                    a.AckSent&&receiver?.State==PNActionReceiveState.Prepared&&
+                    a.PresentedSubscription==receiver.Stream.Subscription
+                    ?PNActionPresentationPhase.Steady:PNActionPresentationPhase.Recovery;
+                if(settled){a.PresentedBaseline=true;a.PresentedSubscription=receiver.Stream.Subscription;}
+                if(a.MeasuredFrame!=frame-1||a.MeasuredPhase!=phase)a.UnknownFrames=0;
+                a.MeasuredFrame=frame;
+                a.MeasuredPhase=phase;
+                var stats=actionPresentationStats[(int)phase];
+                var coverage=hasPose&&receiver!=null?receiver.ReadPresentation(a.PoseStamp,observedRuns):PNActionPresentationCoverage.Unknown;
+                bool unknown=hasPose&&coverage==PNActionPresentationCoverage.Unknown;
+                PresentActions(a,coverage);
+                if(atBaseline)receiver.RetirePastPresentation(a.PoseStamp);
+                if(unknown)
+                {
+                    if(a.UnknownFrames==0)a.UnknownSince=now;
+                    a.UnknownFrames++;
+                }
+                else a.UnknownFrames=0;
+                actionPresentationStats[(int)phase]=new PNActionPresentationStats(stats.Samples+(hasPose?1:0),
+                    stats.Unknown+(unknown?1:0),stats.MissingPose+(hasPose?0:1),
+                    Math.Max(stats.LongestUnknownFrames,a.UnknownFrames),
+                    Math.Max(stats.LongestUnknownMilliseconds,unknown?(now-a.UnknownSince)*1000:0));
+            }
+        }
+        void PresentActions(ActionBindingState binding,PNActionPresentationCoverage coverage)
+        {
+            var skill=binding.Skill;
+            if(skill==null)return;
+            if(!skill.CanUseObservedActionPresentation)
+            {
+                skill.ClearObservedActionPresentation();
+                return;
+            }
+            if(coverage==PNActionPresentationCoverage.Active)
+            {
+                supportedRuns.Clear();
+                foreach(var run in observedRuns)
+                    if(run.Capability==1&&skill.CanPresentObservedAction(run.DataId,run.ActionId))
+                        supportedRuns.Add(run);
+                int winner=0;
+                for(int i=1;i<supportedRuns.Count;i++)
+                {
+                    var run=supportedRuns[i];var last=supportedRuns[winner];
+                    if(run.Start>last.Start||run.Start==last.Start&&
+                        (run.Key.Cast>last.Key.Cast||run.Key.Cast==last.Key.Cast&&run.Key.Ordinal>last.Key.Ordinal))
+                        winner=i;
+                }
+                for(int i=0;i<supportedRuns.Count;i++)
+                {
+                    var run=supportedRuns[i];
+                    skill.PresentObservedAction(run.Key,run.DataId,
+                        new Vector3((float)run.DirectionX,0,(float)run.DirectionZ).normalized,run.Progress,i==winner,run.PresentationScale);
+                }
+            }
+            skill.ReconcileObservedActionPresentation(coverage!=PNActionPresentationCoverage.Unknown,binding.EndAtPose);
+        }
         public long ActionRecoveries {get;private set;}
         public long ActionPacketsSent {get;private set;}
         public long ActionFenceBaselines {get;private set;}
@@ -52,6 +174,7 @@ namespace ProjectN.Coop
         void InitializeActions()
         {
             if(!ActionsEnabled)return;
+            Array.Clear(actionPresentationStats,0,actionPresentationStats.Length);
             if(NetworkServer.active){actionAuthority=true;previousPublicationFlag=PNSkill.ActionPublicationEnabled;PNSkill.ActionPublicationEnabled=true;}
             actionReceiveLedger.AdditionalAdmission=n=>(long)actionReceiveLedger.Used+pendingBuffBytes+inbox.TotalBytes+n<=Profile.ActionReceiveBytes;
             RequiredAdapters.Add(ActionKind);
@@ -70,8 +193,11 @@ namespace ProjectN.Coop
         bool PrepareAction(Binding b,EveEntityLoader loader)
         {
             if(!ActionsEnabled||NetworkServer.active)return true;
-            b.Actions.Known=true;b.Actions.HasSkill=loader.GetComponent<PNSkill>()!=null;
+            b.Actions.Known=true;
+            b.Actions.Skill=loader.GetComponent<PNSkill>();
+            b.Actions.HasSkill=b.Actions.Skill!=null;
             if(!b.Actions.HasSkill)return true;
+            b.Actions.Skill.SetObservedActionPresentation(true);
             if(b.Actions.Request==0)RequestAction(b,false);
             return ActionPrepared(b);
         }
@@ -134,7 +260,7 @@ namespace ProjectN.Coop
         }
         void RemoveActionPeer(ActionPeer p){p.Sender?.Dispose();p.Sender=null;actionPeers.Remove((p.Connection.connectionId,p.Stream.NetId));if(!actionPeers.Values.Any(x=>x.Connection==p.Connection))actionCredit.Remove(p.Connection.connectionId);}
         void UnhookAction(Binding b)
-        {b.Actions.Receiver?.Dispose();b.Actions.Receiver=null;b.Actions.Ack=null;foreach(var p in actionPeers.Values.Where(p=>p.Binding==b).ToArray())RemoveActionPeer(p);}
+        {b.Actions.Skill?.SetObservedActionPresentation(false);b.Actions.Skill=null;b.Actions.Receiver?.Dispose();b.Actions.Receiver=null;b.Actions.Ack=null;b.Actions.PoseFrame=-1;b.Actions.PresentedBaseline=false;b.Actions.UnknownFrames=0;foreach(var p in actionPeers.Values.Where(p=>p.Binding==b).ToArray())RemoveActionPeer(p);}
         void DisposeActions()
         {RequiredAdapters.Remove(ActionKind);actionTransport?.Dispose();actionTransport=null;foreach(var p in actionPeers.Values.ToArray())RemoveActionPeer(p);actionCredit.Clear();if(actionAuthority){PNSkill.ActionPublicationEnabled=previousPublicationFlag;actionAuthority=false;}}
         void PumpActions()
@@ -159,7 +285,7 @@ namespace ProjectN.Coop
                     a.Receiver?.Tick(now);
                     if(a.Receiver?.State==PNActionReceiveState.Failed||!a.AckSent&&now>=a.Deadline)throw new TimeoutException("Action baseline original deadline");
                     if(a.Receiver?.State==PNActionReceiveState.NeedsRecovery||a.AckSent&&now-a.LastTraffic>=Profile.ActionSilenceSeconds){PNActionDiagnostics.Emit("client-recovery",-1,null,a.Receiver,now,a.Receiver?.State==PNActionReceiveState.NeedsRecovery?1:2);RequestAction(b,true);}
-                    if(a.Receiver?.State==PNActionReceiveState.ReadyToApply){var sample=PNTimeService.For(subscribedSession).Sample();a.Ack=a.Receiver.TryApply(now,sample.Ready?(double?)sample.Presentation:null);if(a.Ack.HasValue)PNActionDiagnostics.Emit("baseline-applied",-1,a.Ack,a.Receiver,now,0);}
+                    if(a.Receiver?.State==PNActionReceiveState.ReadyToApply){a.Ack=a.Receiver.TryApply(now,a.PoseFrame==Time.frameCount?(double?)a.PoseStamp:null);if(a.Ack.HasValue)PNActionDiagnostics.Emit("baseline-applied",-1,a.Ack,a.Receiver,now,0);}
                     if(a.Ack.HasValue&&TakeSendBudget(-1,192,true)){NetworkClient.Send(a.Ack.Value,Channels.Reliable);a.Ack=null;a.AckSent=true;SetInput(b,clientInputReady);}
                     if(!a.AckSent&&a.Receiver?.State!=PNActionReceiveState.ReadyToApply&&now-a.LastRequest>=.25&&TakeSendBudget(-1,192,true))
                     {NetworkClient.Send(ActionRequest(a),Channels.Reliable);a.LastRequest=now;}

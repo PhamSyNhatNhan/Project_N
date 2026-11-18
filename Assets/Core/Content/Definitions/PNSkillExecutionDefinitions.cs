@@ -42,6 +42,26 @@ public class PNSkillActionDefinition : PNSkillExecutionDefinition<PNSkillAction>
     // The selected implementation consumes the driver-supplied progress units. This
     // describes timing only; safe visual seek is a separate, not-yet-enabled capability.
     public bool DriverProgress { get; private set; }
+    [JsonIgnore] public Func<PNSkill,PNSkillData,UnityEngine.Vector3,IPNSkillActionPresentation> PresentationFactory { get; private set; }
+    public EveId? PresentationScaleTag { get; private set; }
+    private Func<PNSkill,PNSkillData,UnityEngine.Vector3,double,IPNSkillActionPresentation> scaledPresentation;
+    public PNSkillActionDefinition WithPresentation(Func<PNSkill,PNSkillData,UnityEngine.Vector3,IPNSkillActionPresentation> factory)
+    {
+        PresentationFactory = factory ?? throw new ArgumentNullException(nameof(factory));
+        scaledPresentation = null;
+        PresentationScaleTag = null;
+        return this;
+    }
+    public PNSkillActionDefinition WithScaledPresentation(EveId tag, Func<PNSkill,PNSkillData,UnityEngine.Vector3,double,IPNSkillActionPresentation> factory)
+    {
+        if (!tag.IsValid) throw new ArgumentException("A registered presentation scale tag is required.", nameof(tag));
+        scaledPresentation = factory ?? throw new ArgumentNullException(nameof(factory));
+        PresentationFactory = (skill, data, direction) => factory(skill, data, direction, 1);
+        PresentationScaleTag = tag;
+        return this;
+    }
+    internal IPNSkillActionPresentation CreatePresentation(PNSkill skill, PNSkillData data, UnityEngine.Vector3 direction, double scale)
+        => scaledPresentation != null ? scaledPresentation(skill, data, direction, scale) : PresentationFactory?.Invoke(skill, data, direction);
     public PNSkillActionDefinition WithDriverProgress() { DriverProgress = true; return this; }
     public PNSkillActionDefinition ReplayOnObservers() { ObserverReplay = true; return this; }
     public PNSkillActionDefinition(EveId id, Type implementationType) : this(id, implementationType, null) { }

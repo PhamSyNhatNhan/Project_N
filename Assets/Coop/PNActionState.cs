@@ -42,9 +42,11 @@ internal static class PNActionState {
     public static string Key(JToken t) { var a = Array(t, 2); long cast = Integer(a[0], long.MinValue); Need(cast != 0, "cast zero"); return cast + ":" + Integer(a[1]); }
     public static void Context(JToken t)
     {
-        var a = Array(t, 7);
+        Need(t is JArray && (((JArray)t).Count == 7 || ((JArray)t).Count == 8), "Action context size");
+        var a = (JArray)t;
         for (int i = 0; i < 3; i++) { Need(a[i].Type == JTokenType.String, "id type"); string s = (string)a[i]; Need(s.Length <= 96 && Encoding.UTF8.GetByteCount(s) <= 384 && Regex.IsMatch(s, @"^[a-z0-9_.-]+:[a-z0-9_./-]+$"), "id"); string ns=s.Substring(0,s.IndexOf(':')); Need(ns.Length<=64&&ns!="."&&ns!="..","id namespace"); }
         Need(Integer(a[3]) == 1, "capability"); double x = Number(a[4], -1), z = Number(a[5], -1); Need(x <= 1 && z <= 1 && x*x+z*z > 1e-8, "direction"); Number(a[6]);
+        if (a.Count == 8) Number(a[7]);
     }
     public static void Scope(JToken t)
     {
@@ -68,18 +70,19 @@ internal static class PNActionState {
     public sealed class Run
     {
         public JArray K,D; public int BaseCharge; public long Rev=1,Hg=1; public double T,P,R,Floor; public bool Ended;
+        public PNActionRunEnd EndKind;
         public readonly List<double[]> Anchors = new List<double[]>();
         public double At(double t,double retentionFloor) { Need(t >= Math.Max(Floor,Math.Min(T,retentionFloor)) && t <= T + 1e-9,"projection coverage"); var a=Anchors.Last(x=>x[0]<=t+1e-10); double p=a[1]+(t-a[0])*a[2]; Need(!double.IsInfinity(p) && !double.IsNaN(p),"projection overflow"); return p; }
     }
     public sealed class Decoder
     {
         public readonly Dictionary<string,Run> Runs;
-        public long N,Sub=1; public JArray Identity; public int Starts,Ends,Ignored; public double Floor,RetentionFloor;
+        public long N,Sub=1; public JArray Identity; public int Starts,Ends,Ignored; public double Floor,RetentionFloor,CompleteThrough;
         bool borrowed;HashSet<string> owned;
         Run Own(string key,Run r)
         {
             if(!borrowed||owned.Contains(key))return r;
-            var v=new Run{K=r.K,D=r.D,BaseCharge=r.BaseCharge,Rev=r.Rev,Hg=r.Hg,T=r.T,P=r.P,R=r.R,Floor=r.Floor,Ended=r.Ended};v.Anchors.AddRange(r.Anchors);Runs[key]=v;owned.Add(key);return v;
+            var v=new Run{K=r.K,D=r.D,BaseCharge=r.BaseCharge,Rev=r.Rev,Hg=r.Hg,T=r.T,P=r.P,R=r.R,Floor=r.Floor,Ended=r.Ended,EndKind=r.EndKind};v.Anchors.AddRange(r.Anchors);Runs[key]=v;owned.Add(key);return v;
         }
         Dictionary<long,string> duplicates; bool duplicateBorrowed;
         public Decoder(int runCapacity=0,int duplicateCapacity=0){Runs=new Dictionary<string,Run>(runCapacity);duplicates=new Dictionary<long,string>(duplicateCapacity);}
@@ -108,7 +111,7 @@ internal static class PNActionState {
             // after creation. Only the Run fields and anchor LIST mutate. Sharing
             // these values preserves rollback without cloning every JSON scalar
             // in the three-second history on each live batch.
-            var copy=new Decoder(Math.Min(4096,Runs.Count+32),0){N=N,Sub=Sub,Identity=Identity,Starts=Starts,Ends=Ends,Ignored=Ignored,Floor=Floor,RetentionFloor=RetentionFloor,duplicateCharge=duplicateCharge,runCharge=runCharge,duplicateBorrowed=true,borrowed=true,owned=new HashSet<string>()};
+            var copy=new Decoder(Math.Min(4096,Runs.Count+32),0){N=N,Sub=Sub,Identity=Identity,Starts=Starts,Ends=Ends,Ignored=Ignored,Floor=Floor,RetentionFloor=RetentionFloor,CompleteThrough=CompleteThrough,duplicateCharge=duplicateCharge,runCharge=runCharge,duplicateBorrowed=true,borrowed=true,owned=new HashSet<string>()};
             duplicateBorrowed=true;copy.duplicates=duplicates;
             foreach(var pair in Runs)copy.Runs.Add(pair.Key,pair.Value);return copy;
         }
@@ -143,7 +146,7 @@ internal static class PNActionState {
                         else {Need((long)a[3]==r.Hg && t>=last[0] && p>=last[1]-1e-7,"anchor order");Need(t!=last[0]||p==last[1],"same stamp correction requires reset");}
                         Need(r.Anchors.Count<1024,"anchor bound");r.Anchors.Add(new[]{t,p,rate});runCharge+=(r.Anchors.Count-oldAnchorCount)*64;r.T=Math.Max(t,r.T);r.P=p;r.R=rate;
                     }
-                    else {Need((long)a[7]==r.Hg && (double)a[5]>=r.T && (double)a[6]>=r.P-1e-7,"terminal order"); r.T=(double)a[5];r.P=(double)a[6];Need(Math.Abs(r.At(r.T,RetentionFloor)-r.P)<=1e-5,"terminal oracle");r.R=0;r.Ended=true;Ends++;}
+                    else {Need((long)a[7]==r.Hg && (double)a[5]>=r.T && (double)a[6]>=r.P-1e-7,"terminal order"); r.T=(double)a[5];r.P=(double)a[6];Need(Math.Abs(r.At(r.T,RetentionFloor)-r.P)<=1e-5,"terminal oracle");r.R=0;r.Ended=true;r.EndKind=(PNActionRunEnd)(int)a[4];Ends++;}
                     r.Rev=rev;
                 }
             }
@@ -165,7 +168,7 @@ internal static class PNActionState {
             Array(b,6);Need(Integer(b[0])==2,"baseline version");Scope(b[1]);Integer(b[2]);double t=Number(b[3]);long cut=Integer(b[4],0);Need(b[5] is JArray,"baseline rows");Need(sub>Sub,"baseline subscription");
             var fresh=new Dictionary<string,Run>();long previousCast=long.MinValue,previousOrdinal=0;
             foreach(var row in (JArray)b[5]) {var a=Array(row,6);string key=Key(a[0]);Context(a[1]);long cast=(long)a[0][0],ordinal=(long)a[0][1];Need(cast>previousCast || cast==previousCast&&ordinal>previousOrdinal,"baseline sorted unique");previousCast=cast;previousOrdinal=ordinal;Integer(a[2]);Integer(a[3]);double p=Number(a[4]),rate=Number(a[5]);Need(t>=(double)a[1][6],"baseline start");var r=new Run{K=(JArray)a[0].DeepClone(),D=(JArray)a[1].DeepClone(),Rev=(long)a[2],Hg=(long)a[3],T=t,P=p,R=rate,Floor=t};r.BaseCharge=128+Bytes(r.K)+Bytes(r.D);r.Anchors.Add(new[]{t,p,rate});Need(fresh.Count<4096,"baseline run bound");fresh.Add(key,r);}
-            Runs.Clear();foreach(var p in fresh)Runs.Add(p.Key,p.Value);Identity=(JArray)b[1].DeepClone();N=cut;Sub=sub;Floor=t;RetentionFloor=t-3;borrowed=false;owned=null;duplicates=new Dictionary<long,string>();duplicateBorrowed=false;duplicateCharge=0;runCharge=fresh.Values.Sum(r=>r.BaseCharge+r.Anchors.Count*64);
+            Runs.Clear();foreach(var p in fresh)Runs.Add(p.Key,p.Value);Identity=(JArray)b[1].DeepClone();N=cut;Sub=sub;Floor=t;RetentionFloor=t-3;CompleteThrough=t;borrowed=false;owned=null;duplicates=new Dictionary<long,string>();duplicateBorrowed=false;duplicateCharge=0;runCharge=fresh.Values.Sum(r=>r.BaseCharge+r.Anchors.Count*64);
         }
     }
 }

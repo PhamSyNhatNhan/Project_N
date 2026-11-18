@@ -1,5 +1,29 @@
 using System;
 
+// One Action's frozen amount/source and packet, or the scale needed by its replica.
+public readonly struct PNSkillDamageCapture
+{
+    private readonly PNDamage packet;
+    private readonly PNPreparedDamage prepared;
+    internal double Amount { get; }
+    internal PNCombatSourceSnapshot Source { get; }
+    public double Scale { get; }
+
+    internal PNSkillDamageCapture(double scale, double amount = 0,
+        PNCombatSourceSnapshot source = null, PNDamage packet = null, PNPreparedDamage prepared = null)
+    {
+        Scale = scale;
+        Amount = amount;
+        Source = source;
+        this.packet = packet;
+        this.prepared = prepared;
+    }
+
+    // Melee commits its crit roll when the shape opens. Explicit-target damage
+    // already has a packet from the live Stat factory, whose overrides remain in use.
+    public PNDamage CreatePacket() => prepared == null ? packet : Source.CreateDamage(prepared);
+}
+
 // EN: What `PNSkillActionContext.Hit` did with one hit (Docs/SkillNetworkFrameworkPlan.md 4.2, G2).
 //     Applied: the authority dealt the damage; `Result` is the real outcome.
 //     Skipped: this machine does not deal damage (a guess hands the hit to the report sink, an observer replays pictures). `Reported` says whether a sink took it.

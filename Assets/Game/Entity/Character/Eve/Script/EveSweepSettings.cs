@@ -6,6 +6,13 @@ using UnityEngine;
 // VI: Dải năng lượng, trail và sát thương dùng chung tư thế lưỡi chém.
 public sealed class EveSweepSettings
 {
+    public void ApplyScale(double scale)
+    {
+        float Length(float value) => value <= 0 ? value : Math.Max(.001f, (float)(value * scale));
+        Radius = Length(Radius);
+        InnerRadius = Length(InnerRadius);
+        HitThickness = Length(HitThickness);
+    }
     public float Duration, SweepStart, SweepEnd, FadeEnd, StartAngle, EndAngle, Tilt;
     public float WindupAngle, RecoveryAngle, TrailDepth;
     public float Radius, InnerRadius, Height, BladeWidth, TrailFraction, Intensity, ParticleRate, TrailWidth;

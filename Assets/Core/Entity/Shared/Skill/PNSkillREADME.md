@@ -479,3 +479,62 @@ Required exposes frozen read-only scalar getters for infrastructure encoders (Re
 Coop encodes required/latest directly with unchanged binary grammar/caps and enqueue-before-Commit. Homogeneous U decodes to bounded scalar rows before any apply; mixed rows retain full decoder. COW/needN/floors/full-packet rollback and baseline actual-apply ACK remain. Incremental logical charges and canonical duplicate text are checked against independent enumeration/original JSON formatting; logical bytes are not physical heap.
 
 D1 initial PC matrix improves CPU/mean allocation, but client peak allocation,120ms apply-age and host-pending evidence still block acceptance. Legacy draws; seek/render/cutover remains T5.3. Current evidence: Docs/NetworkTimeT5_2Report.md and .utmp/NetworkTime/T5_2/D1/Candidates/Canonical.
+
+## Shared combat preparation (O1, Rules172)
+
+`PNSkillActionContext.PrepareDamage` prepares one explicit-target damage packet
+and a combat snapshot for hit-time tag reclassification. It evaluates authored
+values and uses the live Stat damage factory in Authority, preserving its
+overrides, crit roll and iframe policy. `PNDamageAction` checks the whole target
+list before preparation, deduplicates entity IDs and reuses the packet across
+the list. It marks the action spent before delivering hits.
+
+The melee hitbox service uses `PrepareMeleeDamage` to capture geometry scale and
+prepare damage from the same snapshot. It rolls one packet when the shape opens.
+The owner supplies its last prepared scale. Presentation uses the scale frozen
+on the run. Both damage paths pass the packet and the capture to `context.Hit`.
+Authority applies damage and dispatches `OnHitConfirmed`. Predicted reports a
+target when the cast has a key and sink. Observed skips gameplay delivery.
+
+## World work and motion (O1, Rules173)
+
+The grid Work Action delegates placement changes to the grid work service. The
+service requires Authority and a runnable authority world. The registered
+payload still determines position offset, footprint distance, work type, power
+and amount. The Action retains its `Worked` and `Broken` counts.
+
+Planar motion advances the Action timeline separately from the Move pose writer.
+A writable local body or predicted owner acquires the physics lease when ready.
+The remote-owner host keeps its execution registration and authority control
+lease, and advances time without writing pose or interpolation. An observed
+Action advances without execution registration or body changes. Cancel, Exit
+and invalidation release the active leases. `PNMotionAction.IsPrediction`
+remains a compatibility property for API 8. The context and Move role select
+execution.
+
+The locomotion Action advances its authored duration in all modes. Authority
+pushes and releases traversal state. The owner mirrors effective locomotion
+through Move, and predicted/observed runs skip the push.
+
+## Spawned-object operations and entity factors (O1, Rules174)
+
+The four registered create Operations validate their payloads and delegate
+spawn admission and requests to `PNSkillObjectSpawn`. Managers retain their
+receipts, caps, replacement, pooling and dependency rules. Predicted and
+Observed skip instance creation in O1. The summon adapter returns the
+existing `Predicted` status to the cast behavior without making a candidate.
+
+`project_n:skill_scales` is a schema-1 Entity state for the existing player
+skill-sync module. It publishes the current scale/pacing factors selected
+from declared tags and Action presentation tags. It uses the world,
+incarnation and membership scope and the Entity transport life. Sampling
+uses a 125 ms unscaled interval, with a new publication only when values or
+scope change. Missing data reads as 1. The seven built-in factors are
+projectile speed, scale and lifetime, melee scale, area scale, blast scale,
+and summon scale. Owners and observers use the same state. Enemy enrollment
+belongs to O7.
+
+Eve sweep prediction now reads this state. The Action run continues to
+carry the frozen scale captured by the authority. Launches continue to use
+authoritative snapshots. Network32 gates the new state and retirement of
+the former owner-image field `m`.

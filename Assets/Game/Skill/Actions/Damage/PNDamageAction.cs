@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using EveEngine;
 using Newtonsoft.Json.Linq;
 
@@ -57,20 +56,15 @@ public class PNDamageAction : PNSkillAction
                 throw new InvalidOperationException("Damage target must be Ready in the same registry and session.");
             if (identities.Add(target.EntityId)) targets.Add(target);
         }
-        // This action explicitly defines one damage amount as the sum of its components.
-        double amount = 0d;
-        foreach (var component in values.Components) amount += component.Evaluate(caster);
-        // G7: only the authority builds the damage packet (a guess or an observer reports / draws the hit through `context.Hit` and deals nothing).
-        bool deal = context.Mode == PNSkillMode.Authority;
-        if (deal) Damage = caster.CreateDamage(amount, canCrit, iframeDuration, context.Data.Action.PerformTags.ToArray());
+        var damage = context.PrepareDamage(values, canCrit, iframeDuration);
+        var packet = damage.CreatePacket();
+        if (packet != null) Damage = packet;
         // EN: Mark spent before delivery; a later receiver failure must not retry already committed hits.
         // VI: Đánh dấu đã thi triển trước khi gửi; receiver sau lỗi không được thử lại hit đã ghi.
         performed = true;
-        var capture = deal ? caster.CaptureCombatSource() : null;
         foreach (var target in targets)
         {
-            // G7: the one door for a hit (authority deals it and the skill hears OnHitConfirmed; a guess reports it under the cast key; an observer does nothing).
-            var outcome = context.Hit(target, target.transform.position, Damage, amount, capture);
+            var outcome = context.Hit(target, target.transform.position, Damage, damage);
             if (outcome.Applied) results.Add(outcome.Result);
         }
     }

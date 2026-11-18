@@ -7,7 +7,7 @@ using EveEngine;
 
 // EN: Trail records two blade anchors as the real sword moves; no prebuilt arc.
 // VI: Trail ghi hai điểm trên lưỡi kiếm đang chuyển động; không dựng sẵn cung chém.
-public sealed class EveSweepVisual : MonoBehaviour
+public sealed class EveSweepVisual : MonoBehaviour, IPNSkillActionPresentation
 {
     private struct BladeSample { public float Time; public Vector3 Near, Tip; }
     private readonly List<BladeSample> samples = new List<BladeSample>(80);
@@ -25,6 +25,7 @@ public sealed class EveSweepVisual : MonoBehaviour
     private Transform tip;
     private float previousTime, sparkRemainder, releasedAge;
     private bool released;
+    private bool hasTail;
     private EveTimeScale clock;
     private PNStat caster;
     public Transform AttackRoot => transform;
@@ -33,7 +34,10 @@ public sealed class EveSweepVisual : MonoBehaviour
     public Vector3 HeadPosition => tip.position;
     public int LiveParticles => sparks.particleCount;
     public int BladeSamples => samples.Count;
-    public static EveSweepVisual Create(Transform owner, EveHitboxPose pose, EveSweepSettings config)
+    public bool HasTail => this!=null&&hasTail;
+    public static EveSweepVisual Create(Transform owner,EveHitboxPose pose,EveSweepSettings config)
+        => Create(owner,pose,config,true);
+    private static EveSweepVisual Create(Transform owner, EveHitboxPose pose, EveSweepSettings config, bool renderStart)
     {
         var weapon=owner.GetComponentInChildren<EveWeaponRig>();
         if (weapon==null) throw new System.InvalidOperationException("Eve sword rig must be loaded before an attack.");
@@ -41,8 +45,50 @@ public sealed class EveSweepVisual : MonoBehaviour
         SceneManager.MoveGameObjectToScene(root,owner.gameObject.scene); root.transform.SetParent(owner,false);
         root.transform.SetPositionAndRotation(pose.Position,pose.Rotation);
         var v=root.AddComponent<EveSweepVisual>(); v.settings=config; v.pose=pose; v.weapon=weapon;v.clock=owner.GetComponent<EveTimeScale>();v.caster=owner.GetComponent<PNStat>();
-        try { v.Initialize(); v.Render(0,0); return v; }
+        try { v.Initialize(); if(renderStart)v.Render(0,0); return v; }
         catch { EveVfxUtility.DestroyResource(root); throw; }
+    }
+    public static IPNSkillActionPresentation CreatePresentation(PNSkill skill,PNSkillData data,Vector3 direction)
+        => CreatePresentation(skill,data,direction,1);
+    public static IPNSkillActionPresentation CreatePresentation(PNSkill skill,PNSkillData data,Vector3 direction,double scale)
+    {
+        var rig=skill.GetComponentInChildren<EveWeaponRig>();
+        var pose=EveHitboxPose.Planar(skill.transform.position+rig.HandOffset(direction),direction);
+        var settings=EveSweepSettings.Parse(data.Action.Perform);
+        settings.ApplyScale(scale);
+        return Create(skill.transform,pose,settings,false);
+    }
+    public void Show(double progress,bool driveWeapon,bool seek)
+    {
+        if(this==null)return;
+        float normalized=Mathf.Clamp01((float)(progress/settings.Duration));
+        seek |= normalized<Progress || normalized-Progress>settings.TrailFraction;
+        if(seek)
+        {
+            samples.Clear();tipTrail.Clear();
+            sparks.Stop(true,ParticleSystemStopBehavior.StopEmittingAndClear);
+            sparkRemainder=0;
+            previousTime=Mathf.Max(0,normalized-settings.TrailFraction);
+        }
+        gameObject.SetActive(true);
+        Render(normalized,seek?0:(normalized-Progress)*settings.Duration,driveWeapon,!seek);
+    }
+    public void Hide()
+    {
+        if(this==null)return;
+        if(weapon!=null)weapon.EndStrike(this);
+        gameObject.SetActive(false);
+    }
+    public void End(bool completed)
+    {
+        if(this==null)return;
+        if(released&&hasTail&&!completed)
+        {
+            hasTail=false;
+            gameObject.SetActive(false);
+            EveVfxUtility.DestroyResource(gameObject);
+        }
+        else Release(!completed||!gameObject.activeSelf);
     }
     // Prewarm (PNPrewarmContent, under the transition cover): builds and drops what a slash builds on its first use (materials, dynamic mesh, trail, particle system, one emit), so that
     // the first Attack of a session does not pay for it. The shader programs themselves are warmed by PNShaderWarmup (Project_N/VFX/EveEnergy).
@@ -85,7 +131,8 @@ public sealed class EveSweepVisual : MonoBehaviour
         var sparkRenderer=sparks.GetComponent<ParticleSystemRenderer>();sparkRenderer.renderMode=ParticleSystemRenderMode.Stretch;
         sparkRenderer.velocityScale=.06f;sparkRenderer.lengthScale=1.5f;
     }
-    public void Render(float normalized,float delta)
+    public void Render(float normalized,float delta) => Render(normalized,delta,true,true);
+    private void Render(float normalized,float delta,bool driveWeapon,bool emit)
     {
         transform.SetPositionAndRotation(pose.Position,pose.Rotation);
         Progress=Mathf.Clamp01(normalized);
@@ -132,10 +179,11 @@ public sealed class EveSweepVisual : MonoBehaviour
         if(vertices.Count>0) { mesh.SetVertices(vertices);mesh.SetUVs(0,uv);mesh.SetColors(colors);mesh.SetTriangles(triangles,0);mesh.RecalculateNormals();mesh.RecalculateBounds(); }
         var direction=pose.Rotation*settings.SwordDirection(Progress);
         var pivot=pose.Position+Vector3.up*settings.Height;
-        weapon.Strike(pivot,direction,settings.Radius,1,pose.Rotation*normal);
+        if(driveWeapon)weapon.Strike(this,pivot,direction,settings.Radius,1,pose.Rotation*normal);
+        else weapon.EndStrike(this);
         tip.position=pivot+direction*settings.Radius;
         float sweptDelta=Mathf.Max(0,end-begin)*settings.Duration;
-        if(sweptDelta>0)
+        if(emit&&sweptDelta>0)
         {
             sparkRemainder+=sweptDelta*settings.ParticleRate;int count=Mathf.FloorToInt(sparkRemainder);sparkRemainder-=count;
             for(int i=0;i<count;i++)
@@ -165,12 +213,14 @@ public sealed class EveSweepVisual : MonoBehaviour
     public void Release(bool cancelled)
     {
         if(released)return;released=true;
-        if(weapon!=null)weapon.EndStrike();tipTrail.emitting=false;
+        if(weapon!=null)weapon.EndStrike(this);tipTrail.emitting=false;
         if(cancelled || !Application.isPlaying)
         {
             mesh.Clear();tipTrail.Clear();sparks.Stop(true,ParticleSystemStopBehavior.StopEmittingAndClear);
+            gameObject.SetActive(false);
             if(Application.isPlaying)Destroy(gameObject);else DestroyImmediate(gameObject);
         }
+        else hasTail=true;
         // Completed attacks retain their frozen sweep and fade without extending the damage window.
     }
     private void LateUpdate()
@@ -186,7 +236,7 @@ public sealed class EveSweepVisual : MonoBehaviour
         if(releasedAge>=Mathf.Max(settings.Afterglow,settings.ParticleLifetime))Destroy(gameObject);
     }
     private void OnDestroy()
-    { EveVfxUtility.DestroyResource(mesh);EveVfxUtility.DestroyResource(ribbonMaterial);EveVfxUtility.DestroyResource(particleMaterial); }
+    { if(weapon!=null)weapon.EndStrike(this);EveVfxUtility.DestroyResource(mesh);EveVfxUtility.DestroyResource(ribbonMaterial);EveVfxUtility.DestroyResource(particleMaterial); }
 }
 public static class EveVfxUtility
 {

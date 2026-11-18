@@ -5,6 +5,27 @@ using Newtonsoft.Json.Linq;
 namespace ProjectN.Coop
 {
     public enum PNActionReceiveState { Waiting, Assembling, ReadyToApply, Prepared, NeedsRecovery, Failed }
+    public enum PNActionPresentationCoverage { Unknown, Empty, Active }
+
+    public readonly struct PNObservedAction
+    {
+        public readonly Guid Source;
+        public readonly PNActionRunKey Key;
+        public readonly string EntryId, DataId, ActionId;
+        public readonly long Capability;
+        public readonly double DirectionX, DirectionZ, Start, Progress, Rate, PresentationScale;
+
+        internal PNObservedAction(Guid source, PNActionState.Run run, double progress, double rate)
+        {
+            Source=source;
+            Key=new PNActionRunKey((long)run.K[0],(long)run.K[1]);
+            EntryId=(string)run.D[0]; DataId=(string)run.D[1]; ActionId=(string)run.D[2];
+            Capability=(long)run.D[3];
+            DirectionX=(double)run.D[4]; DirectionZ=(double)run.D[5]; Start=(double)run.D[6];
+            PresentationScale=run.D.Count==8?(double)run.D[7]:1;
+            Progress=progress; Rate=rate;
+        }
+    }
     public sealed class PNActionReceiveBudget
     {
         public int Used { get; private set; }
@@ -21,6 +42,9 @@ namespace ProjectN.Coop
         readonly PNActionReceiveBudget budget;
         readonly double recoverySeconds;
         PNActionState.Decoder model=new PNActionState.Decoder();
+        PNActionState.Decoder priorPresentation;
+        Guid committedSource, priorSource;
+        int priorCharge;
         PNActionPacket? declaration;
         byte[][] parts;
         int received,stageCharge,modelCharge,pendingBytes;
@@ -39,12 +63,72 @@ namespace ProjectN.Coop
         public long AppliedSequence=>model.N;
         public int RunCount=>model.Runs.Count;
         public double Progress(long cast,long ordinal)=>model.Runs[cast+":"+ordinal].P;
+
+        // The caller supplies the stamp actually sampled by the actor's pose.
+        // A null destination checks coverage without materializing run views.
+        public PNActionPresentationCoverage ReadPresentation(double stamp, List<PNObservedAction> destination)
+        {
+            PNTimeMath.Nonnegative(stamp);
+            destination?.Clear();
+            var current=stamp<model.Floor?priorPresentation:model;
+            if(disposed||State==PNActionReceiveState.Failed||current?.Identity==null||
+                stamp<Math.Max(current.Floor,current.RetentionFloor)||stamp>current.CompleteThrough)
+                return PNActionPresentationCoverage.Unknown;
+
+            var result=PNActionPresentationCoverage.Empty;
+            foreach(var run in current.Runs.Values)
+            {
+                if(stamp<(double)run.D[6]||run.Ended&&stamp>=run.T)continue;
+                if(stamp<run.Floor||stamp>run.T)
+                {
+                    destination?.Clear();
+                    return PNActionPresentationCoverage.Unknown;
+                }
+                result=PNActionPresentationCoverage.Active;
+                if(destination==null)continue;
+                int index=run.Anchors.Count-1;
+                while(run.Anchors[index][0]>stamp)index--;
+                var anchor=run.Anchors[index];
+                destination.Add(new PNObservedAction(current==model?committedSource:priorSource,
+                    run,anchor[1]+(stamp-anchor[0])*anchor[2],anchor[2]));
+            }
+            return result;
+        }
+
+        internal double BaselinePresentation => model.Identity==null?double.PositiveInfinity:model.Floor;
+        internal PNActionRunEnd? PresentationEnd(double stamp, PNActionRunKey key)
+        {
+            var current=stamp<model.Floor?priorPresentation:model;
+            if(current!=null&&current.Runs.TryGetValue(key.Cast+":"+key.Ordinal,out var run)&&run.Ended&&stamp>=run.T)
+                return run.EndKind;
+            return null;
+        }
+        internal void RetirePastPresentation(double stamp)
+        {
+            if(stamp>=model.Floor)ClearPriorPresentation();
+        }
+        void ClearPriorPresentation()
+        {
+            priorPresentation=null;
+            priorSource=default;
+            budget.Return(priorCharge);
+            priorCharge=0;
+        }
         public PNActionReceiver(PNActionReceiveBudget budget,PNActionStream stream,long request,double deadline,double maximumRecoverySeconds=3)
         {this.budget=budget??throw new ArgumentNullException(nameof(budget));stream.Validate();if(request<=0)throw new ArgumentOutOfRangeException();PNTimeMath.Nonnegative(deadline);PNTimeMath.Nonnegative(maximumRecoverySeconds);if(maximumRecoverySeconds==0)throw new ArgumentOutOfRangeException();recoverySeconds=maximumRecoverySeconds;Stream=stream;Request=request;Deadline=deadline;}
         public void Reset(PNActionStream stream,long request,double originalDeadline)
         {
             if(disposed)throw new ObjectDisposedException(nameof(PNActionReceiver));stream.Validate();PNTimeMath.Nonnegative(originalDeadline);
             if(stream.Subscription<=Stream.Subscription||request<=Request)throw new InvalidOperationException("Action reset fence");
+            if(stream.Session!=Stream.Session||stream.NetId!=Stream.NetId||stream.Entity!=Stream.Entity||
+                stream.Generation!=Stream.Generation||stream.Nonce!=Stream.Nonce||!stream.Scope.Equals(Stream.Scope))
+            {
+                ClearPriorPresentation();
+                budget.Return(modelCharge);
+                modelCharge=0;
+                model=new PNActionState.Decoder();
+                committedSource=default;
+            }
             ClearStage();Stream=stream;Request=request;Deadline=State==PNActionReceiveState.Prepared?originalDeadline:Math.Min(Deadline,originalDeadline);State=PNActionReceiveState.Waiting;Failure=null;
         }
         // A request carries the last known source. A concurrent host rebuild may
@@ -94,6 +178,7 @@ namespace ProjectN.Coop
             {
                 target.Prune(p.T);
                 foreach(var value in latest){if(value.Stamp>p.T||value.Stamp<target.Floor)throw new FormatException("Action capture/coverage");if(target.ApplyLatest(value))latestCount++;else ignoredCount++;if(target.ResidentCharge>ModelLimit)throw new FormatException("Action model bound");}
+                Certify(target,p);
                 return (requiredCount,latestCount,ignoredCount);
             }
             var records=PNActionWire.Decode(p.Body);if(records.Count>256)throw new FormatException("Action batch count");
@@ -101,10 +186,31 @@ namespace ProjectN.Coop
             // whole run dictionary for every individual U/R record.
             target.Prune(p.T);
             foreach(var token in records){var a=token as JArray;PNActionState.Record(a);int tag=(int)a[0];double stamp=tag==0?(double)a[3][6]:tag==1?(double)a[3]:tag==4?(double)a[5]:(double)a[tag==2?5:6][0];if(stamp>p.T||stamp<target.Floor)throw new FormatException("Action capture/coverage");if(!target.Apply(a,false))ignoredCount++;else if(tag==1)latestCount++;else requiredCount++;if(target.ResidentCharge>ModelLimit)throw new FormatException("Action model bound");}
+            Certify(target,p);
             return (requiredCount,latestCount,ignoredCount);
         }
-        void Commit(PNActionState.Decoder candidate)
-        {int charge=candidate.ResidentCharge;if(charge>ModelLimit)throw new FormatException("Action model bound");budget.Take(charge);var old=modelCharge;model=candidate;modelCharge=charge;budget.Return(old);}
+        static void Certify(PNActionState.Decoder target, PNActionPacket packet)
+        {
+            if(!packet.CompleteThroughCapture)return;
+            if(packet.N!=target.N)throw new FormatException("Action coverage sequence");
+            target.CompleteThrough=Math.Max(target.CompleteThrough,packet.T);
+        }
+        void Commit(PNActionState.Decoder candidate, bool retainPrior=false)
+        {
+            int charge=candidate.ResidentCharge;
+            if(charge>ModelLimit)throw new FormatException("Action model bound");
+            budget.Take(charge);
+            if(retainPrior)
+            {
+                ClearPriorPresentation();
+                priorPresentation=model;
+                priorSource=committedSource;
+                priorCharge=modelCharge;
+            }
+            else budget.Return(modelCharge);
+            model=candidate;
+            modelCharge=charge;
+        }
         void ApplyLive(PNActionPacket p)
         {budget.Take(DecodeReserve);try{var candidate=model.Clone();var result=Live(candidate,p);Commit(candidate);LastLiveCommit=result;}finally{budget.Return(DecodeReserve);}}
         // Calling Receive cannot produce an ACK. Explicit model apply is the boundary.
@@ -120,13 +226,17 @@ namespace ProjectN.Coop
                 if((long)b[2]!=d.Q||(double)b[3]!=d.T||(long)b[4]!=d.N||(string)scope[0]!=Stream.Session.ToString("N")||(string)scope[1]!=Stream.Scope.World.ToString("N")||(ulong)scope[2]!=Stream.Scope.Incarnation||(long)scope[3]!=Stream.Entity||(long)scope[4]!=Stream.Generation||(string)scope[5]!=Stream.Source.ToString("N"))throw new FormatException("Action baseline cut/scope");
                 var candidate=new PNActionState.Decoder{Sub=0};candidate.Baseline(b,Stream.Subscription);
                 foreach(var p in pending)Live(candidate,p);
-                var prior=model;Commit(candidate);
+                var prior=model;
+                if(prior.Identity!=null&&candidate.Floor<prior.Floor)throw new FormatException("Action baseline presentation rollback");
+                Commit(candidate,prior.Identity!=null&&(!selectedPresentation.HasValue||selectedPresentation.Value<d.T));
+                committedSource=Stream.Source;
+                if(selectedPresentation.HasValue&&selectedPresentation.Value>=d.T)ClearPriorPresentation();
                 if(prior.Identity!=null){UnknownCoverageResets++;foreach(var pair in prior.Runs){if(candidate.Runs.ContainsKey(pair.Key))continue;if(!pair.Value.Ended)UnknownActiveRetirements++;else if(selectedPresentation.HasValue){if(pair.Value.T<selectedPresentation.Value)KnownExpiredSkipped++;else KnownPotentiallyVisibleSkipped++;}}}
                 ClearStage();State=PNActionReceiveState.Prepared;d.Kind=3;d.Total=d.Count=d.Index=0;d.Body=Array.Empty<byte>();return d;
             }
             catch(Exception e){Fault(e.Message);return null;}
             finally{if(reserved)budget.Return(DecodeReserve);}
         }
-        public void Dispose(){if(disposed)return;ClearStage();budget.Return(modelCharge);modelCharge=0;model=new PNActionState.Decoder();disposed=true;State=PNActionReceiveState.Failed;}
+        public void Dispose(){if(disposed)return;ClearStage();ClearPriorPresentation();budget.Return(modelCharge);modelCharge=0;model=new PNActionState.Decoder();disposed=true;State=PNActionReceiveState.Failed;}
     }
 }

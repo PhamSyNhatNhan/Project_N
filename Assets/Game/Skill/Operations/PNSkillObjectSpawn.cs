@@ -1,0 +1,137 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using EveEngine;
+using Newtonsoft.Json.Linq;
+#if UNITY_5_3_OR_NEWER
+using UnityEngine;
+#endif
+
+internal enum PNSkillSpawnAdmission { Skipped, Authority, Predicted }
+
+// Admission and spawning for the registered skill Operations. Managers retain
+// their own capacity, submission receipts and lifetime rules.
+internal static class PNSkillObjectSpawn
+{
+    internal static PNSkillSpawnAdmission Admit(PNSkillActionContext context)
+    {
+        if (context.Mode == PNSkillMode.Predicted) return PNSkillSpawnAdmission.Predicted;
+        if (context.Mode != PNSkillMode.Authority || !EveRegistrySession.Context.HasAuthority)
+            return PNSkillSpawnAdmission.Skipped;
+        return PNSkillSpawnAdmission.Authority;
+    }
+
+#if UNITY_5_3_OR_NEWER
+    internal static void CreateProjectiles(PNSkillActionContext context, JToken token, List<PNProjectileReceipt> results)
+    {
+        var settings = PNCreateProjectileSettings.Parse(token); var caster = context.Skill.GetComponent<PNStat>();
+        if (caster == null || !caster.IsReady) throw new InvalidOperationException("Projectiles need the caster's Ready stats.");
+        var source = PNCombatSource.Capture(caster);
+        PNPreparedDamage prepared = null;
+        if (settings.Values != null)
+        {
+            // One amount for the whole volley (sum of the components), one prepared template; the crit roll is per hit.
+            double amount = 0d; foreach (var component in settings.Values.Components) amount += component.Evaluate(caster);
+            var tags = context.EffectiveTags().Concat(settings.Tags).Concat(new[] { PNContentIds.ProjectileDamage }).ToArray();
+            prepared = source.Snapshot.PrepareDamage(amount, settings.CanCrit, settings.IFrameDuration, tags);
+        }
+        var plan = context.CanFreezeOnHit ? context.Skill.Effects.FreezeOnHit(context) : null;
+        var launchLayers = source.TargetLayers.Union(settings.TargetLayers);
+        if (launchLayers.IsEmpty) throw new InvalidOperationException("create_projectile: the caster targets no layer and the payload adds none.");
+        var rule = PNTargetRules.For(caster);
+        var launch = PNProjectileLaunch.FromSource(settings.ProjectileId, settings.Input, source, launchLayers, prepared, plan, rule);
+        var scene = caster.gameObject.scene;
+        var manager = PNProjectileManager.Resolve(EveRegistrySession.Context, scene);
+        if (!ReferenceEquals(manager.Session.Registry, context.Registry)) throw new InvalidOperationException("Projectile operation session mismatch.");
+        var position = context.Position ?? caster.transform.position;
+        var aim = context.Direction.Value; PNStat aimTarget = null;
+        if (settings.AimRadius.HasValue)
+        {
+            aimTarget = PNTargetSelector.Select(manager.Targets.Acquire(context.World), new PNTargetQuery
+            {
+                Origin = position, Range = (float)settings.AimRadius.Value, LayerMask = launchLayers.Mask, Rule = rule, Exclude = caster.EntityId, Planar = true
+            });
+            if (aimTarget != null)
+            {
+                var toTarget = aimTarget.transform.position - position; toTarget.y = 0;
+                if (toTarget.sqrMagnitude > 1e-8f) aim = toTarget;
+            }
+        }
+        for (int i = 0; i < settings.Count; i++)
+        {
+            float angle = (float)((i - (settings.Count - 1) / 2d) * settings.Spread);
+            var heading = Quaternion.AngleAxis(angle, Vector3.up) * aim;
+            if (settings.Pitches != null && settings.Pitches[i] != 0)
+            {
+                // Tilt about the horizontal axis perpendicular to the heading: positive pitch raises the nose.
+                var side = Vector3.Cross(Vector3.up, heading);
+                if (side.sqrMagnitude > 1e-8f) heading = Quaternion.AngleAxis(-(float)settings.Pitches[i], side.normalized) * heading;
+            }
+            var receipt = manager.Create(launch, new PNProjectileSpawn(scene, position, heading, aimTarget));
+            results.Add(receipt);
+            if (receipt.Status == PNProjectileStatus.Failed) throw new InvalidOperationException("Projectile creation failed.", receipt.Error);
+        }
+    }
+
+    internal static PNAreaReceipt CreateArea(PNSkillActionContext context, JToken token)
+    {
+        var data = (JObject)token; var caster = context.Skill.GetComponent<PNStat>();
+        var manager = PNAreaManager.Resolve(EveRegistrySession.Context, caster.gameObject.scene);
+        if (!ReferenceEquals(manager.Session.Registry, context.Registry)) throw new InvalidOperationException("Area operation session mismatch.");
+        var result = manager.Create(new PNAreaCreateRequest(EveId.Parse(PNBuffContentBatch.String(data, "areaId")), data["input"],
+            PNCombatSource.Capture(caster), caster.gameObject.scene, context.Position.Value, caster,
+            PNBuffContentBatch.Bool(data, "followCaster") ? caster : null));
+        return result;
+    }
+
+    internal static PNBlastReceipt CreateBlast(PNSkillActionContext context, JToken token)
+    {
+        var data = (JObject)token; var caster = context.Skill.GetComponent<PNStat>();
+        var manager = PNBlastManager.Resolve(EveRegistrySession.Context, caster.gameObject.scene);
+        if (!ReferenceEquals(manager.Session.Registry, context.Registry)) throw new InvalidOperationException("Blast operation session mismatch.");
+        var result = manager.Create(new PNBlastCreateRequest(EveId.Parse(PNBuffContentBatch.String(data, "blastId")), data["input"], PNCombatSource.Capture(caster),
+            caster.gameObject.scene, context.Position.Value, caster, PNCreateBlastOperation.ParseDependency(data)));
+        return result;
+    }
+
+    internal static PNSummonStatus CreateSummon(PNSkillActionContext context, JToken token, ref int replaced, out EveEntityPreparationScheduler.Candidate accepted)
+    {
+        accepted = null;
+        var settings = PNCreateSummonSettings.Parse(token);
+        var caster = context.Skill.GetComponent<PNStat>();
+        if (caster == null || !caster.IsReady) throw new InvalidOperationException("Summons need the caster's Ready stats.");
+        var session = EveRegistrySession.Context; var host = PNEntityHosts.For(session);
+        var owner = caster.EntityId;
+        // A full group: remove the oldest summons first (their removal frees the slot at once, see PNSummons.Count) or refuse the new one.
+        if (settings.Limit > 0)
+            while (PNSummons.Count(owner, settings.Group) >= settings.Limit)
+            {
+                var oldest = settings.WhenFull == PNSummonFullPolicy.ReplaceOldest ? PNSummons.Oldest(owner, settings.Group) : null;
+                if (oldest == null || !oldest.Retire()) return PNSummonStatus.Rejected;
+                replaced++;
+            }
+        var source = PNCombatSource.Capture(caster);
+        double scale = source.Snapshot.Calculate(1d, PNContentIds.SummonScale);
+        if (!(scale > 0d) || double.IsInfinity(scale)) scale = 1d;
+        var identity = caster.GetComponent<EveEntityIdentity>(); var marker = caster.GetComponent<PNFactoryEntity>();
+        var request = new PNEntityRequest
+        {
+            Entity = settings.Entity.ToString(), Template = settings.Entity.ToString(), Character = settings.Character.ToString(), World = identity.World, WorldIncarnation = identity.World.Incarnation,
+            ContentSlot = identity.ContentSlot, SceneKey = string.IsNullOrWhiteSpace(marker?.SceneKey) ? "summon:runtime" : marker.SceneKey, EntityKey = "",
+            Position = caster.transform.position + new Vector3((float)settings.Offset[0], (float)settings.Offset[1], (float)settings.Offset[2]),
+            Lifetime = settings.Lifetime, Summoner = owner
+        };
+        EveEntityPreparationScheduler.Candidate candidate = null;
+        candidate = host.TrySpawn(request, loader =>
+        {
+            var summon = loader.GetComponent<PNSummon>() ?? loader.gameObject.AddComponent<PNSummon>();
+            summon.Begin(source, owner, settings.Group, PNSummons.NextSequence(), scale);
+            PNSummons.Fulfil(candidate);
+        }, null, error => Debug.LogException(error));
+        if (candidate == null) return PNSummonStatus.QueueFull;
+        PNSummons.Reserve(owner, settings.Group, candidate);
+        accepted = candidate;
+        return PNSummonStatus.Spawning;
+    }
+#endif
+}

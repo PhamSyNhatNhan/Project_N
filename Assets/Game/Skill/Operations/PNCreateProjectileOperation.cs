@@ -4,7 +4,6 @@ using System.Linq;
 using EveEngine;
 using Newtonsoft.Json.Linq;
 #if UNITY_5_3_OR_NEWER
-using UnityEngine;
 #endif
 
 // Payload of create_projectile (every field required unless noted):
@@ -86,57 +85,9 @@ public class PNCreateProjectileOperation : PNSkillOperation
     {
         if (executed || context == null || context.Skill == null || !context.Skill.IsReady || !context.Direction.HasValue) throw new InvalidOperationException("Fresh Ready direction context required.");
         Validate(token, context.Registry); executed = true;
-        if (context.Mode != PNSkillMode.Authority) return; // a guess or a replay creates no projectile (G2)
+        if (PNSkillObjectSpawn.Admit(context) != PNSkillSpawnAdmission.Authority) return;
 #if UNITY_5_3_OR_NEWER
-        // Clients render the action but cannot create authoritative projectiles.
-        if (!EveRegistrySession.Context.HasAuthority) return;
-        var settings = PNCreateProjectileSettings.Parse(token); var caster = context.Skill.GetComponent<PNStat>();
-        if (caster == null || !caster.IsReady) throw new InvalidOperationException("Projectiles need the caster's Ready stats.");
-        var source = PNCombatSource.Capture(caster);
-        PNPreparedDamage prepared = null;
-        if (settings.Values != null)
-        {
-            // One amount for the whole volley (sum of the components), one prepared template; the crit roll is per hit.
-            double amount = 0d; foreach (var component in settings.Values.Components) amount += component.Evaluate(caster);
-            var tags = context.EffectiveTags().Concat(settings.Tags).Concat(new[] { PNContentIds.ProjectileDamage }).ToArray();
-            prepared = source.Snapshot.PrepareDamage(amount, settings.CanCrit, settings.IFrameDuration, tags);
-        }
-        var plan = context.CanFreezeOnHit ? context.Skill.Effects.FreezeOnHit(context) : null;
-        var launchLayers = source.TargetLayers.Union(settings.TargetLayers);
-        if (launchLayers.IsEmpty) throw new InvalidOperationException("create_projectile: the caster targets no layer and the payload adds none.");
-        var rule = PNTargetRules.For(caster);
-        var launch = PNProjectileLaunch.FromSource(settings.ProjectileId, settings.Input, source, launchLayers, prepared, plan, rule);
-        var scene = caster.gameObject.scene;
-        var manager = PNProjectileManager.Resolve(EveRegistrySession.Context, scene);
-        if (!ReferenceEquals(manager.Session.Registry, context.Registry)) throw new InvalidOperationException("Projectile operation session mismatch.");
-        var position = context.Position ?? caster.transform.position;
-        var aim = context.Direction.Value; PNStat aimTarget = null;
-        if (settings.AimRadius.HasValue)
-        {
-            aimTarget = PNTargetSelector.Select(manager.Targets.Acquire(context.World), new PNTargetQuery
-            {
-                Origin = position, Range = (float)settings.AimRadius.Value, LayerMask = launchLayers.Mask, Rule = rule, Exclude = caster.EntityId, Planar = true
-            });
-            if (aimTarget != null)
-            {
-                var toTarget = aimTarget.transform.position - position; toTarget.y = 0;
-                if (toTarget.sqrMagnitude > 1e-8f) aim = toTarget;
-            }
-        }
-        for (int i = 0; i < settings.Count; i++)
-        {
-            float angle = (float)((i - (settings.Count - 1) / 2d) * settings.Spread);
-            var heading = Quaternion.AngleAxis(angle, Vector3.up) * aim;
-            if (settings.Pitches != null && settings.Pitches[i] != 0)
-            {
-                // Tilt about the horizontal axis perpendicular to the heading: positive pitch raises the nose.
-                var side = Vector3.Cross(Vector3.up, heading);
-                if (side.sqrMagnitude > 1e-8f) heading = Quaternion.AngleAxis(-(float)settings.Pitches[i], side.normalized) * heading;
-            }
-            var receipt = manager.Create(launch, new PNProjectileSpawn(scene, position, heading, aimTarget));
-            results.Add(receipt);
-            if (receipt.Status == PNProjectileStatus.Failed) throw new InvalidOperationException("Projectile creation failed.", receipt.Error);
-        }
+        PNSkillObjectSpawn.CreateProjectiles(context, token, results);
 #else
         // Standalone runner validates invocation/payload only; it has no Unity projectile runtime.
 #endif

@@ -74,7 +74,8 @@ public sealed class PNSkillOwnerView : MonoBehaviour, IPNSyncEntityListener, IPN
         if (manager != null) { manager.ReplicaCanAdvance = null; manager.ReplicaAuthorityDelta = null; }
         foreach (var lease in leases) lease.Dispose(); leases.Clear();
         foreach (var clock in clocks) clock.Dispose(); clocks.Clear();
-        pending = null; pendingItems = null; pendingBindings = null; Prepared = false; deadline = nextRequest = nextCapture = 0; sawUnready = false;
+        pending = null; pendingItems = null; pendingBindings = null;
+        Prepared = false; deadline = nextRequest = nextCapture = 0; sawUnready = false;
         IsBound = false; sync = null; manager = null; abilities = null; skill = null; Bindings = NoBindings;
     }
     private bool CanAdvanceReplica() => IsBound && Prepared && sync.Session.IsActive && PNTimeService.For(sync.Session).Sample().Ready;

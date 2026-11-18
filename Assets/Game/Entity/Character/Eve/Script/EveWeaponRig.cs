@@ -38,6 +38,7 @@ public sealed class EveWeaponRig : UnityEngine.MonoBehaviour
     private UnityEngine.Vector3 pivot, direction, planeNormal;
     private float length, visibility=1, charging;
     private bool striking, burst;
+    private EveSweepVisual strikeOwner;
     public UnityEngine.Vector3 GripPosition=>blade.position;
     public UnityEngine.Vector3 BladeTip=>blade.position+direction.normalized*length;
     public UnityEngine.MeshRenderer BladeRenderer=>renderer;
@@ -163,8 +164,12 @@ public sealed class EveWeaponRig : UnityEngine.MonoBehaviour
         return aim*settings.HandOffset+UnityEngine.Vector3.Cross(aim,UnityEngine.Vector3.up)*settings.HandSideOffset;
     }
     public void Strike(UnityEngine.Vector3 pivot,UnityEngine.Vector3 direction,float length,float alpha,UnityEngine.Vector3 planeNormal)
-    {striking=true;this.pivot=pivot;this.direction=direction;this.length=length;this.planeNormal=planeNormal;visibility=alpha;UpdatePose();}
-    public void EndStrike(){striking=false;visibility=1;UpdatePose();}
+    {Strike(null,pivot,direction,length,alpha,planeNormal);}
+    internal void Strike(EveSweepVisual source,UnityEngine.Vector3 pivot,UnityEngine.Vector3 direction,float length,float alpha,UnityEngine.Vector3 planeNormal)
+    {strikeOwner=source;striking=true;this.pivot=pivot;this.direction=direction;this.length=length;this.planeNormal=planeNormal;visibility=alpha;UpdatePose();}
+    public void EndStrike(){strikeOwner=null;striking=false;visibility=1;UpdatePose();}
+    internal void EndStrike(EveSweepVisual source)
+    {if(ReferenceEquals(strikeOwner,source))EndStrike();}
     public void SetBurst(bool active){burst=active;UpdatePose();}
     public void Charge(float progress){charging=UnityEngine.Mathf.Clamp01(progress);if(!striking)UpdatePose();}
     private void LateUpdate()=>UpdatePose();

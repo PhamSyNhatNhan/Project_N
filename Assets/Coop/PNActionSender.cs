@@ -45,12 +45,18 @@ namespace ProjectN.Coop
             }
             catch{Dispose();throw;}
         }
-        bool Enqueue(PNActionPacket[] packets,double now,bool latest)
+        bool Enqueue(PNActionPacket[] packets,double now,bool latest,bool completeThroughCapture=false)
         {
             int charge=packets.Sum(p=>p.Body.Length+192);
             if(charge>limit-Bytes||additionalAdmission!=null&&!additionalAdmission(charge))return false;
             try{budget.Take(charge);}catch(InvalidOperationException){return false;}
-            foreach(var p in packets)queue.Enqueue(new Item{Packet=p,Born=now,Charge=p.Body.Length+192,Latest=latest});Bytes+=charge;return true;
+            foreach(var packet in packets)
+            {
+                var p=packet;
+                p.CompleteThroughCapture=completeThroughCapture;
+                queue.Enqueue(new Item{Packet=p,Born=now,Charge=p.Body.Length+192,Latest=latest});
+            }
+            Bytes+=charge;return true;
         }
         // Required is captured every service pass. Latest is coalesced at source
         // until accepted into this bounded queue; no cross-frame batch fill wait.
@@ -64,7 +70,7 @@ namespace ProjectN.Coop
             foreach(var row in required){int size=PNActionWire.RequiredSize(row);if(size>PNActionWire.ChunkBytes-encoded)break;requiredCount++;encoded+=size;last=row.N;}
             if(requiredCount>0)
             {
-                if(!Enqueue(PNActionWire.PackRequired(Stream,Request,q,now,last,required,requiredCount),now,false)){NeedsBaseline=true;return;}
+                if(!Enqueue(PNActionWire.PackRequired(Stream,Request,q,now,last,required,requiredCount),now,false,last==source.Sequence)){NeedsBaseline=true;return;}
                 reader.CommitRequiredSubmitted(last,reader.Generation);
             }
             if(now-latestAt<cadence)return;latestAt=now;
@@ -72,11 +78,12 @@ namespace ProjectN.Coop
             chosen.Sort(CompareLatest);
             int slots=Math.Min(LatestSlots,(PNActionWire.ChunkBytes-5)/PNActionWire.LatestRowBytes);
             if(chosen.Count>slots)chosen.RemoveRange(slots,chosen.Count-slots);
-            if(chosen.Count==0&&now-heartbeatAt>=.25){if(!Enqueue(PNActionWire.Pack(Stream,Request,q,now,reader.Submitted,new JArray(),false),now,false)){NeedsBaseline=true;return;}heartbeatAt=now;}
+            bool complete=reader.Submitted==source.Sequence;
+            if(chosen.Count==0&&now-heartbeatAt>=.25){if(!Enqueue(PNActionWire.Pack(Stream,Request,q,now,reader.Submitted,new JArray(),false),now,false,complete)){NeedsBaseline=true;return;}heartbeatAt=now;}
             if(chosen.Count>0)
             {
                 heartbeatAt=now;
-                if(!Enqueue(PNActionWire.PackLatest(Stream,Request,q,now,reader.Submitted,chosen),now,true)){NeedsBaseline=true;return;}
+                if(!Enqueue(PNActionWire.PackLatest(Stream,Request,q,now,reader.Submitted,chosen),now,true,complete)){NeedsBaseline=true;return;}
                 foreach(var sample in chosen)reader.CommitLatestSubmitted(sample,reader.Generation);
             }
             MaxPendingAge=Math.Max(MaxPendingAge,reader.MaxPendingAge);

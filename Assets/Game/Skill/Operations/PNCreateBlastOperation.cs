@@ -1,7 +1,6 @@
 using System;
 using EveEngine;
 using Newtonsoft.Json.Linq;
-using UnityEngine;
 
 // Creates one blast at the context position (Docs/StrikeBlastPlan.md section 5). `dependency` is Independent, Owner or Action (see PNBlastDependency): the manager enforces Owner;
 // an Action-dependent blast is ended by the creating Action through `Result.Handle` when the cast is cancelled or ends.
@@ -27,13 +26,9 @@ public class PNCreateBlastOperation : PNSkillOperation
     {
         if (executed || context == null || !context.Skill.IsReady || !context.Position.HasValue) throw new InvalidOperationException("Fresh Ready position context required.");
         Validate(token, context.Registry); executed = true;
-        if (context.Mode != PNSkillMode.Authority) return; // a guess or a replay creates no blast (G2); Result stays empty
+        if (PNSkillObjectSpawn.Admit(context) != PNSkillSpawnAdmission.Authority) return;
 #if UNITY_5_3_OR_NEWER
-        var data = (JObject)token; var caster = context.Skill.GetComponent<PNStat>();
-        var manager = PNBlastManager.Resolve(EveRegistrySession.Context, caster.gameObject.scene);
-        if (!ReferenceEquals(manager.Session.Registry, context.Registry)) throw new InvalidOperationException("Blast operation session mismatch.");
-        Result = manager.Create(new PNBlastCreateRequest(EveId.Parse(PNBuffContentBatch.String(data, "blastId")), data["input"], PNCombatSource.Capture(caster),
-            caster.gameObject.scene, context.Position.Value, caster, ParseDependency(data)));
+        Result = PNSkillObjectSpawn.CreateBlast(context, token);
         if (Result.Status == PNBlastStatus.Failed) throw new InvalidOperationException("Blast creation failed.", Result.Error);
 #else
         // Standalone validates invocation/payload only; it has no Unity blast runtime.

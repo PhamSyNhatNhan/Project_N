@@ -41,10 +41,16 @@ public sealed class PNActionPublication : IDisposable
     public PNActionPublicationStatus Status { get; private set; }
     sealed class State
     {
-        public PNActionRunKey Key; public string Entry,Data,Action; public double X,Z,Start,T,P,R,AT,AP;
+        public PNActionRunKey Key; public string Entry,Data,Action; public double X,Z,Start,T,P,R,AT,AP,Scale;
         public long Rev=1,Hg=1,Need; public int Charge; public string KeyJson,ContextJson;
         public JArray K => new JArray(Key.Cast,Key.Ordinal);
-        public JArray D => new JArray(Entry,Data,Action,1,X,Z,Start);
+        public JArray D => MakeContext(Entry,Data,Action,X,Z,Start,Scale);
+    }
+    static JArray MakeContext(string entry,string data,string action,double x,double z,double start,double scale)
+    {
+        var row = new JArray(entry,data,action,1,x,z,start);
+        if (scale != 1) row.Add(scale);
+        return row;
     }
     // Encoded strings are immutable and shared by subscription readers.
     public sealed class Required
@@ -54,19 +60,20 @@ public sealed class PNActionPublication : IDisposable
         public string Json { get; internal set; }
         public int Bytes { get; internal set; }
         internal int Kind,Reason,EndKind;internal PNActionRunKey Key;internal long Revision,HistoryGeneration;
-        internal string Entry,Data,Action;internal double X,Z,Start,Time,Progress,Rate;
+        internal string Entry,Data,Action;internal double X,Z,Start,Time,Progress,Rate,Scale;
         // Frozen scalar view for transport encoders. JSON/ToArray remain compatible.
         public int RecordKind=>Kind;public PNActionRunKey RunKey=>Key;
         public long RunRevision=>Revision;public long RunHistoryGeneration=>HistoryGeneration;
         public string EntryId=>Entry;public string DataId=>Data;public string ActionId=>Action;
         public double DirectionX=>X;public double DirectionZ=>Z;public double StartStamp=>Start;
+        public double PresentationScale=>Scale;
         public double RecordTime=>Time;public double RecordedProgress=>Progress;public double RecordedRate=>Rate;
         public int ResetReason=>Reason;public int TerminalKind=>EndKind;
         // Mutable copy of frozen primitives. Callers cannot mutate journal state.
         public JArray ToArray()
         {
             var key=new JArray(Key.Cast,Key.Ordinal);
-            if(Kind==0)return new JArray(0,N,key,new JArray(Entry,Data,Action,1,X,Z,Start));
+            if(Kind==0)return new JArray(0,N,key,MakeContext(Entry,Data,Action,X,Z,Start,Scale));
             if(Kind==4)return new JArray(4,N,key,Revision,EndKind,Time,Progress,HistoryGeneration);
             var anchor=new JArray(Time,Progress,Rate);
             return Kind==2?new JArray(2,N,key,HistoryGeneration,Revision,anchor):new JArray(3,N,key,HistoryGeneration,Revision,Reason,anchor);
@@ -92,7 +99,7 @@ public sealed class PNActionPublication : IDisposable
         s.Need=n;
         if(charge>JournalLimit)return; // complete current state survives a lost journal prefix
         if(!budget.Take(charge+64)){ClearJournal();Resets++;if(!budget.Take(charge+64))return;}
-        journal.Enqueue(new Required{N=n,Stamp=time,Json=json,Bytes=charge,Kind=tag,Key=s.Key,Revision=tag==4?checked(s.Rev+1):s.Rev,HistoryGeneration=s.Hg,Entry=s.Entry,Data=s.Data,Action=s.Action,X=s.X,Z=s.Z,Start=s.Start,Time=at,Progress=progress,Rate=rate,Reason=1,EndKind=end});JournalBytes+=charge;
+        journal.Enqueue(new Required{N=n,Stamp=time,Json=json,Bytes=charge,Kind=tag,Key=s.Key,Revision=tag==4?checked(s.Rev+1):s.Rev,HistoryGeneration=s.Hg,Entry=s.Entry,Data=s.Data,Action=s.Action,X=s.X,Z=s.Z,Start=s.Start,Time=at,Progress=progress,Rate=rate,Reason=1,EndKind=end,Scale=s.Scale});JournalBytes+=charge;
     }
     public PNActionPublication(int currentBytes=1048576,int journalBytes=4194304,PNActionPublicationBudget sessionBudget=null)
     {
@@ -100,23 +107,27 @@ public sealed class PNActionPublication : IDisposable
         if(budget.Sources.Count>=4096)Fail(PNActionPublicationStatus.ResourceExhausted);else budget.Sources.Add(this);
     }
     public PNActionPublicationStatus Begin(PNActionRunKey key,string entry,string data,string action,double x,double z,double time)
+        => Begin(key,entry,data,action,x,z,time,1);
+
+    public PNActionPublicationStatus Begin(PNActionRunKey key,string entry,string data,string action,double x,double z,double time,double scale)
     {
         if(!Live)return Status==PNActionPublicationStatus.Ok?PNActionPublicationStatus.InvariantFault:Status;
         PNTimeMath.Nonnegative(time);PNActionRunWire.Id(entry);PNActionRunWire.Id(data);PNActionRunWire.Id(action);
         if(double.IsNaN(x)||double.IsNaN(z)||Math.Abs(x)>1||Math.Abs(z)>1||x*x+z*z<=1e-8)throw new ArgumentException("Direction");
         if(active.ContainsKey(key))return Fail(PNActionPublicationStatus.InvariantFault);
-        var s=new State{Key=key,Entry=entry,Data=data,Action=action,X=x,Z=z,Start=time,T=time,AT=time};
+        PNTimeMath.Nonnegative(scale);
+        var s=new State{Key=key,Entry=entry,Data=data,Action=action,X=x,Z=z,Start=time,T=time,AT=time,Scale=scale};
         s.KeyJson=Encode(s.K);s.ContextJson=Encode(s.D);s.Charge=Bytes(s.KeyJson)+Bytes(s.ContextJson)+256; // includes a fixed terminal/control reserve, not lifetime history
         if(s.Charge>CurrentLimit-CurrentBytes||!budget.Take(s.Charge))return Fail(PNActionPublicationStatus.ResourceExhausted);
         active.Add(key,s);CurrentBytes+=s.Charge;Emit(s,time,0,s.ContextJson);if(Live)foreach(var peer in subscriptions)peer.Changed(key,time);return Status;
     }
     // Recovery imports complete authority state, not invented historical events.
     // This private candidate has no readers until the service swaps generations.
-    internal PNActionPublicationStatus RestoreCurrent(PNActionRunKey key,string entry,string data,string action,double x,double z,double start,double stamp,double progress,double rate,double cut)
+    internal PNActionPublicationStatus RestoreCurrent(PNActionRunKey key,string entry,string data,string action,double x,double z,double start,double stamp,double progress,double rate,double cut,double scale=1)
     {
         PNTimeMath.Nonnegative(progress);PNTimeMath.Nonnegative(rate);PNTimeMath.Nonnegative(stamp);PNTimeMath.Nonnegative(cut);
         if(start>stamp||stamp>cut)return Fail(PNActionPublicationStatus.InvariantFault);
-        var status=Begin(key,entry,data,action,x,z,start);
+        var status=Begin(key,entry,data,action,x,z,start,scale);
         if(status!=PNActionPublicationStatus.Ok)return status;
         ClearJournal(); // imported S is not replayable history; baseline owns the cut
         Sequence=0;

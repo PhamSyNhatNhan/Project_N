@@ -1,4 +1,4 @@
-# Session network time (T1–T4b)
+# Session network time (T1–T6)
 
 `PNTimeService.For(session)` is attached once per play. Offline `PNGameSession` installs `PNLocalTimeline` with an explicit `Time.unscaledTimeAsDouble` delegate (the same Unity frame clock as Mirror localTime); network composition installs `PNMirrorTimeline`. Sample once at capture/apply boundaries. `Ready=false` prohibits interpreting stamps as a valid baseline. Client epoch is the admitted host play session id; before admission it is only a placeholder and unready. Epoch changes clear history. Stop rejects reads immediately; required session cleanup removes the service and releases history. No source is global gameplay state. Core has no implicit wall-clock fallback; pure tests inject a fake frame clock.
 
@@ -54,3 +54,42 @@ Action scheduling remains T5, with the T0 policy budget. T4 does not establish A
 
 
 T5.1 adds Action-local driver progress anchors, not a BuffGame/world alias. Host unscaled stamps order the run; progress already includes driver speed and selected gameplay scales. Full producer state remains shadow data alongside the current observer until T5.2 delivery and T5.3 scheduling. See PNSkillREADME's T5.1 section and Docs/NetworkTimeT5_1Report.md. Network28/Rules170, ModAPI8 (additive contracts).
+
+## Action observation and integrated checks (T5.2–T6)
+
+The Move observer selects `PNTimeSample.Presentation` and publishes the stamp
+when it applies the pose in that frame. The Action observer reads the committed
+model at that exact pose stamp. World and Buff observers also select
+Presentation. An attached Move owner continues to read the Buff view at Host
+and uses the bounded owner-image path for Ability. Rate changes and progress
+anchors retain their own units, including hold at rate zero.
+
+For Eve sweep with ActionReplication enabled, the observed view seeks to the
+selected progress once lifecycle and run-progress coverage are sufficient.
+Recovery may apply a baseline before the selected pose reaches its cut or before
+the model covers the requested time. Record the receiver's apply event and
+first covered draw with the same client clock. Separately record the distance
+from the cut on Presentation. ActionReplication remains the default Eve sweep
+observer path and service-off mode retains legacy replay.
+
+The T6 Windows evidence includes repeat recovery, a same-frame pose/sweep/Buff
+timer join, the T0 clock profiles and regression checks. See
+`Docs/NetworkTimeT6Report.md` for scope, the resume slope miss, workload evidence
+and device results.
+
+## O1 Eve sweep scale
+
+The Eve sweep Action definition declares `melee_scale`. At shape commitment,
+the authority captures the scale and damage from the same combat source. The
+melee hitbox service owns sampling, owner report checks, deduplication and
+mode dispatch. The initial Eve slice used the optional `m` field of `skill_owner`.
+The O1 object-spawn follow-up replaces it with the entity state
+`project_n:skill_scales` (NetworkVersion 32). The owner freezes the latest
+valid factor in its current scope for each prediction. Changes in flight
+can leave prediction briefly behind the authority.
+
+Action packet schema 3 adds an optional eighth Start context field for the
+captured scale. The producer, optimized required encoder, baseline and
+recovery census preserve it. Omission means 1. Observers seek and draw from
+the captured value of each run. Legacy service-off replay uses neutral scale.
+This slice uses NetworkVersion 31, RulesVersion project_n:171 and ModAPI 8.

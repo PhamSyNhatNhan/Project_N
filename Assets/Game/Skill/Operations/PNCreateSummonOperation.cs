@@ -2,7 +2,6 @@ using System;
 using EveEngine;
 using Newtonsoft.Json.Linq;
 #if UNITY_5_3_OR_NEWER
-using UnityEngine;
 #endif
 
 // EN: What happens when a summoning skill's group is full.
@@ -91,7 +90,8 @@ public class PNCreateSummonOperation : PNSkillOperation
     private bool executed;
     public PNSummonStatus Status { get; private set; } = PNSummonStatus.Pending;
     // How many older summons of the group this cast removed to make room.
-    public int Replaced { get; private set; }
+    private int replaced;
+    public int Replaced => replaced;
 #if UNITY_5_3_OR_NEWER
     public EveEntityPreparationScheduler.Candidate Candidate { get; private set; }
 #endif
@@ -111,44 +111,15 @@ public class PNCreateSummonOperation : PNSkillOperation
     {
         if (executed || context == null || context.Skill == null || !context.Skill.IsReady) throw new InvalidOperationException("Fresh Ready context required.");
         Validate(token, context.Registry); executed = true;
-        if (context.Mode != PNSkillMode.Authority) { Status = context.Mode == PNSkillMode.Predicted ? PNSummonStatus.Predicted : PNSummonStatus.NoAuthority; return; } // a guess or a replay creates no summon (G2)
+        var admission = PNSkillObjectSpawn.Admit(context);
+        if (admission != PNSkillSpawnAdmission.Authority)
+        {
+            Status = admission == PNSkillSpawnAdmission.Predicted ? PNSummonStatus.Predicted : PNSummonStatus.NoAuthority;
+            return;
+        }
 #if UNITY_5_3_OR_NEWER
-        // Clients render the action but only the machine with authority creates summons.
-        if (!EveRegistrySession.Context.HasAuthority) { Status = PNSummonStatus.NoAuthority; return; }
-        var settings = PNCreateSummonSettings.Parse(token);
-        var caster = context.Skill.GetComponent<PNStat>();
-        if (caster == null || !caster.IsReady) throw new InvalidOperationException("Summons need the caster's Ready stats.");
-        var session = EveRegistrySession.Context; var host = PNEntityHosts.For(session);
-        var owner = caster.EntityId;
-        // A full group: remove the oldest summons first (their removal frees the slot at once, see PNSummons.Count) or refuse the new one.
-        if (settings.Limit > 0)
-            while (PNSummons.Count(owner, settings.Group) >= settings.Limit)
-            {
-                var oldest = settings.WhenFull == PNSummonFullPolicy.ReplaceOldest ? PNSummons.Oldest(owner, settings.Group) : null;
-                if (oldest == null || !oldest.Retire()) { Status = PNSummonStatus.Rejected; return; }
-                Replaced++;
-            }
-        var source = PNCombatSource.Capture(caster);
-        double scale = source.Snapshot.Calculate(1d, PNContentIds.SummonScale);
-        if (!(scale > 0d) || double.IsInfinity(scale)) scale = 1d;
-        var identity = caster.GetComponent<EveEntityIdentity>(); var marker = caster.GetComponent<PNFactoryEntity>();
-        var request = new PNEntityRequest
-        {
-            Entity = settings.Entity.ToString(), Template = settings.Entity.ToString(), Character = settings.Character.ToString(), World = identity.World, WorldIncarnation = identity.World.Incarnation,
-            ContentSlot = identity.ContentSlot, SceneKey = string.IsNullOrWhiteSpace(marker?.SceneKey) ? "summon:runtime" : marker.SceneKey, EntityKey = "",
-            Position = caster.transform.position + new Vector3((float)settings.Offset[0], (float)settings.Offset[1], (float)settings.Offset[2]),
-            Lifetime = settings.Lifetime, Summoner = owner
-        };
-        EveEntityPreparationScheduler.Candidate candidate = null;
-        candidate = host.TrySpawn(request, loader =>
-        {
-            var summon = loader.GetComponent<PNSummon>() ?? loader.gameObject.AddComponent<PNSummon>();
-            summon.Begin(source, owner, settings.Group, PNSummons.NextSequence(), scale);
-            PNSummons.Fulfil(candidate);
-        }, null, error => Debug.LogException(error));
-        if (candidate == null) { Status = PNSummonStatus.QueueFull; return; }
-        PNSummons.Reserve(owner, settings.Group, candidate);
-        Candidate = candidate; Status = PNSummonStatus.Spawning;
+        Status = PNSkillObjectSpawn.CreateSummon(context, token, ref replaced, out var candidate);
+        Candidate = candidate;
 #else
         // Standalone runner validates invocation/payload only; it has no Unity entity runtime.
 #endif

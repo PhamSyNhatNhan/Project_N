@@ -17,10 +17,11 @@ public partial class PNMove
         private PNMove owner;
         private readonly EveEntityLoadContext load;
         private readonly bool gravity;
+        private readonly bool ownsGravity;
         private readonly RigidbodyInterpolation interpolation;
         public MotionPhysicsLease(PNMove owner, EveEntityLoadContext load, bool disableGravity)
         {
-            this.owner = owner; this.load = load; gravity = owner.frozen ? owner.savedGravity : owner.body.useGravity;
+            this.owner = owner; this.load = load; ownsGravity = disableGravity; gravity = owner.frozen ? owner.savedGravity : owner.body.useGravity;
             interpolation = owner.body.interpolation; owner.body.interpolation = RigidbodyInterpolation.None;
             if (disableGravity)
             {
@@ -35,7 +36,11 @@ public partial class PNMove
             {
                 if (previous.body != null)
                 {
-                    if (previous.frozen) previous.savedGravity = gravity; else previous.body.useGravity = gravity;
+                    if (ownsGravity)
+                    {
+                        if (previous.frozen) previous.savedGravity = gravity;
+                        else previous.body.useGravity = gravity;
+                    }
                     previous.body.interpolation = interpolation;
                 }
                 previous.motionPhysics = null;

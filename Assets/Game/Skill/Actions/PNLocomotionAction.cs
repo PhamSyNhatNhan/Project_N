@@ -30,7 +30,7 @@ public class PNLocomotionAction : PNSkillAction
         if (invocation != null || ended) throw new InvalidOperationException("Locomotion action cannot start twice.");
         if (context == null) throw new ArgumentNullException(nameof(context));
         settings = Validate(context.Data.Action.Perform, context.Registry);
-        traversal = context.Skill.GetComponent<PNTraversal>() ?? throw new InvalidOperationException("Locomotion action needs a body with a traversal (an entity spawned by the factory).");
+        traversal = PNTraversal.ForAction(context);
         invocation = context;
         context.BeginAction();
     }
@@ -40,7 +40,7 @@ public class PNLocomotionAction : PNSkillAction
         if (ended || invocation == null || !ReferenceEquals(context, invocation)) throw new InvalidOperationException("Locomotion action is not active for this context.");
         if (performed) throw new InvalidOperationException("Locomotion action performs once.");
         performed = true;
-        handle = traversal.Push(settings.Locomotion);
+        handle = traversal?.PushForAction(context, settings.Locomotion) ?? 0;
     }
 
     public virtual void Advance(float delta)

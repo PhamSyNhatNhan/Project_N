@@ -152,6 +152,7 @@ public static class PNDamageFlowEditorChecks
         bool dirtyBefore = active.isDirty;
         var preview = EditorSceneManager.NewPreviewScene();
         bool started = false;
+        PNStat foreignTarget = null;
         try
         {
             var hub = new EveRegistryHub();
@@ -176,6 +177,21 @@ public static class PNDamageFlowEditorChecks
             var sender = Make(preview, hub, hero, 912001, true);
             var receiver = Make(preview, hub, hero, 912002, true);
             var skill = sender.GetComponent<PNSkill>();
+            var world = EveRegistrySession.Context.Worlds.Create(EveId.Parse("test:damage_other_world"), new string('a', 64));
+            world.ConfigurePhysics(preview, manual: false);
+            world.BeginLoading();
+            world.CompleteLoading();
+            foreignTarget = Make(preview, hub, hero, 912003, world: world);
+            using (var action = (PNDamageAction)skill.CreateAction(raw, out var context, new[] { receiver, foreignTarget }))
+            {
+                action.Start(context);
+                bool rejected = false;
+                try { action.Perform(context); } catch (InvalidOperationException) { rejected = true; }
+                if (!rejected || action.Damage != null || action.Results.Count != 0 ||
+                    receiver.GetCurrent(PNContentIds.Health) != 2000d)
+                    throw new Exception("A later cross-world target must reject the action before any hit.");
+                action.Cancel(context);
+            }
             using (var action = (PNDamageAction)skill.CreateAction(scaled, out var context, new[] { receiver, receiver }))
             {
                 action.Start(context);
@@ -207,20 +223,33 @@ public static class PNDamageFlowEditorChecks
         }
         finally
         {
-            try { if (started) EveRegistrySession.End(); }
-            finally { EditorSceneManager.ClosePreviewScene(preview); }
+            try
+            {
+                if (foreignTarget != null)
+                {
+                    foreignTarget.GetComponent<EveEntityLoader>().Unload();
+                    foreignTarget.GetComponent<EveEntityIdentity>().ResetIdentity();
+                }
+            }
+            finally
+            {
+                try { if (started) EveRegistrySession.End(); }
+                finally { EditorSceneManager.ClosePreviewScene(preview); }
+            }
         }
         if (active.isDirty != dirtyBefore) throw new Exception("Native value checks changed gameplay scene dirty state.");
         return "PASS native value/action: buffed ATK200 x 500% -> value1000 -> bonus1200 -> HP loss480; " +
-            "duplicate target hits once; raw42 applies42; preview cleaned; active scene dirty=" + active.isDirty;
+            "duplicate target hits once; cross-world target list rejected; raw42 applies42; preview cleaned; active scene dirty=" + active.isDirty;
     }
 
-    private static PNStat Make(Scene scene, EveRegistryHub hub, EveId hero, long id, bool withSkill = false)
+    private static PNStat Make(Scene scene, EveRegistryHub hub, EveId hero, long id, bool withSkill = false, EveWorldContext world = null)
     {
         var obj = new GameObject("Native combat probe " + id) { hideFlags = HideFlags.HideAndDontSave };
         obj.SetActive(false);
         SceneManager.MoveGameObjectToScene(obj, scene);
-        obj.AddComponent<EveEntityIdentity>().Assign(new EveEntityId(id), hero, 0);
+        var identity = obj.AddComponent<EveEntityIdentity>();
+        identity.Assign(new EveEntityId(id), hero, 0);
+        if (world != null) identity.BindWorld(world, "test:combat");
         var stat = obj.AddComponent<PNStat>();
         if (withSkill) obj.AddComponent<PNSkill>();
         obj.AddComponent<EveEntityLoader>().Load(hub);

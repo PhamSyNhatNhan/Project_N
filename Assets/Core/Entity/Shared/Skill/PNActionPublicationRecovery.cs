@@ -12,7 +12,7 @@ public sealed class PNActionPublicationRecovery : IDisposable
     {
         public PNActionRunKey Key;
         public string Entry, Data, Action;
-        public double X, Z, Start, Stamp, Progress, Rate;
+        public double X, Z, Start, Stamp, Progress, Rate, Scale;
         public int Charge;
     }
     readonly Dictionary<PNActionRunKey, Row> live = new Dictionary<PNActionRunKey, Row>();
@@ -31,12 +31,16 @@ public sealed class PNActionPublicationRecovery : IDisposable
     { this.budget = budget ?? throw new ArgumentNullException(nameof(budget)); if(limit<1)throw new ArgumentOutOfRangeException(nameof(limit));this.limit=limit;if(budget.Recoveries.Count>=4096){Complete=false;Failure=PNActionPublicationStatus.ResourceExhausted;disposed=true;}else budget.Recoveries.Add(this); }
     public void Invalidate() { Complete=false; Failure=PNActionPublicationStatus.InvariantFault; }
     public void Begin(PNActionRunKey key,string entry,string data,string action,double x,double z,double stamp)
+        => Begin(key,entry,data,action,x,z,stamp,1);
+
+    public void Begin(PNActionRunKey key,string entry,string data,string action,double x,double z,double stamp,double scale)
     {
         if(disposed)return;
         if(live.ContainsKey(key)){Invalidate();return;}
+        PNTimeMath.Nonnegative(scale);
         int charge=checked(256+Encoding.UTF8.GetByteCount(entry)+Encoding.UTF8.GetByteCount(data)+Encoding.UTF8.GetByteCount(action));
         if(live.Count>=4096||charge>limit-bytes||!budget.Take(charge)) { Complete=false;Failure=PNActionPublicationStatus.ResourceExhausted;return; }
-        live.Add(key,new Row{Key=key,Entry=entry,Data=data,Action=action,X=x,Z=z,Start=stamp,Stamp=stamp,Charge=charge});bytes+=charge;
+        live.Add(key,new Row{Key=key,Entry=entry,Data=data,Action=action,X=x,Z=z,Start=stamp,Stamp=stamp,Charge=charge,Scale=scale});bytes+=charge;
     }
     public void Advance(PNActionRunKey key,double stamp,double step,double rate)
     {
@@ -71,7 +75,7 @@ public sealed class PNActionPublicationRecovery : IDisposable
             candidate=new PNActionPublication(sessionBudget:budget);
             foreach(var row in live.Values)
             {
-                var status=candidate.RestoreCurrent(row.Key,row.Entry,row.Data,row.Action,row.X,row.Z,row.Start,row.Stamp,row.Progress,row.Rate,stamp);
+                var status=candidate.RestoreCurrent(row.Key,row.Entry,row.Data,row.Action,row.X,row.Z,row.Start,row.Stamp,row.Progress,row.Rate,stamp,row.Scale);
                 if(status!=PNActionPublicationStatus.Ok){Failure=status;return State=status==PNActionPublicationStatus.ResourceExhausted?PNActionRecoveryState.Pending:PNActionRecoveryState.Failed;}
             }
             if(!candidate.Complete){Failure=candidate.Status;return State=PNActionRecoveryState.Pending;}

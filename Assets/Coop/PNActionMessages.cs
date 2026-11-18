@@ -16,11 +16,13 @@ namespace ProjectN.Coop
     public struct PNActionPacket : NetworkMessage
     {
         public PNActionStream Stream; public byte Kind; public long Request,Q,N; public double T;
+        public bool CompleteThroughCapture;
         public int Total,Index,Count; public byte[] Digest,Body;
     }
     public static class PNActionWire
     {
         public const int MessageBytes=4096,ChunkBytes=3584,BaselineBytes=1048576,MaxParts=293;
+        private const byte Schema = 3;
         static readonly Encoding Utf8=new UTF8Encoding(false,true);
         public static void WriteActionStream(this NetworkWriter w,PNActionStream s)
         {s.Validate();w.WriteGuid(s.Session);w.WriteGuid(s.Source);w.WriteUInt(s.NetId);w.WriteLong(s.Entity);w.WriteLong(s.Generation);w.WriteLong(s.Subscription);w.WriteULong(s.Nonce);w.WriteGuid(s.Scope.World);w.WriteULong(s.Scope.Incarnation);w.WriteULong(s.Scope.Membership);w.WriteULong(s.Scope.Subscription);}
@@ -28,6 +30,7 @@ namespace ProjectN.Coop
         {var s=new PNActionStream{Session=r.ReadGuid(),Source=r.ReadGuid(),NetId=r.ReadUInt(),Entity=r.ReadLong(),Generation=r.ReadLong(),Subscription=r.ReadLong(),Nonce=r.ReadULong(),Scope=new PNWorldBindingScope{World=r.ReadGuid(),Incarnation=r.ReadULong(),Membership=r.ReadULong(),Subscription=r.ReadULong()}};s.Validate();return s;}
         public static void Header(PNActionPacket p)
         {
+            if(p.CompleteThroughCapture&&p.Kind!=1)throw new FormatException("Action coverage marker");
             p.Stream.Validate();if(p.Kind>3||p.Request<=0||p.Q<0||p.N<0||p.T<0||double.IsNaN(p.T)||double.IsInfinity(p.T)||p.Digest==null||p.Digest.Length!=32)throw new FormatException("Action header");
             if(p.Kind>=2){if(p.Total!=0||p.Count!=0||p.Index!=0)throw new FormatException("Action control");return;}
             if(p.Q<=0||p.Total<1||p.Total>(p.Kind==0?BaselineBytes:ChunkBytes)||p.Count!=(p.Total+ChunkBytes-1)/ChunkBytes||p.Count>MaxParts||p.Index<0||p.Index>=p.Count)throw new FormatException("Action parts");
@@ -35,12 +38,13 @@ namespace ProjectN.Coop
         public static void WriteActionPacket(this NetworkWriter w,PNActionPacket p)
         {
             Header(p);int n=p.Kind>=2?0:Math.Min(ChunkBytes,p.Total-p.Index*ChunkBytes);if(p.Body==null||p.Body.Length!=n)throw new FormatException("Action body");
-            int start=w.Position;w.WriteByte(1);w.WriteActionStream(p.Stream);w.WriteByte(p.Kind);w.WriteLong(p.Request);w.WriteLong(p.Q);w.WriteLong(p.N);w.WriteDouble(p.T);w.WriteInt(p.Total);w.WriteInt(p.Index);w.WriteInt(p.Count);w.WriteBytes(p.Digest,0,32);w.WriteInt(n);w.WriteBytes(p.Body,0,n);if(w.Position-start>MessageBytes-2)throw new FormatException("Action message bound");
+            int start=w.Position;w.WriteByte(Schema);w.WriteActionStream(p.Stream);w.WriteByte((byte)(p.Kind|(p.CompleteThroughCapture?128:0)));w.WriteLong(p.Request);w.WriteLong(p.Q);w.WriteLong(p.N);w.WriteDouble(p.T);w.WriteInt(p.Total);w.WriteInt(p.Index);w.WriteInt(p.Count);w.WriteBytes(p.Digest,0,32);w.WriteInt(n);w.WriteBytes(p.Body,0,n);if(w.Position-start>MessageBytes-2)throw new FormatException("Action message bound");
         }
         public static PNActionPacket ReadActionPacket(this NetworkReader r)
         {
-            if(r.Remaining>MessageBytes-2||r.ReadByte()!=1)throw new FormatException("Action schema/size");
-            var p=new PNActionPacket{Stream=r.ReadActionStream(),Kind=r.ReadByte(),Request=r.ReadLong(),Q=r.ReadLong(),N=r.ReadLong(),T=r.ReadDouble(),Total=r.ReadInt(),Index=r.ReadInt(),Count=r.ReadInt(),Digest=r.ReadBytes(32)};
+            if(r.Remaining>MessageBytes-2||r.ReadByte()!=Schema)throw new FormatException("Action schema/size");
+            var stream=r.ReadActionStream();byte kind=r.ReadByte();
+            var p=new PNActionPacket{Stream=stream,Kind=(byte)(kind&127),CompleteThroughCapture=(kind&128)!=0,Request=r.ReadLong(),Q=r.ReadLong(),N=r.ReadLong(),T=r.ReadDouble(),Total=r.ReadInt(),Index=r.ReadInt(),Count=r.ReadInt(),Digest=r.ReadBytes(32)};
             Header(p);int n=r.ReadInt();if(n!=(p.Kind>=2?0:Math.Min(ChunkBytes,p.Total-p.Index*ChunkBytes))||r.Remaining!=n)throw new FormatException("Action length");p.Body=r.ReadBytes(n);return p;
         }
         public static byte[] Hash(byte[] body){using(var sha=SHA256.Create())return sha.ComputeHash(body);}
@@ -53,7 +57,7 @@ namespace ProjectN.Coop
         internal static int RequiredSize(PNActionPublication.Required row)
         {
             if(row==null)throw new FormatException("Action required row");
-            switch(row.RecordKind){case 0:return 87+StringSize(row.EntryId)+StringSize(row.DataId)+StringSize(row.ActionId);case 2:return 96;case 3:return 105;case 4:return 91;default:throw new FormatException("Action required kind");}
+            switch(row.RecordKind){case 0:return 87+StringSize(row.EntryId)+StringSize(row.DataId)+StringSize(row.ActionId)+(row.PresentationScale==1?0:9);case 2:return 96;case 3:return 105;case 4:return 91;default:throw new FormatException("Action required kind");}
         }
         static int StringSize(string text){if(text==null)throw new FormatException("Action string");int n=Utf8.GetByteCount(text);if(n>384)throw new FormatException("Action string");return 5+n;}
         internal static PNActionPacket[] PackRequired(PNActionStream stream,long request,long q,double t,long cut,System.Collections.Generic.IReadOnlyList<PNActionPublication.Required> rows,int count)
@@ -72,7 +76,17 @@ namespace ProjectN.Coop
                     var row=rows[i];int kind=row.RecordKind;
                     if(row.N<=0||row.RunKey.Cast==0||row.RunKey.Ordinal<=0||row.RunRevision<=0||row.RunHistoryGeneration<=0)throw new FormatException("Action required scalar");
                     ArrayHead(kind==0?4:kind==2?6:kind==3?7:8);Integer(kind);Integer(row.N);ArrayHead(2);Integer(row.RunKey.Cast);Integer(row.RunKey.Ordinal);
-                    if(kind==0){if(double.IsNaN(row.DirectionX)||double.IsInfinity(row.DirectionX)||double.IsNaN(row.DirectionZ)||double.IsInfinity(row.DirectionZ))throw new FormatException("Action direction number");ArrayHead(7);Text(row.EntryId);Text(row.DataId);Text(row.ActionId);Integer(1);writer.Write((byte)2);writer.Write(row.DirectionX);writer.Write((byte)2);writer.Write(row.DirectionZ);Number(row.StartStamp);}
+                    if(kind==0)
+                    {
+                        if(double.IsNaN(row.DirectionX)||double.IsInfinity(row.DirectionX)||double.IsNaN(row.DirectionZ)||double.IsInfinity(row.DirectionZ))throw new FormatException("Action direction number");
+                        bool scaled = row.PresentationScale != 1;
+                        ArrayHead(scaled ? 8 : 7);
+                        Text(row.EntryId);Text(row.DataId);Text(row.ActionId);Integer(1);
+                        writer.Write((byte)2);writer.Write(row.DirectionX);
+                        writer.Write((byte)2);writer.Write(row.DirectionZ);
+                        Number(row.StartStamp);
+                        if (scaled) Number(row.PresentationScale);
+                    }
                     else if(kind==4){if(row.TerminalKind<1||row.TerminalKind>2)throw new FormatException("Action terminal kind");Integer(row.RunRevision);Integer(row.TerminalKind);Number(row.RecordTime);Number(row.RecordedProgress);Integer(row.RunHistoryGeneration);}
                     else{Integer(row.RunHistoryGeneration);Integer(row.RunRevision);if(kind==3){if(row.ResetReason<1||row.ResetReason>2)throw new FormatException("Action reset reason");Integer(row.ResetReason);}ArrayHead(3);Number(row.RecordTime);Number(row.RecordedProgress);Number(row.RecordedRate);}
                 }

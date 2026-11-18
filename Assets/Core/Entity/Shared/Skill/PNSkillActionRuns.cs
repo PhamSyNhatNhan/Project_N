@@ -93,7 +93,7 @@ public partial class PNSkill
         if(publicationRecovery==null)publicationRecovery=new PNActionPublicationRecovery(PublicationBudget(session));
         return RecoverActionPublication(stamp,originalDeadline);
     }
-    internal void BeginActionRun(PNSkillActionContext context)
+    internal void BeginActionRun(PNSkillActionContext context, bool commitPresentation = false)
     {
         if (context.Mode != PNSkillMode.Authority || context.Invocation == null || context.Data == null || !ActionStamp(out var stamp)) return;
         if (context.ActionOrdinal == 0 || context.Invocation.CastKey < 0 || context.Invocation.Id <= 0) { ActionIdentityRejected++; return; }
@@ -101,6 +101,12 @@ public partial class PNSkill
         // Only the audited planar direction payload is supported in this stage.
         if (!definition.ObserverReplay) return;
         if (!definition.DriverProgress || (definition.RequiredContext & ~PNSkillContextRequirements.Direction) != 0 || !context.Direction.HasValue || context.Targets.Count != 0 || context.Position.HasValue) { ActionCapabilityRejected++; return; }
+        if (definition.PresentationScaleTag.HasValue && !commitPresentation)
+        {
+            context.PendingRunStart = actionFrame?.Stamp ?? stamp;
+            return;
+        }
+        if (commitPresentation && !context.PendingRunStart.HasValue) return;
         var session = EveRegistrySession.Context;
         var load = GetComponent<EveEntityLoader>()?.LoadContext;
         if (load == null) return;
@@ -109,17 +115,22 @@ public partial class PNSkill
         EnsureActionScope(session,sample.Epoch,worldId,incarnation,load.Generation);
         var key = new PNActionRunKey(context.Invocation.CastKey != 0 ? context.Invocation.CastKey : -context.Invocation.Id, context.ActionOrdinal);
         if (actionFrame != null) stamp = actionFrame.Stamp;
+        if (context.PendingRunStart.HasValue)
+        {
+            stamp = context.PendingRunStart.Value;
+            context.PendingRunStart = null;
+        }
         var direction = context.Direction.Value;
         var shared=PublicationBudget(session);
         if(publicationRecovery==null)publicationRecovery=new PNActionPublicationRecovery(shared);
         var entry=context.Registry.Skills.ResolveIdentity(context.EntrySkillId).ToString();
         var data=context.Registry.Skills.ResolveIdentity(context.SkillId).ToString();
         var action=definition.Id.ToString();
-        TrackAuthority(()=>publicationRecovery.Begin(key,entry,data,action,direction.x,direction.z,stamp));
+        TrackAuthority(()=>publicationRecovery.Begin(key,entry,data,action,direction.x,direction.z,stamp,context.PresentationScale));
         // Initial source only at the start of a complete census. Mid-life enable
         // requires the explicit safe-cut recovery API, never an empty new source.
         if(ActionPublicationEnabled && actionPublication==null && publicationRecovery.Complete && publicationRecovery.Count==1) {actionPublication=new PNActionPublication(sessionBudget:shared);if(actionPublication.Complete)publications.Add(actionPublication);}
-        if(ActionPublicationEnabled && actionPublication!=null) Publish(()=>actionPublication.Begin(key,entry,data,action,direction.x,direction.z,stamp));
+        if(ActionPublicationEnabled && actionPublication!=null) Publish(()=>actionPublication.Begin(key,entry,data,action,direction.x,direction.z,stamp,context.PresentationScale));
         actionRuns.Admit(key, context.Registry.Skills.ResolveIdentity(context.EntrySkillId).ToString(), context.Registry.Skills.ResolveIdentity(context.SkillId).ToString(), definition.Id.ToString(), direction.x, direction.z, stamp);
         // Keep observational driver/finish boundaries even for refused runs. Store
         // mutation still requires admission; this does not publish refused rows.
@@ -127,6 +138,7 @@ public partial class PNSkill
     }
     internal void EndActionRun(PNSkillActionContext context, bool cancelled)
     {
+        context.PendingRunStart = null;
         if (context.RunStore == null || !ReferenceEquals(context.RunStore,actionRuns)) return;
         publicationRecovery?.End(context.RunKey);
         if(!ActionStamp(out var stamp))return;

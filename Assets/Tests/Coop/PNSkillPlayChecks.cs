@@ -85,7 +85,8 @@ namespace ProjectN.Coop.Tests
             while (!failed)
             {
                 string label = null;
-                if (seen.ObservedActionCount > 0 && slash < 14) label = "slash_" + (++slash);
+                if (slash < 14 && (seen.ObservedActionCount > 0 || seen.GetComponentInChildren<EveSweepVisual>() != null))
+                    label = "slash_" + (++slash);
                 else if (seen.Presentation.Get(EveCharacterSkill.MotionPresentation) == "1" && motion < 10) label = "motion_" + (++motion);
                 else if (seen.Presentation.Get(EveCharacterSkill.BurstPresentation) == "1" && burst < 4 && Time.realtimeSinceStartup >= nextBurst) { label = "burst_" + (++burst); nextBurst = Time.realtimeSinceStartup + .6f; }
                 if (label != null)
@@ -299,7 +300,8 @@ namespace ProjectN.Coop.Tests
                 if (name == "client2")
                 {
                     var seenView = e1.GetComponent<PNSkillCastView>(); var seenEve = e1.GetComponent<EveCharacterSkill>();
-                    yield return Wait(() => seenView.PlayedCount >= 1 && seenEve.ObservedActionsPlayed >= 1, "client2 draws client1's slashes (events played " + seenView.PlayedCount + ")"); if (failed) yield break;
+                    yield return Wait(() => seenEve.ObservedPresentationsStarted >= 1 ||
+                        seenView.PlayedCount >= 1 && seenEve.ObservedActionsPlayed >= 1, "client2 draws client1's slashes"); if (failed) yield break;
                     try { Check(!seenEve.IsPredictingCast && !seenEve.IsBusy && seenEve.CurrentInvocation == null, "the observed Eve runs no cast on client2 (busy " + seenEve.IsBusy + ")"); Mark("client2-saw"); } catch (Exception e) { Fail(e); yield break; }
                 }
                 yield return Wait(() => Has("client2-saw"), "client2 saw the slashes"); if (failed) yield break;

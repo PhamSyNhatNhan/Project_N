@@ -99,7 +99,7 @@ namespace ProjectN.Coop
         {
             if(stopping||!IsPlaying)return;
             if(fatalSerialization){StopSession();return;}
-            try{PumpMove();PumpBuff();PumpActions();PumpSync();}catch(Exception error){ProtocolFailure(error,NetworkServer.active);return;}
+            try{PumpMove();PumpBuff();PumpActions();MeasureActionPresentation();PumpSync();}catch(Exception error){ProtocolFailure(error,NetworkServer.active);return;}
             if(!NetworkServer.active)return;
             try
             {

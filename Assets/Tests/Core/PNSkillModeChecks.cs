@@ -36,7 +36,7 @@ public static class PNSkillModeChecks
             }
             finally { try { if (EveRegistrySession.State != EveSessionState.Stopped) EveRegistrySession.End(); } finally { EditorSceneManager.ClosePreviewScene(preview); } }
         }
-        EveCharacterSkill Spawn(Scene preview, string name)
+        EveClientRoleProbeSkill Spawn(Scene preview, string name)
         {
             var actor = Root(preview, name, eveId, owner); actor.layer = PNLayers.Player; actor.AddComponent<EveCharacterStat>(); actor.AddComponent<PNAbilityManager>();
             var body = actor.AddComponent<Rigidbody>(); body.useGravity = false; var capsule = actor.AddComponent<CapsuleCollider>(); capsule.radius = .12f; capsule.height = .6f;
@@ -44,6 +44,19 @@ public static class PNSkillModeChecks
             Physics.SyncTransforms(); return skill;
         }
         var entry = PNGameplayContentModule.EveAttackEntry;
+        var damageId = PNGameplayContentModule.DamageAction;
+        var payload = JObject.Parse(@"{""value"":{""amount"":10},""canCrit"":false,""iframeDuration"":0.75,""tags"":[""project_n:true""]}");
+        void DamageAction(EveClientRoleProbeSkill skill, PNSkillMode mode, Action<PNDamageAction> check)
+        {
+            var self = skill.GetComponent<PNStat>();
+            var data = new PNSkillData(null, new PNSkillActionData(damageId, perform: payload));
+            var damage = new PNSkillActionContext(skill, entry, data, hub, new[] { self, self }) { Mode = mode };
+            using var action = (PNDamageAction)hub.Actions().Get(damageId).Create();
+            action.Start(damage);
+            action.Perform(damage);
+            check(action);
+            action.Exit(damage);
+        }
 
         // ---- the authority (offline): real casts say Authority ----
         var hostScene = EditorSceneManager.NewPreviewScene();
@@ -90,6 +103,16 @@ public static class PNSkillModeChecks
                     Check(!threw, opId + " is skipped quietly in " + mode + " mode");
                     if (op is PNApplyBuffOperation applied) Check(applied.Skipped && applied.Results.Count == 0, "the Buff grant says it was skipped");
                 }
+            double hostHealth = self.GetCurrent(PNContentIds.Health);
+            DamageAction(skill, PNSkillMode.Predicted, action =>
+                Check(action.Damage == null && action.Results.Count == 0 && hitSink.Hits == 0 &&
+                    self.GetCurrent(PNContentIds.Health) == hostHealth && skill.ConfirmedHits == 0,
+                    "explicit damage without a cast key skips without confirmation"));
+            DamageAction(skill, PNSkillMode.Authority, action =>
+                Check(action.Results.Count == 1 && skill.ConfirmedHits == 1 && hitSink.Hits == 0 &&
+                    self.GetCurrent(PNContentIds.Health) == hostHealth - 10 &&
+                    !action.Damage.CanCrit && action.Damage.IFrameDuration == .75,
+                    "authority confirms duplicate targets once with authored crit and iframe policy"));
             skill.ReportSink = null; context.Mode = PNSkillMode.Predicted; Check(!context.Hit(self, null, null, 0, null).Reported, "a predicted hit with no sink is skipped quietly");
         }
         finally { Cleanup(hostScene); }
@@ -102,6 +125,35 @@ public static class PNSkillModeChecks
             typeof(EveSessionContext).GetMethod("AdmitLocalOwner", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).Invoke(EveRegistrySession.Context, new object[] { owner });
             var areaRoot = new GameObject("G1 client area manager"); SceneManager.MoveGameObjectToScene(areaRoot, clientScene); areaRoot.AddComponent<PNAreaManager>().Initialize(EveRegistrySession.Context);
             var skill = Spawn(clientScene, "G1 client Eve");
+            using (var sync = new PNSyncService(hub, false, owner, EveRegistrySession.Context))
+            {
+                var scale = skill.gameObject.AddComponent<PNSkillScaleState>();
+                var actor = skill.GetComponent<EveEntityLoader>();
+                scale.OnBound(sync, PNSyncTarget.ForEntity(actor.LoadContext.Identity.Id, actor.Generation));
+                try
+                {
+                    Check(scale.ReadScale(PNContentIds.MeleeScale) == 1, "entity factors default to neutral before the first image");
+                    var ids = hub.Tags().Snapshot().Values.Where(tag => tag.SkillReplicaFactor)
+                        .Select(tag => tag.Id).OrderBy(id => id.ToString(), StringComparer.Ordinal);
+                    var row = new JObject { ["w"] = Guid.Empty.ToString("N"), ["n"] = 0, ["b"] = 0,
+                        ["f"] = new JArray(ids.Select(id => id == PNContentIds.MeleeScale ? 2d : 1d)) };
+                    scale.Apply(row, 1);
+                    Check(scale.ReadScale(PNContentIds.MeleeScale) == 2 && scale.ReadScale(PNContentIds.MeleeDamage) == 1,
+                        "a bounded image applies registered scale columns only");
+                    var bad = (JObject)row.DeepClone();
+                    bad["f"][0] = -1;
+                    bool rejected = false;
+                    try { scale.Apply(bad, 2); } catch (FormatException) { rejected = true; }
+                    Check(rejected && scale.ReadScale(PNContentIds.MeleeScale) == 2, "invalid factors leave the last valid image intact");
+                    var foreign = (JObject)row.DeepClone();
+                    foreign["w"] = Guid.NewGuid().ToString("N");
+                    foreign["f"] = new JArray(ids.Select(_ => 3d));
+                    scale.Apply(foreign, 3);
+                    Check(scale.ReadScale(PNContentIds.MeleeScale) == 2, "a later image from a different world cannot replace the current scale");
+                }
+                finally { scale.OnUnbound(); }
+                Check(scale.ReadScale(PNContentIds.MeleeScale) == 1, "unbinding clears the replica scale");
+            }
             long serial = skill.ActivationSerial;
             Check(skill.CurrentInvocation == null, "a client starts with no invocation");
             var predicted = skill.BeginNonAuthorityInvocation(entry, PNSkillMode.Predicted);
@@ -120,6 +172,18 @@ public static class PNSkillModeChecks
             Check(predicted.CastKey > 0 && pctx.Hit(own, null, null, 0, null).Reported && keySink.Hits == 1 && keySink.LastKey == predicted.CastKey && keySink.LastStep == 0, "a guessed hit is reported under the cast's key, step 0");
             Check(pctx.Hit(own, null, null, 0, null, 5).Reported && keySink.LastStep == 0 && pctx2.Hit(own, null, null, 0, null).Reported && keySink.LastStep == 1 && keySink.Hits == 3, "one context keeps its step, the next context of the cast gets the next one");
             Check(!pctx.Hit(null, null, null, 0, null).Reported && keySink.Hits == 3, "a hit with no target reports nothing");
+            double replicaHealth = own.GetCurrent(PNContentIds.Health);
+            DamageAction(skill, PNSkillMode.Predicted, action =>
+                Check(action.Damage == null && action.Results.Count == 0 && keySink.Hits == 4 &&
+                    keySink.LastKey == predicted.CastKey && keySink.LastStep == 2 &&
+                    own.GetCurrent(PNContentIds.Health) == replicaHealth && skill.ConfirmedHits == 0,
+                    "explicit predicted damage reports one deduplicated target with its cast key and step"));
+            skill.ReportSink = null;
+            DamageAction(skill, PNSkillMode.Predicted, action =>
+                Check(action.Damage == null && action.Results.Count == 0 && keySink.Hits == 4 &&
+                    own.GetCurrent(PNContentIds.Health) == replicaHealth && skill.ConfirmedHits == 0,
+                    "explicit predicted damage without a sink skips quietly"));
+            skill.ReportSink = keySink;
             var again = new PNSkillRandom(PNSkillRandom.Seed(predicted.CastKey, own.EntityId.Value)); ulong a = predicted.Random.NextUInt64();
             Check(a == again.NextUInt64() && ReferenceEquals(predicted.Random, predicted.Random), "cast.Random is seeded by the cast's key and entity");
             var x = new PNSkillRandom(42); var y = new PNSkillRandom(42); var z = new PNSkillRandom(43); bool same = true, differs = false, inRange = true;
@@ -147,6 +211,11 @@ public static class PNSkillModeChecks
             var observed = skill.BeginNonAuthorityInvocation(entry, PNSkillMode.Observed);
             var octx = new PNSkillActionContext(skill, observed.SkillId, null, hub, null, Vector3.right, observed);
             Check(observed.Mode == PNSkillMode.Observed && octx.Mode == PNSkillMode.Observed && !octx.IsPrediction, "an Observed invocation and its context say Observed (not a prediction)");
+            skill.ReportSink = keySink;
+            DamageAction(skill, PNSkillMode.Observed, action =>
+                Check(action.Damage == null && action.Results.Count == 0 && keySink.Hits == 4 &&
+                    own.GetCurrent(PNContentIds.Health) == replicaHealth && skill.ConfirmedHits == 0,
+                    "observed explicit damage leaves HP, report sink and confirmation untouched"));
             Check(!skill.CanActivateSkill(entry), "a client still cannot activate a real cast (unchanged)");
             skill.EndNonAuthorityInvocation(); Check(observed.IsEnded && skill.CurrentInvocation == null, "the Observed invocation ends clean");
             Check(skill.ActivationSerial == serial, "no activation was counted on the client");

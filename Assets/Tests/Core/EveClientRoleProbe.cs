@@ -14,6 +14,12 @@ using UnityEngine.SceneManagement;
 // (value, refusal or exception text) in .utmp/EveClientProbe/result.txt. Edit Mode, preview scene, nothing saved.
 public sealed class EveClientRoleProbeSkill : EveCharacterSkill
 {
+    public int ConfirmedHits { get; private set; }
+    public override void OnHitConfirmed(PNSkillActionContext context, PNStat target, PNDamageResult result)
+    {
+        base.OnHitConfirmed(context, target, result);
+        ConfirmedHits++;
+    }
     public void Prepare() { if (pc == null) Awake(); OnEnable(); }
     public string Gates() => "IsReady=" + IsReady + " CanInput=" + CanInput + " InputArmed=" + InputArmed + " HasGameplayAuthority=" + HasGameplayAuthority + " sessionHasAuthority=" + EveRegistrySession.Context.HasAuthority;
     public bool Slot(EveId slot) => RequestSlot(slot, new PNSkillInputEvent(PNSkillInputPhase.Started, PNSkillInteraction.Tap));

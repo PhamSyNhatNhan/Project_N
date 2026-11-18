@@ -1,7 +1,6 @@
 using System;
 using EveEngine;
 using Newtonsoft.Json.Linq;
-using UnityEngine;
 
 public class PNCreateAreaOperation : PNSkillOperation
 {
@@ -19,14 +18,9 @@ public class PNCreateAreaOperation : PNSkillOperation
     {
         if (executed || context == null || !context.Skill.IsReady || !context.Position.HasValue) throw new InvalidOperationException("Fresh Ready position context required.");
         Validate(token, context.Registry); executed = true;
-        if (context.Mode != PNSkillMode.Authority) return; // a guess or a replay creates no area (G2); Result stays empty
+        if (PNSkillObjectSpawn.Admit(context) != PNSkillSpawnAdmission.Authority) return;
 #if UNITY_5_3_OR_NEWER
-        var data = (JObject)token; var caster = context.Skill.GetComponent<PNStat>();
-        var manager = PNAreaManager.Resolve(EveRegistrySession.Context, caster.gameObject.scene);
-        if (!ReferenceEquals(manager.Session.Registry, context.Registry)) throw new InvalidOperationException("Area operation session mismatch.");
-        Result = manager.Create(new PNAreaCreateRequest(EveId.Parse(PNBuffContentBatch.String(data, "areaId")), data["input"],
-            PNCombatSource.Capture(caster), caster.gameObject.scene, context.Position.Value, caster,
-            PNBuffContentBatch.Bool(data, "followCaster") ? caster : null));
+        Result = PNSkillObjectSpawn.CreateArea(context, token);
         if (Result.Status == PNAreaStatus.Failed) throw new InvalidOperationException("Area creation failed.", Result.Error);
 #else
         // Standalone runner validates invocation/payload only; it has no Unity area runtime.
