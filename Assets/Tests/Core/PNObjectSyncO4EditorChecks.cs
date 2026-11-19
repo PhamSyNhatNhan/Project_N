@@ -151,6 +151,18 @@ public static class PNObjectSyncO4EditorChecks
             Check(Vector3.Distance(turnedGuess.Position, guessAt) < 1.5f, "(and it keeps its place instead of jumping back to the record's)");
             turned.Handle.End(); skewedReal.Handle.End(); Advance(.05f);
 
+            // Item 3: the guess was made with factors 1 but the host really flew at speed x2 (a modifier this machine did not know): the record's factors win, the guess speeds up with it.
+            int fixesBefore = client.AdoptFactorFixes;
+            var fast = client.Create(Guess(7060, null), Spawn(new Vector3(0, 1, 52), Vector3.right)); Advance(.05f);
+            var fastGuess = Instances().Single(x => x.Launch.CastKey == 7060 && x.IsPrediction);
+            var fastReal = host.Create(new PNProjectileLaunch(shot, null, source, layers, prepared, null, 2d, 1d, 1d).WithCast(7060, true), Spawn(new Vector3(0, 1, 52), Vector3.right)); Advance(.05f);
+            Check(client.AdoptFactorFixes == fixesBefore + 1 && Math.Abs(fastGuess.Launch.SpeedFactor - 2d) < 1e-9, "the guess takes the speed factor the authority really used (" + fastGuess.Launch.SpeedFactor + ")");
+            var fastRealInstance = Instances().Single(x => x.Launch.CastKey == 7060 && !x.IsPrediction && !x.IsReplica);
+            Vector3 g0 = fastGuess.Position, r0 = fastRealInstance.Position; Advance(.1f);
+            float guessRan = Vector3.Distance(fastGuess.Position, g0), realRan = Vector3.Distance(fastRealInstance.Position, r0);
+            Check(realRan > 0f && Mathf.Abs(guessRan - realRan) / realRan < .2f, "(and it flies as fast as the real one: " + guessRan + " vs " + realRan + ")");
+            fast.Handle.End(); fastReal.Handle.End(); Advance(.05f);
+
             // A projectile nobody on this machine guessed (another player's) is an ordinary copy, seeded as the real one.
             var other = host.Create(Real(7050, false), Spawn(new Vector3(0, 1, 55), Vector3.right)); Advance(.1f);
             Check(client.ReplicaCount == 1 && client.Snapshot().Count == 1, "a projectile nobody guessed is built as an ordinary copy");
@@ -158,7 +170,7 @@ public static class PNObjectSyncO4EditorChecks
             Check(copySeed == realSeed && copySeed != 0, "(and its copy draws the same random numbers as the real one)");
             other.Handle.End(); Advance(.1f);
             Check(client.Snapshot().Count == 0 && host.Snapshot().Count == 0, "everything ended");
-            return "PASS " + count + " object sync O4 checks (guess, takeover by record, report and one-time hit, refused cast, orphan, ended guess, spatial turn, copies)";
+            return "PASS " + count + " object sync O4 checks (guess, takeover by record, report and one-time hit, refused cast, orphan, ended guess, spatial turn, factor correction, copies)";
         }
         finally
         {

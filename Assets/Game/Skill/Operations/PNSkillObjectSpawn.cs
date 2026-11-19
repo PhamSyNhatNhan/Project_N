@@ -52,7 +52,7 @@ internal static class PNSkillObjectSpawn
         long castKey = context.Invocation != null ? context.Invocation.CastKey : 0L;
         // A guess is named by the cast; the authority's real projectile of a shooter whose machine guesses (a remote player: the skill has a decision source) leaves target hits to that machine's reports.
         if (predicted) launch = launch.AsPrediction(castKey, context.Skill.ReportSink);
-        else if (castKey > 0) launch = launch.WithCast(castKey, context.Skill.DecisionSource != null);
+        else if (castKey > 0) launch = launch.WithCast(castKey, context.Skill.DecisionSource != null && context.Invocation.ShooterGuessed);
         var scene = caster.gameObject.scene;
         PNProjectileManager manager;
         // A machine that has no projectile service yet (a fixture, a scene still loading) makes no guess; the authority's record still shows the projectile.

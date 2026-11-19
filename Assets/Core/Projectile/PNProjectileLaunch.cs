@@ -27,9 +27,9 @@ public sealed class PNProjectileLaunch
     // Layers the projectile can target / hit (the shooter's TargetLayers at launch plus the volley's own); required and not empty.
     public PNTargetLayers TargetLayers { get; }
     // Launch-time factors from the projectile_* modifiers (1 = unchanged).
-    public double SpeedFactor { get; }
-    public double ScaleFactor { get; }
-    public double LifetimeFactor { get; }
+    public double SpeedFactor { get; private set; }
+    public double ScaleFactor { get; private set; }
+    public double LifetimeFactor { get; private set; }
     // How the projectile picks a target on its own (homing): the shooter's rule at launch (the local player's Settings mode, Nearest for a
     // remote player, Aggro for enemies and system sources). default = Autotarget / Nearest.
     public PNTargetRule TargetRule { get; }
@@ -49,6 +49,9 @@ public sealed class PNProjectileLaunch
         var copy = (PNProjectileLaunch)MemberwiseClone(); copy.CastKey = castKey; copy.IsPrediction = true; copy.ReportSink = sink; return copy;
     }
     // The launch of a real cast, named by its key (records carry it so the shooter's machine can match its guess); `shooterDecides` when that shooter's machine predicts.
+    // The same launch with the factors the authority really used (the shooter's guess is corrected to them when its record arrives).
+    internal PNProjectileLaunch WithFactors(double speed, double scale, double lifetime)
+    { var copy = (PNProjectileLaunch)MemberwiseClone(); copy.SpeedFactor = speed; copy.ScaleFactor = scale; copy.LifetimeFactor = lifetime; return copy; }
     public PNProjectileLaunch WithCast(long castKey, bool shooterDecides)
     {
         var copy = (PNProjectileLaunch)MemberwiseClone(); copy.CastKey = castKey; copy.ShooterDecides = shooterDecides && castKey > 0; return copy;

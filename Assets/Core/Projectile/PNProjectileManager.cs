@@ -45,6 +45,11 @@ public sealed class PNProjectileManager : MonoBehaviour
     // The clock of the guesses (unscaled seconds); a test sets its own.
     public Func<double> PredictionClock { get; set; }
     private double PredictionNow => PredictionClock != null ? PredictionClock() : Time.unscaledTimeAsDouble;
+    // Evidence for the shooter's machine: how many guesses a record took over, and how often the record disagreed (a turn of more than a few degrees, another target, other factors).
+    public int Adoptions { get; private set; }
+    public int AdoptTurns { get; private set; }
+    public int AdoptTargetChanges { get; private set; }
+    public int AdoptFactorFixes { get; private set; }
     private readonly Dictionary<(long, int), long> predictions = new Dictionary<(long, int), long>();
     private readonly Dictionary<(long, int), double> endedPredictions = new Dictionary<(long, int), double>();
     // The seed of the random numbers of a projectile that belongs to a cast: the same on the shooter's guess, the authority's object and every copy, whatever id the sync gave it.
@@ -298,13 +303,16 @@ public sealed class PNProjectileManager : MonoBehaviour
         if (predictions.TryGetValue(key, out var handleId) && entries.TryGetValue(handleId, out var entry) && entry.Instance != null && entry.Instance.IsRunning && !entry.Adopted)
         {
             entry.Adopted = true; entry.Replica = true; entry.ObjectId = record.Id; objectEntries[record.Id] = entry.Id; predictions.Remove(key);
-            var instance = entry.Instance; var real = new Vector3(record.Direction.X, record.Direction.Y, record.Direction.Z);
+            var instance = entry.Instance; Adoptions++;
+            // The guess was made with the factors this machine knew; the authority's are the real ones.
+            var made = instance.Launch;
+            if (made != null && (Math.Abs(record.Speed - made.SpeedFactor) > 1e-3 * made.SpeedFactor || Math.Abs(record.Scale - made.ScaleFactor) > 1e-3 * made.ScaleFactor || Math.Abs(record.Lifetime - made.LifetimeFactor) > 1e-3 * made.LifetimeFactor)) { instance.ApplyFactors(record.Speed, record.Scale, record.Lifetime); AdoptFactorFixes++; } var real = new Vector3(record.Direction.X, record.Direction.Y, record.Direction.Z);
             if (real.sqrMagnitude > 1e-12f && entry.SpawnHeading.sqrMagnitude > 1e-12f)
             {
                 var turn = Quaternion.FromToRotation(entry.SpawnHeading, real.normalized);
-                if (Quaternion.Angle(Quaternion.identity, turn) > 3f) { instance.ApplyCorrection(instance.Position, turn * instance.Forward, target); return true; }
+                if (Quaternion.Angle(Quaternion.identity, turn) > 3f) { AdoptTurns++; if (target != null && instance.TargetEntityValue != target.EntityId.Value) AdoptTargetChanges++; instance.ApplyCorrection(instance.Position, turn * instance.Forward, target); return true; }
             }
-            if (target != null && instance.TargetEntityValue != target.EntityId.Value) instance.SetTarget(target);
+            if (target != null && instance.TargetEntityValue != target.EntityId.Value) { AdoptTargetChanges++; instance.SetTarget(target); }
             return true;
         }
         return endedPredictions.Remove(key);

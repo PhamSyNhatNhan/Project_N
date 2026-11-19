@@ -207,6 +207,13 @@ public static class PNSkillModeChecks
             Check(key2 == key1 + 1 && skill.LastCastKey == key2, "a cast with no input of its own takes the previous key + 1");
             skill.PendingCastKey = PNSkillCastKey.InputOf(key1); var k3 = skill.BeginNonAuthorityInvocation(entry, PNSkillMode.Predicted); long key3 = k3.CastKey; skill.EndNonAuthorityInvocation(); skill.PendingCastKey = 0;
             Check(key3 == key2 + 1, "keys only grow, even when an input's key is reused");
+            // Item 6: whether the owner's machine guessed travels with the input; a cast with no input of its own keeps the answer of the press before it.
+            skill.PendingCastKey = key3 / 256 + 9; skill.PendingGuessed = true;
+            var g1 = skill.BeginNonAuthorityInvocation(entry, PNSkillMode.Predicted); bool guessedFirst = g1.ShooterGuessed; skill.EndNonAuthorityInvocation(); skill.PendingCastKey = 0; skill.PendingGuessed = false;
+            var g2 = skill.BeginNonAuthorityInvocation(entry, PNSkillMode.Predicted); bool guessedNext = g2.ShooterGuessed; skill.EndNonAuthorityInvocation();
+            skill.PendingCastKey = key3 / 256 + 11; skill.PendingGuessed = false;
+            var g3 = skill.BeginNonAuthorityInvocation(entry, PNSkillMode.Predicted); bool guessedNone = g3.ShooterGuessed; skill.EndNonAuthorityInvocation(); skill.PendingCastKey = 0;
+            Check(guessedFirst && guessedNext && !guessedNone, "a cast is marked as guessed by its input, the next stroke keeps it, an input that did not guess clears it");
 
             var observed = skill.BeginNonAuthorityInvocation(entry, PNSkillMode.Observed);
             var octx = new PNSkillActionContext(skill, observed.SkillId, null, hub, null, Vector3.right, observed);

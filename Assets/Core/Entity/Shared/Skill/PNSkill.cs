@@ -67,9 +67,13 @@ public partial class PNSkill : EveSkill, EveIEntityLoadPreparation, EveIEntityCo
     private void AssignCastKey(PNSkillInvocation cast)
     {
         cast.CastKey = lastCastKey = PendingCastKey > 0 ? Math.Max(lastCastKey + 1, PNSkillCastKey.FromInput(PendingCastKey)) : lastCastKey + 1;
+        // Whether the owner's machine guessed this cast (the input said so); a cast with no input of its own (the next stroke of a held Repeat) keeps the answer of the press that began it.
+        if (PendingCastKey > 0) stickyGuessed = PendingGuessed;
+        cast.ShooterGuessed = stickyGuessed;
         if (cast.PredictionScope != null) cast.PredictionScope.CastKey = cast.CastKey;
     }
-    private long lastCastKey;
+    private long lastCastKey; private bool stickyGuessed;
+    public bool PendingGuessed { get; set; }
     // Set by the wire layer around the dispatch of one input (the key that input travels under); 0 when no input is being dispatched.
     public long PendingCastKey { get; set; }
     public long LastCastKey => lastCastKey;
@@ -79,6 +83,8 @@ public partial class PNSkill : EveSkill, EveIEntityLoadPreparation, EveIEntityCo
     public void RollbackPredictedCast(PNSkillInvocation invocation)
     {
         if (invocation == null || invocation.Mode != PNSkillMode.Predicted) return;
+        // A refused guess is as if it never was: nothing more fires from it, not even the cancel triggers of the interrupt below.
+        invocation.Refused = true;
         try
         {
             if (ReferenceEquals(CurrentInvocation, invocation) && !invocation.IsEnded && !TryInterrupt(EveId.Parse("project_n:prediction_refused"))) CancelCast(PNCastEnd.Interrupted);
@@ -86,6 +92,7 @@ public partial class PNSkill : EveSkill, EveIEntityLoadPreparation, EveIEntityCo
         finally
         {
             invocation.PredictionScope?.Rollback();
+            Effects?.CancelAuxiliaries(invocation);
             // The projectiles this guess made go with it (spawned-object sync, plan 4.4a).
 #if UNITY_5_3_OR_NEWER
             if (invocation.CastKey > 0 && EveRegistrySession.IsReady)
@@ -127,7 +134,7 @@ public partial class PNSkill : EveSkill, EveIEntityLoadPreparation, EveIEntityCo
         try
         {
             if (cancelled) value.CancelTracked(reason ?? PNCastEnd.Interrupted);
-            try { if (value.Committed) value.ActivationContext?.Fire(cancelled ? "OnInvocationCancel" : "OnInvocationComplete"); }
+            try { if (value.Committed || value.Activated) value.ActivationContext?.Fire(cancelled ? "OnInvocationCancel" : "OnInvocationComplete"); }
             finally
             {
                 try { OnCastEnded(value, cancelled, reason); }
@@ -168,8 +175,10 @@ public partial class PNSkill : EveSkill, EveIEntityLoadPreparation, EveIEntityCo
     protected void CommitActivation(IEnumerable<PNStat> targets = null, Vector3? direction = null)
     {
         var value = CurrentInvocation;
-        if (value == null || value.IsEnded || value.Committed || value.Mode != PNSkillMode.Authority) return; // a guess never commits an activation
-        value.Committed = true; ActivationSerial++;
+        if (value == null || value.IsEnded || value.Committed || value.Activated || value.Mode == PNSkillMode.Observed) return;
+        // A guess fires the activation triggers too (plan 4.6b) but never commits: no serial, the authority's cast is the real one.
+        if (value.Mode == PNSkillMode.Authority) { value.Committed = true; ActivationSerial++; }
+        value.Activated = true;
         var context = new PNSkillActionContext(this, value.SkillId, null, registry, targets, direction, value);
         context.ContributionSnapshot = value.ActivationSnapshot; value.ActivationContext = context;
         context.Fire("OnActivated");
@@ -188,7 +197,7 @@ public partial class PNSkill : EveSkill, EveIEntityLoadPreparation, EveIEntityCo
     protected void AdvanceIdle(float delta) { if (CurrentInvocation == null) IdleTime += delta; }
     protected void ResetIdle() => IdleTime = 0;
     protected virtual void Update()
-    { if (!IsReady||!HasGameplayAuthority) return; var clock = GetComponent<EveTimeScale>(); var delta=clock != null && clock.isActiveAndEnabled ? clock.DeltaTime : Time.deltaTime; AdvanceAuxiliaryEffects(delta);AdvanceBindings(delta); }
+    { if (!IsReady) return; if (!HasGameplayAuthority) { if (Effects != null && Effects.HasPredictedAuxiliaries) AdvanceAuxiliaryEffects(Time.deltaTime); return; } var clock = GetComponent<EveTimeScale>(); var delta=clock != null && clock.isActiveAndEnabled ? clock.DeltaTime : Time.deltaTime; AdvanceAuxiliaryEffects(delta);AdvanceBindings(delta); }
     protected virtual void OnDisable() { if(GetComponent<EveEntityIdentity>()?.IsChangingWorld==true)return;try{CancelBindingInputs();}finally{SuspendBindingSelections();prepared?.Dispose();prepared = null;EndActivation(true, PNCastEnd.Disabled);Effects?.CancelExecutions();} }
     protected virtual void OnDestroy() => Unload();
     public virtual void CancelWorldExecutions()

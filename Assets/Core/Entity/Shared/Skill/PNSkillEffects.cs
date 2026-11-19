@@ -186,6 +186,10 @@ public sealed partial class PNSkillInvocation : IDisposable
     internal readonly PNSkillContribution[] ActivationSnapshot;
     internal readonly List<PNSkillActionContext> Contexts = new List<PNSkillActionContext>();
     internal bool Committed;
+    // Plan 4.6b: a guess runs the activation triggers without committing (no serial); a refused guess fires nothing more.
+    internal bool Activated, Refused;
+    // The owner's machine guessed this cast (the input said so): a real projectile of it leaves target hits to that machine's reports (plan 4.4a).
+    public bool ShooterGuessed { get; internal set; }
     internal PNSkillActionContext ActivationContext;
     public bool IsEnded { get; private set; }
     public long Id { get; }
@@ -307,9 +311,9 @@ public sealed class PNSkillEffectState : IDisposable
     }
     internal void Fire(PNSkillActionContext context, string trigger, PNStat hit, Vector3? point, PNSkillContribution[] frozen = null, int hitIndex = 0)
     {
-        if (IsDisposed || context.Invocation == null || context.Invocation.IsEnded || !context.AllowContributions) return;
+        if (IsDisposed || context.Invocation == null || context.Invocation.IsEnded || context.Invocation.Refused || !context.AllowContributions) return;
         var loader = skill.GetComponent<EveEntityLoader>();
-        // A guess (Predicted invocation) runs the Operation effects too; each Operation's own door decides what a guess may do (plan 4.6a). Action effects are not run by a guess.
+        // A guess (Predicted invocation) runs the Operation effects too; each Operation's own door decides what a guess may do (plan 4.6a). Action effects run too (plan 4.6b).
         bool predicted = context.Invocation.Mode == PNSkillMode.Predicted;
         if (!skill.IsReady || !EveRegistrySession.IsReady || !(EveRegistrySession.Context.HasAuthority || predicted) || !ReferenceEquals(hub, EveRegistrySession.Current) || loader == null || !loader.IsReady) return;
         if (!predicted) RequireAuthority(); if (triggerDepth >= 8) { Report(new InvalidOperationException("Skill trigger depth exceeded.")); return; }
@@ -320,7 +324,7 @@ public sealed class PNSkillEffectState : IDisposable
         try
         {
             foreach (var effect in effects)
-            { if (invocation.IsEnded || IsDisposed) break; if (predicted && effect.Kind != "Operation") continue; if (trigger == "OnHit" && !context.AdmitHitEffect(effect, hitIndex)) continue; try { Execute(effect, context, hit, point, categories, tags); } catch (Exception error) { Report(error); } }
+            { if (invocation.IsEnded || IsDisposed) break; if (trigger == "OnHit" && !context.AdmitHitEffect(effect, hitIndex)) continue; try { Execute(effect, context, hit, point, categories, tags); } catch (Exception error) { Report(error); } }
             if (!predicted) foreach (Action<PNSkillInvocation, string> handler in Triggered?.GetInvocationList() ?? Array.Empty<Delegate>()) try { handler(invocation, trigger); } catch (Exception error) { Report(error); }
         }
         finally { triggerDepth--; }
@@ -382,6 +386,10 @@ public sealed class PNSkillEffectState : IDisposable
             }
             catch (Exception error) { try { Retire(value, true); } finally { Report(error); } }
     }
+    // Plan 4.6b: the effects a refused guess started go with it, the Independent ones too.
+    internal void CancelAuxiliaries(PNSkillInvocation invocation)
+    { foreach (var auxiliary in auxiliaries.Where(x => x.Parent == invocation).ToArray()) try { Retire(auxiliary, true); } catch (Exception error) { Report(error); } }
+    internal bool HasPredictedAuxiliaries => auxiliaries.Any(x => x.Parent != null && x.Parent.Mode == PNSkillMode.Predicted);
     internal void CancelExecutions()
     {
         foreach (var invocation in invocations.ToArray()) try { CancelInvocation(invocation, PNCastEnd.Executions); } catch (Exception error) { Report(error); }

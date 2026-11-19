@@ -120,6 +120,15 @@ namespace ProjectN.Coop
         private ObjectTransport objectTransport;
         // Client: the baseline of a world that is still arriving.
         private readonly Dictionary<Guid, List<PNObjectRecord>> clientObjectBaselines = new Dictionary<Guid, List<PNObjectRecord>>();
+        // Evidence for the object channel (plan O6): what the host sent and how often a baseline was built, how often the queue overflowed, how many baselines this client applied.
+        public long ObjectBytesSent { get; private set; }
+        public int ObjectPacketsSent { get; private set; }
+        public int ObjectRecordsSent { get; private set; }
+        public int ObjectOverflows { get; private set; }
+        public int ObjectBaselinesSent { get; private set; }
+        public int ObjectBaselinesApplied { get; private set; }
+        // Maintenance: every observer gets a fresh baseline of the living objects (what a late joiner or an overflow gets).
+        public void RebaselineObjects() { foreach (var entry in worldPeers.Values) if (!(entry.Connection is LocalConnectionToClient)) entry.ObjectOverflow = true; }
         public int ObjectRecordsQueued => worldPeers.Values.Sum(x => x.ObjectQueue.Count + x.ObjectBaseline.Count);
         public PNObjectSyncService ObjectSyncService => objects;
 
@@ -152,7 +161,7 @@ namespace ProjectN.Coop
             {
                 if (entry.Connection is LocalConnectionToClient || entry.Closing || !entry.Loaded || !entry.ObjectBaselined || entry.World == null) continue;
                 if (entry.World.InstanceId != record.World.Instance || entry.World.Incarnation != record.World.Incarnation) continue;
-                if (entry.ObjectQueue.Count >= PNObjectLimits.QueueRecords) { entry.ObjectOverflow = true; continue; }
+                if (entry.ObjectQueue.Count >= PNObjectLimits.QueueRecords) { if (!entry.ObjectOverflow) ObjectOverflows++; entry.ObjectOverflow = true; continue; }
                 entry.ObjectQueue.Add(record);
             }
         }
@@ -176,7 +185,7 @@ namespace ProjectN.Coop
             if (!entry.ObjectBaselined)
             {
                 entry.ObjectBaseline.Clear(); entry.ObjectBaseline.AddRange(objects.Baseline(PNObjectWorld.Of(entry.World)).Where(x => ObjectTravels(x.Kind)));
-                entry.ObjectBaselined = true; entry.ObjectBaselineStarted = false; entry.ObjectBaselineDone = false; entry.ObjectQueue.Clear();
+                entry.ObjectBaselined = true; ObjectBaselinesSent++; entry.ObjectBaselineStarted = false; entry.ObjectBaselineDone = false; entry.ObjectQueue.Clear();
             }
             int connection = entry.Connection.connectionId;
             for (int packets = 0; packets < PNObjectLimits.PacketsPerFrame; packets++)
@@ -188,12 +197,15 @@ namespace ProjectN.Coop
                 byte flags = 0;
                 if (baseline) { flags = PNObjectPacketFlags.Baseline; if (!entry.ObjectBaselineStarted) flags |= PNObjectPacketFlags.Start; if (take == source.Count) flags |= PNObjectPacketFlags.End; }
                 var packet = new PNObjectPacket { Ticket = entry.Offer.Ticket, Flags = flags, Records = source.GetRange(0, take).ToArray() };
+                int wire = 0;
                 using (var writer = NetworkWriterPool.Get())
                 {
                     writer.WriteObjectPacket(packet);
                     if (writer.Position > NetworkMessages.MaxContentSize(Channels.Reliable)) throw new FormatException("Object packet exceeds the configured channel.");
+                    wire = writer.Position;
                     if (!TakeSendBudget(connection, writer.Position + 16)) return;
                 }
+                ObjectBytesSent += wire; ObjectPacketsSent++; ObjectRecordsSent += take;
                 entry.Connection.Send(packet, Channels.Reliable); source.RemoveRange(0, take);
                 if (baseline) { entry.ObjectBaselineStarted = true; if ((flags & PNObjectPacketFlags.End) != 0) entry.ObjectBaselineDone = true; }
             }
@@ -213,7 +225,7 @@ namespace ProjectN.Coop
                 if (!clientObjectBaselines.TryGetValue(packet.Ticket.World, out var parts)) return;
                 parts.AddRange(packet.Records);
                 if ((packet.Flags & PNObjectPacketFlags.End) == 0) return;
-                clientObjectBaselines.Remove(packet.Ticket.World); objects.ApplyBaseline(world, parts);
+                clientObjectBaselines.Remove(packet.Ticket.World); objects.ApplyBaseline(world, parts); ObjectBaselinesApplied++;
             }
             catch (Exception error) { ProtocolFailure(error, false); }
         }

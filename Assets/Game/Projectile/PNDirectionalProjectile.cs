@@ -93,6 +93,10 @@ public class PNDirectionalProjectile : PNProjectileInstance
     protected virtual PNDirectionalSettings ParseSettings() => Definition.Settings(payload => new PNDirectionalSettings(payload));
     protected double Speed => speed;
     protected override int EnvironmentMask => environmentMask;
+    protected override void OnFactorsCorrected(double speedRatio, double scaleRatio, double lifetimeRatio)
+    {
+        speed *= speedRatio; speedMin *= speedRatio; speedMax *= speedRatio; limit *= lifetimeRatio; HalfExtents *= (float)scaleRatio; Velocity = direction * (float)speed;
+    }
     protected override void OnCorrected(Vector3 newHeading) { Direction = newHeading; Velocity = direction * (float)speed; }
     // Reads only the record's factors and its own clock: a copy flies the same path.
     public override bool SyncDeterministic => true;

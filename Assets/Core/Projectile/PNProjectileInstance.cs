@@ -125,6 +125,15 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable, IPNTim
         position = newPosition; heading = newHeading.normalized; target = new PNProjectileTarget(newTarget); OnCorrected(heading);
         transform.SetPositionAndRotation(position, Quaternion.LookRotation(heading));
     }
+    // EN: The authority's factors differ from the ones a guess was made with (a projectile_* modifier the shooter's machine did not know): the guess takes the real ones, and the implementation rescales what it derived from them.
+    // VI: He so that cua authority khac he so luc doan: vien doan nhan he so that va lop cai dat tinh lai phan suy ra tu chung.
+    internal void ApplyFactors(double speed, double scale, double lifetime)
+    {
+        if (!IsRunning || Launch == null || !(speed > 0d) || !(scale > 0d) || !(lifetime > 0d) || double.IsInfinity(speed + scale + lifetime)) return;
+        double rs = speed / Launch.SpeedFactor, rc = scale / Launch.ScaleFactor, rl = lifetime / Launch.LifetimeFactor;
+        Launch = Launch.WithFactors(speed, scale, lifetime); OnFactorsCorrected(rs, rc, rl);
+    }
+    protected virtual void OnFactorsCorrected(double speedRatio, double scaleRatio, double lifetimeRatio) { }
     // The implementation follows a correction: set the direction it flies along (a directional projectile keeps its own).
     protected virtual void OnCorrected(Vector3 newHeading) { }
     // A copy built from a record that is already `age` seconds old: its age and distance start there (so its lifetime ends when the real one does).

@@ -33,7 +33,7 @@ public sealed class PNSkillRemoteInput : MonoBehaviour, IPNSyncEntityListener, I
         public readonly long Key; public readonly string Reason;
         public Refusal(long key, string reason) { Key = key; Reason = reason; }
     }
-    private sealed class Pending { public long Key; public EveId Slot; public PNSkillInputEvent Input; public double Waited; }
+    private sealed class Pending { public long Key; public EveId Slot; public PNSkillInputEvent Input; public double Waited; public bool Guessed; }
 
     private sealed class Channel : IPNSyncStateSource, IPNSyncStateSink
     {
@@ -74,6 +74,10 @@ public sealed class PNSkillRemoteInput : MonoBehaviour, IPNSyncEntityListener, I
     public int DecisionsWaiting => decisions.Count;
     // Client: the authority asked this owner not to guess new casts for now (it holds the entity, or it cannot cast).
     public bool PredictionPaused { get; private set; }
+    // Test hook (Player fixtures): false = this machine does not guess casts, as when its guess is blocked; the input still goes to the authority.
+    public bool GuessEnabled { get; set; } = true;
+    // Test hook: true = guess even while the authority says it cannot take casts (the pause), so a cast the authority then refuses can be seen on a real wire.
+    public bool IgnorePause { get; set; }
     public int PendingPredictions => presses.Count;
     public int PredictedCount { get; private set; }
     public int RolledBackCount { get; private set; }
@@ -123,8 +127,10 @@ public sealed class PNSkillRemoteInput : MonoBehaviour, IPNSyncEntityListener, I
         var payload = new JObject { ["k"] = ++nextKey, ["s"] = slot.ToString(), ["p"] = (int)input.Phase, ["i"] = (int)input.Interaction, ["f"] = profile.ToString() };
         // G7: the guess runs BEFORE the input is sent, so a decision it makes (`Choose`) reaches the authority ahead of the input and is waiting when the authority casts (an instant cast ends inside the input's own
         // dispatch). Hits it reports are held and follow the input (the authority takes a hit only for a cast it has seen).
-        holdingHits = true; heldHits.Clear();
+        holdingHits = true; heldHits.Clear(); guessedNow = false;
         try { Predict(slot, input, nextKey, predict); } finally { holdingHits = false; }
+        // Plan 4.4a (item 6): the authority learns that this machine guessed the cast, so its real projectiles leave target hits to this machine's reports; no "g" and the host sweeps for targets itself.
+        if (guessedNow) payload["g"] = 1;
         bool sent = sync.Send(target, Command, payload);
         if (sent) foreach (var held in heldHits) SendHits(held.Key, held.Step, new[] { held.Target });
         heldHits.Clear();
@@ -142,18 +148,20 @@ public sealed class PNSkillRemoteInput : MonoBehaviour, IPNSyncEntityListener, I
         {
             lastStart[slot] = key;
             if (openPress.TryGetValue(slot, out var stale) && presses.TryGetValue(stale, out var old) && old.Release == 0) old.Release = key - 1; // a new press supersedes one never released
-            if (PredictionPaused || !(skill is PNPlayerSkill)) return;
+            if (PredictionPaused && !IgnorePause || !GuessEnabled || !(skill is PNPlayerSkill)) return;
         }
         else if (input.Phase == PNSkillInputPhase.Canceled && openPress.TryGetValue(slot, out var startKey) && presses.TryGetValue(startKey, out var open)) { open.Release = key; open.Stamp = Time.unscaledTime; openPress.Remove(slot); }
-        if (run == null || PredictionPaused && input.Phase != PNSkillInputPhase.Canceled) return;
+        if (run == null || !GuessEnabled || PredictionPaused && !IgnorePause && input.Phase != PNSkillInputPhase.Canceled) return;
         dispatchSlot = slot;
         if (skill != null) skill.PendingCastKey = key;
         try { run(); } finally { dispatchSlot = default; if (skill != null) skill.PendingCastKey = 0; }
     }
 
     // A guessed cast began (during an input's dispatch, or by itself: the next stroke of a held Repeat). It belongs to the press of the slot being dispatched, else to the press that began the last guess.
+    private bool guessedNow;
     private void OnPredictedCast(PNSkillInvocation cast)
     {
+        guessedNow = true;
         var slot = dispatchSlot.IsValid ? dispatchSlot : lastGuessSlot;
         if (!slot.IsValid || !lastStart.TryGetValue(slot, out var start) || start <= 0) return;
         if (!presses.TryGetValue(start, out var press)) { press = new Press { Start = start, Slot = slot, Stamp = Time.unscaledTime }; presses[start] = press; }
@@ -187,7 +195,7 @@ public sealed class PNSkillRemoteInput : MonoBehaviour, IPNSyncEntityListener, I
         if (GetComponent<PNStat>()?.IsDead == true) { Refuse(key, "dead"); return; }
         if (skill.Bindings == null || !skill.Bindings.TryGet(slot, out var current) || current != profile) { Refuse(key, "binding"); return; }
         if (queue.Count >= QueueLimit) { Refuse(key, "queue"); return; }
-        queue.Add(new Pending { Key = key, Slot = slot, Input = new PNSkillInputEvent((PNSkillInputPhase)phase, (PNSkillInteraction)interaction) });
+        queue.Add(new Pending { Key = key, Slot = slot, Input = new PNSkillInputEvent((PNSkillInputPhase)phase, (PNSkillInteraction)interaction), Guessed = payload["g"] != null && (int)payload["g"] == 1 });
         Pump(0);
     }
     // ---- client: what the guessed cast reports ----
@@ -331,8 +339,8 @@ public sealed class PNSkillRemoteInput : MonoBehaviour, IPNSyncEntityListener, I
             var head = queue[0]; bool ok;
             if (!sync.IsAuthority || skill == null) { queue.Clear(); return; }
             long serial = skill.ActivationSerial;
-            skill.PendingCastKey = head.Key;
-            try { ok = skill.RequestSlot(head.Slot, head.Input); } finally { skill.PendingCastKey = 0; }
+            skill.PendingCastKey = head.Key; skill.PendingGuessed = head.Guessed;
+            try { ok = skill.RequestSlot(head.Slot, head.Input); } finally { skill.PendingCastKey = 0; skill.PendingGuessed = false; }
             if (ok) { Observe(head, serial); Ack(head.Key); queue.RemoveAt(0); continue; }
             if (head.Input.Phase != PNSkillInputPhase.Started) { queue.RemoveAt(0); continue; } // no gesture to continue (its press was refused): nothing to do
             if (head.Waited < QueueSeconds) return;                                           // still hoping: the press may become valid
@@ -406,7 +414,7 @@ public sealed class PNSkillRemoteInput : MonoBehaviour, IPNSyncEntityListener, I
         // What the authority answered settles the guesses: a refused press is taken back, a released one that was acknowledged and not refused is confirmed.
         foreach (var refusal in refusals) if (presses.TryGetValue(refusal.Key, out var refused)) RollBack(refused);
         // An independent ACK can overtake skill_owner; only its image settles overlays.
-        if (PredictionPaused && skill is PNPlayerSkill) { foreach (var cast in presses.Values.Where(x => x.Casts.Count > 0).ToArray()) RollBack(cast); }
+        if (PredictionPaused && !IgnorePause && skill is PNPlayerSkill) { foreach (var cast in presses.Values.Where(x => x.Casts.Count > 0).ToArray()) RollBack(cast); }
     }
 }
 
