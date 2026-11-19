@@ -14,7 +14,7 @@ public sealed class PNStarchanterHealAction : PNSkillAction
 {
     private PNSkillActionContext context; private PNStat caster, ally; private Vector3 landing; private PNMove move; private PNVisualBody body; private PNSkillOperation movementLock;
     private PNStarchanterPresentation presentation;
-    private PNBuffManager buffs; private PNBuffHandle guard; private bool hasGuard;
+    private PNBuffManager buffs; private PNBuffHandle guard; private bool hasGuard, guardSkipped;
     private float outSeconds, inSeconds, duration, interval, tickPercent, finalPercent, radius, recovery;
     private float age, channelAge, nextTick, recoverAge; private bool performed, teleported, channeling, finished, disposed, aborted;
     public override bool HasAuxiliaryTimeline => true;
@@ -70,22 +70,22 @@ public sealed class PNStarchanterHealAction : PNSkillAction
     {
         var g = context.Data.Action.Perform["guard"];
         if (buffs == null || !buffs.IsReady) return false;
-        var receipt = buffs.Buffs.Apply(new PNBuffApplyRequest(EveId.Parse(g["buffId"].Value<string>()), PNCombatSource.Capture(caster),
+        var outcome = context.ApplyBuff(buffs, new PNBuffApplyRequest(EveId.Parse(g["buffId"].Value<string>()), PNCombatSource.Capture(caster),
             new JObject { ["duration"] = g["duration"].Value<double>(), ["hits"] = g["hits"].Value<int>() }));
-        if (receipt.Status != PNBuffStatus.Applied && receipt.Status != PNBuffStatus.Reapplied) return false;
-        guard = receipt.Handle; hasGuard = true; return true;
+        if (!outcome.Applied) { guardSkipped = true; return true; }                // this machine does not hold the guard: the authority does, and the picture goes on
+        if (!outcome.Succeeded) return false;
+        guard = outcome.Receipt.Handle; hasGuard = true; return true;
     }
-    private bool GuardAlive() => hasGuard && buffs != null && buffs.IsReady && buffs.Buffs.Contains(guard);
+    private bool GuardAlive() => guardSkipped || (hasGuard && buffs != null && buffs.IsReady && buffs.Buffs.Contains(guard));
     private void HealZone(float fraction)
     {
-        if (!EveRegistrySession.Context.HasAuthority) return;
         var world = context.World; if (world == null) return;
         presentation?.PulseReady();
         var all = world.Session.Entities.Snapshot(world).Select(e => e.GetComponent<PNStat>()).Where(s => s != null);
         foreach (var target in PNStarchanterSupport.Within(caster, caster.transform.position, radius, all))
         {
             double amount = PNStarchanterSupport.HealAmount(target, fraction); if (amount <= 0d) continue;
-            try { target.ReceiveHeal(new PNHeal(target.SessionId, caster.EntityId, amount)); presentation?.HealRecipient(target.transform.position, channelAge >= duration); }
+            try { if (context.Heal(target, new PNHeal(target.SessionId, caster.EntityId, amount)).Applied) presentation?.HealRecipient(target.transform.position, channelAge >= duration); }
             catch (Exception error) { Debug.LogException(error, target); }
         }
     }
@@ -124,7 +124,6 @@ public sealed class PNStarchanterBoostAction : PNSkillAction
     }
     private void Apply()
     {
-        if (!EveRegistrySession.Context.HasAuthority) return;
         var world = context.World; if (world == null) return;
         presentation?.BoostPulse();
         var all = world.Session.Entities.Snapshot(world).Select(e => e.GetComponent<PNStat>()).Where(s => s != null);
@@ -133,9 +132,7 @@ public sealed class PNStarchanterBoostAction : PNSkillAction
         {
             var manager = target.GetComponent<PNBuffManager>(); if (manager == null || !manager.IsReady) continue;
             if (!target.Set.TryGetBase(moveSpeed, out _)) continue;                  // a dummy or a pet without a move speed has nothing to speed up
-            try { var receipt = manager.Buffs.Apply(new PNBuffApplyRequest(buffId, PNCombatSource.Capture(caster)));
-                if (receipt.Status == PNBuffStatus.Applied || receipt.Status == PNBuffStatus.Reapplied)
-                { presentation?.BoostRecipient(target.transform.position); } }
+            try { if (context.ApplyBuff(manager, new PNBuffApplyRequest(buffId, PNCombatSource.Capture(caster))).Succeeded) presentation?.BoostRecipient(target.transform.position); }
             catch (Exception error) { Debug.LogException(error, target); }
         }
     }

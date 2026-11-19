@@ -32,6 +32,32 @@ public readonly struct PNSkillDamageCapture
 //     logic phản ứng theo trúng / hạ gục phải viết trong `OnHitConfirmed` (chỉ authority chạy).
 public enum PNHitStatus { Applied, Skipped }
 
+// The result of a Buff or heal an Action asked its context for. Applied: the authority did it. Skipped: this machine does not (the Buff replicates by its own adapter; an observer replays pictures);
+// an Action carries on as if it had worked and reads nothing from a skipped one. Reading the Receipt of a skipped Buff is an error (L2).
+public readonly struct PNBuffOutcome
+{
+    private readonly PNBuffReceipt receipt;
+    public PNHitStatus Status { get; }
+    public bool Applied => Status == PNHitStatus.Applied;
+    // True only when the authority applied it now (a new Buff or a reapplied one); a skipped Buff is never a success.
+    public bool Succeeded => Applied && (receipt.Status == PNBuffStatus.Applied || receipt.Status == PNBuffStatus.Reapplied);
+    public PNBuffReceipt Receipt => Applied ? receipt : throw new InvalidOperationException("The receipt of a Buff is known only where it was applied.");
+    private PNBuffOutcome(PNHitStatus status, PNBuffReceipt receipt) { Status = status; this.receipt = receipt; }
+    public static PNBuffOutcome Done(PNBuffReceipt receipt) => new PNBuffOutcome(PNHitStatus.Applied, receipt ?? throw new ArgumentNullException(nameof(receipt)));
+    public static PNBuffOutcome Skip() => new PNBuffOutcome(PNHitStatus.Skipped, null);
+}
+
+public readonly struct PNHealOutcome
+{
+    private readonly PNHealResult result;
+    public PNHitStatus Status { get; }
+    public bool Applied => Status == PNHitStatus.Applied;
+    public PNHealResult Result => Applied ? result : throw new InvalidOperationException("The result of a heal is known only where it was applied.");
+    private PNHealOutcome(PNHitStatus status, PNHealResult result) { Status = status; this.result = result; }
+    public static PNHealOutcome Done(PNHealResult result) => new PNHealOutcome(PNHitStatus.Applied, result);
+    public static PNHealOutcome Skip() => new PNHealOutcome(PNHitStatus.Skipped, null);
+}
+
 public readonly struct PNHitOutcome
 {
     private readonly PNDamageResult result;

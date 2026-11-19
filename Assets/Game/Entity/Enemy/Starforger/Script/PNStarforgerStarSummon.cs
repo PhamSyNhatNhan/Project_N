@@ -7,45 +7,55 @@ using Newtonsoft.Json.Linq;
 using UnityEngine;
 using UnityEngine.Rendering;
 
-// A Starforger star as a summon (Docs/StrikeBlastPlan.md U2; the character `project_n:starforger_star`, its numbers in the character's `star` block, schema PNStarforgerCombatContent.ValidateStarInput).
-// It hangs where the star skill put it (the summon's own position), has no health and cannot be hit, lives the summon's `lifetime` (the skill's registered number) and every `interval` seconds shoots one
-// bolt at the nearest hostile within `range` (first shot `firstDelay` + slot * `stagger` after it appeared; the slot is the number in its group name). DEPENDENT: no KeepWhenOwnerGone, so the owner's
-// death, unload or leaving the world retires it. The slam asks every star for one extra bolt toward its landing (FireToward), which ignores `range` and does not move the rhythm.
-// The damage is prepared once when the star starts, from the owner's combat source captured at the summon, like a projectile's. Its timers run on the summon's own entity clock. Only the authority runs it.
+// A Starforger star as a summon (Docs/StrikeBlastPlan.md U2; the character `project_n:starforger_star`, its timing in the character's `star` block, schema PNStarforgerCombatContent.ValidateStarInput).
+// It is an entity of its own: a PNBehaviorSkill runs this behavior on the star's entity clock and only the authority runs it (the runner's CanThink); the star has no health and cannot be hit, lives the summon's
+// `lifetime` (the skill's registered number) and every `interval` seconds shoots one bolt at the nearest hostile within `range` (first shot `firstDelay` + slot * `stagger` after it appeared; the slot is the number
+// in its group name). The shot itself is the star's registered skill `starforger_star_bolt` (a projectile_action over create_projectile): the damage is read from the star's own attack power, which the star
+// inherits from the Starforger when it is made (PNSummonInherit). DEPENDENT: no KeepWhenOwnerGone, so the owner's death, unload or leaving the world retires it. The slam asks every star for one extra bolt
+// toward its landing (FireToward), which ignores `range` and does not move the rhythm.
 [DisallowMultipleComponent]
-public sealed class PNStarforgerStarSummon : MonoBehaviour
+public sealed class PNStarforgerStarSummon : PNEnemyBehavior
 {
-    private PNSummon summon; private PNStat stat;
-    private PNCombatSource source; private PNPreparedDamage prepared; private PNTargetRule rule; private EveEntityId ownerId; private PNProjectileManager projectiles;
+    private PNSummon summon; private PNStat stat; private PNProjectileManager projectiles; private PNCombatSource source; private PNTargetRule rule; private EveEntityId ownerId;
     private float interval, range, age, nextShot; private int slot = -1; private bool started; private Vector3 position;
     private PNStarforgerStarVisual visual;
+    public override IEnumerable<EveId> SkillIds => new[] { PNStarforgerCombatContent.StarBolt };
     public int Slot => slot;
     public float Age => age;
-    public void Release() => OnDisable();                         // an Edit Mode fixture calls it itself (Edit Mode runs neither OnDisable nor OnDestroy)
+    public void Release() => Reset();                         // an Edit Mode fixture calls it itself (Edit Mode runs neither OnDisable nor OnDestroy)
     public bool IsRunning => started && summon != null && summon.IsActive && !summon.IsRetiring;
     public bool Started => started;
     public int Shots { get; private set; }
     public void RenderVisual(Camera camera) { visual?.Render(camera); }
-    private void OnDisable() => Reset();
+    protected override void OnDisable() { try { base.OnDisable(); } finally { Reset(); } }
     private void OnDestroy() => Reset();
     private void Reset()
     {
-        visual?.Dispose(); visual = null; summon = null; stat = null; source = null; prepared = null; rule = default; projectiles = null; slot = -1; started = false; age = 0; Shots = 0;
+        visual?.Dispose(); visual = null; summon = null; stat = null; source = null; projectiles = null; rule = default; slot = -1; started = false; age = 0; Shots = 0;
     }
 
-    private void Update()
+    // First tick of the runner: read the character's block and the owner. No owner at all (unloaded before the star existed) or a group that is no slot: nothing to shoot for, retire.
+    public override void Enter()
     {
-        var scale = GetComponent<EveTimeScale>(); float factor = scale != null && scale.isActiveAndEnabled ? scale.Scale : 1f;
-        if (factor > 0f) Tick(Time.deltaTime * factor);
+        summon = GetComponent<PNSummon>(); stat = GetComponent<PNStat>(); source = summon != null ? summon.OwnerSource : null; var owner = source?.LoadedSource;
+        if (summon == null || !summon.IsActive || summon.IsRetiring || owner == null || stat == null || !PNStarforgerCombatContent.TrySlot(summon.Group, out slot)) { summon?.Retire(); return; }
+        var registry = EveRegistrySession.Context.Registry;
+        var block = (registry.Characters.Get(stat.CharacterId).Data as JObject)?["star"] ?? throw new InvalidOperationException("Character " + stat.CharacterId + " has no star block.");
+        PNStarforgerCombatContent.ValidateStarInput(block); var o = (JObject)block;
+        interval = o["interval"].Value<float>(); range = o["range"].Value<float>();
+        ownerId = owner.EntityId; rule = PNTargetRules.For(stat); position = transform.position;
+        nextShot = PNStarforgerPlanner.FirstShot(o["firstDelay"].Value<float>(), o["stagger"].Value<float>(), slot);
+        projectiles = PNProjectileManager.Resolve(EveRegistrySession.Context, gameObject.scene);
+        age = 0; Shots = 0;
+        if (visual == null) visual = new PNStarforgerStarVisual(transform, gameObject.layer);
+        var forge = owner.GetComponent<PNStarforgerPresentation>(); visual.Begin(position, forge != null ? forge.ForgePosition : position + Vector3.up * .2f);
+        started = true;
     }
-    // One step of `seconds` of entity time (Update calls it; a fixture calls it by hand).
-    public void Tick(float seconds)
+    // One step of `delta` seconds of the star's entity time (the runner calls it; a fixture calls PNBehaviorSkill.Advance).
+    public override void Tick(float delta)
     {
-        if (!(seconds > 0f) || !EveRegistrySession.IsReady || !EveRegistrySession.Context.HasAuthority) return;
-        var loader = GetComponent<EveEntityLoader>(); if (loader == null || !loader.IsReady || loader.LoadContext?.CanSimulate != true) return;
-        summon = summon ?? GetComponent<PNSummon>(); if (summon == null || !summon.IsActive || summon.IsRetiring) return;
-        if (!started && !Begin()) return;
-        age += seconds;
+        if (!started || summon == null || !summon.IsActive || summon.IsRetiring) return;
+        age += delta;
         while (age >= nextShot)
         {
             nextShot += interval;
@@ -56,30 +66,12 @@ public sealed class PNStarforgerStarSummon : MonoBehaviour
         float charge = lead >= 0 && lead < .15f && NearestHostile().HasValue ? 1 - lead / .15f : 0;
         visual?.Advance(age, charge);
     }
-    private bool Begin()
-    {
-        stat = stat ?? GetComponent<PNStat>(); source = summon.OwnerSource; var owner = source?.LoadedSource;
-        if (owner == null || stat == null || !PNStarforgerCombatContent.TrySlot(summon.Group, out slot)) { summon.Retire(); return false; }
-        var registry = EveRegistrySession.Context.Registry;
-        var block = (registry.Characters.Get(stat.CharacterId).Data as JObject)?["star"] ?? throw new InvalidOperationException("Character " + stat.CharacterId + " has no star block.");
-        PNStarforgerCombatContent.ValidateStarInput(block); var o = (JObject)block;
-        interval = o["interval"].Value<float>(); range = o["range"].Value<float>();
-        ownerId = owner.EntityId; rule = PNTargetRules.For(owner); position = transform.position;
-        nextShot = PNStarforgerPlanner.FirstShot(o["firstDelay"].Value<float>(), o["stagger"].Value<float>(), slot);
-        double amount = 0d; foreach (var component in PNSkillValues.Parse(o["value"]).Components) amount += component.Evaluate(owner);
-        var tags = PNSkillEffect.Ids(o["tags"]).Concat(new[] { PNContentIds.ProjectileDamage }).Distinct().ToArray();
-        prepared = (source.Snapshot ?? throw new InvalidOperationException("The star needs a combat snapshot.")).PrepareDamage(amount, o["canCrit"].Value<bool>(), null, tags);
-        projectiles = PNProjectileManager.Resolve(EveRegistrySession.Context, gameObject.scene);
-        age = 0;
-        if (visual == null) visual = new PNStarforgerStarVisual(transform, gameObject.layer);
-        var forge = owner.GetComponent<PNStarforgerPresentation>(); visual.Begin(position, forge != null ? forge.ForgePosition : position + Vector3.up * .2f);
-        started = true; return true;
-    }
-    // The planar direction to the nearest living hostile (the owner's target rule) within `range`, or null.
+    public override void Exit(PNEnemyBehaviorExit reason) { }
+    // The planar direction to the nearest living hostile (the star's target rule: Aggro within its target layers) within `range`, or null.
     private Vector3? NearestHostile()
     {
         var target = PNTargetSelector.Select(projectiles.Targets.Acquire(GetComponent<EveEntityIdentity>().World), new PNTargetQuery
-        { Origin = position, Range = range, LayerMask = source.TargetLayers.Mask, Rule = rule, Exclude = ownerId, Planar = true });
+        { Origin = position, Range = range, LayerMask = stat.TargetLayers.Mask, Rule = rule, Exclude = ownerId, Planar = true });
         if (target == null) return null;
         var d = target.transform.position - position; d.y = 0;
         return d.sqrMagnitude > 1e-8f ? d.normalized : (Vector3?)null;
@@ -89,14 +81,15 @@ public sealed class PNStarforgerStarSummon : MonoBehaviour
     {
         if (!started || summon == null || !summon.IsActive || summon.IsRetiring) return false;
         var d = point - position; d.y = 0; if (d.sqrMagnitude < 1e-8f) return false;
-        Fire(d.normalized); return true;
+        return Fire(d.normalized);
     }
-    private void Fire(Vector3 heading)
+    // The bolt is the star's registered skill; the runner admits it (authority only, the star's own control rights) and the registered Action creates the projectile.
+    private bool Fire(Vector3 heading)
     {
-        var launch = PNProjectileLaunch.FromSource(PNStarforgerCombatContent.Bolt, new JObject(), source, source.TargetLayers, prepared, null, rule);
-        var receipt = projectiles.Create(launch, new PNProjectileSpawn(gameObject.scene, position + Vector3.up * .2f, heading));
-        if (receipt.Status == PNProjectileStatus.Failed) throw new InvalidOperationException("Star bolt creation failed.", receipt.Error);
-        visual?.Flash(heading, age); Shots++;
+        if (Context == null || !Context.IsCurrent || !Context.Owner.CanExecuteBehavior) return false;
+        var admission = Context.TryCast(PNStarforgerCombatContent.StarBolt, heading, PNEnemyActionExecution.Instant, out _, null, null, position + Vector3.up * .2f);
+        if (admission != PNEnemyCastAdmission.Started) return false;
+        visual?.Flash(heading, age); Shots++; return true;
     }
 }
 

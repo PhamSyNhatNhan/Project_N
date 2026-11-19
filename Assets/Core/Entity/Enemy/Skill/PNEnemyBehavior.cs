@@ -36,7 +36,7 @@ public abstract class PNEnemyBehavior : MonoBehaviour
 
 public sealed class PNEnemyBehaviorContext
 {
-    public PNEnemySkill Owner { get; }
+    public PNBehaviorSkill Owner { get; }
     public PNEnemyMove Move => Owner.GetComponent<PNEnemyMove>();
     public PNStat Stat => Owner.GetComponent<PNStat>();
     public PNAbilityCollection Abilities => Owner.Abilities;
@@ -44,7 +44,7 @@ public sealed class PNEnemyBehaviorContext
     internal bool Retired;
     internal readonly PNEnemyResourceScope Resources = new PNEnemyResourceScope();
     public bool IsCurrent => !Retired && Owner != null && Owner.IsCurrent(this);
-    internal PNEnemyBehaviorContext(PNEnemySkill owner, Guid selection) { Owner = owner; Selection = selection; }
+    internal PNEnemyBehaviorContext(PNBehaviorSkill owner, Guid selection) { Owner = owner; Selection = selection; }
     public PNEnemyNavigationRequest GoTo(Vector3 goal, float stopDistance)
     { Require(); return Move.GoTo(goal, stopDistance, () => IsCurrent); }
     public PNEnemyNavigationRequest GoTo(Vector3 goal, PNLocomotionOptions options)

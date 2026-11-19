@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using EveEngine;
 
@@ -61,6 +62,22 @@ public class PNCombatSourceSnapshot
         if (ids == null) throw new ArgumentNullException(nameof(ids));
         return stats.Calculate(PNContentIds.Scale, input, ids);
     }
+    // Copies of every modifier the source had when it was captured, from all of its sources, in source-id order (so the order is the same every time).
+    // `filter` keeps only the modifiers it accepts. Later changes to the source never reach this list. Meant for a summon (or anything else) that
+    // takes part of its owner's modifiers when it is made; it only reads, so it needs no active session. The caller decides what to keep and what
+    // the receiving stat set can use: resource modifiers such as max health are included, so filter them out when they must not carry over.
+    public virtual IReadOnlyList<EveStatModifier> ExportModifiers(Func<EveStatModifier, bool> filter = null)
+        => Array.AsReadOnly(stats.SourceSnapshot().OrderBy(pair => pair.Key).SelectMany(pair => pair.Value)
+            .Where(modifier => filter == null || filter(modifier)).Select(modifier => modifier.Clone()).ToArray());
+    // The captured final value of a base stat (every modifier of the source already in it); false when the source had no such stat. Read only, like Evaluate.
+    public virtual bool TryEvaluate(EveId id, out double value)
+    {
+        value = 0d;
+        if (!stats.TryGetBase(id, out _)) return false;
+        value = stats.Evaluate(id); return true;
+    }
+    // True when the id is a registered stat (so a modifier on it is already part of that stat's final value), false for tags, damage types and elements.
+    public virtual bool IsStat(EveId id) => stats.IsBaseStatId(id);
     protected void RequireReady() { if (!canCreate()) throw new InvalidOperationException("Combat snapshot requires its active authoritative session."); }
     // One formula source: the four-argument overload is PrepareDamage + CreateDamage(prepared), so a subclass that
     // overrides PrepareDamage also changes this overload. Subclasses that only override this overload are unchanged.

@@ -16,6 +16,9 @@ GameObject:
   - component: {fileID: 5820160789775804740}
   - component: {fileID: 5051340774717828526}
   - component: {fileID: 5338556895533311047}
+  - component: {fileID: 1591746516102848944}
+  - component: {fileID: 4321446903176179896}
+  - component: {fileID: 2069214645973491170}
   m_Layer: 6
   m_Name: StarreaperShadow
   m_TagString: Untagged
@@ -133,6 +136,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 45f813c6617836b4b9b20a9e302e4112, type: 3}
   m_Name: 
   m_EditorClassIdentifier: ProjectN.Game::PNStarreaperShadowSummon
+  behaviorId: default
 --- !u!114 &5338556895533311047
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -145,3 +149,43 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 74fb1bbc0126f0d489e3ed48f1bbf174, type: 3}
   m_Name: 
   m_EditorClassIdentifier: ProjectN.Core::PNSummon
+--- !u!114 &1591746516102848944
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8059214730017314496}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ee7204ff0c25d74459cf75f20159f16f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: ProjectN.Core::PNSummonInherit
+--- !u!114 &4321446903176179896
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8059214730017314496}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d74e3c74d2d1a5d4aaaabad25c0778b1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: ProjectN.Core::PNAbilityManager
+  initialAbilities: []
+  definitionsAsset: {fileID: 0}
+--- !u!114 &2069214645973491170
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8059214730017314496}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5e9efc7fb342295458833125befbe04e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: ProjectN.Core::PNBehaviorSkill
+  characterId: 
+  initialBehaviorId: default

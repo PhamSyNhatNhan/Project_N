@@ -13,7 +13,7 @@ public static class PNStarforgerCombatContent
 {
     public static readonly EveId Slam = EveId.Parse("project_n:starforger_slam"), Star = EveId.Parse("project_n:starforger_star"),
         SlamAction = EveId.Parse("project_n:starforger_slam_action"), StarAction = EveId.Parse("project_n:starforger_star_action"),
-        SlamHit = EveId.Parse("project_n:starforger_slam_hit"), Bolt = EveId.Parse("project_n:starforger_bolt"), StarCharacter = EveId.Parse("project_n:starforger_star"), CreateSummon = EveId.Parse("project_n:create_summon");
+        SlamHit = EveId.Parse("project_n:starforger_slam_hit"), Bolt = EveId.Parse("project_n:starforger_bolt"), StarCharacter = EveId.Parse("project_n:starforger_star"), StarBolt = EveId.Parse("project_n:starforger_star_bolt"), CreateSummon = EveId.Parse("project_n:create_summon");
 
     public static void Register(EveRegistryHub hub)
     {
@@ -34,6 +34,15 @@ public static class PNStarforgerCombatContent
           'range':4,'cast':0.8,'recovery':0.2,'maxStars':3,'orbit':1.2,'slotDegrees':120,
           'summon':{'character':'project_n:starforger_star','lifetime':16},
           'tags':['base:magic']}")));
+        // The star's bolt: a registered skill of the star (the character `project_n:starforger_star`), a plain projectile_action over create_projectile. The star's behavior only decides when and where
+        // (its `star` block: first delay, stagger, interval, range); the damage is read from the star's own stats (attack power, inherited from the Starforger when the star is made).
+#if UNITY_5_3_OR_NEWER
+        skills.Register(new EveSkillDefinition(StarBolt, JObject.Parse(@"{
+          'categoryIds':['base:attack'],'affectedByAttackSpeed':false,'skill':{},
+          'action':{'id':'project_n:projectile_action','start':{},'perform':{'operationId':'base:create_projectile','data':{
+            'projectileId':'project_n:starforger_bolt','input':{},'count':1,'spread':0,
+            'damage':{'value':{'amount':50,'statId':'base:attack_power'},'canCrit':true,'tags':['project_n:attack','base:magic']}}},'exit':{},'cancel':{}}}")));
+#endif
     }
     private static EveSkillDefinition Skill(EveId id, string category, bool attackSpeed, double cooldown, EveId action, JObject perform)
     {
@@ -101,16 +110,15 @@ public static class PNStarforgerCombatContent
         foreach (var character in hub.Characters.Snapshot().Values)
         {
             var block = (character.Data as JObject)?["star"]; if (block == null) continue;
-            try { ValidateStarInput(block); ValidateDamage((JObject)block, hub); }
+            try { ValidateStarInput(block); }
             catch (FormatException error) { throw new FormatException("Character " + character.Id + " star block: " + error.Message); }
         }
     }
     public static void ValidateStarInput(JToken token)
     {
         var o = PNBuffContentBatch.Object(token);
-        PNBuffContentBatch.Fields(o, "firstDelay", "stagger", "interval", "range", "value", "canCrit", "tags");
+        PNBuffContentBatch.Fields(o, "firstDelay", "stagger", "interval", "range");
         Positive(o, "firstDelay", 60); Positive(o, "interval", 60); Positive(o, "range", 100);
         if (PNBuffContentBatch.Number(o, "stagger") < 0) throw new FormatException("stagger must not be negative.");
-        PNSkillValues.Parse(o["value"]).ValidateNonnegativeAmounts(); PNSkillEffect.Ids(o["tags"]).ToArray();
     }
 }

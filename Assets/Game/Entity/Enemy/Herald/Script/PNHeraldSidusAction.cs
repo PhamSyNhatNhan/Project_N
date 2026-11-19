@@ -7,7 +7,7 @@ using Newtonsoft.Json.Linq;
 using UnityEngine;
 
 // Herald Sidus: locks movement for windup + release + recovery (the `cast` motion, a phase clock) and, when the windup ends, gives the registered Buff to the targets chosen at the cast start. Each target is
-// checked again at that moment (H13): one that died, is no longer an ally or left `radius` is skipped, and the cooldown stays spent. Buffs are applied on the authority only (the Buff replicates by its own adapter).
+// checked again at that moment (H13): one that died, is no longer an ally or left `radius` is skipped, and the cooldown stays spent. Buffs go through `context.ApplyBuff` (the authority applies; the Buff replicates by its own adapter).
 public sealed class PNHeraldSidusAction : PNSkillAction
 {
     private PNSkillActionContext context; private PNStat caster; private PNVisualBody body; private PNSkillOperation movementLock; private PNHeraldPresentation presentation;
@@ -30,10 +30,10 @@ public sealed class PNHeraldSidusAction : PNSkillAction
     {
         var g = context.Data.Action.Perform["guard"];
         if (buffs == null || !buffs.IsReady) return false;
-        var receipt = buffs.Buffs.Apply(new PNBuffApplyRequest(EveId.Parse(g["buffId"].Value<string>()), PNCombatSource.Capture(caster),
+        var outcome = context.ApplyBuff(buffs, new PNBuffApplyRequest(EveId.Parse(g["buffId"].Value<string>()), PNCombatSource.Capture(caster),
             new JObject { ["duration"] = g["duration"].Value<double>(), ["hits"] = g["hits"].Value<int>() }));
-        if (receipt.Status != PNBuffStatus.Applied && receipt.Status != PNBuffStatus.Reapplied) return false;
-        guard = receipt.Handle; hasGuard = true; return true;
+        if (!outcome.Succeeded) return false;
+        guard = outcome.Receipt.Handle; hasGuard = true; return true;
     }
     public override void Perform(PNSkillActionContext c)
     {
@@ -52,7 +52,6 @@ public sealed class PNHeraldSidusAction : PNSkillAction
     private void Apply()
     {
         presentation?.Pulse(radius);
-        if (!EveRegistrySession.Context.HasAuthority) return;
         foreach (var target in targets)
         {
             if (target == null || ReferenceEquals(target, caster) || !PNStarchanterSupport.IsAlly(caster, target)) continue;
@@ -60,8 +59,8 @@ public sealed class PNHeraldSidusAction : PNSkillAction
             var manager = target.GetComponent<PNBuffManager>(); if (manager == null || !manager.IsReady) continue;
             try
             {
-                var receipt = manager.Buffs.Apply(new PNBuffApplyRequest(buffId, PNCombatSource.Capture(caster)));
-                if (receipt.Status == PNBuffStatus.Applied || receipt.Status == PNBuffStatus.Reapplied) presentation?.Recipient(target.transform.position);
+                // The Buff context service gives the Buff on the authority and skips it elsewhere; the Buff reaches other machines by its own replication.
+                if (context.ApplyBuff(manager, new PNBuffApplyRequest(buffId, PNCombatSource.Capture(caster))).Succeeded) presentation?.Recipient(target.transform.position);
             }
             catch (Exception error) { Debug.LogException(error, target); }
         }

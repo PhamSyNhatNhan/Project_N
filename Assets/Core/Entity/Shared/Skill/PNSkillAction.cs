@@ -46,14 +46,9 @@ public class PNSkillActionContext
     }
     // True when FreezeOnHit may be called now: a begun context of a live invocation that allows contributions.
     // The owner's CLIENT is running this action ahead of the authority (S3-S5): no lock, no damage; a hit is handed to `HitReporter` instead of being applied.
-    // G1: the mode is the invocation's; a context with no invocation (the Eve moveset's) can be given one directly. `IsPrediction` is the old flag as a view of it.
+    // G1: the mode is the invocation's; a context with no invocation (the Eve moveset's) can be given one directly.
     private PNSkillMode? modeOverride;
     public PNSkillMode Mode { get => modeOverride ?? Invocation?.Mode ?? PNSkillMode.Authority; set => modeOverride = value; }
-    public bool IsPrediction
-    {
-        get => Mode == PNSkillMode.Predicted;
-        set => modeOverride = value ? PNSkillMode.Predicted : Invocation?.Mode == PNSkillMode.Predicted ? PNSkillMode.Authority : (PNSkillMode?)null;
-    }
     private int step = -1;
     public bool CanFreezeOnHit => begun && AllowContributions && Invocation != null && !Invocation.IsEnded;
     internal PNSkillContribution[] ContributionSnapshot = Array.Empty<PNSkillContribution>();
@@ -164,16 +159,17 @@ public class PNSkillActionContext
         return new PNSkillDamageCapture(1, amount, caster.CaptureCombatSource(), packet);
     }
 
-    public PNSkillDamageCapture PrepareMeleeDamage(PNSkillValues values, double? iframeDuration, Func<double> readOwnerScale)
+    public PNSkillDamageCapture PrepareMeleeDamage(PNSkillValues values, double? iframeDuration, Func<double> readOwnerScale, bool canCrit = true, IEnumerable<EveId> extraTags = null)
     {
         PNSkillDamageCapture damage;
         if (Mode == PNSkillMode.Authority)
         {
             var caster = Skill.GetComponent<PNStat>();
             var amount = values.Components.Sum(component => component.Evaluate(caster));
-            var capture = PNHitCapture.Melee(caster.CaptureCombatSource(), Data.Action.PerformTags);
+            // The Action's registered tags, plus any tags the hit's own payload names (a registered Operation's `tags`).
+            var capture = PNHitCapture.Melee(caster.CaptureCombatSource(), extraTags == null ? Data.Action.PerformTags : Data.Action.PerformTags.Concat(extraTags));
             damage = new PNSkillDamageCapture(capture.ScaleFactor, amount, capture.Source,
-                prepared: capture.Prepare(amount, true, iframeDuration));
+                prepared: capture.Prepare(amount, canCrit, iframeDuration));
         }
         else
         {
@@ -209,6 +205,20 @@ public class PNSkillActionContext
                 return PNHitOutcome.Skip(false);
         }
     }
+    // The door for a Buff an Action gives (to others or itself). Authority applies it; Predicted and Observed skip it (the Buff reaches them through its own replication). The Action never checks the mode.
+    public PNBuffOutcome ApplyBuff(PNBuffManager manager, PNBuffApplyRequest request)
+    {
+        if (manager == null) throw new ArgumentNullException(nameof(manager));
+        return Mode == PNSkillMode.Authority ? PNBuffOutcome.Done(manager.Buffs.Apply(request)) : PNBuffOutcome.Skip();
+    }
+
+    // The door for a heal an Action gives. Authority heals; every other mode skips it.
+    public PNHealOutcome Heal(PNStat target, PNHeal heal)
+    {
+        if (target == null) throw new ArgumentNullException(nameof(target));
+        return Mode == PNSkillMode.Authority ? PNHealOutcome.Done(target.ReceiveHeal(heal)) : PNHealOutcome.Skip();
+    }
+
     internal bool AdmitHitEffect(PNSkillEffect effect, int index)
     {
         if (!effect.OncePerHit) return true;

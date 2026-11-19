@@ -19,26 +19,34 @@ internal sealed class PNSkillMeleeHitbox : IPNSkillHitReceiver, IDisposable
     private float reportRadius;
     private int extraLayers;
     private bool disposed;
+    private readonly int hitIndex;
+    private Predicate<PNStat> targetFilter;
     public double Scale => damage.Scale;
+    // The size factor read once when this hitbox was built; a positive length never collapses to zero (same rule as PNHitCapture.Scale).
+    public float ScaleLength(float length) => PNHitCapture.ScaleLength(length, damage.Scale);
     public PNDamage Damage { get; private set; }
     public double ReportTime { get; set; }
     public bool CanSample => cast != null;
 
-    public PNSkillMeleeHitbox(PNSkillActionContext context, PNStat caster, PNSkillValues values, double? iframe)
+    // `hitIndex` names this hitbox among the Action's hits (an Action with two sweeps gives them 0 and 1, so once-per-hit effects count each sweep).
+    public PNSkillMeleeHitbox(PNSkillActionContext context, PNStat caster, PNSkillValues values, double? iframe, bool canCrit = true, int hitIndex = 0, IEnumerable<EveId> extraTags = null)
     {
         this.context = context;
         this.caster = caster;
+        this.hitIndex = hitIndex;
         damage = context.PrepareMeleeDamage(values, iframe,
-            () => context.Skill.GetComponent<PNSkillScaleState>()?.ReadScale(PNContentIds.MeleeScale) ?? 1);
+            () => context.Skill.GetComponent<PNSkillScaleState>()?.ReadScale(PNContentIds.MeleeScale) ?? 1, canCrit, extraTags);
     }
 
-    public void Open(EveHitboxShape shape, Vector3 origin, float radius, int layers, Action<Vector3, PNHitOutcome> contact)
+    // `targetFilter` adds a live rule on top of the caster's target layers (for example the world rule an enemy follows); null keeps the layers alone.
+    public void Open(EveHitboxShape shape, Vector3 origin, float radius, int layers, Action<Vector3, PNHitOutcome> contact, Predicate<PNStat> targetFilter = null)
     {
         if (context.Mode == PNSkillMode.Observed) return;
         reportOrigin = origin;
         reportRadius = radius;
         extraLayers = layers;
         onContact = contact;
+        this.targetFilter = targetFilter;
         cast = new PNHitboxCast(shape, caster.gameObject.scene.GetPhysicsScene());
         if (context.Mode == PNSkillMode.Authority)
         {
@@ -48,7 +56,7 @@ internal sealed class PNSkillMeleeHitbox : IPNSkillHitReceiver, IDisposable
     }
 
     private bool Allows(PNStat target)
-        => !ReferenceEquals(target, caster) && PNLayers.Contains(caster.TargetLayers.Mask | extraLayers, target.Layer);
+        => !ReferenceEquals(target, caster) && PNLayers.Contains(caster.TargetLayers.Mask | extraLayers, target.Layer) && (targetFilter == null || targetFilter(target));
 
     public void Sample(EveHitboxPose pose, double time)
     {
@@ -80,7 +88,7 @@ internal sealed class PNSkillMeleeHitbox : IPNSkillHitReceiver, IDisposable
     {
         var point = target.transform.position;
         var notify = onContact;
-        var outcome = context.Hit(target, point, Damage, damage);
+        var outcome = context.Hit(target, point, Damage, damage, hitIndex);
         notify?.Invoke(point, outcome);
     }
 

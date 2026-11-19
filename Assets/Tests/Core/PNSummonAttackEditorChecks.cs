@@ -46,6 +46,8 @@ public static class PNSummonAttackEditorChecks
                 PNSummons.Reserve(owner.EntityId, group, candidate); Pump(() => done); PNSummons.Fulfil(candidate);
                 return (made.GetComponent<T>(), candidate);
             }
+            // A star is run by its PNBehaviorSkill on the entity clock; Edit Mode runs no Update, so the fixture steps the runner itself.
+            void StarStep(PNStarforgerStarSummon star, float seconds) => star.GetComponent<PNBehaviorSkill>().Advance(seconds);
             var playerSpawn = Spawn(factory.Player(3, world, "chunk-0", null)); var player = playerSpawn.Loader.GetComponent<PNStat>();
             player.transform.position = new Vector3(4f, 0f, 0f); Physics.SyncTransforms();
             managerObject = new GameObject("Summon attack projectiles"); SceneManager.MoveGameObjectToScene(managerObject, player.gameObject.scene);
@@ -61,25 +63,25 @@ public static class PNSummonAttackEditorChecks
             var role = shadow.GetComponent<PNEntityRole>();
             Check(role != null && role.Entity == "project_n:summon" && !role.Persist && !shadowStat.HasHealth && shadow.GetComponentsInChildren<Collider>().Length == 0, "the shadow is a summon entity with no Health and no collider");
             Check(PNSummons.Count(reaperStat.EntityId, "starreaper_shadow") == 1 && ReferenceEquals(shadowSummon.OwnerSource.LoadedSource, reaperStat), "it counts in its group and keeps the owner's combat source");
-            for (int i = 0; i < 19; i++) shadow.Tick(.1f);
+            for (int i = 0; i < 19; i++) shadow.GetComponent<PNBehaviorSkill>().Advance(.1f);
             Check(shadow.Started && !shadow.Locked && shadow.Shots == 0 && projectiles.ActiveCount == 0, "before its 2 s delay the shadow only waits");
-            shadow.Tick(.15f);
+            shadow.GetComponent<PNBehaviorSkill>().Advance(.15f);
             Check(shadow.Locked && shadow.Shots == 1 && projectiles.ActiveCount == 1, "after the delay it locks the direction and shoots the first arrow");
-            shadow.Tick(.05f);
+            shadow.GetComponent<PNBehaviorSkill>().Advance(.05f);
             Check(shadow.Shots == 1, "the second arrow waits for its 0.15 s gap");
-            shadow.Tick(.1f);
+            shadow.GetComponent<PNBehaviorSkill>().Advance(.1f);
             Check(shadow.Shots == 2 && shadow.IsDissolving && projectiles.ActiveCount == 2, "the second arrow follows and the shadow dissolves");
             projectiles.Advance(10f);
 
             // its owner dies: an independent summon goes on
             var second = Summon<PNStarreaperShadowSummon>(reaperStat, "project_n:starreaper_shadow", "starreaper_shadow", new Vector3(0, 0, 0));
             Check(PNSummons.Count(reaperStat.EntityId, "starreaper_shadow") <= 2, "a new shadow can be summoned in the same group");
-            var wasFirst = shadow; for (int i = 0; i < 6; i++) wasFirst.Tick(.1f);
+            var wasFirst = shadow; for (int i = 0; i < 6; i++) wasFirst.GetComponent<PNBehaviorSkill>().Advance(.1f);
             reaperStat.ReceiveDamage(player.CreateDamage(reaperStat.GetMax(PNContentIds.Health) * 10, false, 0d, PNContentIds.True));
             Check(reaperStat.IsDead, "the owner is dead");
-            second.Behavior.Tick(.1f); var secondSummon = second.Behavior.GetComponent<PNSummon>(); secondSummon.Tick();
+            second.Behavior.GetComponent<PNBehaviorSkill>().Advance(.1f); var secondSummon = second.Behavior.GetComponent<PNSummon>(); secondSummon.Tick();
             Check(secondSummon.IsActive && !secondSummon.IsRetiring, "a dead owner does not retire an independent shadow");
-            for (int i = 0; i < 21; i++) second.Behavior.Tick(.1f);
+            for (int i = 0; i < 21; i++) second.Behavior.GetComponent<PNBehaviorSkill>().Advance(.1f);
             Check(second.Behavior.Shots == 2, "the shadow of a dead owner still shoots both arrows (" + second.Behavior.Shots + ")");
 
             // ---- Starforger star: dependent ----
@@ -88,14 +90,14 @@ public static class PNSummonAttackEditorChecks
             player.transform.position = new Vector3(2f, 0f, 0f); Physics.SyncTransforms();
             var star0 = Summon<PNStarforgerStarSummon>(forgerStat, "project_n:starforger_star", PNStarforgerCombatContent.SlotGroup(0), new Vector3(1.2f, 0.4f, 0), 16d);
             var star1 = Summon<PNStarforgerStarSummon>(forgerStat, "project_n:starforger_star", PNStarforgerCombatContent.SlotGroup(1), new Vector3(-.6f, 0.4f, 1.04f), 16d);
-            star0.Behavior.Tick(.1f); star1.Behavior.Tick(.1f);
+            StarStep(star0.Behavior, .1f); StarStep(star1.Behavior, .1f);
             Check(star0.Behavior.Slot == 0 && star1.Behavior.Slot == 1 && PNSummons.Of(forgerStat.EntityId).Count(x => PNStarforgerCombatContent.TrySlot(x.Group, out _)) == 2, "each star takes the slot of its group and the index counts both");
             Check(star0.Behavior.GetComponentsInChildren<Collider>().Length == 0 && !star0.Behavior.GetComponent<PNStat>().HasHealth, "a star has no Health and no collider");
-            for (int i = 0; i < 9; i++) star0.Behavior.Tick(.1f);
+            for (int i = 0; i < 9; i++) StarStep(star0.Behavior, .1f);
             Check(star0.Behavior.Shots == 1 && projectiles.ActiveCount >= 1, "the first star shoots after its 1 s first delay (" + star0.Behavior.Shots + ")");
-            for (int i = 0; i < 9; i++) star1.Behavior.Tick(.1f);
+            for (int i = 0; i < 9; i++) StarStep(star1.Behavior, .1f);
             Check(star1.Behavior.Shots == 0, "the second star waits its 0.667 s stagger longer");
-            for (int i = 0; i < 7; i++) star1.Behavior.Tick(.1f);
+            for (int i = 0; i < 7; i++) StarStep(star1.Behavior, .1f);
             Check(star1.Behavior.Shots == 1, "and then shoots (" + star1.Behavior.Shots + ")");
             Check(star0.Behavior.FireToward(new Vector3(3f, 0f, 0f)) && star0.Behavior.Shots == 2, "an extra shot toward the slam's landing point is allowed");
 
@@ -106,7 +108,34 @@ public static class PNSummonAttackEditorChecks
             Check(forgerStat.IsDead, "the Starforger is dead");
             star1.Behavior.GetComponent<PNSummon>().Tick(); Pump(() => star1.Candidate.IsReturned);
             Check(PNSummons.LiveCount == 0 || PNSummons.Count(forgerStat.EntityId, PNStarforgerCombatContent.SlotGroup(1)) == 0, "the owner's death retires the remaining star (a dependent summon)");
-            return "PASS " + n + " summon attack checks (Starreaper shadow independent of its owner; Starforger stars dependent: slots, rhythm, lifetime, owner death; real prefabs, catalog and host spawn)";
+            // The bolt's damage is the star's registered skill read from the star's own attack power, which the star inherited from its owner (a second player stands in for the Starforger: the dummy has no attack).
+            {
+                var ownerSpawn = Spawn(factory.Player(4, world, "chunk-0", null)); var damageOwner = ownerSpawn.Loader.GetComponent<PNStat>();
+                damageOwner.transform.position = new Vector3(0f, 0f, 3f);
+                damageOwner.SetSource(EveId.Parse("test:no_crit"), new[] { new EveStatModifier(PNContentIds.CritRate, -1000d, 0) });
+                player.transform.position = new Vector3(0f, 0f, 0f); Physics.SyncTransforms();
+                var shooter = Summon<PNStarforgerStarSummon>(damageOwner, "project_n:starforger_star", PNStarforgerCombatContent.SlotGroup(0), new Vector3(0f, 0f, 1.5f), 16d);
+                double ownerAttack = damageOwner.Evaluate(PNContentIds.AttackPower), starAttack = shooter.Behavior.GetComponent<PNStat>().Evaluate(PNContentIds.AttackPower);
+                Check(ownerAttack > 1d && Math.Abs(starAttack - ownerAttack) < 1e-6, "the star inherited its owner's attack power (" + starAttack + " of " + ownerAttack + ")");
+                float before = (float)player.GetCurrent(PNContentIds.Health);
+                for (int i = 0; i < 12; i++) StarStep(shooter.Behavior, .1f);
+                Check(shooter.Behavior.Shots >= 1, "the inheriting star shot");
+                int activeBefore = projectiles.ActiveCount; for (int k = 0; k < 40; k++) projectiles.Advance(.05f); float lost = before - (float)player.GetCurrent(PNContentIds.Health);
+                var reference = damageOwner.CaptureCombatSource().CreateDamage(.5d * ownerAttack, false, 0d, EveId.Parse("project_n:attack"), EveId.Parse("base:magic"), PNContentIds.ProjectileDamage);
+                float beforeReference = (float)damageOwner.GetCurrent(PNContentIds.Health); damageOwner.ReceiveDamage(reference); float referenceLost = beforeReference - (float)damageOwner.GetCurrent(PNContentIds.Health);   // same body defence, and the player is still inside the bolt's own hit window
+                Check(lost > 0f && Math.Abs(lost - referenceLost) < .01f, "the star's bolt hurts as much as its owner's own 50% magic projectile hit (" + lost + " vs " + referenceLost + ", active before " + activeBefore + " after " + projectiles.ActiveCount + ", shots " + shooter.Behavior.Shots + ", age " + shooter.Behavior.Age + ", slot " + shooter.Behavior.Slot + ", star at " + shooter.Behavior.transform.position + ", player at " + player.transform.position + ", player layer " + player.gameObject.layer + ")");
+                // The shadow's arrow is the shadow's registered skill too: 120% of the attack power it inherited, against the star's 50% (same owner, same body; the numbers are not linear: two arrows, defence, hit window).
+                var echo = Summon<PNStarreaperShadowSummon>(damageOwner, "project_n:starreaper_shadow", "starreaper_shadow", new Vector3(0f, 0f, 1.5f));
+                double shadowAttack = echo.Behavior.GetComponent<PNStat>().Evaluate(PNContentIds.AttackPower);
+                Check(Math.Abs(shadowAttack - ownerAttack) < 1e-6, "the shadow inherited its owner's attack power (" + shadowAttack + " of " + ownerAttack + ")");
+                float beforeEcho = (float)player.GetCurrent(PNContentIds.Health);
+                for (int i = 0; i < 23; i++) echo.Behavior.GetComponent<PNBehaviorSkill>().Advance(.1f);
+                Check(echo.Behavior.Shots >= 1, "the inheriting shadow shot");
+                for (int k = 0; k < 80; k++) projectiles.Advance(.05f);
+                float echoLost = beforeEcho - (float)player.GetCurrent(PNContentIds.Health);
+                Check(lost > 0f && echoLost > 0f && echoLost > lost * 2d, "the shadow's two 120% arrows hurt more than twice a star's 50% bolt (" + echoLost + " vs " + lost + ")");
+            }
+            return "PASS " + n + " summon attack checks (Starreaper shadow independent of its owner; Starforger stars dependent: slots, rhythm, lifetime, owner death, inherited damage; real prefabs, catalog and host spawn)";
         }
         finally
         {

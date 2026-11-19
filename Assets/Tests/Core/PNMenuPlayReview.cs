@@ -91,6 +91,7 @@ public sealed class PNMenuPlayReview : MonoBehaviour
             if (Arg("-pn-menu-play-starreaper") != null) yield return PNStarreaperPlayReview.Case(output, Fail, () => failed);
             if (Arg("-pn-menu-play-starforger") != null) yield return PNStarforgerPlayReview.Case(output, Fail, () => failed);
             if (Arg("-pn-menu-play-creature") != null) yield return PNCreaturePlayReview.Case(output, Fail, () => failed);
+            if (Arg("-pn-menu-play-pet") != null) yield return PetCase(Fail, () => failed);        // in the arena the pet meets the Star creatures and the dummy: its shots can be seen
             yield break;
         }
         PNUiRuntime ui = null;
@@ -245,6 +246,7 @@ public sealed class PNMenuPlayReview : MonoBehaviour
             }
             else Log("pet: walking measurement skipped, frames " + speeds.Count);
         }
+        Log("pet: shots after the walk " + (pet != null ? pet.GetComponent<PNPetShooterBehavior>().Shots : -1));
         int refusalsBefore = PNSummonCastBehavior.Refusals;
         skill.RequestSlot(PNSkillSlots.Skill, press); yield return Seconds(.3f);
         Log("pet: second press during the cooldown: pets=" + pets().Count + " refusals +" + (PNSummonCastBehavior.Refusals - refusalsBefore) + " ready=" + skill.Abilities.GetCooldown(PNSummonGameplayContent.Eve2PetReady).CanConsume());

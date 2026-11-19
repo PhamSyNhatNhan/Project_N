@@ -57,7 +57,7 @@ public static partial class PNVisualEditorChecks
             {
                 float t=frame/30f;
                 try{if(!ended&&action.AdvanceAuxiliary(1f/30)){action.Exit(context);ended=true;}}catch(NullReferenceException){/* the fixture owner has no world, so create_summon throws inside Make; the cast goes on next frame and the star is placed by hand */}
-                if(frame==24)liveStars.Add(MakeStar(0));foreach(var starTick in liveStars)starTick.Tick(1f/30);
+                if(frame==24)liveStars.Add(MakeStar(0));foreach(var starTick in liveStars)starTick.GetComponent<PNBehaviorSkill>().Advance(1f/30);
                 actor.Tick(1f/30);facing.Align();fx.Tick(1f/30);fx.RenderFlight(stage.Camera);
                 areas.Advance(1f/30);projectiles.Advance(1f/30);
                 var stars=liveStars.ToArray();foreach(var star in stars)star.RenderVisual(stage.Camera);
@@ -108,7 +108,7 @@ public static partial class PNVisualEditorChecks
         }
         finally
         {
-            action?.Dispose();foreach(var starObject in Resources.FindObjectsOfTypeAll<PNStarforgerStarSummon>().Where(x=>stage!=null&&x.gameObject.scene==stage.Scene).ToArray()){starObject.Release();UnityEngine.Object.DestroyImmediate(starObject.gameObject);}if(session&&PNEntityHosts.Find(EveRegistrySession.Context)!=null)PNEntityHosts.Remove(EveRegistrySession.Context);
+            action?.Dispose();foreach(var starObject in Resources.FindObjectsOfTypeAll<PNStarforgerStarSummon>().Where(x=>stage!=null&&x.gameObject.scene==stage.Scene).ToArray()){starObject.Release();starObject.GetComponent<EveEntityLoader>()?.Unload();UnityEngine.Object.DestroyImmediate(starObject.gameObject);}if(session&&PNEntityHosts.Find(EveRegistrySession.Context)!=null)PNEntityHosts.Remove(EveRegistrySession.Context);
             foreach(var item in Resources.FindObjectsOfTypeAll<PNStarforgerBoltImpact>().Where(x=>stage!=null&&x.gameObject.scene==stage.Scene).ToArray())item.Dispose();areas?.Shutdown();projectiles?.Shutdown();
             if(source!=null){source.GetComponent<PNStarforgerPresentation>()?.Dispose();source.GetComponent<PNVisualBody>()?.Clear();source.GetComponent<EveEntityLoader>()?.Unload();source.GetComponent<EveEntityIdentity>()?.ResetIdentity();}
             if(target!=null){target.GetComponent<EveEntityLoader>()?.Unload();target.GetComponent<EveEntityIdentity>()?.ResetIdentity();}

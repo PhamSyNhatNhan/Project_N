@@ -15,10 +15,10 @@ public sealed class PNStarkeeperSweepAction : PNSkillAction, IPNSkillMotionActio
     private bool stepOpen; private Vector3 stepDirection; private readonly bool[] stepped = new bool[2];
     public void BindMovementOwner(Action cancel) { if (context != null || ended) throw new InvalidOperationException("Bind before Start."); cancelOwner = cancel ?? throw new ArgumentNullException(nameof(cancel)); }
     private PNSkillActionContext context; private float age, windup, gap, reaimAt, recovery, maxReaim, radius, angle, thickness;
-    private readonly PNHitboxCast[] casts = new PNHitboxCast[2]; private readonly double[] raw = new double[2]; private readonly double?[] iframe = new double?[2];
-    private PNStat caster; private PNCombatSourceSnapshot source; private bool canCrit, reaimed, ended; private readonly bool[] swept = new bool[2];
+    // One melee hitbox per sweep (hit index 0 and 1): each takes its own damage capture when the Action starts, so Buffs gained during the windup change neither sweep.
+    private readonly PNSkillMeleeHitbox[] boxes = new PNSkillMeleeHitbox[2];
+    private PNStat caster; private bool canCrit, reaimed, ended; private readonly bool[] swept = new bool[2];
     private Vector3 first, second; private PNStarkeeperPresentation presentation; private PNVisualBody body; private PNStarkeeperTelegraph telegraph;
-    private readonly List<PNStat> hits = new List<PNStat>(); private PNHitCapture capture; private readonly PNPreparedDamage[] prepared = new PNPreparedDamage[2];
     private PNStarkeeperSweepVisual visual;
     public override bool HasAuxiliaryTimeline => true;
     public override void Start(PNSkillActionContext c)
@@ -32,18 +32,16 @@ public sealed class PNStarkeeperSweepAction : PNSkillAction, IPNSkillMotionActio
         var step = p["step"]; stepDistance = step["distance"].Value<float>(); stepSeconds = step["duration"].Value<float>(); stopDistance = step["stopDistance"].Value<float>();
         stepPermission = EveId.Parse(step["permissionId"].Value<string>()); stepCollision = (PNMotionActorCollision)Enum.Parse(typeof(PNMotionActorCollision), step["actorCollision"].Value<string>());
         caster = c.Skill.GetComponent<PNStat>();
-        for (int i = 0; i < 2; i++) { foreach (var v in PNSkillValues.Parse(p["hits"][i]["value"]).Components) raw[i] += v.Evaluate(caster); iframe[i] = PNDamage.ParseIFrameDuration((JObject)p["hits"][i]); }
-        source = caster.CaptureCombatSource();
-        // Captured once when the telegraph first shows: melee_scale sizes the sector (the angle stays), melee_damage joins the tags; Buffs gained during the windup do not change this attack.
-        capture = PNHitCapture.Melee(source, c.Data.Action.PerformTags); radius = capture.Scale(radius); thickness = capture.Scale(thickness);
-        if (EveRegistrySession.Context.HasAuthority) for (int i = 0; i < 2; i++) prepared[i] = capture.Prepare(raw[i], canCrit, iframe[i]);
         first = Flat(c.Direction.Value, Vector3.forward); second = first;
-        var world = c.Skill.gameObject.scene.GetPhysicsScene();
         context = c;
         try
         {
-            for (int i = 0; i < 2; i++) casts[i] = new PNHitboxCast(EveHitboxShape.Sector(radius, thickness, angle), world);
             c.BeginAction();
+            // Captured once when the telegraph first shows: melee_scale sizes the sector (the angle stays), melee_damage joins the tags; Buffs gained during the windup do not change this attack.
+            // The damage service decides by mode whether real damage exists; this Action never checks authority.
+            for (int i = 0; i < 2; i++)
+                boxes[i] = new PNSkillMeleeHitbox(c, caster, PNSkillValues.Parse(p["hits"][i]["value"]), PNDamage.ParseIFrameDuration((JObject)p["hits"][i]), canCrit, i);
+            radius = boxes[0].ScaleLength(radius); thickness = boxes[0].ScaleLength(thickness);
             body = c.Skill.GetComponent<PNVisualBody>(); body?.PlayAction("star_sweep", windup + gap + recovery);
             presentation = c.Skill.GetComponent<PNStarkeeperPresentation>(); presentation?.BeginSweep(windup, gap, first);
             telegraph = PNStarkeeperTelegraph.Sector(c.Skill.transform.position, first, radius, angle, c.Skill.gameObject.scene);
@@ -57,17 +55,11 @@ public sealed class PNStarkeeperSweepAction : PNSkillAction, IPNSkillMotionActio
     {
         swept[index] = true;
         visual?.Emit(index, context.Skill.transform.position, direction);
-        if (!EveRegistrySession.Context.HasAuthority) return;
-        var pose = EveHitboxPose.Planar(context.Skill.transform.position + Vector3.up * .3f, direction);
-        casts[index].Query(pose, age, hits, caster, ~0, QueryTriggerInteraction.Ignore, target => caster.Targets(target) && !target.IsDead && PNWorldGameplay.CanTarget(context.Skill, target));
-        foreach (var target in hits.ToArray())
-        {
-            if (ended) break;
-            var hitPosition = target.transform.position;
-            context.ReceiveHit(target, hitPosition, capture.Damage(prepared[index]), raw[index], source, index);
-            if (!ended) visual?.Hit(hitPosition);
-            if (!ended && target.IsReady) casts[index].CommitHit(target, age);
-        }
+        var origin = context.Skill.transform.position + Vector3.up * .3f;
+        // The hitbox service samples and applies in Authority, reports in Predicted and does nothing in Observed. The extra rule keeps the enemy's live target checks (same world, able to act).
+        boxes[index].Open(EveHitboxShape.Sector(radius, thickness, angle), origin, radius, 0, (point, outcome) => visual?.Hit(point),
+            target => !target.IsDead && PNWorldGameplay.CanTarget(context.Skill, target));
+        boxes[index].Sample(EveHitboxPose.Planar(origin, direction), age);
     }
     private PNStat FirstTarget()
     {
@@ -131,7 +123,7 @@ public sealed class PNStarkeeperSweepAction : PNSkillAction, IPNSkillMotionActio
     public override void Dispose()
     {
         if (ended) return; ended = true;
-        foreach (var cast in casts) cast?.Dispose();
+        foreach (var box in boxes) box?.Dispose();
         motor?.Dispose(); motor = null;
         visual?.Dispose(); visual = null;
         telegraph?.Dispose(); telegraph = null; presentation?.EndPose(); presentation = null; body?.EndAction(); body = null; context = null;

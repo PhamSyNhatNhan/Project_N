@@ -508,9 +508,8 @@ A writable local body or predicted owner acquires the physics lease when ready.
 The remote-owner host keeps its execution registration and authority control
 lease, and advances time without writing pose or interpolation. An observed
 Action advances without execution registration or body changes. Cancel, Exit
-and invalidation release the active leases. `PNMotionAction.IsPrediction`
-remains a compatibility property for API 8. The context and Move role select
-execution.
+and invalidation release the active leases. The context and Move role select
+execution (the old `IsPrediction` property was removed).
 
 The locomotion Action advances its authored duration in all modes. Authority
 pushes and releases traversal state. The owner mirrors effective locomotion

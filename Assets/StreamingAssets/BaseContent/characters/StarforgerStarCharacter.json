@@ -10,20 +10,14 @@
           "aggro": "ignored",
           "healthBar": "hidden"
         },
+        "combat": {
+          "targetLayers": ["Player"]
+        },
         "star": {
           "firstDelay": 1,
           "stagger": 0.667,
           "interval": 2,
-          "range": 3,
-          "value": {
-            "amount": 50,
-            "statId": "base:attack_power"
-          },
-          "canCrit": true,
-          "tags": [
-            "project_n:attack",
-            "base:magic"
-          ]
+          "range": 3
         }
       },
       "stats": [

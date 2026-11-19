@@ -15,15 +15,11 @@
           "gap": 0.15,
           "sideAngle": 10,
           "aimRadius": 12,
-          "appearance": "project_n:starreaper",
-          "value": {
-            "amount": 120,
-            "statId": "base:attack_power"
-          },
-          "canCrit": true,
-          "tags": [
-            "project_n:attack",
-            "base:magic"
+          "appearance": "project_n:starreaper"
+        },
+        "combat": {
+          "targetLayers": [
+            "Player"
           ]
         }
       },

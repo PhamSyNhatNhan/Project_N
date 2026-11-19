@@ -10,7 +10,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 
 // Docs/SkillNetworkFrameworkPlan.md G1, Edit Mode: a cast knows where it runs (Authority / Predicted / Observed). The authority's casts say Authority; a machine without authority can open a Predicted or
-// Observed invocation (never committed: no activation serial) and the action context reads the mode from it; the old `IsPrediction` flag is a view of the mode. Nothing else changes (golden trace).
+// Observed invocation (never committed: no activation serial) and the action context reads the mode from it. Nothing else changes (golden trace).
 public static class PNSkillModeChecks
 {
     public static string Run()
@@ -73,10 +73,10 @@ public static class PNSkillModeChecks
             Check(Throws(() => skill.BeginNonAuthorityInvocation(entry, PNSkillMode.Observed)), "the authority refuses an Observed invocation");
             Check(Throws(() => skill.BeginNonAuthorityInvocation(entry, PNSkillMode.Authority)), "Authority invocations only begin through the activation path");
             var context = new PNSkillActionContext(skill, hub.Skills.ResolveIdentity(EveId.Parse("base:eve_moveset")), skill.GetData(EveId.Parse("base:eve_moveset")), hub, null, Vector3.right);
-            Check(context.Mode == PNSkillMode.Authority && !context.IsPrediction, "a context with no invocation says Authority");
-            context.IsPrediction = true; Check(context.Mode == PNSkillMode.Predicted && context.IsPrediction, "the old flag sets the mode Predicted");
-            context.IsPrediction = false; Check(context.Mode == PNSkillMode.Authority && !context.IsPrediction, "clearing the flag restores Authority");
-            context.Mode = PNSkillMode.Observed; Check(context.Mode == PNSkillMode.Observed && !context.IsPrediction, "a context can be given any mode directly");
+            Check(context.Mode == PNSkillMode.Authority, "a context with no invocation says Authority");
+            context.Mode = PNSkillMode.Predicted; Check(context.Mode == PNSkillMode.Predicted, "a context can be given Predicted directly");
+            context.Mode = PNSkillMode.Authority; Check(context.Mode == PNSkillMode.Authority, "setting Authority restores it");
+            context.Mode = PNSkillMode.Observed; Check(context.Mode == PNSkillMode.Observed, "a context can be given any mode directly");
             // G2 Control: the lock Operation takes the lease only in Authority mode.
             var lockId = EveId.Parse("base:lock_movement");
             foreach (var mode in new[] { PNSkillMode.Predicted, PNSkillMode.Observed })
@@ -166,7 +166,7 @@ public static class PNSkillModeChecks
             predicted.PredictionScope.Rollback();
             Check(!skill.Empowerment.IsActive, "rolling the scope back takes the grant back");
             var pctx = new PNSkillActionContext(skill, predicted.SkillId, null, hub, null, Vector3.right, predicted);
-            Check(pctx.Mode == PNSkillMode.Predicted && pctx.IsPrediction, "the context reads Predicted from its invocation");
+            Check(pctx.Mode == PNSkillMode.Predicted, "the context reads Predicted from its invocation");
             // G6c: a hit of a guessed cast is reported by the framework under the cast's key; each context has its own step; and the cast has random numbers every machine draws the same
             var keySink = new HitSink(); skill.ReportSink = keySink; var own = skill.GetComponent<PNStat>(); var pctx2 = new PNSkillActionContext(skill, predicted.SkillId, null, hub, null, Vector3.right, predicted);
             Check(predicted.CastKey > 0 && pctx.Hit(own, null, null, 0, null).Reported && keySink.Hits == 1 && keySink.LastKey == predicted.CastKey && keySink.LastStep == 0, "a guessed hit is reported under the cast's key, step 0");
@@ -192,7 +192,7 @@ public static class PNSkillModeChecks
             var dice = new PNSkillRandom(7); int lo = 0, hi = 0, hits = 0; for (int i = 0; i < 4000; i++) { int r = dice.Range(3, 6); if (r == 3) lo++; if (r == 5) hi++; if (r < 3 || r > 5) lo = -99999; if (dice.Chance(.25)) hits++; }
             Check(lo > 1000 && hi > 1000 && hits > 800 && hits < 1200 && !dice.Chance(0) && dice.Chance(1), "Range is half open and Chance follows its probability (" + lo + "/" + hi + "/" + hits + ")");
             skill.ReportSink = null;
-            pctx.IsPrediction = false; Check(pctx.Mode == PNSkillMode.Authority && !pctx.IsPrediction, "clearing the flag overrides the invocation's mode as before");
+            pctx.Mode = PNSkillMode.Authority; Check(pctx.Mode == PNSkillMode.Authority, "setting a mode overrides the invocation's mode");
             Check(Throws(() => skill.BeginNonAuthorityInvocation(entry, PNSkillMode.Observed)), "only one invocation runs at a time");
             Check(Throws(() => skill.BeginNonAuthorityInvocation(entry, PNSkillMode.Authority)), "a client never opens an Authority invocation");
             skill.EndNonAuthorityInvocation();
@@ -210,7 +210,7 @@ public static class PNSkillModeChecks
 
             var observed = skill.BeginNonAuthorityInvocation(entry, PNSkillMode.Observed);
             var octx = new PNSkillActionContext(skill, observed.SkillId, null, hub, null, Vector3.right, observed);
-            Check(observed.Mode == PNSkillMode.Observed && octx.Mode == PNSkillMode.Observed && !octx.IsPrediction, "an Observed invocation and its context say Observed (not a prediction)");
+            Check(observed.Mode == PNSkillMode.Observed && octx.Mode == PNSkillMode.Observed, "an Observed invocation and its context say Observed");
             skill.ReportSink = keySink;
             DamageAction(skill, PNSkillMode.Observed, action =>
                 Check(action.Damage == null && action.Results.Count == 0 && keySink.Hits == 4 &&

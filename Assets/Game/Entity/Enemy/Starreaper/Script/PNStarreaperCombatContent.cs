@@ -12,7 +12,7 @@ public static class PNStarreaperCombatContent
 {
     public static readonly EveId Pierce = EveId.Parse("project_n:starreaper_pierce"), Afterimage = EveId.Parse("project_n:starreaper_afterimage"), Rain = EveId.Parse("project_n:starreaper_rain"),
         PierceAction = EveId.Parse("project_n:starreaper_pierce_action"), AfterimageAction = EveId.Parse("project_n:starreaper_afterimage_action"), RainAction = EveId.Parse("project_n:starreaper_rain_action"),
-        Arrow = EveId.Parse("project_n:starreaper_arrow"), EchoArrow = EveId.Parse("project_n:starreaper_echo_arrow"), Shadow = EveId.Parse("project_n:starreaper_shadow"), RainBlast = EveId.Parse("project_n:starreaper_rain_blast"), RainOperation = EveId.Parse("project_n:starreaper_rain_blasts");
+        Arrow = EveId.Parse("project_n:starreaper_arrow"), EchoArrow = EveId.Parse("project_n:starreaper_echo_arrow"), EchoShot = EveId.Parse("project_n:starreaper_echo_shot"), Shadow = EveId.Parse("project_n:starreaper_shadow"), RainBlast = EveId.Parse("project_n:starreaper_rain_blast"), RainOperation = EveId.Parse("project_n:starreaper_rain_blasts");
 
     private const string ArrowShot = @"{'projectileId':'project_n:starreaper_arrow','input':{},'count':1,'spread':0,'aimRadius':12,
           'damage':{'value':{'amount':250,'statId':'base:attack_power'},'canCrit':true,'tags':['base:magic']}}";
@@ -55,6 +55,15 @@ public static class PNStarreaperCombatContent
           'rain':{'seek':6,'flight':1.0,'interval':0.15,'tail':0.45,'minCount':5,'maxCount':7,'scatterRadius':2.0,'minSpacing':0.8,'radius':0.5,'height':0.5,
             'value':{'amount':150,'statId':'base:attack_power'},'canCrit':true,'tags':['base:magic']},
           'tags':['base:magic']}")));
+        // The shadow's arrow: a registered skill of the shadow (the character `project_n:starreaper_shadow`), a plain projectile_action over create_projectile. Timing is the character's `shadow` block; the damage
+        // is read from the shadow's own attack power (inherited from the Starreaper). projectile_action exists only in Unity builds.
+#if UNITY_5_3_OR_NEWER
+        skills.Register(new EveSkillDefinition(EchoShot, JObject.Parse(@"{
+          'categoryIds':['base:attack'],'affectedByAttackSpeed':false,'skill':{},
+          'action':{'id':'project_n:projectile_action','start':{},'perform':{'operationId':'base:create_projectile','data':{
+            'projectileId':'project_n:starreaper_echo_arrow','input':{'echoVisual':true},'count':1,'spread':0,
+            'damage':{'value':{'amount':120,'statId':'base:attack_power'},'canCrit':true,'tags':['project_n:attack','base:magic']}}},'exit':{},'cancel':{}}}")));
+#endif
     }
     private static EveSkillDefinition Skill(EveId id, string category, bool attackSpeed, double cooldown, EveId action, JObject perform)
     {
@@ -127,17 +136,16 @@ public static class PNStarreaperCombatContent
         foreach (var character in hub.Characters.Snapshot().Values)
         {
             var block = (character.Data as JObject)?["shadow"]; if (block == null) continue;
-            try { ValidateShadowInput(block); ValidateDamage((JObject)block, hub); }
+            try { ValidateShadowInput(block); }
             catch (FormatException error) { throw new FormatException("Character " + character.Id + " shadow block: " + error.Message); }
         }
     }
     public static void ValidateShadowInput(JToken token)
     {
         var o = PNBuffContentBatch.Object(token);
-        PNBuffContentBatch.Fields(o, "delay", "gap", "sideAngle", "aimRadius", "appearance", "value", "canCrit", "tags");
+        PNBuffContentBatch.Fields(o, "delay", "gap", "sideAngle", "aimRadius", "appearance");
         Positive(o, "delay", 30); Positive(o, "gap", 10); Positive(o, "aimRadius", 100);
         double angle = PNBuffContentBatch.Number(o, "sideAngle"); if (double.IsNaN(angle) || angle < 0 || angle > 90) throw new FormatException("sideAngle must be 0..90 degrees.");
         EveId.Parse(PNBuffContentBatch.String(o, "appearance"));
-        PNSkillValues.Parse(o["value"]).ValidateNonnegativeAmounts(); PNSkillEffect.Ids(o["tags"]).ToArray();
     }
 }

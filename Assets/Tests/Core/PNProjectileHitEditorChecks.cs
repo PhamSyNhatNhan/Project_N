@@ -231,7 +231,7 @@ public static class PNProjectileHitEditorChecks
             // Movement is a Rigidbody velocity set by Drive once per physics step; Edit Mode has no physics step, so the fixture integrates the velocity itself.
             var petABody = petAObject.GetComponent<Rigidbody>();
             Check(petABody != null && !petABody.useGravity && !petABody.isKinematic && petABody.interpolation == RigidbodyInterpolation.Interpolate, "the pet moves by a Rigidbody velocity (no gravity, interpolated)");
-            void PetStep(float seconds) { for (int s = 0; s < Mathf.RoundToInt(seconds / .02f); s++) { petA.Tick(.02); petA.Drive(.02f); petABody.position += petABody.linearVelocity * .02f; petAObject.transform.position = petABody.position; } }
+            void PetStep(float seconds) { for (int s = 0; s < Mathf.RoundToInt(seconds / .02f); s++) { petA.GetComponent<PNBehaviorSkill>().Advance(.02f); petA.Drive(.02f); petABody.position += petABody.linearVelocity * .02f; petAObject.transform.position = petABody.position; } }
             PetStep(.5f); PetStep(.5f);
             double distance1 = Vector3.Distance(petAObject.transform.position, petSpot);
             Check(petA.Settings != null && distance1 < distance0 && distance1 > 0d, "the pet closes on its hover spot behind and above the owner (" + distance0.ToString("0.00") + " -> " + distance1.ToString("0.00") + ")");
@@ -247,32 +247,32 @@ public static class PNProjectileHitEditorChecks
             FreshTarget();
             double Hp2() => Hp(petTarget);
             double hpBefore = Hp2();
-            petA.Tick(.1);
+            petA.GetComponent<PNBehaviorSkill>().Advance(.1f);
             Check(petA.State == PNPetShooterBehavior.PetState.Aim && petA.Shots == 0, "with the shot ready and an enemy in reach it stops to aim");
             var stopped = petAObject.transform.position;
-            petA.Tick(.2); petA.Drive(.02f);
+            petA.GetComponent<PNBehaviorSkill>().Advance(.2f); petA.Drive(.02f);
             Check(petA.State == PNPetShooterBehavior.PetState.Aim && petAObject.transform.position == stopped && petABody.linearVelocity == Vector3.zero && petA.Shots == 0, "it stands still while aiming (0.3 s): velocity zero");
-            petA.Tick(.2);
-            Check(petA.Shots == 1 && petA.State == PNPetShooterBehavior.PetState.Hover && petA.LastShot != null && petA.LastShot.Status != PNProjectileStatus.Failed, "after the stop it fires one projectile and goes back to hovering");
+            petA.GetComponent<PNBehaviorSkill>().Advance(.2f);
+            Check(petA.Shots == 1 && petA.State == PNPetShooterBehavior.PetState.Hover, "after the stop it fires one projectile and goes back to hovering");
             for (int i = 0; i < 40; i++) manager.Advance(.1f);
             Check(Near(hpBefore - Hp2(), 10d, 1e-4), "the shot deals 10 magic damage with no modifier (dealt " + (hpBefore - Hp2()).ToString("0.###") + ")");
             double afterFirst = Hp2();
-            for (int i = 0; i < 2; i++) petA.Tick(.5); Check(petA.Shots == 1 && petA.State == PNPetShooterBehavior.PetState.Hover, "the next shot waits for the 1.5 s interval");
+            for (int i = 0; i < 2; i++) petA.GetComponent<PNBehaviorSkill>().Advance(.5f); Check(petA.Shots == 1 && petA.State == PNPetShooterBehavior.PetState.Hover, "the next shot waits for the 1.5 s interval");
             // The owner's modifiers are captured once, when the pet is summoned.
             petOwner.SetSource(EveId.Parse("test:summon_damage"), new[] { new EveStatModifier(PNContentIds.SummonDamage, .5d, 1, PNContentIds.Scale) });
             FreshTarget(); afterFirst = Hp2();
-            for (int i = 0; i < 4; i++) petA.Tick(.5);
+            for (int i = 0; i < 4; i++) petA.GetComponent<PNBehaviorSkill>().Advance(.5f);
             Check(petA.Shots == 2, "the pet fires again after the interval");
             for (int i = 0; i < 40; i++) manager.Advance(.1f);
             Check(Near(afterFirst - Hp2(), 10d, 1e-4), "a modifier gained after the pet was summoned does not change its damage (dealt " + (afterFirst - Hp2()).ToString("0.###") + ")");
             FreshTarget(); double afterSecond = Hp2();
             var petBObject = MakePet(petSpot); var petB = petBehavior;
-            for (int i = 0; i < 5; i++) petB.Tick(.5);
+            for (int i = 0; i < 5; i++) petB.GetComponent<PNBehaviorSkill>().Advance(.5f);
             Check(petB.Shots == 1, "a pet summoned later fires its first shot");
             for (int i = 0; i < 40; i++) manager.Advance(.1f);
             Check(Near(afterSecond - Hp2(), 15d, 1e-4), "a pet summoned after the modifier carries it: +50% summon_damage makes 15 (dealt " + (afterSecond - Hp2()).ToString("0.###") + ")");
             // Time: no time passes without entity time, and a retiring pet does nothing.
-            double shotsBefore = petB.Shots; petB.Tick(0d); petB.Tick(-1d);
+            double shotsBefore = petB.Shots; petB.GetComponent<PNBehaviorSkill>().Advance(0f); petB.Tick(-1f);
             Check(petB.Shots == shotsBefore, "a step of no time changes nothing");
             Check(Near(petSummon.Scale, 1d) && petSummon.Group == "eve2_pet" && petSummon.Summoner == petOwner.EntityId, "the pet knows its owner and group");
             PNSummons.Reset();

@@ -14,12 +14,22 @@ public static class PNSummonGameplayContent
     public static readonly EveId Eve2PetProfile = EveId.Parse("project_n:binding_eve2_pet");
     public static readonly EveId Eve2PetReady = EveId.Parse("project_n:eve2_pet_ready");
     public static readonly EveId Eve2PetShot = EveId.Parse("project_n:eve2_pet_shot");
+    public static readonly EveId Eve2PetAttack = EveId.Parse("project_n:eve2_pet_attack");
     public static void Register(EveRegistryHub hub)
     {
         hub.Operations().Register(new PNSkillOperationDefinition(CreateSummon, typeof(PNCreateSummonOperation), PNCreateSummonOperation.Validate, PNSkillContextRequirements.None,
             PNCreateSummonOperation.ValidateReferences));
         hub.Actions().Register(new PNSkillActionDefinition(SummonAction, typeof(PNSummonAction), (action, registry) => PNSummonAction.Validate(action.Perform, registry), PNSkillContextRequirements.None,
             (data, context) => { var obj = PNBuffContentBatch.Object(data); context.Require<PNSkillOperationDefinition>(obj["operationId"], "operationId"); context.Registry.Operations().Get(context.Read(obj["operationId"], "operationId")).ValidateReferences(obj["data"], context); }));
+        // The pet's shot: a registered skill of the pet (the character `project_n:eve2_pet`), a plain projectile_action over create_projectile. When and where it shoots is the pet block
+        // (interval, aim stop, search radius); the damage is a flat 10, scaled by the modifiers the pet inherited from its owner (magic, projectile_damage, summon_damage). Unity builds only.
+#if UNITY_5_3_OR_NEWER
+        hub.GetOrCreate<EveSkillDefinition>().Register(new EveSkillDefinition(Eve2PetAttack, JObject.Parse(@"{
+          'categoryIds':['base:attack'],'affectedByAttackSpeed':false,'skill':{},
+          'action':{'id':'project_n:projectile_action','start':{},'perform':{'operationId':'base:create_projectile','data':{
+            'projectileId':'project_n:eve2_pet_shot','input':{},'count':1,'spread':0,
+            'damage':{'value':{'amount':10},'canCrit':true,'tags':['base:magic','project_n:summon_damage']}}},'exit':{},'cancel':{}}}")));
+#endif
         hub.Get<PNSkillBehaviorDefinition>().Register(new PNSkillBehaviorDefinition(CastBehavior, CastBehavior, c => new PNSummonCastBehavior(c), PNSummonCastBehavior.Validate, PNSummonCastBehavior.ValidateReferences));
         hub.Get<PNSkillBehaviorDefinition>().Register(new PNSkillBehaviorDefinition(TargetStrikeBehavior, TargetStrikeBehavior, c => new PNTargetStrikeBehavior(c), PNTargetStrikeBehavior.Validate, PNTargetStrikeBehavior.ValidateReferences));
     }

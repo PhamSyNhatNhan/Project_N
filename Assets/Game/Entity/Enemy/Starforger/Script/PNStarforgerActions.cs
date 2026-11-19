@@ -90,7 +90,7 @@ public sealed class PNStarforgerSlamAction : PNAgentTrajectoryAction
 {
     private PNSkillActionContext cast; private PNStat caster; private PNStarforgerSkill skill; private PNStarforgerPresentation presentation; private PNVisualBody body;
     private PNStarforgerTelegraph telegraph; private PNSkillOperation hitOperation;
-    private PNHitCapture hitCapture; private PNPreparedDamage hitPrepared; private double hitAmount; private float hitRadius, hitHeight;
+    private PNSkillMeleeHitbox hitbox; private float hitRadius, hitHeight;
     private float crouch, recovery, hopSeconds, age, recoverAge; private bool flying, landed, ended; private Vector3 landing;
     private Action<PNDamageGate> block; private PNBuffImmunityLease lease;
     protected override JToken MotionPayload(PNSkillActionContext value) => value.Data.Action.Perform["hop"];
@@ -108,8 +108,10 @@ public sealed class PNStarforgerSlamAction : PNAgentTrajectoryAction
         PNStarforgerCast.Face(c, body, PNStarforgerCast.Planar(c.Direction.Value));
         body?.PlayAction("crouch", crouch);body?.Actor?.SetPhase(0); presentation?.BeginSlam(crouch, hopSeconds, recovery);
         // The telegraph is the first committed shape: scale and damage are captured now (melee_scale), and the hit at the landing uses the same numbers.
-        if (EveRegistrySession.Context.HasAuthority) hitCapture = PNStarforgerSlamHitOperation.Prepare(c, p["hit"], out hitPrepared, out hitAmount, out hitRadius, out hitHeight);
-        else hitRadius = p["hit"]["radius"].Value<float>();
+        // The damage service decides by mode whether real damage exists; this Action never checks authority.
+        var hit = p["hit"];
+        hitbox = new PNSkillMeleeHitbox(c, caster, PNSkillValues.Parse(hit["value"]), 0d, hit["canCrit"].Value<bool>(), 0, PNSkillEffect.Ids(hit["tags"]));
+        hitRadius = hitbox.ScaleLength(hit["radius"].Value<float>()); hitHeight = hitbox.ScaleLength(hit["height"].Value<float>());
         telegraph = PNStarforgerTelegraph.Create(caster.gameObject.scene, landing, hitRadius, crouch + hopSeconds);
     }
     public override bool AdvanceAuxiliary(float dt)
@@ -150,7 +152,7 @@ public sealed class PNStarforgerSlamAction : PNAgentTrajectoryAction
         if (Outcome == PNMotionOutcome.Completed || Outcome == PNMotionOutcome.Blocked)
         {
             body?.PlayAction("slam", recovery);body?.Actor?.SetPhase(0);
-            hitOperation = CreateOperation(cast, PNStarforgerCombatContent.SlamHit); if (hitOperation is PNStarforgerSlamHitOperation slam) slam.Bind(hitCapture, hitPrepared, hitAmount, hitRadius, hitHeight); hitOperation.Execute(cast, cast.Data.Action.Perform["hit"]);
+            hitOperation = CreateOperation(cast, PNStarforgerCombatContent.SlamHit); if (hitOperation is PNStarforgerSlamHitOperation slam) slam.Bind(hitbox, hitRadius, hitHeight); hitOperation.Execute(cast, cast.Data.Action.Perform["hit"]);
         }
     }
     public override void Dispose()
@@ -158,47 +160,25 @@ public sealed class PNStarforgerSlamAction : PNAgentTrajectoryAction
         if (!ended)
         {
             ended = true; EndFlight();
-            telegraph?.Dispose(); telegraph = null; presentation?.EndPose(); presentation = null; body?.EndAction(); body = null; hitOperation?.Dispose(); hitOperation = null; cast = null; caster = null; skill = null;
+            telegraph?.Dispose(); telegraph = null; presentation?.EndPose(); presentation = null; body?.EndAction(); body = null; hitOperation?.Dispose(); hitOperation = null; hitbox?.Dispose(); hitbox = null; cast = null; caster = null; skill = null;
         }
         base.Dispose();
     }
 }
 
 // The slam's damage: everything of the caster's TargetLayers whose body touches the cylinder (`radius` x melee_scale, within `height` of the landing) takes the damage prepared once from the caster's stats.
-// The cast is captured by the Action when the telegraph appears (PNHitCapture, D6); the Operation only fires it at the landing.
+// The Action builds the melee hitbox (the damage capture and the scale) when the telegraph appears (D6); the Operation only fires it at the landing. The hitbox service decides by mode whether anything is dealt.
 public sealed class PNStarforgerSlamHitOperation : PNSkillOperation
 {
-    private bool executed;
-    public PNHitCapture Capture { get; private set; } private PNPreparedDamage prepared; private double amount; private float radius, height;
-    // Reads the registered `hit` payload and captures once: scale from melee_scale, damage prepared with the attack's tags (the Action's effective tags, the payload tags and melee_damage).
-    public static PNHitCapture Prepare(PNSkillActionContext c, JToken data, out PNPreparedDamage prepared, out double amount, out float radius, out float height)
-    {
-        var caster = c.Skill.GetComponent<PNStat>(); amount = 0; foreach (var v in PNSkillValues.Parse(data["value"]).Components) amount += v.Evaluate(caster);
-        var tags = c.EffectiveTags().Concat(data["tags"].Select(x => EveId.Parse(x.Value<string>())));
-        var capture = PNHitCapture.Melee(caster.CaptureCombatSource(), tags);
-        radius = capture.Scale(data["radius"].Value<float>()); height = capture.Scale(data["height"].Value<float>());
-        prepared = capture.Prepare(amount, data["canCrit"].Value<bool>(), 0);
-        return capture;
-    }
-    public void Bind(PNHitCapture capture, PNPreparedDamage prepared, double amount, float radius, float height) { Capture = capture; this.prepared = prepared; this.amount = amount; this.radius = radius; this.height = height; }
+    private bool executed; private PNSkillMeleeHitbox hitbox; private float radius, height;
+    internal void Bind(PNSkillMeleeHitbox hitbox, float radius, float height) { this.hitbox = hitbox; this.radius = radius; this.height = height; }
     public override void Execute(PNSkillActionContext c, JToken data)
     {
         if (executed) throw new InvalidOperationException("Slam already spent"); executed = true;
-        if (!EveRegistrySession.Context.HasAuthority) return;
-        if (Capture == null) throw new InvalidOperationException("Slam needs the Action's capture.");
-        var caster = c.Skill.GetComponent<PNStat>(); var center = c.Position.Value;
-        var targets = new List<PNStat>();
-        using (var cast = new PNHitboxCast(EveHitboxShape.Cylinder(radius, height * 2f), caster.gameObject.scene.GetPhysicsScene()))
-        {
-            cast.Query(EveHitboxPose.Planar(center, Vector3.forward), 0d, targets, caster, ~0, QueryTriggerInteraction.Ignore,
-                target => target != null && target.IsReady && !target.IsDead && caster.Targets(target) && PNWorldGameplay.CanTarget(c.Skill, target));
-            foreach (var target in targets.ToArray())
-            {
-                if (!target.IsReady || target.IsDead) continue;
-                cast.CommitHit(target, 0d);
-                c.ReceiveHit(target, target.transform.position, Capture.Damage(prepared), amount, Capture.Source);
-            }
-        }
+        if (hitbox == null) throw new InvalidOperationException("Slam needs the Action's hitbox.");
+        var center = c.Position.Value;
+        hitbox.Open(EveHitboxShape.Cylinder(radius, height * 2f), center, radius, 0, null, target => target.IsReady && !target.IsDead && PNWorldGameplay.CanTarget(c.Skill, target));
+        hitbox.Sample(EveHitboxPose.Planar(center, Vector3.forward), 0d);
     }
 }
 #else

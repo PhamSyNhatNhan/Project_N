@@ -1,59 +1,56 @@
 #if UNITY_5_3_OR_NEWER
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using EveEngine;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
 
 // EN: Behavior of a pet summon (Docs/SummonPlan.md S5), driven by the character's `pet` block (PNPetSettings): it hovers near its owner; once `interval` seconds
-//     of entity time have passed since its last shot and a target is within `searchRadius`, it stands still for `aimStop` seconds and fires one projectile.
-//     The shot uses the owner's combat source captured when the pet was summoned (so the owner's whole modifier set counts, once, at that moment), plus the
-//     projectile_damage and summon_damage tags. Only the machine with authority runs it. The pet has no hit volume and no Health: nothing aims at it.
-// VI: Hành vi của pet: lơ lửng gần chủ; đủ `interval` giây và có mục tiêu trong `searchRadius` thì đứng yên `aimStop` giây rồi bắn một viên, dùng nguồn chiến đấu
-//     của chủ chụp lúc triệu hồi. Chỉ máy có quyền chạy.
+//     of entity time have passed since its last shot and a target is within `searchRadius`, it stands still for `aimStop` seconds and shoots once. A PNBehaviorSkill runs it on the
+//     pet's entity clock (authority only); the shot is the pet's registered skill (Eve2PetAttack, a projectile_action over create_projectile) and its damage is read from the pet's own
+//     stats and modifiers, which the pet inherits from its owner when it is made (PNSummonInherit). Target rule: an ordinary entity's (Aggro within its own `combat.targetLayers`,
+//     nearest). The pet has no hit volume and no Health: nothing aims at it. Its hover movement is still a Rigidbody velocity (Drive).
+// VI: Hành vi của pet: lơ lửng gần chủ; đủ `interval` giây và có mục tiêu trong `searchRadius` thì đứng yên `aimStop` giây rồi bắn; phát bắn là skill đăng ký, damage đọc từ chỉ số
+//     của pet (kế thừa từ chủ lúc tạo). Chỉ máy có quyền chạy (qua PNBehaviorSkill).
 [DisallowMultipleComponent]
-public sealed class PNPetShooterBehavior : MonoBehaviour
+public sealed class PNPetShooterBehavior : PNEnemyBehavior
 {
     public enum PetState { Hover, Aim }
     private PNPetSettings settings;
     private PNSummon summon;
     private PNStat stat;
+    private PNTargetRule rule;
     private double sinceShot, aimLeft, searchWait;
     private PNStat aimTarget;
+    public override IEnumerable<EveId> SkillIds => new[] { PNSummonGameplayContent.Eve2PetAttack };
     public PetState State { get; private set; }
-    // Shots fired since this pet was created, and the last receipt (for fixtures and the Player review).
+    // Shots fired since this pet was created (for fixtures and the Player review).
     public int Shots { get; private set; }
-    public PNProjectileReceipt LastShot { get; private set; }
     public PNPetSettings Settings => settings;
 
     private Rigidbody body, ownerBody;
-    private void OnDisable() => Reset();
+    protected override void OnDisable() { try { base.OnDisable(); } finally { Reset(); } }
     private void Reset()
     {
         if (body != null && !body.isKinematic) body.linearVelocity = Vector3.zero;
-        body = null; ownerBody = null; side = 1f; settings = null; summon = null; stat = null; sinceShot = 0d; aimLeft = 0d; searchWait = 0d; aimTarget = null; State = PetState.Hover; Shots = 0; LastShot = null; }
+        body = null; ownerBody = null; side = 1f; settings = null; summon = null; stat = null; sinceShot = 0d; aimLeft = 0d; searchWait = 0d; aimTarget = null; State = PetState.Hover; Shots = 0; }
 
-    private void Update()
+    // First tick of the runner: read the character's block. A pet with no block is a content error.
+    public override void Enter()
     {
-        var scale = GetComponent<EveTimeScale>();
-        float factor = scale != null && scale.isActiveAndEnabled ? scale.Scale : 1f;
-        if (factor > 0f) Tick(Time.deltaTime * factor);
+        summon = GetComponent<PNSummon>(); stat = GetComponent<PNStat>();
+        settings = PNPetSettings.Read(EveRegistrySession.Context.Registry.Characters.Get(stat.CharacterId));
+        if (settings == null) throw new InvalidOperationException("Character " + stat.CharacterId + " has no pet block.");
+        rule = PNTargetRules.For(stat); State = PetState.Hover; sinceShot = 0d; aimLeft = 0d; searchWait = 0d; aimTarget = null; Shots = 0;
     }
+    public override void Exit(PNEnemyBehaviorExit reason) { }
 
-    // One step of `seconds` of entity time (Update calls it; a fixture calls it by hand).
-    public void Tick(double seconds)
+    // One step of `delta` seconds of entity time (the runner calls it; a fixture calls PNBehaviorSkill.Advance).
+    public override void Tick(float delta)
     {
-        if (seconds <= 0d || !EveRegistrySession.IsReady || !EveRegistrySession.Context.HasAuthority) return;
-        var loader = GetComponent<EveEntityLoader>();
-        if (loader == null || !loader.IsReady || loader.LoadContext?.CanSimulate != true) return;
-        summon = summon ?? GetComponent<PNSummon>();
-        if (summon == null || !summon.IsActive || summon.IsRetiring) return;
-        stat = stat ?? GetComponent<PNStat>();
-        if (settings == null)
-        {
-            settings = PNPetSettings.Read(EveRegistrySession.Context.Registry.Characters.Get(stat.CharacterId));
-            if (settings == null) throw new InvalidOperationException("Character " + stat.CharacterId + " has no pet block.");
-        }
+        double seconds = delta;
+        if (seconds <= 0d || settings == null || summon == null || !summon.IsActive || summon.IsRetiring) return;
         if (State == PetState.Hover)
         {
             sinceShot += seconds;
@@ -101,7 +98,7 @@ public sealed class PNPetShooterBehavior : MonoBehaviour
         var manager = PNProjectileManager.Resolve(EveRegistrySession.Context, gameObject.scene);
         return PNTargetSelector.Select(manager.Targets.Acquire(identity.World), new PNTargetQuery
         {
-            Origin = transform.position, Range = (float)settings.SearchRadius, LayerMask = summon.OwnerSource.TargetLayers.Mask, Rule = PNTargetRule.Aggro, Exclude = stat.EntityId, Planar = true
+            Origin = transform.position, Range = (float)settings.SearchRadius, LayerMask = stat.TargetLayers.Mask, Rule = rule, Exclude = stat.EntityId, Planar = true
         });
     }
 
@@ -111,15 +108,11 @@ public sealed class PNPetShooterBehavior : MonoBehaviour
         // The target may have died or moved away during the stop: look again, and keep the shot ready when there is none.
         if (target == null || !target.IsReady || target.IsDead || PlanarDistance(target) > settings.SearchRadius + .25d) target = FindTarget();
         if (target == null) { sinceShot = settings.Interval; return; }
-        var source = summon.OwnerSource;
-        var tags = settings.DamageTags.Concat(new[] { PNContentIds.ProjectileDamage, PNContentIds.SummonDamage }).ToArray();
-        var prepared = source.Snapshot.PrepareDamage(settings.DamageAmount, settings.CanCrit, null, tags);
-        var launch = PNProjectileLaunch.FromSource(settings.ProjectileId, new JObject(), source, source.TargetLayers, prepared, null, PNTargetRule.Aggro);
         var toTarget = target.transform.position - transform.position; toTarget.y = 0f;
         var heading = toTarget.sqrMagnitude > 1e-8f ? toTarget.normalized : Vector3.forward;
-        var manager = PNProjectileManager.Resolve(EveRegistrySession.Context, gameObject.scene);
-        LastShot = manager.Create(launch, new PNProjectileSpawn(gameObject.scene, transform.position, heading, target));
-        if (LastShot.Status == PNProjectileStatus.Failed) throw new InvalidOperationException("Pet projectile creation failed.", LastShot.Error);
+        if (Context == null || !Context.IsCurrent || !Context.Owner.CanExecuteBehavior) { sinceShot = settings.Interval; return; }
+        var admission = Context.TryCast(PNSummonGameplayContent.Eve2PetAttack, heading, PNEnemyActionExecution.Instant, out _, new[] { target }, null, transform.position);
+        if (admission != PNEnemyCastAdmission.Started) { sinceShot = settings.Interval; return; }
         Shots++; sinceShot = 0d;
     }
 

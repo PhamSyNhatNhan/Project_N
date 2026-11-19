@@ -27,7 +27,8 @@ public sealed class PNHitCapture
     }
     // Radius, thickness, height and inner radius scale; an angle and a travel distance do not (D8).
     // A positive length never collapses to zero (a zero-size shape is invalid): the floor is 1 mm.
-    public float Scale(float length) => length <= 0f ? length : Math.Max(.001f, (float)(length * ScaleFactor));
+    public float Scale(float length) => ScaleLength(length, ScaleFactor);
+    public static float ScaleLength(float length, double factor) => length <= 0f ? length : Math.Max(.001f, (float)(length * factor));
     // One formula pass; every hit then takes its own crit roll through Damage(prepared).
     public PNPreparedDamage Prepare(double amount, bool canCrit, double? iframeDuration) => Source.PrepareDamage(amount, canCrit, iframeDuration, tags);
     public PNDamage Damage(PNPreparedDamage prepared) => Source.CreateDamage(prepared);

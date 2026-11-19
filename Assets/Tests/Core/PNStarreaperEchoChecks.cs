@@ -57,7 +57,7 @@ public static partial class PNVisualEditorChecks
             for(int frame=0;frame<frames;frame++)
             {
                 float t=(frame+1)/30f;source.transform.position=new Vector3(-.7f-1.5f*Mathf.Clamp01(t/.16f),0,0);
-                actor.Tick(1f/30);facing.Align();fx.Tick(1f/30);shadow.Tick(1f/30);manager.Advance(1f/30);
+                actor.Tick(1f/30);facing.Align();fx.Tick(1f/30);shadow.GetComponent<PNBehaviorSkill>().Advance(1f/30);manager.Advance(1f/30);
                 shadow.RenderPreview(stage.Camera);
                 foreach(var arrow in Resources.FindObjectsOfTypeAll<PNStarreaperProjectile>().Where(x=>x.IsRunning&&x.gameObject.scene==stage.Scene))arrow.GetComponentInChildren<PNStarreaperArrowVisual>().Render(arrow.Position,arrow.Forward,arrow.Age,stage.Camera);
                 if(frame==2)
@@ -95,13 +95,13 @@ public static partial class PNVisualEditorChecks
             }
             Check(peak==2,"shadow produces exactly two actual pooled projectiles");
             Check(shadow.Shots==2,"the shadow fired exactly its two arrows");
-            var again=MakeShadow();again.Tick(.1f);var againSummon=again.GetComponent<PNSummon>();
-            source.SetActive(false);again.Tick(.1f);againSummon.Tick();Check(againSummon.IsActive&&!againSummon.IsRetiring&&again.Started,"independent shadow survives owner disable");
-            source.SetActive(true);int arrowsBefore=manager.ActiveCount;int againShots=again.Shots;again.Release();UnityEngine.Object.DestroyImmediate(again.gameObject);Check(again==null&&againSummon==null&&againShots==0&&manager.ActiveCount==arrowsBefore&&shadow.Shots==2,"destroying a shadow before its shot clears it without firing");
+            var again=MakeShadow();again.GetComponent<PNBehaviorSkill>().Advance(.1f);var againSummon=again.GetComponent<PNSummon>();
+            source.SetActive(false);again.GetComponent<PNBehaviorSkill>().Advance(.1f);againSummon.Tick();Check(againSummon.IsActive&&!againSummon.IsRetiring&&again.Started,"independent shadow survives owner disable");
+            source.SetActive(true);int arrowsBefore=manager.ActiveCount;int againShots=again.Shots;again.Release();again.GetComponent<EveEntityLoader>()?.Unload();UnityEngine.Object.DestroyImmediate(again.gameObject);Check(again==null&&againSummon==null&&againShots==0&&manager.ActiveCount==arrowsBefore&&shadow.Shots==2,"destroying a shadow before its shot clears it without firing");
         }
         finally
         {
-            action?.Dispose();foreach(var made in madeShadows)if(made!=null){made.GetComponent<PNStarreaperShadowSummon>()?.Release();UnityEngine.Object.DestroyImmediate(made);}manager?.Shutdown();if(wireMaterial!=null)UnityEngine.Object.DestroyImmediate(wireMaterial);if(session)EveRegistrySession.End();
+            action?.Dispose();foreach(var made in madeShadows)if(made!=null){made.GetComponent<PNStarreaperShadowSummon>()?.Release();made.GetComponent<EveEntityLoader>()?.Unload();UnityEngine.Object.DestroyImmediate(made);}manager?.Shutdown();if(wireMaterial!=null)UnityEngine.Object.DestroyImmediate(wireMaterial);if(session)EveRegistrySession.End();
             if(source!=null){source.GetComponent<PNStarreaperPresentation>()?.Dispose();source.GetComponent<PNVisualBody>()?.Clear();UnityEngine.Object.DestroyImmediate(source);}
             if(stage!=null)stage.Camera.targetTexture=stage.Target;if(rt!=null){rt.Release();UnityEngine.Object.DestroyImmediate(rt);}if(tex!=null)UnityEngine.Object.DestroyImmediate(tex);PNVisualStringSystem.Release();stage?.Dispose();PNVisualRuntime.Release();PNVisualPacks.Clear();PNVisualStringSystem.CameraOverride=oldStringCamera;PNVisualStringSystem.FixedTime=oldStringTime;
         }

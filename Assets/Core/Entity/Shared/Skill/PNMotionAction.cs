@@ -52,10 +52,6 @@ public class PNMotionAction : PNSkillAction, IPNSkillMotionAction
     private Action movementOwner;
     public void BindMovementOwner(Action cancel)
     { if(context!=null || disposed)throw new InvalidOperationException("Bind motion owner before Start."); movementOwner=cancel??throw new ArgumentNullException(nameof(cancel)); }
-    // Compatibility for callers that still read/write this property in ModAPI 8.
-    // Execution uses the context and the Move role.
-    private bool predictionFlag;
-    public bool IsPrediction { get => predictionFlag || context != null && context.Mode == PNSkillMode.Predicted; set => predictionFlag = value; }
     public virtual bool IsComplete => elapsed >= duration;
     public override void Start(PNSkillActionContext value)
     {
