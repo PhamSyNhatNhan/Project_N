@@ -93,6 +93,10 @@ public class PNDirectionalProjectile : PNProjectileInstance
     protected virtual PNDirectionalSettings ParseSettings() => Definition.Settings(payload => new PNDirectionalSettings(payload));
     protected double Speed => speed;
     protected override int EnvironmentMask => environmentMask;
+    protected override void OnCorrected(Vector3 newHeading) { Direction = newHeading; Velocity = direction * (float)speed; }
+    // Reads only the record's factors and its own clock: a copy flies the same path.
+    public override bool SyncDeterministic => true;
+    public override float LifeHint => settings == null ? 0f : (float)(settings.ByDistance ? (speed > 1e-6 ? limit / speed : 0d) : limit);
     protected override Vector3 Gravity => settings.Gravity == null ? Vector3.zero : new Vector3((float)settings.Gravity[0], (float)settings.Gravity[1], (float)settings.Gravity[2]);
     protected override bool IsExpired => settings.ByDistance ? Distance >= limit : Age >= limit;
     protected override int SubStepLimit => settings.SubSteps > 0 ? settings.SubSteps : int.MaxValue;

@@ -43,6 +43,7 @@ namespace ProjectN.Coop
             InitializeMove();
             InitializeWorldReplication();
             InitializeSync();
+            InitializeObjectSync();
             InitializeActions();
             if(Transfers==null)throw new InvalidOperationException("World transfer service is not attached.");
             Transfers.Transport=this;
@@ -59,7 +60,7 @@ namespace ProjectN.Coop
             }
             // Keep adapter services reachable if binding cleanup needs a retry.
             if(errors.Count!=0)throw new AggregateException("Binding cleanup failed.",errors);
-            DisposeActions();DisposeSync();DisposeWorldReplication();DisposeBuff();DisposeMove();
+            DisposeActions();DisposeObjectSync();DisposeSync();DisposeWorldReplication();DisposeBuff();DisposeMove();
             foreach(var value in initialStates)if(inbox.Contains(value.Key,value.Value.Token))inbox.Release(value.Key,value.Value.Token);
             initialStates.Clear();peerFences.Clear();clientFence.Clear();stateAdapters.Clear();subscribedSession=null;
         }
@@ -99,7 +100,7 @@ namespace ProjectN.Coop
         {
             if(stopping||!IsPlaying)return;
             if(fatalSerialization){StopSession();return;}
-            try{PumpMove();PumpBuff();PumpActions();MeasureActionPresentation();PumpSync();}catch(Exception error){ProtocolFailure(error,NetworkServer.active);return;}
+            try{PumpMove();PumpBuff();PumpActions();MeasureActionPresentation();PumpSync();PumpObjectSync();}catch(Exception error){ProtocolFailure(error,NetworkServer.active);return;}
             if(!NetworkServer.active)return;
             try
             {
@@ -227,6 +228,7 @@ namespace ProjectN.Coop
             NetworkClient.RegisterHandler<PNStatNotice>(ReceiveStatMessage);
             NetworkClient.RegisterHandler<PNStateFence>(ReceiveFence);
             NetworkClient.RegisterHandler<PNSyncStateMessage>(ReceiveSyncState);
+            NetworkClient.RegisterHandler<PNObjectPacket>(ReceiveObjectPacket);
             RegisterLobbyClient();
         }
         public static GameObject CreateShell<T>(string name) where T:NetworkBehaviour
@@ -252,7 +254,7 @@ namespace ProjectN.Coop
         private EveEntityPreparationScheduler.Candidate EnrollHost(PNEntityRequest request,NetworkConnectionToClient owner,Action<EveEntityLoader> configure=null,Action<EveEntityLoader> published=null,Action<Exception> failed=null)
         {
             if(request.World==null||request.WorldIncarnation!=request.World.Incarnation)throw new InvalidOperationException("Enrollment requires explicit current world membership.");
-            var metadata=new PNActorMetadata {World=request.World.InstanceId,WorldIncarnation=request.World.Incarnation,MembershipRevision=1,ContentSlot=request.ContentSlot,SpawnEntry=request.SpawnEntry,Template=request.Template,Position=request.Position,HostSession=EveRegistrySession.Context.SessionId,Owner=request.Owner,Character=request.Character,SceneKey=request.SceneKey,EntityKey=request.EntityKey,Generation=1};
+            var metadata=new PNActorMetadata {World=request.World.InstanceId,WorldIncarnation=request.World.Incarnation,MembershipRevision=1,ContentSlot=request.ContentSlot,SpawnEntry=request.SpawnEntry,Template=request.Template,Position=request.Position,HostSession=EveRegistrySession.Context.SessionId,Owner=request.Owner,Character=request.Character,SceneKey=request.SceneKey,EntityKey=request.EntityKey,Generation=1,Scale=(float)request.Scale};
             metadata.Entity=EveRegistrySession.Context.Entities.AllocateHostId().Value;
             var binding=new Binding {Metadata=metadata,Token=checked(++nextToken),OwnerConnection=owner,AwaitingAt=Time.realtimeSinceStartupAsDouble,WorldLease=request.World.AcquireLease("replication binding",EveWorldLeaseKind.Resident)};
             awaitingSpawn.Add(binding);
@@ -286,12 +288,18 @@ namespace ProjectN.Coop
                 if(!initialStates.TryGetValue(shell.netId,out var initial)||!ReferenceEquals(initial.Shell,shell))throw new FormatException("Actor lacks initial required state reservation.");
                 var binding=new Binding {Shell=shell,Metadata=metadata,Token=initial.Token,WorldSubscriptionRevision=worldSubscription.Offer.Ticket.Subscription,WorldLease=request.World.AcquireLease("replication binding",EveWorldLeaseKind.Resident)};bindings.Add(shell.netId,binding);initialStates.Remove(shell.netId);
                 binding.Candidate=PNEntitySpawner.Enqueue(Scheduler,Factory,request,loader=>
-                {ConfigureMove(binding,loader);loader.GetComponent<EveEntityIdentity>().Assign(new EveEntityId(metadata.Entity),EveId.Parse(metadata.Character),metadata.Owner,metadata.Generation);},loader=>
+                {ConfigureMove(binding,loader);loader.GetComponent<EveEntityIdentity>().Assign(new EveEntityId(metadata.Entity),EveId.Parse(metadata.Character),metadata.Owner,metadata.Generation);ApplySummonScale(loader,metadata.Scale);},loader=>
                 {PublishBindingStages(binding);PublishBuff(binding);Factory.Published(loader);PublishMove(binding);inbox.Release(shell.netId,binding.Token);SetInput(binding,clientInputReady);},error=>FailActor(binding,error),loader=>{CommitBuff(binding);StageStat(binding,loader);inbox.Apply(shell.netId,binding.Token,bytes=>ApplyLatestState(loader,bytes),bytes=>ApplyRequiredEvent(loader,bytes));},loader=>PrepareBuff(binding,loader)&&PrepareMove(binding,loader)&&PrepareAction(binding,loader),()=>!session.Entities.IsReserved(new EveEntityId(metadata.Entity)),factoryPublished:false);
                 if(shell.HasMove)RequestMove(binding,true);
                 if(shell.HasBuff)NetworkClient.Send(new PNBuffBaselineRequest{Stream=Stream(binding)});
             }
             catch(Exception error){ProtocolFailure(error,false);}
+        }
+        // A summon's size on a machine that did not make it (SpawnedObjectSyncPlan 4.8): the host's metadata carries the owner's summon_scale; 0 (never set) and 1 leave the prefab size.
+        private static void ApplySummonScale(EveEntityLoader loader,float scale)
+        {
+            if(scale<=0f||float.IsNaN(scale)||float.IsInfinity(scale)||scale>1000f||Mathf.Abs(scale-1f)<1e-4f)return;
+            (loader.GetComponent<PNScaleView>()??loader.gameObject.AddComponent<PNScaleView>()).Apply(scale);
         }
         private void FailActor(Binding binding,Exception error)
         {

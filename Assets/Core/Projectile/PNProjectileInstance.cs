@@ -35,6 +35,24 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable, IPNTim
     public Scene Scene { get; private set; }
     public PNProjectileEndReason? EndReason { get; private set; }
     public PNProjectileLaunch Launch { get; private set; }
+    // EN: A view-only copy built from a sync record (spawned-object sync): it flies the way the authority flies the object but finds no contacts, deals no damage and ends only when told to
+    //     (the record's end, or its own lifetime as a leak guard). Implementations need no code for it; this class and the hooks below do the filtering.
+    // VI: Bản hình dựng từ bản ghi đồng bộ: bay như authority nhưng không tìm va chạm, không gây sát thương, chỉ kết thúc khi được báo (hoặc hết tuổi thọ).
+    public bool IsReplica => Launch != null && Launch.IsReplica;
+    // Seconds this object is expected to live (0 = unknown), for the sync record's leak guard. An implementation that knows it overrides this.
+    public virtual float LifeHint => 0f;
+    // EN: The id of this object in the sync records (0 = none, offline), and the random numbers seeded from it: the authority's object and its view-only copy draw the same sequence (plan 4.7).
+    //     Use this, never System.Random or UnityEngine.Random, for anything that changes the flight.
+    // VI: Id cua vat the trong ban ghi dong bo (0 = khong co) va ngau nhien gieo theo id do: ban that va ban hinh ra cung day so. Moi thu doi duong bay phai dung cai nay.
+    public long ObjectSeed { get; private set; }
+    private PNSkillRandom random;
+    public PNSkillRandom Random => random ?? (random = new PNSkillRandom(PNSkillRandom.Seed(ObjectSeed, 0)));
+    // EN: True when a view-only copy re-flying this implementation from the record reproduces the authority's path (it reads nothing but the record, its own clock and Random). The authority then
+    //     audits the copy loosely; false (the default) makes it send position corrections often. Declaring true is an optimisation; PNObjectSyncEditorChecks checks every declaration (plan 4.3a).
+    // VI: True khi ban hinh bay lai tu ban ghi tai tao dung duong bay cua authority. Khai true chi la toi uu; check Edit Mode kiem moi khai bao.
+    public virtual bool SyncDeterministic => false;
+    // Entity id of the current target (0 = none), for sync records.
+    public long TargetEntityValue => target.HasValue ? target.Id.Value : 0L;
     public PNProjectileClock Clock { get; private set; }
     // Set when another system destroyed the projectile with a known attribution (for example a skill that clears projectiles).
     public PNCombatSource DestroyedBy { get; internal set; }
@@ -90,10 +108,33 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable, IPNTim
     }
     // Nearest live target (FindTarget with the Nearest rule).
     protected PNStat FindNearestTarget(float radius) => FindTarget(radius, PNTargetRule.Autotarget(PNTargetMode.Nearest));
-    public void SetTarget(PNStat value) => target = new PNProjectileTarget(value);
-
-    internal void Bind(PNProjectileManager manager, PNProjectileHandle handle, PNProjectileDefinition definition, PNProjectileLaunch launch, PNProjectileSpawn spawn, EveWorldContext world)
+    public void SetTarget(PNStat value)
     {
+        var changed = target.Id != (value != null ? value.EntityId : default);
+        target = new PNProjectileTarget(value);
+        if (changed && IsRunning && Manager != null && !IsReplica) Manager.NotifyRetarget(this);
+    }
+    // A sync record corrects a copy once: position, heading and target (the target is the record's, never searched for by the copy).
+    internal void ApplyCorrection(Vector3 newPosition, Vector3 newHeading, PNStat newTarget)
+    {
+        if (!IsRunning || !PNProjectileSpawn.Finite(newPosition) || !PNProjectileSpawn.Finite(newHeading) || newHeading.sqrMagnitude < 1e-12f) return;
+        position = newPosition; heading = newHeading.normalized; target = new PNProjectileTarget(newTarget); OnCorrected(heading);
+        transform.SetPositionAndRotation(position, Quaternion.LookRotation(heading));
+    }
+    // The implementation follows a correction: set the direction it flies along (a directional projectile keeps its own).
+    protected virtual void OnCorrected(Vector3 newHeading) { }
+    // A copy built from a record that is already `age` seconds old: its age and distance start there (so its lifetime ends when the real one does).
+    internal void SeedProgress(float seconds) { if (seconds <= 0f) return; Age = seconds; Distance = seconds * (Velocity + External).magnitude; }
+    // Lives `seconds` of its own clock at once (a copy built late), in small steps so the motion matches the authority's; finds no contacts.
+    internal void FastForward(double seconds, int maxSubSteps)
+    {
+        float remaining = (float)Math.Min(seconds, PNObjectSyncLimits.MaxReplicaSeconds);
+        while (remaining > 1e-4f && IsRunning && !ending) { float step = Mathf.Min(remaining, 1f / 30f); Tick(step, maxSubSteps, null, default); remaining -= step; }
+    }
+
+    internal void Bind(PNProjectileManager manager, PNProjectileHandle handle, PNProjectileDefinition definition, PNProjectileLaunch launch, PNProjectileSpawn spawn, EveWorldContext world, long objectSeed = 0)
+    {
+        ObjectSeed = objectSeed; random = null;
         Manager = manager; Handle = handle; Definition = definition; Launch = launch; World = world; Scene = spawn.Scene; Clock = GetComponent<PNProjectileClock>();
         EndReason = null; CleanupFailed = false; ending = false; first = true; armed = false; Age = 0; Distance = 0; TickIndex = 0; HitCount = 0; hitContext = null; admission = null; Velocity = default; External = default; DestroyedBy = null;
         position = spawn.Position; heading = spawn.Direction; target = new PNProjectileTarget(spawn.Target); contacts.Clear();
@@ -136,8 +177,11 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable, IPNTim
         if (total.sqrMagnitude > 1e-10f) heading = total.normalized;
         position += total * step; Age += step; Distance += (position - from).magnitude;
         contacts.Clear();
-        Detect(from, position, candidates, physics);
-        if (!contacts.IsEmpty) OnContacts(contacts);
+        if (!IsReplica)
+        {
+            Detect(from, position, candidates, physics);
+            if (!contacts.IsEmpty) OnContacts(contacts);
+        }
         first = false;
     }
     private void Detect(Vector3 from, Vector3 to, PNTargetCandidates candidates, PhysicsScene physics)
@@ -215,7 +259,7 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable, IPNTim
     protected PNProjectileHitResult ApplyHit(PNProjectileContact contact)
     {
         var target = contact.Target;
-        if (target == null || !IsRunning || ending || Manager == null) return null;
+        if (target == null || !IsRunning || ending || Manager == null || IsReplica) return null;
         if (!target.IsReady || !target.gameObject.activeInHierarchy || PNTargetCandidates.IsDead(target) || !PNWorldGameplay.CanExecute(target) ||
             !ReferenceEquals(target.GetComponent<EveEntityIdentity>()?.World, World)) return null;
         var result = new PNProjectileHitResult { Target = target, HitIndex = HitCount };

@@ -3,6 +3,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using EveEngine;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -23,7 +25,16 @@ public sealed class PNProjectileManager : MonoBehaviour
     {
         internal long Id; internal EveId DefinitionId; internal GameObject Root; internal PNProjectileInstance Instance; internal PoolEntry Pool; internal Scene Scene;
         internal EveWorldContext World; internal IDisposable Lease; internal bool Removed;
+        // Spawned-object sync: the id of this object in the records (0 = not synced) and whether it is a view-only copy.
+        internal long ObjectId; internal bool Replica;
+        // The state the last record gave a copy (position, heading, speed, the object's age and the host clock then): the authority's audit predicts the copy from it.
+        internal Vector3 SentPosition, SentHeading; internal float SentSpeed, SentAge; internal double SentAt;
     }
+    // EN: How the authority audits a copy (plan 4.3a). The copy of an object that declares SyncDeterministic is checked every AuditSeconds and corrected when the real object is more than AuditDistance
+    //     from the straight line the last record implies; any other copy is corrected as soon as FollowSeconds passed and it is more than FollowDistance away. A correction is a Retarget record.
+    // VI: Cach authority kiem ban hinh (plan 4.3a): vat khai SyncDeterministic kiem moi AuditSeconds, sua khi lech quá AuditDistance so voi duong thang suy ra tu ban ghi cuoi; vat khac sua thuong xuyen.
+    public const double AuditSeconds = .5d, FollowSeconds = .1d;
+    public const float AuditDistance = 1f, FollowDistance = .05f;
     private static readonly object NoWorld = new object();
     private readonly Dictionary<(PNProjectileDefinition, Scene), PoolEntry> pools = new Dictionary<(PNProjectileDefinition, Scene), PoolEntry>();
     private readonly Dictionary<long, Entry> entries = new Dictionary<long, Entry>();
@@ -35,6 +46,23 @@ public sealed class PNProjectileManager : MonoBehaviour
     private readonly HashSet<PNProjectileInstance> pendingResources = new HashSet<PNProjectileInstance>();
     private long sequence, stamp; private bool busy, closing, compactNeeded;
     public EveSessionContext Session { get; private set; }
+    private PNObjectSyncService objectSync; private ObjectBridge bridge;
+    private readonly Dictionary<long, long> objectEntries = new Dictionary<long, long>();
+    // EN: The spawned-object sync of this play (stage O2). On the authority every projectile made here is recorded (Spawn, Retarget, End); on a client the manager is the sink that
+    //     builds, corrects and ends the view-only copies. Null = no sync (offline, or before the glue sets it). Set it back to null before the session ends.
+    // VI: Dich vu dong bo vat the cua phien. O authority moi dan tao ra deu duoc ghi; o client manager la noi dung / chinh / ket thuc ban hinh.
+    public PNObjectSyncService ObjectSync
+    {
+        get => objectSync;
+        set
+        {
+            if (ReferenceEquals(objectSync, value)) return;
+            if (objectSync != null) { objectSync.SetSink(PNObjectKind.Projectile, null); objectSync.SetSource(PNObjectKind.Projectile, null); }
+            objectSync = value;
+            if (value != null) { bridge = bridge ?? new ObjectBridge(this); value.SetSink(PNObjectKind.Projectile, bridge); value.SetSource(PNObjectKind.Projectile, bridge); }
+        }
+    }
+    public int ReplicaCount { get { int count = 0; foreach (var entry in entries.Values) if (entry.Replica) count++; return count; } }
     public int MaxActive { get; private set; } = PNProjectileProfile.DefaultMaxActive;
     public int MaxSubSteps { get; private set; } = 4;
     public float TargetRefreshSeconds { get; private set; } = .1f;
@@ -111,13 +139,14 @@ public sealed class PNProjectileManager : MonoBehaviour
         var receipt = new PNProjectileReceipt();
         Submit(() => CreateNow(launch, spawn, receipt)); return receipt;
     }
-    private void CreateNow(PNProjectileLaunch launch, PNProjectileSpawn spawn, PNProjectileReceipt receipt)
+    private void CreateNow(PNProjectileLaunch launch, PNProjectileSpawn spawn, PNProjectileReceipt receipt, long replicaId = 0)
     {
+        bool replica = replicaId != 0;
         GameObject root = null; PoolEntry pool = null; long id = 0;
         try
         {
-            if (closing || !isActiveAndEnabled || Session == null || !Session.IsActive || !Session.HasAuthority) { receipt.Status = PNProjectileStatus.Rejected; return; }
-            if (launch == null || spawn == null || launch.Source.SessionId != Session.SessionId || !spawn.Scene.IsValid() || !spawn.Scene.isLoaded)
+            if (closing || !isActiveAndEnabled || Session == null || !Session.IsActive || !replica && !Session.HasAuthority) { receipt.Status = PNProjectileStatus.Rejected; return; }
+            if (launch == null || spawn == null || launch.IsReplica != replica || !replica && launch.Source.SessionId != Session.SessionId || !spawn.Scene.IsValid() || !spawn.Scene.isLoaded)
                 throw new ArgumentException("Projectile requires a launch from this session and a loaded scene.");
             var world = PNWorldGameplay.ForScene(Session, spawn.Scene);
             if (world != null && !world.CanExecute) { receipt.Status = PNProjectileStatus.Rejected; return; }
@@ -136,10 +165,14 @@ public sealed class PNProjectileManager : MonoBehaviour
             id = ++sequence; var handle = new PNProjectileHandle(this, id);
             var entry = new Entry { Id = id, DefinitionId = Session.Registry.Instances().ResolveIdentity(launch.ProjectileId), Root = root, Instance = instance, Pool = pool, Scene = spawn.Scene, World = world, Lease = world?.AcquireLease("projectile") };
             entries.Add(id, entry); order.Add(entry);
-            instance.Bind(this, handle, definition, launch, spawn, world); PNWorldPresentationRegistration.Register(world, root); root.SetActive(true);
+            // The sync id is taken before the implementation starts so Random is seeded by it from the first line of Initialize (a copy takes the record's id).
+            long objectId = replica ? replicaId : objectSync != null && objectSync.IsAuthority ? objectSync.NextId() : 0L;
+            instance.Bind(this, handle, definition, launch, spawn, world, objectId); PNWorldPresentationRegistration.Register(world, root); root.SetActive(true);
             if (!instance.isActiveAndEnabled) throw new InvalidOperationException("Selected projectile component must be active after initialization.");
             if (!instance.IsRunning) throw new InvalidOperationException("Projectile ended during initialization.");
             receipt.Handle = handle; receipt.Status = PNProjectileStatus.Created;
+            if (replica) { entry.Replica = true; entry.ObjectId = replicaId; objectEntries[replicaId] = id; }
+            else RecordSpawn(entry, launch, spawn, objectId);
         }
         catch (Exception error)
         {
@@ -153,6 +186,119 @@ public sealed class PNProjectileManager : MonoBehaviour
             receipt.Error = error; receipt.Status = PNProjectileStatus.Failed;
         }
     }
+    // ---- spawned-object sync ----------------------------------------------------------------------------------------------------
+    private static PNObjectVector Vec(Vector3 v) => new PNObjectVector(v.x, v.y, v.z);
+    private void RecordSpawn(Entry entry, PNProjectileLaunch launch, PNProjectileSpawn spawn, long id)
+    {
+        if (id == 0 || objectSync == null || !objectSync.IsAuthority || entry.World == null) return;
+        try
+        {
+            var json = launch.Input; string input = json == null || json.Type == JTokenType.Null ? null : json.ToString(Formatting.None);
+            if (input != null && input.Length > PNObjectSyncLimits.InputChars) { objectSync.NoteRefused(); return; }
+            var record = PNObjectRecord.Spawn(PNObjectKind.Projectile, id, PNObjectWorld.Of(entry.World), entry.DefinitionId, input, Vec(spawn.Position), Vec(spawn.Direction),
+                spawn.Target != null ? spawn.Target.EntityId.Value : 0L, launch.SourceId.Value, 0L, null, 0, launch.SpeedFactor, launch.ScaleFactor, launch.LifetimeFactor, objectSync.Now, 0f, entry.Instance.LifeHint);
+            entry.ObjectId = id; objectEntries[id] = entry.Id; MarkSent(entry);
+            if (!objectSync.RecordSpawn(record)) { entry.ObjectId = 0; objectEntries.Remove(id); }
+        }
+        catch (FormatException) { objectSync.NoteRefused(); }
+    }
+    // What a copy knows after a record: the real object's state now.
+    private void MarkSent(Entry entry)
+    {
+        var instance = entry.Instance; if (instance == null) return;
+        entry.SentPosition = instance.Position; entry.SentHeading = instance.Forward; entry.SentSpeed = (instance.Velocity + instance.External).magnitude; entry.SentAge = instance.Age; entry.SentAt = objectSync.Now;
+    }
+    // After each tick of a real, synced object: sends a correction (a Retarget record with the unchanged target) when the copy, flying straight on from the last record, would be off.
+    private void AuditSync(Entry entry)
+    {
+        var instance = entry.Instance;
+        if (objectSync == null || !objectSync.IsAuthority || entry.ObjectId == 0 || entry.Replica || instance == null || !instance.IsRunning) return;
+        bool declared = instance.SyncDeterministic; double now = objectSync.Now;
+        if (now - entry.SentAt < (declared ? AuditSeconds : FollowSeconds)) return;
+        var expected = entry.SentPosition + entry.SentHeading * (entry.SentSpeed * Mathf.Max(0f, instance.Age - entry.SentAge));
+        if ((instance.Position - expected).magnitude <= (declared ? AuditDistance : FollowDistance)) { entry.SentAt = now; return; }
+        MarkSent(entry);
+        try { objectSync.RecordRetarget(PNObjectRecord.Retarget(PNObjectKind.Projectile, entry.ObjectId, PNObjectWorld.Of(entry.World), instance.TargetEntityValue, Vec(instance.Position), Vec(instance.Forward), now)); }
+        catch (FormatException) { objectSync.NoteRefused(); }
+    }
+    internal void NotifyRetarget(PNProjectileInstance instance)
+    {
+        if (objectSync == null || !objectSync.IsAuthority || !ReferenceEquals(instance.Handle.Manager, this) || !entries.TryGetValue(instance.Handle.InstanceId, out var entry) || entry.ObjectId == 0 || entry.Replica) return;
+        MarkSent(entry);
+        try { objectSync.RecordRetarget(PNObjectRecord.Retarget(PNObjectKind.Projectile, entry.ObjectId, PNObjectWorld.Of(entry.World), instance.TargetEntityValue, Vec(instance.Position), Vec(instance.Forward), objectSync.Now)); }
+        catch (FormatException) { objectSync.NoteRefused(); }
+    }
+    private void NotifyEnded(Entry entry, PNProjectileEndReason reason)
+    {
+        if (entry.ObjectId == 0 || objectSync == null) return;
+        long id = entry.ObjectId; entry.ObjectId = 0; objectEntries.Remove(id);
+        if (entry.Replica) { objectSync.ReplicaEnded(id); return; }
+        try { objectSync.RecordEnd(PNObjectRecord.End(PNObjectKind.Projectile, id, PNObjectWorld.Of(entry.World), (byte)reason, Vec(entry.Instance != null ? entry.Instance.Position : default))); }
+        catch (FormatException) { objectSync.NoteRefused(); }
+    }
+    // EN: Builds a view-only copy of a projectile from a Spawn record and lives `elapsed` seconds of its life at once. The copy deals no damage and ends only when told to or at its own lifetime.
+    //     Pending while the command queue is busy. Rejected when the world is not here, not running or the cap is reached.
+    // VI: Dung ban hinh cua mot vien dan tu ban ghi Spawn va song san `elapsed` giay. Khong gay sat thuong, chi ket thuc khi duoc bao hoac het tuoi tho.
+    public PNProjectileReceipt CreateReplica(PNObjectRecord record, double elapsed)
+    {
+        if (record == null || record.Type != PNObjectRecordType.Spawn || record.Kind != PNObjectKind.Projectile) throw new ArgumentException("A projectile Spawn record is required.", nameof(record));
+        var receipt = new PNProjectileReceipt();
+        Submit(() => CreateReplicaNow(record, elapsed, receipt)); return receipt;
+    }
+    private void CreateReplicaNow(PNObjectRecord record, double elapsed, PNProjectileReceipt receipt)
+    {
+        try
+        {
+            if (closing || Session == null || !Session.IsActive || objectEntries.ContainsKey(record.Id)) { receipt.Status = PNProjectileStatus.Rejected; return; }
+            EveWorldContext world = null;
+            foreach (var candidate in Session.Worlds.Snapshot()) if (candidate.InstanceId == record.World.Instance && candidate.Incarnation == record.World.Incarnation) { world = candidate; break; }
+            if (world == null || !world.CanExecute || !world.PhysicsOwner.IsValid()) { receipt.Status = PNProjectileStatus.Rejected; return; }
+            JToken input = record.Input == null ? null : JToken.Parse(record.Input);
+            PNStat target = null;
+            if (record.Target != 0 && Session.Entities.TryGet(new EveEntityId(record.Target), out var loader)) target = loader.GetComponent<PNStat>();
+            var launch = PNProjectileLaunch.Replica(record.DefinitionId, input, record.Owner != 0 ? new EveEntityId(record.Owner) : default, record.Speed, record.Scale, record.Lifetime);
+            var spawn = new PNProjectileSpawn(world.PhysicsOwner, new Vector3(record.Position.X, record.Position.Y, record.Position.Z), new Vector3(record.Direction.X, record.Direction.Y, record.Direction.Z), target);
+            CreateNow(launch, spawn, receipt, record.Id);
+            // `elapsed` is the record's age plus the delay since its stamp; the record's position is where the object was at the stamp, so only the delay is flown.
+            if (receipt.Status == PNProjectileStatus.Created && entries.TryGetValue(receipt.Handle.InstanceId, out var made) && made.Instance != null)
+            {
+                made.Instance.SeedProgress(record.Age); double delay = elapsed - record.Age;
+                if (delay > 1e-4d) made.Instance.FastForward(delay, MaxSubSteps);
+            }
+        }
+        catch (Exception error) { receipt.Error = error; receipt.Status = PNProjectileStatus.Failed; }
+    }
+    // The sink and the source the service talks to: copies on a client, live state for the baseline on the authority.
+    private sealed class ObjectBridge : IPNObjectSyncSink, IPNObjectSyncSource
+    {
+        private readonly PNProjectileManager owner;
+        public ObjectBridge(PNProjectileManager manager) { owner = manager; }
+        public bool Spawned(PNObjectRecord spawn, double elapsed)
+        { var receipt = owner.CreateReplica(spawn, elapsed); return receipt.Status == PNProjectileStatus.Created || receipt.Status == PNProjectileStatus.Pending; }
+        public void Retargeted(PNObjectRecord retarget)
+        {
+            if (!owner.objectEntries.TryGetValue(retarget.Id, out var handleId) || !owner.entries.TryGetValue(handleId, out var entry) || entry.Instance == null) return;
+            PNStat target = null;
+            if (retarget.Target != 0 && owner.Session != null && owner.Session.Entities.TryGet(new EveEntityId(retarget.Target), out var loader)) target = loader.GetComponent<PNStat>();
+            entry.Instance.ApplyCorrection(new Vector3(retarget.Position.X, retarget.Position.Y, retarget.Position.Z), new Vector3(retarget.Direction.X, retarget.Direction.Y, retarget.Direction.Z), target);
+            // The record's place is where the object was at its stamp: the copy flies the delay since then, or it would trail the real object by the latency every time it is corrected.
+            double delay = owner.objectSync == null ? 0d : Math.Min(PNObjectSyncLimits.MaxCatchUpSeconds, Math.Max(0d, owner.objectSync.Now - retarget.Stamp));
+            if (delay > 1e-4d) entry.Instance.FastForward(delay, owner.MaxSubSteps);
+        }
+        public void Ended(PNObjectRecord end)
+        {
+            if (!owner.objectEntries.TryGetValue(end.Id, out var handleId)) return;
+            var reason = Enum.IsDefined(typeof(PNProjectileEndReason), (int)end.Reason) ? (PNProjectileEndReason)end.Reason : PNProjectileEndReason.Requested;
+            owner.End(new PNProjectileHandle(owner, handleId), reason);
+        }
+        public bool TryCapture(long id, out PNObjectVector position, out PNObjectVector direction, out long target, out float age)
+        {
+            position = default; direction = default; target = 0; age = 0f;
+            if (!owner.objectEntries.TryGetValue(id, out var handleId) || !owner.entries.TryGetValue(handleId, out var entry) || entry.Instance == null || !entry.Instance.IsRunning) return false;
+            position = Vec(entry.Instance.Position); direction = Vec(entry.Instance.Forward); target = entry.Instance.TargetEntityValue; age = Mathf.Min(entry.Instance.Age, (float)PNObjectSyncLimits.MaxReplicaSeconds); return true;
+        }
+    }
+
     private PoolEntry AddPool(PNProjectileDefinition definition, Scene scene)
     {
         var template = definition.CreatePoolTemplate();
@@ -227,6 +373,7 @@ public sealed class PNProjectileManager : MonoBehaviour
         if (!Finite(gameDelta) || gameDelta < 0) throw new ArgumentOutOfRangeException(nameof(gameDelta));
         if (closing) return;
         if (Session == null || !Session.IsActive) { Shutdown(); return; }
+        if (objectSync != null) { if (objectSync.IsAuthority) objectSync.Flush(); else objectSync.Tick(); }
         Submit(() =>
         {
             if (compactNeeded) { order.RemoveAll(x => x.Removed); compactNeeded = false; }
@@ -251,13 +398,17 @@ public sealed class PNProjectileManager : MonoBehaviour
                     else candidates = Targets.Peek(entry.World);
                     var physics = (entry.World != null ? entry.World.PhysicsOwner : entry.Scene).GetPhysicsScene();
                     entry.Instance.Tick(gameDelta, MaxSubSteps, candidates, physics);
+                    if (entry.ObjectId != 0 && !entry.Replica) AuditSync(entry);
                 }
                 catch (Exception error) { Debug.LogException(error, this); End(new PNProjectileHandle(this, entry.Id), PNProjectileEndReason.RuntimeError); }
             }
         });
     }
     private void SafeStop(Entry entry, PNProjectileEndReason reason)
-    { try { if (entry.Instance != null) entry.Instance.Stop(reason); } catch (Exception error) { if (entry.Instance != null) entry.Instance.CleanupFailed = true; Debug.LogException(error, this); } }
+    {
+        try { if (entry.Instance != null) entry.Instance.Stop(reason); } catch (Exception error) { if (entry.Instance != null) entry.Instance.CleanupFailed = true; Debug.LogException(error, this); }
+        try { NotifyEnded(entry, reason); } catch (Exception error) { Debug.LogException(error, this); }
+    }
     private void Return(Entry entry)
     {
         // A failed gameplay cleanup keeps its owner; pool eviction is not a cleanup retry.
@@ -283,7 +434,8 @@ public sealed class PNProjectileManager : MonoBehaviour
     public void ReleaseWorld(EveWorldContext world)
     {
         if (busy) throw new InvalidOperationException("Projectile mutation must drain before world teardown.");
-        foreach (var entry in entries.Values.Where(x => ReferenceEquals(x.World, world)).ToArray()) { entry.Instance?.Stop(PNProjectileEndReason.SceneUnloaded); Return(entry); }
+        foreach (var entry in entries.Values.Where(x => ReferenceEquals(x.World, world)).ToArray()) { entry.Instance?.Stop(PNProjectileEndReason.SceneUnloaded); NotifyEnded(entry, PNProjectileEndReason.SceneUnloaded); Return(entry); }
+        objectSync?.ForgetWorld(PNObjectWorld.Of(world));
         foreach (var pair in pools.Where(x => PNWorldGameplay.ForScene(Session, x.Value.Scene) == world).ToArray())
         {
             if (entries.Values.Any(x => ReferenceEquals(x.Pool, pair.Value))) throw new InvalidOperationException("World projectile cleanup remains pending.");
@@ -307,7 +459,7 @@ public sealed class PNProjectileManager : MonoBehaviour
         }
         // Required gameplay failures retain entries/pools/session and block the next play.
         if (errors.Count != 0) throw new AggregateException("Projectile gameplay cleanup failed.", errors);
-        order.Clear(); compactNeeded = false; Targets.Clear();
+        order.Clear(); compactNeeded = false; Targets.Clear(); objectEntries.Clear();
         foreach (var resource in pendingResources.ToArray())
         {
             try { resource.DisposePooledResources(); pendingResources.Remove(resource); }

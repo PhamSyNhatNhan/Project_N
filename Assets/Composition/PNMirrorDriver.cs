@@ -60,7 +60,7 @@ namespace ProjectN.Composition
                     runtime.BeginSession(role);
                     PNTimeService.Attach(EveRegistrySession.Context,new PNMirrorTimeline(manager,EveRegistrySession.Context,profile.MoveInterpolationSeconds));
                     var game=runtime.GetComponent<PNGameSession>();manager.Factory=game.Factory;manager.Scheduler=game.Scheduler;manager.Worlds=game.Worlds;
-                    manager.Transfers=game.Transfers;manager.SyncProvider=()=>game.Sync;
+                    manager.Transfers=game.Transfers;manager.SyncProvider=()=>game.Sync;manager.ObjectSyncProvider=()=>game.ObjectSync;
                     game.Lifetimes.RestoredActor+=manager.PublishRestoredActor;
                 };
                 root.SetActive(true);

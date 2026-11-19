@@ -72,7 +72,7 @@ public class PNHomingProjectile : PNDirectionalProjectile
         if (steeredTick != TickIndex)
         {
             steeredTick = TickIndex; haveCenter = false;
-            if (!TryGetTarget(out var target) && homing.Reacquire && Age >= nextSearch)
+            if (!TryGetTarget(out var target) && homing.Reacquire && !IsReplica && Age >= nextSearch)
             {
                 nextSearch = Age + (float)homing.SearchInterval;
                 target = FindTarget((float)homing.SearchRadius, homing.TargetRule ?? Launch.TargetRule);

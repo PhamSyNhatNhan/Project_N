@@ -147,6 +147,7 @@ namespace ProjectN.Coop.Tests
             if (PNActionDeliveryPlayChecks.Enabled) { yield return PNActionDeliveryPlayChecks.Run(folder, name, e1); yield break; }
             if (PNActionTimePlayChecks.Enabled) { yield return PNActionTimePlayChecks.Run(folder, name, e1); yield break; }
             if (PNBuffViewPlayChecks.Enabled) { yield return PNBuffViewPlayChecks.Run(folder, name, e1); yield break; }
+            if (PNObjectSyncPlayChecks.Enabled) { yield return PNObjectSyncPlayChecks.Run(folder, name, e1); yield break; }
             if (PNAbilityTimePlayChecks.Enabled) { yield return PNAbilityTimePlayChecks.Run(folder, name, e1); yield break; }
             if (PNTimeBaselineChecks.Enabled) { yield return PNTimeBaselineChecks.Run(folder, name, e1); yield break; }
             // ---- owner-only block ----

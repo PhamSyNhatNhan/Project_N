@@ -31,6 +31,9 @@ namespace ProjectN.Coop
             public readonly List<IDisposable> TargetLeases=new List<IDisposable>();
             // G8: what the host still has to send this client of a grid world; null for every other world and for the host's own local client.
             public PNGridChunkSender Chunks;
+            // O3: what the host still has to send this client of the spawned-object sync: the baseline of the world first, then the records that came after it (PNObjectTransport.cs).
+            public readonly List<PNObjectRecord> ObjectQueue=new List<PNObjectRecord>(),ObjectBaseline=new List<PNObjectRecord>();
+            public bool ObjectBaselined,ObjectBaselineStarted,ObjectBaselineDone,ObjectOverflow;
         }
         public IPNWorldRuntime Worlds;
         public Func<PNWorldOffer,bool> WorldLoadAllowed = offer=>true;
@@ -135,7 +138,7 @@ namespace ProjectN.Coop
             ReleaseWorldSubscription(entry);
         }
         private void ReleaseWorldSubscription(WorldSubscription entry)
-        {entry.FenceLease?.Dispose();entry.FenceLease=null;entry.DescriptorLease?.Dispose();entry.DescriptorLease=null;entry.WorldLease?.Dispose();entry.WorldLease=null;foreach(var lease in entry.TargetLeases)lease.Dispose();entry.TargetLeases.Clear();entry.Incoming.Clear();entry.Targets=null;entry.Chunks=null;entry.Placements=null;entry.Applied.Clear();entry.Granted.Clear();entry.InitialEntities.Clear();entry.AppliedEntities.Clear();}
+        {entry.FenceLease?.Dispose();entry.FenceLease=null;entry.DescriptorLease?.Dispose();entry.DescriptorLease=null;entry.WorldLease?.Dispose();entry.WorldLease=null;foreach(var lease in entry.TargetLeases)lease.Dispose();entry.TargetLeases.Clear();entry.Incoming.Clear();entry.Targets=null;entry.Chunks=null;entry.Placements=null;entry.ObjectQueue.Clear();entry.ObjectBaseline.Clear();entry.ObjectBaselined=false;entry.Applied.Clear();entry.Granted.Clear();entry.InitialEntities.Clear();entry.AppliedEntities.Clear();}
         public bool CanObserveWorld(NetworkConnectionToClient connection,Guid world,ulong incarnation)
             =>IsPlaying&&connection.authenticationData is PNPeer peer&&peer.PlayRevision==PlayRevision&&worldPeers.TryGetValue((connection.connectionId,world),out var entry)&&entry.Loaded&&!entry.Closing&&entry.World.Incarnation==incarnation&&(entry.World.State==EveWorldState.Ready||entry.World.State==EveWorldState.Paused);
         public bool CanObserveActor(NetworkConnectionToClient connection,PNActorShell actor)
@@ -237,7 +240,7 @@ namespace ProjectN.Coop
             if(entry.Closing)return;ForgetWorldClock(entry.Offer.Ticket);entry.Closing=true;clientWorlds.Remove(entry.Offer.Ticket.World);ForgetGridInbox(entry.Offer.Ticket.World);
             worldFloors[entry.Offer.Ticket.World]=entry.Offer.Ticket.Subscription;closingWorlds.Add(entry);
             try{RetireClientWorldBindings(entry.Offer.Ticket.World);}catch(Exception error){LastFailure="World cleanup pending: "+error.Message;}
-            ForgetClientSyncEntities(entry.Offer.Ticket.World);
+            ForgetClientSyncEntities(entry.Offer.Ticket.World);ForgetClientObjects(entry.Offer.Ticket.World,entry.Offer.Ticket.Incarnation);
         }
         private void RetireClientWorldBindings(Guid world)
         {

@@ -11,6 +11,8 @@ public sealed class PNGameSession : MonoBehaviour
     public EveSessionContext Session {get;private set;}
     public PNWorldRuntime Worlds {get;private set;}
     public PNSyncService Sync {get;private set;}
+    // The spawned-object sync of a networked play (null offline): the records of projectiles, areas and blasts. The room manager carries them (Assets/Coop).
+    public PNObjectSyncService ObjectSync {get;private set;}
     public PNRunDirector Runs {get;private set;}
     public PNRunStateSync RunView {get;private set;}
     public PNRogueStateSync RogueView {get;private set;}
@@ -55,6 +57,17 @@ public sealed class PNGameSession : MonoBehaviour
         // One delegate: it must release every world-scoped service, so combine them here instead of assigning separately.
         var areas=runtime.GetComponent<PNAreaManager>();var projectiles=runtime.GetComponent<PNProjectileManager>();var blasts=runtime.GetComponent<PNBlastManager>();
         service.Worlds.BeforeUnload=world=>{if(areas!=null)areas.ReleaseWorld(world);if(blasts!=null)blasts.ReleaseWorld(world);if(projectiles!=null)projectiles.ReleaseWorld(world);};
+        // Spawned-object sync (SpawnedObjectSyncPlan O3): only a networked play has it. The host records what the managers make and the room manager carries the records; a client builds the copies from them.
+        // Records are stamped with the host clock estimate of the play's timeline (the local clock until that timeline is ready).
+        if(session.Role!=EveSessionRole.Offline)
+        {
+            var objects=new PNObjectSyncService(session.HasAuthority,()=>Time.unscaledTimeAsDouble);
+            objects.HostClock=()=>{try{var sample=PNTimeService.For(session).Sample();if(sample.Ready)return sample.Host;}catch(InvalidOperationException){}return Time.unscaledTimeAsDouble;};
+            service.ObjectSync=objects;
+            if(areas!=null)areas.ObjectSync=objects;if(blasts!=null)blasts.ObjectSync=objects;if(projectiles!=null)projectiles.ObjectSync=objects;
+            session.RegisterCleanup(()=>{if(areas!=null)areas.ObjectSync=null;if(blasts!=null)blasts.ObjectSync=null;if(projectiles!=null)projectiles.ObjectSync=null;objects.Dispose();if(ReferenceEquals(service.ObjectSync,objects))service.ObjectSync=null;});
+        }
+        else service.ObjectSync=null;
         service.Factory=new PNEntityFactory(session,service.Worlds){Scheduler=service.Scheduler};
         session.RegisterCleanup(service.Factory.Dispose,afterEntities:true);
         PNEntityHosts.Set(session,new PNLocalEntityHost(session,service.Factory,service.Scheduler));session.RegisterCleanup(()=>{PNEntityHosts.Remove(session);PNSummons.Reset();});

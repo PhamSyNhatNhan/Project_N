@@ -18,6 +18,8 @@ public sealed class PNEntityRequest
     public string Template;
     // Seconds of entity time before the entity is removed; overrides the role's lifetime (null = the role's).
     public double? Lifetime;
+    // The owner's summon_scale a summon was made with (1 = unchanged). The host's PNSummon applies it to its own object; this value only rides the actor metadata so a client applies the same (PNScaleView).
+    public double Scale = 1d;
     // The entity that summoned this one (Docs/SummonPlan.md); invalid for anything that is not a summon. Host side only: it does not go on the wire.
     public EveEntityId Summoner;
 }

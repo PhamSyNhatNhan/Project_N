@@ -119,7 +119,7 @@ internal static class PNSkillObjectSpawn
             Entity = settings.Entity.ToString(), Template = settings.Entity.ToString(), Character = settings.Character.ToString(), World = identity.World, WorldIncarnation = identity.World.Incarnation,
             ContentSlot = identity.ContentSlot, SceneKey = string.IsNullOrWhiteSpace(marker?.SceneKey) ? "summon:runtime" : marker.SceneKey, EntityKey = "",
             Position = caster.transform.position + new Vector3((float)settings.Offset[0], (float)settings.Offset[1], (float)settings.Offset[2]),
-            Lifetime = settings.Lifetime, Summoner = owner
+            Lifetime = settings.Lifetime, Summoner = owner, Scale = scale
         };
         EveEntityPreparationScheduler.Candidate candidate = null;
         candidate = host.TrySpawn(request, loader =>

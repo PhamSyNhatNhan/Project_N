@@ -43,6 +43,8 @@ namespace ProjectN.Coop
         public ulong WorldIncarnation,MembershipRevision;
         public string ContentSlot,SpawnEntry,Template;
         public UnityEngine.Vector3 Position;
+        // The summon_scale the entity was made with (0 or 1 = unchanged); a client gives it to its copy with PNScaleView.
+        public float Scale;
     }
     public struct PNHeartbeat : NetworkMessage { public Guid Session; public ulong PlayRevision; public uint Sequence,ResumeFloor; public bool Paused,ResumeRequired; }
     public struct PNResume : NetworkMessage { public Guid Session; public ulong PlayRevision; public uint Sequence; public bool Acknowledged; public string BindingDigest; }

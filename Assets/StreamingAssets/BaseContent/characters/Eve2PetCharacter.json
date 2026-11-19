@@ -22,7 +22,9 @@
         }
       },
       "stats": [
-        { "statId": "base:attack_power", "base": 1 }
+        { "statId": "base:attack_power", "base": 1 },
+        { "statId": "base:move_speed", "base": 20 },
+        { "statId": "base:jump_speed", "base": 1 }
       ],
       "skill": []
     }

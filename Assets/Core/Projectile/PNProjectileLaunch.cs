@@ -14,9 +14,12 @@ public sealed class PNProjectileLaunch
     private readonly JToken input;
     public EveId ProjectileId { get; }
     public JToken Input => input?.DeepClone();
+    // Null on a replica (a view-only copy built from a sync record: no source, no damage, no OnHit plan).
     public PNCombatSource Source { get; }
-    // Entity ID of the shooter captured with the source; it survives the shooter.
-    public EveEntityId SourceId => Source.EntityId;
+    public bool IsReplica => Source == null;
+    private readonly EveEntityId replicaOwner;
+    // Entity ID of the shooter captured with the source; it survives the shooter. A replica carries the owner id of its record.
+    public EveEntityId SourceId => Source != null ? Source.EntityId : replicaOwner;
     // Damage computed once for the volley (null when the projectile deals none). The crit roll happens per hit.
     public PNPreparedDamage Damage { get; }
     // Frozen OnHit effects (null when it carries none).
@@ -42,6 +45,18 @@ public sealed class PNProjectileLaunch
         ProjectileId = projectileId; this.input = input?.DeepClone(); Source = source; TargetLayers = targetLayers; Damage = damage; HitPlan = hitPlan;
         SpeedFactor = speedFactor; ScaleFactor = scaleFactor; LifetimeFactor = lifetimeFactor; TargetRule = targetRule;
     }
+    private PNProjectileLaunch(EveId projectileId, JToken input, EveEntityId owner, double speedFactor, double scaleFactor, double lifetimeFactor)
+    {
+        if (!projectileId.IsValid) throw new ArgumentException("Projectile ID required.", nameof(projectileId));
+        foreach (var factor in new[] { speedFactor, scaleFactor, lifetimeFactor })
+            if (double.IsNaN(factor) || double.IsInfinity(factor) || factor < 0d) throw new ArgumentOutOfRangeException(nameof(speedFactor), "Modifier factors must be finite and nonnegative.");
+        ProjectileId = projectileId; this.input = input?.DeepClone(); TargetLayers = PNTargetLayers.None; replicaOwner = owner;
+        SpeedFactor = speedFactor; ScaleFactor = scaleFactor; LifetimeFactor = lifetimeFactor;
+    }
+    // EN: The launch of a view-only copy (spawned-object sync): the factors the authority computed, no source, damage or OnHit plan. It hits nothing and ends only when told to.
+    // VI: Launch của bản hình (đồng bộ vật thể): hệ số do authority tính, không có nguồn, sát thương hay OnHit.
+    public static PNProjectileLaunch Replica(EveId projectileId, JToken input, EveEntityId owner, double speedFactor, double scaleFactor, double lifetimeFactor)
+        => new PNProjectileLaunch(projectileId, input, owner, speedFactor, scaleFactor, lifetimeFactor);
     // Reads the four projectile_* modifiers from the source snapshot (Scale route over a base of 1: +20% = 1.2).
     public static PNProjectileLaunch FromSource(EveId projectileId, JToken input, PNCombatSource source, PNTargetLayers targetLayers, PNPreparedDamage damage = null, PNSkillHitSnapshot hitPlan = null,
         PNTargetRule targetRule = default)

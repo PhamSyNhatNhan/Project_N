@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using EveEngine;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -73,6 +74,8 @@ public abstract class PNAreaInstance : MonoBehaviour, EveIPoolable, IPNTimeTarge
             return scaleFactor;
         }
     }
+    // The creator's area_scale as the sync record carries it.
+    public double SyncScale => ScaleFactor;
     internal float ScaleDelta(float gameDelta)
     {
         if (!AffectedByTime || Clock == null || Clock.ModifierCount == 0) return gameDelta;
@@ -224,6 +227,7 @@ public sealed class PNAreaManager : MonoBehaviour
             PNWorldPresentationRegistration.Register(world,root);
             if (!instance.IsRunning) throw new InvalidOperationException("Area ended during initialization.");
             receipt.Handle = handle; receipt.Status = PNAreaStatus.Created;
+            RecordSpawn(id, entries[id], request);
         }
         catch (Exception error)
         {
@@ -272,6 +276,7 @@ public sealed class PNAreaManager : MonoBehaviour
         if (!Finite(gameDelta) || gameDelta < 0) throw new ArgumentOutOfRangeException(nameof(gameDelta));
         if (closing) return;
         if (Session == null || !Session.IsActive) { Shutdown(); return; }
+        objectSync?.Flush();
         Submit(() => {
             foreach (var pair in entries.ToArray())
             {
@@ -288,8 +293,40 @@ public sealed class PNAreaManager : MonoBehaviour
             }
         });
     }
+    // ---- spawned-object sync (stage O2: the authority records what it creates; the view-only copy of an area/blast is built in O5) ----------------------------------------
+    private PNObjectSyncService objectSync;
+    private readonly Dictionary<long, long> objectIds = new Dictionary<long, long>();
+    // EN: The spawned-object sync of this play. On the authority every area made here is recorded (Spawn at creation, End when it stops). Null = no sync.
+    // VI: Dich vu dong bo vat the cua phien. O authority moi area tao ra deu duoc ghi (Spawn luc tao, End luc dung).
+    public PNObjectSyncService ObjectSync { get => objectSync; set => objectSync = value; }
+    private void RecordSpawn(long id, Entry entry, PNAreaCreateRequest request)
+    {
+        if (objectSync == null || !objectSync.IsAuthority || entry.World == null) return;
+        try
+        {
+            var json = request.Input; string input = json == null || json.Type == JTokenType.Null ? null : json.ToString(Formatting.None);
+            if (input != null && input.Length > PNObjectSyncLimits.InputChars) { objectSync.NoteRefused(); return; }
+            var at = request.Position; long objectId = objectSync.NextId();
+            var record = PNObjectRecord.Spawn(PNObjectKind.Area, objectId, PNObjectWorld.Of(entry.World), entry.Id, input, new PNObjectVector(at.x, at.y, at.z), new PNObjectVector(0, 0, 1), 0,
+                request.Owner != null ? request.Owner.EntityId.Value : 0L, request.Follow != null ? request.Follow.EntityId.Value : 0L, null, 0, 1d, entry.Instance.SyncScale, 1d, objectSync.Now, 0f, 0f);
+            objectIds[id] = objectId;
+            if (!objectSync.RecordSpawn(record)) objectIds.Remove(id);
+        }
+        catch (FormatException) { objectSync.NoteRefused(); }
+    }
+    private void NotifyEnded(long id, Entry entry, PNAreaEndReason reason)
+    {
+        if (objectSync == null || !objectIds.TryGetValue(id, out var objectId)) return;
+        objectIds.Remove(id);
+        var at = entry.Instance != null ? entry.Instance.transform.position : default;
+        try { objectSync.RecordEnd(PNObjectRecord.End(PNObjectKind.Area, objectId, PNObjectWorld.Of(entry.World), (byte)reason, new PNObjectVector(at.x, at.y, at.z))); }
+        catch (FormatException) { objectSync.NoteRefused(); }
+    }
     private void SafeStop(Entry entry, PNAreaEndReason reason)
-    { try { if (entry.Instance != null) entry.Instance.Stop(reason); } catch (Exception error) { if (entry.Instance != null) entry.Instance.CleanupFailed = true; Debug.LogException(error, this); } }
+    {
+        try { if (entry.Instance != null) entry.Instance.Stop(reason); } catch (Exception error) { if (entry.Instance != null) entry.Instance.CleanupFailed = true; Debug.LogException(error, this); }
+        try { foreach (var pair in entries) if (ReferenceEquals(pair.Value, entry)) { NotifyEnded(pair.Key, entry, reason); break; } } catch (Exception error) { Debug.LogException(error, this); }
+    }
     private void Return(long id, Entry entry)
     {
         // A failed gameplay cleanup keeps its owner; pool eviction is not a cleanup retry.
@@ -320,7 +357,7 @@ public sealed class PNAreaManager : MonoBehaviour
     {
         if(busy)throw new InvalidOperationException("Area mutation must drain before world teardown.");
         foreach(var pair in entries.Where(x=>ReferenceEquals(x.Value.World,world)).ToArray())
-        { pair.Value.Instance?.Stop(PNAreaEndReason.SceneUnloaded);Return(pair.Key,pair.Value); }
+        { pair.Value.Instance?.Stop(PNAreaEndReason.SceneUnloaded);NotifyEnded(pair.Key,pair.Value,PNAreaEndReason.SceneUnloaded);Return(pair.Key,pair.Value); }
         foreach(var pair in pools.Where(x=>PNWorldGameplay.ForScene(Session,x.Value.Scene)==world).ToArray())
         {
             if(entries.Values.Any(x=>ReferenceEquals(x.Pool,pair.Value)))throw new InvalidOperationException("World area cleanup remains pending.");
