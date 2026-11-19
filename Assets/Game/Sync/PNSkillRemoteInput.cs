@@ -229,7 +229,15 @@ public sealed class PNSkillRemoteInput : MonoBehaviour, IPNSyncEntityListener, I
             if (count >= MaxHitsPerCast || !takenHits.Add((key, step, id))) { HitsRejected++; continue; }
             hitsPerCast[key] = count + 1;
             PNStat victim = EveRegistrySession.Context.Entities.TryGet(new EveEntityId(id), out var registered) && registered != null ? registered.GetComponent<PNStat>() : null;
-            if (victim != null && skill.DeliverReportedHit(victim, step, HitTolerance)) HitsApplied++; else HitsRejected++;
+            bool applied = false;
+            if (victim != null && step >= PNProjectileManager.ReportStepBase)
+            {
+                // A projectile's hit: the step is the projectile's place in its volley; the real projectile outlives the cast, so the manager takes it by the cast key.
+                try { applied = PNProjectileManager.Resolve(EveRegistrySession.Context, ownStat.gameObject.scene).AcceptReportedHit(key, step - PNProjectileManager.ReportStepBase, victim, HitTolerance); }
+                catch (InvalidOperationException) { }
+            }
+            else applied = victim != null && skill.DeliverReportedHit(victim, step, HitTolerance);
+            if (applied) HitsApplied++; else HitsRejected++;
         }
         if (takenHits.Count > 1024) { takenHits.Clear(); hitsPerCast.Clear(); }
     }

@@ -85,9 +85,10 @@ public class PNCreateProjectileOperation : PNSkillOperation
     {
         if (executed || context == null || context.Skill == null || !context.Skill.IsReady || !context.Direction.HasValue) throw new InvalidOperationException("Fresh Ready direction context required.");
         Validate(token, context.Registry); executed = true;
-        if (PNSkillObjectSpawn.Admit(context) != PNSkillSpawnAdmission.Authority) return;
+        var admission = PNSkillObjectSpawn.Admit(context);
+        if (admission == PNSkillSpawnAdmission.Skipped) return;
 #if UNITY_5_3_OR_NEWER
-        PNSkillObjectSpawn.CreateProjectiles(context, token, results);
+        PNSkillObjectSpawn.CreateProjectiles(context, token, results, admission == PNSkillSpawnAdmission.Predicted);
 #else
         // Standalone runner validates invocation/payload only; it has no Unity projectile runtime.
 #endif

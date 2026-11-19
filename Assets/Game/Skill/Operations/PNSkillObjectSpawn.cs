@@ -22,26 +22,42 @@ internal static class PNSkillObjectSpawn
     }
 
 #if UNITY_5_3_OR_NEWER
-    internal static void CreateProjectiles(PNSkillActionContext context, JToken token, List<PNProjectileReceipt> results)
+    // `predicted`: the shooter's own guess on a machine without authority (plan 4.4a): same volley, but no damage, no OnHit plan; it names itself by the cast key and reports what it hits.
+    internal static void CreateProjectiles(PNSkillActionContext context, JToken token, List<PNProjectileReceipt> results, bool predicted = false)
     {
         var settings = PNCreateProjectileSettings.Parse(token); var caster = context.Skill.GetComponent<PNStat>();
         if (caster == null || !caster.IsReady) throw new InvalidOperationException("Projectiles need the caster's Ready stats.");
-        var source = PNCombatSource.Capture(caster);
+        // A guess has no authoritative stats to capture (a client cannot apply combat effects): a source without a snapshot carries the shooter's id and layers, and the launch factors come from the replicated skill factors.
+        var source = predicted ? PNCombatSource.System(caster.SessionId, caster.EntityId, caster.TargetLayers) : PNCombatSource.Capture(caster);
         PNPreparedDamage prepared = null;
-        if (settings.Values != null)
+        if (settings.Values != null && !predicted)
         {
             // One amount for the whole volley (sum of the components), one prepared template; the crit roll is per hit.
             double amount = 0d; foreach (var component in settings.Values.Components) amount += component.Evaluate(caster);
             var tags = context.EffectiveTags().Concat(settings.Tags).Concat(new[] { PNContentIds.ProjectileDamage }).ToArray();
             prepared = source.Snapshot.PrepareDamage(amount, settings.CanCrit, settings.IFrameDuration, tags);
         }
-        var plan = context.CanFreezeOnHit ? context.Skill.Effects.FreezeOnHit(context) : null;
+        var plan = context.CanFreezeOnHit && !predicted ? context.Skill.Effects.FreezeOnHit(context) : null;
         var launchLayers = source.TargetLayers.Union(settings.TargetLayers);
         if (launchLayers.IsEmpty) throw new InvalidOperationException("create_projectile: the caster targets no layer and the payload adds none.");
         var rule = PNTargetRules.For(caster);
-        var launch = PNProjectileLaunch.FromSource(settings.ProjectileId, settings.Input, source, launchLayers, prepared, plan, rule);
+        PNProjectileLaunch launch;
+        if (predicted)
+        {
+            var factors = context.Skill.GetComponent<PNSkillScaleState>();
+            launch = new PNProjectileLaunch(settings.ProjectileId, settings.Input, source, launchLayers, null, null, factors?.ReadScale(PNContentIds.ProjectileSpeed) ?? 1d,
+                factors?.ReadScale(PNContentIds.ProjectileScale) ?? 1d, factors?.ReadScale(PNContentIds.ProjectileLifetime) ?? 1d, rule);
+        }
+        else launch = PNProjectileLaunch.FromSource(settings.ProjectileId, settings.Input, source, launchLayers, prepared, plan, rule);
+        long castKey = context.Invocation != null ? context.Invocation.CastKey : 0L;
+        // A guess is named by the cast; the authority's real projectile of a shooter whose machine guesses (a remote player: the skill has a decision source) leaves target hits to that machine's reports.
+        if (predicted) launch = launch.AsPrediction(castKey, context.Skill.ReportSink);
+        else if (castKey > 0) launch = launch.WithCast(castKey, context.Skill.DecisionSource != null);
         var scene = caster.gameObject.scene;
-        var manager = PNProjectileManager.Resolve(EveRegistrySession.Context, scene);
+        PNProjectileManager manager;
+        // A machine that has no projectile service yet (a fixture, a scene still loading) makes no guess; the authority's record still shows the projectile.
+        if (predicted) { try { manager = PNProjectileManager.Resolve(EveRegistrySession.Context, scene); } catch (InvalidOperationException) { return; } }
+        else manager = PNProjectileManager.Resolve(EveRegistrySession.Context, scene);
         if (!ReferenceEquals(manager.Session.Registry, context.Registry)) throw new InvalidOperationException("Projectile operation session mismatch.");
         var position = context.Position ?? caster.transform.position;
         var aim = context.Direction.Value; PNStat aimTarget = null;
@@ -67,7 +83,7 @@ internal static class PNSkillObjectSpawn
                 var side = Vector3.Cross(Vector3.up, heading);
                 if (side.sqrMagnitude > 1e-8f) heading = Quaternion.AngleAxis(-(float)settings.Pitches[i], side.normalized) * heading;
             }
-            var receipt = manager.Create(launch, new PNProjectileSpawn(scene, position, heading, aimTarget));
+            var receipt = manager.Create(launch, new PNProjectileSpawn(scene, position, heading, aimTarget, Math.Min(i, PNProjectileManager.MaxReportedIndex)));
             results.Add(receipt);
             if (receipt.Status == PNProjectileStatus.Failed) throw new InvalidOperationException("Projectile creation failed.", receipt.Error);
         }

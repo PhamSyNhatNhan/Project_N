@@ -45,6 +45,10 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable, IPNTim
     //     Use this, never System.Random or UnityEngine.Random, for anything that changes the flight.
     // VI: Id cua vat the trong ban ghi dong bo (0 = khong co) va ngau nhien gieo theo id do: ban that va ban hinh ra cung day so. Moi thu doi duong bay phai dung cai nay.
     public long ObjectSeed { get; private set; }
+    // Index of this projectile in its volley (see PNProjectileSpawn.CastIndex).
+    public int CastIndex { get; private set; }
+    // The shooter's guess of a projectile: it hits nothing for real, it reports.
+    public bool IsPrediction => Launch != null && Launch.IsPrediction;
     private PNSkillRandom random;
     public PNSkillRandom Random => random ?? (random = new PNSkillRandom(PNSkillRandom.Seed(ObjectSeed, 0)));
     // EN: True when a view-only copy re-flying this implementation from the record reproduces the authority's path (it reads nothing but the record, its own clock and Random). The authority then
@@ -134,7 +138,7 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable, IPNTim
 
     internal void Bind(PNProjectileManager manager, PNProjectileHandle handle, PNProjectileDefinition definition, PNProjectileLaunch launch, PNProjectileSpawn spawn, EveWorldContext world, long objectSeed = 0)
     {
-        ObjectSeed = objectSeed; random = null;
+        ObjectSeed = objectSeed; random = null; CastIndex = spawn.CastIndex;
         Manager = manager; Handle = handle; Definition = definition; Launch = launch; World = world; Scene = spawn.Scene; Clock = GetComponent<PNProjectileClock>();
         EndReason = null; CleanupFailed = false; ending = false; first = true; armed = false; Age = 0; Distance = 0; TickIndex = 0; HitCount = 0; hitContext = null; admission = null; Velocity = default; External = default; DestroyedBy = null;
         position = spawn.Position; heading = spawn.Direction; target = new PNProjectileTarget(spawn.Target); contacts.Clear();
@@ -197,6 +201,8 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable, IPNTim
                 { contacts.HasEnvironment = true; contacts.Environment = new PNProjectileContact(null, hit.point, hit.normal, Mathf.Clamp01(hit.distance / length)); }
             }
         }
+        // The authority's projectile of a predicting shooter leaves target contacts to the shooter's reports (plan 4.4a); walls above stay its own.
+        if (Launch.ShooterDecides) { armed = true; return; }
         if (candidates == null || candidates.Count == 0) { armed = true; return; }
         using (EveHotPathMetrics.Measure("projectile.targets"))
         {
@@ -264,6 +270,8 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable, IPNTim
             !ReferenceEquals(target.GetComponent<EveEntityIdentity>()?.World, World)) return null;
         var result = new PNProjectileHitResult { Target = target, HitIndex = HitCount };
         HitCount++;
+        // A guess deals nothing: it tells the authority which target it sees hit, under the projectile's name (cast key + step of its index).
+        if (Launch.IsPrediction) { Launch.ReportSink?.ReportHit(Launch.CastKey, target, PNProjectileManager.ReportStepBase + CastIndex); return result; }
         if (Launch.Damage != null)
         {
             var snapshot = Launch.Source.Snapshot ?? throw new InvalidOperationException("Projectile damage needs a source with a combat snapshot.");
@@ -275,6 +283,22 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable, IPNTim
             result.Effects = Launch.HitPlan.Execute(hitContext, target, contact.Point, heading, result.HitIndex, admission);
         }
         return result;
+    }
+
+    // EN: A hit the shooter's machine reported for this (authority) projectile: accepted when the target is on a layer the launch targets and near the projectile (its box, `tolerance`, and the flight of the lag
+    //     the report took), then the implementation's own contact rule runs for it (hit limit, cooldown, Finish). False when nothing was applied.
+    // VI: Cu trung may nguoi ban bao len cho vien that nay: nhan khi muc tieu dung layer va o gan vien (hop, do noi, quang bay trong thoi gian tre), roi quy tac cua implementation chay nhu va cham thuong.
+    public const float ReportLagSeconds = .5f;
+    internal bool TakeReportedHit(PNStat target, float tolerance)
+    {
+        if (!IsRunning || ending || Manager == null || Launch == null || !Launch.ShooterDecides || target == null) return false;
+        if (((Launch.TargetLayers.Mask >> target.gameObject.layer) & 1) == 0) return false;
+        float reach = HalfExtents.magnitude + Mathf.Max(0f, tolerance) + (Velocity + External).magnitude * ReportLagSeconds + 1f;
+        if ((target.transform.position - position).magnitude > reach) return false;
+        int before = HitCount; contacts.Clear();
+        contacts.targets.Add(new PNProjectileContact(target, target.transform.position, -heading, 0f));
+        try { OnContacts(contacts); } finally { contacts.Clear(); }
+        return HitCount > before;
     }
 
     // ---- pooling (the pool calls these) -----------------------------------------------------------------------------------

@@ -309,8 +309,10 @@ public sealed class PNSkillEffectState : IDisposable
     {
         if (IsDisposed || context.Invocation == null || context.Invocation.IsEnded || !context.AllowContributions) return;
         var loader = skill.GetComponent<EveEntityLoader>();
-        if (!skill.IsReady || !EveRegistrySession.IsReady || !EveRegistrySession.Context.HasAuthority || !ReferenceEquals(hub, EveRegistrySession.Current) || loader == null || !loader.IsReady) return;
-        RequireAuthority(); if (triggerDepth >= 8) { Report(new InvalidOperationException("Skill trigger depth exceeded.")); return; }
+        // A guess (Predicted invocation) runs the Operation effects too; each Operation's own door decides what a guess may do (plan 4.6a). Action effects are not run by a guess.
+        bool predicted = context.Invocation.Mode == PNSkillMode.Predicted;
+        if (!skill.IsReady || !EveRegistrySession.IsReady || !(EveRegistrySession.Context.HasAuthority || predicted) || !ReferenceEquals(hub, EveRegistrySession.Current) || loader == null || !loader.IsReady) return;
+        if (!predicted) RequireAuthority(); if (triggerDepth >= 8) { Report(new InvalidOperationException("Skill trigger depth exceeded.")); return; }
         var invocation = context.Invocation;
         if (!invocation.Metadata.TriggerIds.Contains(trigger)) { Report(new ArgumentException("Undeclared Skill trigger: " + trigger)); return; }
         var plan = Gather(context, trigger, frozen); var categories = plan.Categories; var tags = plan.Tags; var effects = plan.Effects;
@@ -318,8 +320,8 @@ public sealed class PNSkillEffectState : IDisposable
         try
         {
             foreach (var effect in effects)
-            { if (invocation.IsEnded || IsDisposed) break; if (trigger == "OnHit" && !context.AdmitHitEffect(effect, hitIndex)) continue; try { Execute(effect, context, hit, point, categories, tags); } catch (Exception error) { Report(error); } }
-            foreach (Action<PNSkillInvocation, string> handler in Triggered?.GetInvocationList() ?? Array.Empty<Delegate>()) try { handler(invocation, trigger); } catch (Exception error) { Report(error); }
+            { if (invocation.IsEnded || IsDisposed) break; if (predicted && effect.Kind != "Operation") continue; if (trigger == "OnHit" && !context.AdmitHitEffect(effect, hitIndex)) continue; try { Execute(effect, context, hit, point, categories, tags); } catch (Exception error) { Report(error); } }
+            if (!predicted) foreach (Action<PNSkillInvocation, string> handler in Triggered?.GetInvocationList() ?? Array.Empty<Delegate>()) try { handler(invocation, trigger); } catch (Exception error) { Report(error); }
         }
         finally { triggerDepth--; }
     }

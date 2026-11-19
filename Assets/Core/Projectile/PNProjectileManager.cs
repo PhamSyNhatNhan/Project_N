@@ -27,6 +27,8 @@ public sealed class PNProjectileManager : MonoBehaviour
         internal EveWorldContext World; internal IDisposable Lease; internal bool Removed;
         // Spawned-object sync: the id of this object in the records (0 = not synced) and whether it is a view-only copy.
         internal long ObjectId; internal bool Replica;
+        // The shooter's guess (plan 4.4a): whether the authority's record has taken it over (Adopted), the heading it was made with and when (unscaled seconds).
+        internal bool Predicted, Adopted; internal Vector3 SpawnHeading; internal double CreatedAt;
         // The state the last record gave a copy (position, heading, speed, the object's age and the host clock then): the authority's audit predicts the copy from it.
         internal Vector3 SentPosition, SentHeading; internal float SentSpeed, SentAge; internal double SentAt;
     }
@@ -35,6 +37,18 @@ public sealed class PNProjectileManager : MonoBehaviour
     // VI: Cach authority kiem ban hinh (plan 4.3a): vat khai SyncDeterministic kiem moi AuditSeconds, sua khi lech quá AuditDistance so voi duong thang suy ra tu ban ghi cuoi; vat khac sua thuong xuyen.
     public const double AuditSeconds = .5d, FollowSeconds = .1d;
     public const float AuditDistance = 1f, FollowDistance = .05f;
+    // EN: Prediction (plan 4.4a). A hit report names the projectile by the cast key plus ReportStepBase + its index in the volley (steps below it belong to Actions). A guess that no record has taken over
+    //     after OrphanSeconds is removed (the authority made fewer projectiles than the guess); an ended guess is remembered for EndedPredictionSeconds so its record, arriving late, is swallowed instead of showing a second one.
+    // VI: Doan (plan 4.4a): bao trung goi ten vien bang cast key + ReportStepBase + so thu tu; vien doan khong duoc ban ghi nao nhan sau OrphanSeconds thi go; vien doan da het duoc nho EndedPredictionSeconds de ban ghi toi muon bi nuot.
+    public const int ReportStepBase = 192, MaxReportedIndex = 63;
+    public const double OrphanSeconds = 1d, EndedPredictionSeconds = 3d;
+    // The clock of the guesses (unscaled seconds); a test sets its own.
+    public Func<double> PredictionClock { get; set; }
+    private double PredictionNow => PredictionClock != null ? PredictionClock() : Time.unscaledTimeAsDouble;
+    private readonly Dictionary<(long, int), long> predictions = new Dictionary<(long, int), long>();
+    private readonly Dictionary<(long, int), double> endedPredictions = new Dictionary<(long, int), double>();
+    // The seed of the random numbers of a projectile that belongs to a cast: the same on the shooter's guess, the authority's object and every copy, whatever id the sync gave it.
+    internal static long CastSeed(long castKey, int index) => unchecked(castKey * 1000003L + index + 1L);
     private static readonly object NoWorld = new object();
     private readonly Dictionary<(PNProjectileDefinition, Scene), PoolEntry> pools = new Dictionary<(PNProjectileDefinition, Scene), PoolEntry>();
     private readonly Dictionary<long, Entry> entries = new Dictionary<long, Entry>();
@@ -139,13 +153,15 @@ public sealed class PNProjectileManager : MonoBehaviour
         var receipt = new PNProjectileReceipt();
         Submit(() => CreateNow(launch, spawn, receipt)); return receipt;
     }
+    // A guess is made only on a machine that is not the authority (the sync service says so when there is one; the session's role otherwise).
+    private bool GuessAllowed => objectSync != null ? !objectSync.IsAuthority : Session != null && !Session.HasAuthority;
     private void CreateNow(PNProjectileLaunch launch, PNProjectileSpawn spawn, PNProjectileReceipt receipt, long replicaId = 0)
     {
         bool replica = replicaId != 0;
         GameObject root = null; PoolEntry pool = null; long id = 0;
         try
         {
-            if (closing || !isActiveAndEnabled || Session == null || !Session.IsActive || !replica && !Session.HasAuthority) { receipt.Status = PNProjectileStatus.Rejected; return; }
+            if (closing || !isActiveAndEnabled || Session == null || !Session.IsActive || !replica && (launch == null || (launch.IsPrediction ? !GuessAllowed : !Session.HasAuthority))) { receipt.Status = PNProjectileStatus.Rejected; return; }
             if (launch == null || spawn == null || launch.IsReplica != replica || !replica && launch.Source.SessionId != Session.SessionId || !spawn.Scene.IsValid() || !spawn.Scene.isLoaded)
                 throw new ArgumentException("Projectile requires a launch from this session and a loaded scene.");
             var world = PNWorldGameplay.ForScene(Session, spawn.Scene);
@@ -165,14 +181,15 @@ public sealed class PNProjectileManager : MonoBehaviour
             id = ++sequence; var handle = new PNProjectileHandle(this, id);
             var entry = new Entry { Id = id, DefinitionId = Session.Registry.Instances().ResolveIdentity(launch.ProjectileId), Root = root, Instance = instance, Pool = pool, Scene = spawn.Scene, World = world, Lease = world?.AcquireLease("projectile") };
             entries.Add(id, entry); order.Add(entry);
+            if (launch.IsPrediction) { entry.Predicted = true; entry.SpawnHeading = spawn.Direction; entry.CreatedAt = PredictionNow; predictions[(launch.CastKey, spawn.CastIndex)] = id; }
             // The sync id is taken before the implementation starts so Random is seeded by it from the first line of Initialize (a copy takes the record's id).
-            long objectId = replica ? replicaId : objectSync != null && objectSync.IsAuthority ? objectSync.NextId() : 0L;
-            instance.Bind(this, handle, definition, launch, spawn, world, objectId); PNWorldPresentationRegistration.Register(world, root); root.SetActive(true);
+            long objectId = replica ? replicaId : objectSync != null && objectSync.IsAuthority && !launch.IsPrediction ? objectSync.NextId() : 0L;
+            instance.Bind(this, handle, definition, launch, spawn, world, launch.CastKey != 0 ? CastSeed(launch.CastKey, spawn.CastIndex) : objectId); PNWorldPresentationRegistration.Register(world, root); root.SetActive(true);
             if (!instance.isActiveAndEnabled) throw new InvalidOperationException("Selected projectile component must be active after initialization.");
             if (!instance.IsRunning) throw new InvalidOperationException("Projectile ended during initialization.");
             receipt.Handle = handle; receipt.Status = PNProjectileStatus.Created;
             if (replica) { entry.Replica = true; entry.ObjectId = replicaId; objectEntries[replicaId] = id; }
-            else RecordSpawn(entry, launch, spawn, objectId);
+            else if (!launch.IsPrediction) RecordSpawn(entry, launch, spawn, objectId);
         }
         catch (Exception error)
         {
@@ -196,7 +213,7 @@ public sealed class PNProjectileManager : MonoBehaviour
             var json = launch.Input; string input = json == null || json.Type == JTokenType.Null ? null : json.ToString(Formatting.None);
             if (input != null && input.Length > PNObjectSyncLimits.InputChars) { objectSync.NoteRefused(); return; }
             var record = PNObjectRecord.Spawn(PNObjectKind.Projectile, id, PNObjectWorld.Of(entry.World), entry.DefinitionId, input, Vec(spawn.Position), Vec(spawn.Direction),
-                spawn.Target != null ? spawn.Target.EntityId.Value : 0L, launch.SourceId.Value, 0L, null, 0, launch.SpeedFactor, launch.ScaleFactor, launch.LifetimeFactor, objectSync.Now, 0f, entry.Instance.LifeHint);
+                spawn.Target != null ? spawn.Target.EntityId.Value : 0L, launch.SourceId.Value, 0L, launch.CastKey != 0 ? launch.CastKey.ToString(System.Globalization.CultureInfo.InvariantCulture) : null, spawn.CastIndex, launch.SpeedFactor, launch.ScaleFactor, launch.LifetimeFactor, objectSync.Now, 0f, entry.Instance.LifeHint);
             entry.ObjectId = id; objectEntries[id] = entry.Id; MarkSent(entry);
             if (!objectSync.RecordSpawn(record)) { entry.ObjectId = 0; objectEntries.Remove(id); }
         }
@@ -256,8 +273,12 @@ public sealed class PNProjectileManager : MonoBehaviour
             JToken input = record.Input == null ? null : JToken.Parse(record.Input);
             PNStat target = null;
             if (record.Target != 0 && Session.Entities.TryGet(new EveEntityId(record.Target), out var loader)) target = loader.GetComponent<PNStat>();
+            long castKey = 0; if (record.CastKey != null) long.TryParse(record.CastKey, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out castKey);
+            // The shooter's own guess of this projectile takes the record over (no second copy); one that already ended swallows it.
+            if (castKey != 0 && TryAdopt(record, castKey, target)) { receipt.Status = PNProjectileStatus.Created; return; }
             var launch = PNProjectileLaunch.Replica(record.DefinitionId, input, record.Owner != 0 ? new EveEntityId(record.Owner) : default, record.Speed, record.Scale, record.Lifetime);
-            var spawn = new PNProjectileSpawn(world.PhysicsOwner, new Vector3(record.Position.X, record.Position.Y, record.Position.Z), new Vector3(record.Direction.X, record.Direction.Y, record.Direction.Z), target);
+            if (castKey != 0) launch = launch.WithCast(castKey, false);
+            var spawn = new PNProjectileSpawn(world.PhysicsOwner, new Vector3(record.Position.X, record.Position.Y, record.Position.Z), new Vector3(record.Direction.X, record.Direction.Y, record.Direction.Z), target, record.CastIndex);
             CreateNow(launch, spawn, receipt, record.Id);
             // `elapsed` is the record's age plus the delay since its stamp; the record's position is where the object was at the stamp, so only the delay is flown.
             if (receipt.Status == PNProjectileStatus.Created && entries.TryGetValue(receipt.Handle.InstanceId, out var made) && made.Instance != null)
@@ -267,6 +288,47 @@ public sealed class PNProjectileManager : MonoBehaviour
             }
         }
         catch (Exception error) { receipt.Error = error; receipt.Status = PNProjectileStatus.Failed; }
+    }
+    // EN: The record of a projectile this machine's shooter already guessed. The guess becomes the copy: it takes the record's id (so End and Retarget find it), keeps its place (it is ahead of the real one by
+    //     the trip of the input, which is the point of a guess) and is corrected only in space: a heading that left the record's by more than a few degrees is turned by the difference, a different target is set.
+    // VI: Ban ghi cua vien ma nguoi ban da doan. Vien doan thanh ban hinh: nhan id cua ban ghi, giu cho cua no va chi sua theo khong gian.
+    private bool TryAdopt(PNObjectRecord record, long castKey, PNStat target)
+    {
+        var key = (castKey, record.CastIndex);
+        if (predictions.TryGetValue(key, out var handleId) && entries.TryGetValue(handleId, out var entry) && entry.Instance != null && entry.Instance.IsRunning && !entry.Adopted)
+        {
+            entry.Adopted = true; entry.Replica = true; entry.ObjectId = record.Id; objectEntries[record.Id] = entry.Id; predictions.Remove(key);
+            var instance = entry.Instance; var real = new Vector3(record.Direction.X, record.Direction.Y, record.Direction.Z);
+            if (real.sqrMagnitude > 1e-12f && entry.SpawnHeading.sqrMagnitude > 1e-12f)
+            {
+                var turn = Quaternion.FromToRotation(entry.SpawnHeading, real.normalized);
+                if (Quaternion.Angle(Quaternion.identity, turn) > 3f) { instance.ApplyCorrection(instance.Position, turn * instance.Forward, target); return true; }
+            }
+            if (target != null && instance.TargetEntityValue != target.EntityId.Value) instance.SetTarget(target);
+            return true;
+        }
+        return endedPredictions.Remove(key);
+    }
+    // The cast was refused (or taken back): its guessed projectiles go.
+    public void DiscardPredicted(long castKey)
+    {
+        if (castKey == 0) return;
+        foreach (var entry in entries.Values.ToArray())
+            if (entry.Predicted && !entry.Adopted && entry.Instance != null && entry.Instance.Launch != null && entry.Instance.Launch.CastKey == castKey) End(new PNProjectileHandle(this, entry.Id));
+        foreach (var key in endedPredictions.Keys.Where(x => x.Item1 == castKey).ToArray()) endedPredictions.Remove(key);
+    }
+    // EN: A hit the shooter's machine reported (plan 4.4a): finds the authority's projectile named by the cast key and the index, and lets it take the hit. False when there is none (ended, stale, not this machine's).
+    // VI: Cu trung may nguoi ban bao: tim vien that theo cast key + so thu tu va de no nhan. False khi khong co.
+    public bool AcceptReportedHit(long castKey, int index, PNStat target, float tolerance)
+    {
+        if (castKey == 0 || target == null || Session == null || !Session.HasAuthority) return false;
+        foreach (var entry in entries.Values)
+        {
+            var instance = entry.Instance;
+            if (entry.Predicted || entry.Replica || instance == null || !instance.IsRunning || instance.Launch == null || instance.Launch.CastKey != castKey || instance.CastIndex != index) continue;
+            return instance.TakeReportedHit(target, tolerance);
+        }
+        return false;
     }
     // The sink and the source the service talks to: copies on a client, live state for the baseline on the authority.
     private sealed class ObjectBridge : IPNObjectSyncSink, IPNObjectSyncSource
@@ -280,6 +342,8 @@ public sealed class PNProjectileManager : MonoBehaviour
             if (!owner.objectEntries.TryGetValue(retarget.Id, out var handleId) || !owner.entries.TryGetValue(handleId, out var entry) || entry.Instance == null) return;
             PNStat target = null;
             if (retarget.Target != 0 && owner.Session != null && owner.Session.Entities.TryGet(new EveEntityId(retarget.Target), out var loader)) target = loader.GetComponent<PNStat>();
+            // The shooter's own guess is ahead of the real object in time: a record's place would pull it back, so it only follows a change of target.
+            if (entry.Adopted) { if (target != null && entry.Instance.TargetEntityValue != target.EntityId.Value) entry.Instance.SetTarget(target); return; }
             entry.Instance.ApplyCorrection(new Vector3(retarget.Position.X, retarget.Position.Y, retarget.Position.Z), new Vector3(retarget.Direction.X, retarget.Direction.Y, retarget.Direction.Z), target);
             // The record's place is where the object was at its stamp: the copy flies the delay since then, or it would trail the real object by the latency every time it is corrected.
             double delay = owner.objectSync == null ? 0d : Math.Min(PNObjectSyncLimits.MaxCatchUpSeconds, Math.Max(0d, owner.objectSync.Now - retarget.Stamp));
@@ -374,6 +438,7 @@ public sealed class PNProjectileManager : MonoBehaviour
         if (closing) return;
         if (Session == null || !Session.IsActive) { Shutdown(); return; }
         if (objectSync != null) { if (objectSync.IsAuthority) objectSync.Flush(); else objectSync.Tick(); }
+        if (endedPredictions.Count != 0) { double now = PredictionNow; foreach (var key in endedPredictions.Where(x => x.Value < now).Select(x => x.Key).ToArray()) endedPredictions.Remove(key); }
         Submit(() =>
         {
             if (compactNeeded) { order.RemoveAll(x => x.Removed); compactNeeded = false; }
@@ -386,6 +451,7 @@ public sealed class PNProjectileManager : MonoBehaviour
                 try
                 {
                     if (entry.Instance == null) { Return(entry); continue; }
+                    if (entry.Predicted && !entry.Adopted && PredictionNow - entry.CreatedAt > OrphanSeconds) { End(new PNProjectileHandle(this, entry.Id)); continue; }
                     if (entry.World != null && !entry.World.CanExecute) continue;
                     if (!entry.Instance.IsRunning) { Return(entry); continue; }
                     if (!entry.Instance.isActiveAndEnabled) { End(new PNProjectileHandle(this, entry.Id), PNProjectileEndReason.Disabled); continue; }
@@ -408,6 +474,14 @@ public sealed class PNProjectileManager : MonoBehaviour
     {
         try { if (entry.Instance != null) entry.Instance.Stop(reason); } catch (Exception error) { if (entry.Instance != null) entry.Instance.CleanupFailed = true; Debug.LogException(error, this); }
         try { NotifyEnded(entry, reason); } catch (Exception error) { Debug.LogException(error, this); }
+        if (entry.Predicted && entry.Instance != null) PredictionEnded(entry);
+    }
+    private void PredictionEnded(Entry entry)
+    {
+        var key = (entry.Instance.Launch?.CastKey ?? 0L, entry.Instance.CastIndex);
+        if (predictions.TryGetValue(key, out var id) && id == entry.Id) predictions.Remove(key);
+        // A guess that ended before its record came is remembered, so the record is taken as already shown.
+        if (!entry.Adopted && key.Item1 != 0) endedPredictions[key] = PredictionNow + EndedPredictionSeconds;
     }
     private void Return(Entry entry)
     {
@@ -459,7 +533,7 @@ public sealed class PNProjectileManager : MonoBehaviour
         }
         // Required gameplay failures retain entries/pools/session and block the next play.
         if (errors.Count != 0) throw new AggregateException("Projectile gameplay cleanup failed.", errors);
-        order.Clear(); compactNeeded = false; Targets.Clear(); objectEntries.Clear();
+        order.Clear(); compactNeeded = false; Targets.Clear(); objectEntries.Clear(); predictions.Clear(); endedPredictions.Clear();
         foreach (var resource in pendingResources.ToArray())
         {
             try { resource.DisposePooledResources(); pendingResources.Remove(resource); }

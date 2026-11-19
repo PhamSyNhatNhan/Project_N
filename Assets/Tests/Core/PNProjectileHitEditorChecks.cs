@@ -231,7 +231,10 @@ public static class PNProjectileHitEditorChecks
             // Movement is a Rigidbody velocity set by Drive once per physics step; Edit Mode has no physics step, so the fixture integrates the velocity itself.
             var petABody = petAObject.GetComponent<Rigidbody>();
             Check(petABody != null && !petABody.useGravity && !petABody.isKinematic && petABody.interpolation == RigidbodyInterpolation.Interpolate, "the pet moves by a Rigidbody velocity (no gravity, interpolated)");
-            void PetStep(float seconds) { for (int s = 0; s < Mathf.RoundToInt(seconds / .02f); s++) { petA.GetComponent<PNBehaviorSkill>().Advance(.02f); petA.Drive(.02f); petABody.position += petABody.linearVelocity * .02f; petAObject.transform.position = petABody.position; } }
+            // The pet's planar motion goes through PNMove (its FixedUpdate turns the move direction into the body's velocity); Edit Mode has no physics step, so the fixture calls it.
+            var moveStep = typeof(PNMove).GetMethod("FixedUpdate", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic); var petMove = petAObject.GetComponent<PNMove>();
+            void stepMove() { if (petMove != null && petMove.IsReady) moveStep.Invoke(petMove, null); }
+            void PetStep(float seconds) { for (int s = 0; s < Mathf.RoundToInt(seconds / .02f); s++) { petA.GetComponent<PNBehaviorSkill>().Advance(.02f); petA.Drive(.02f); stepMove(); petABody.position += petABody.linearVelocity * .02f; petAObject.transform.position = petABody.position; } }
             PetStep(.5f); PetStep(.5f);
             double distance1 = Vector3.Distance(petAObject.transform.position, petSpot);
             Check(petA.Settings != null && distance1 < distance0 && distance1 > 0d, "the pet closes on its hover spot behind and above the owner (" + distance0.ToString("0.00") + " -> " + distance1.ToString("0.00") + ")");

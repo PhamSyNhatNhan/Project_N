@@ -33,6 +33,26 @@ public sealed class PNProjectileLaunch
     // How the projectile picks a target on its own (homing): the shooter's rule at launch (the local player's Settings mode, Nearest for a
     // remote player, Aggro for enemies and system sources). default = Autotarget / Nearest.
     public PNTargetRule TargetRule { get; }
+    // EN: The cast that made this volley (0 = none) and how the shooter's machine takes part (spawned-object sync O4, plan 4.4a). A prediction is the shooter's own guess of the volley: it deals no damage,
+    //     reports the hits it sees through ReportSink, and is matched with the authority's real projectile by (CastKey, index). ShooterDecides marks the authority's real projectile of a shooter who predicts:
+    //     it finds no target contacts itself (walls it still finds) and takes the shooter's reported hits instead.
+    // VI: Cast tao ra loat dan (0 = khong) va cach may nguoi ban tham gia (O4, plan 4.4a). Vien doan khong gay sat thuong, bao trung len, ghep voi vien that theo (CastKey, so thu tu); ShooterDecides: vien that cua nguoi ban co doan chi nhan cu trung nguoi ban bao.
+    public long CastKey { get; private set; }
+    public bool IsPrediction { get; private set; }
+    public bool ShooterDecides { get; private set; }
+    public IPNSkillReportSink ReportSink { get; private set; }
+    // The launch of the shooter's guess: same source and layers, never damage or an OnHit plan (the caller builds it without them).
+    public PNProjectileLaunch AsPrediction(long castKey, IPNSkillReportSink sink)
+    {
+        if (castKey <= 0) throw new ArgumentOutOfRangeException(nameof(castKey));
+        if (Damage != null || HitPlan != null) throw new InvalidOperationException("A prediction carries no damage or OnHit plan.");
+        var copy = (PNProjectileLaunch)MemberwiseClone(); copy.CastKey = castKey; copy.IsPrediction = true; copy.ReportSink = sink; return copy;
+    }
+    // The launch of a real cast, named by its key (records carry it so the shooter's machine can match its guess); `shooterDecides` when that shooter's machine predicts.
+    public PNProjectileLaunch WithCast(long castKey, bool shooterDecides)
+    {
+        var copy = (PNProjectileLaunch)MemberwiseClone(); copy.CastKey = castKey; copy.ShooterDecides = shooterDecides && castKey > 0; return copy;
+    }
     public PNProjectileLaunch(EveId projectileId, JToken input, PNCombatSource source, PNTargetLayers targetLayers, PNPreparedDamage damage = null, PNSkillHitSnapshot hitPlan = null,
         double speedFactor = 1d, double scaleFactor = 1d, double lifetimeFactor = 1d, PNTargetRule targetRule = default)
     {

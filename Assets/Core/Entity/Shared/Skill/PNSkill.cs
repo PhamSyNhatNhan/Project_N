@@ -83,7 +83,15 @@ public partial class PNSkill : EveSkill, EveIEntityLoadPreparation, EveIEntityCo
         {
             if (ReferenceEquals(CurrentInvocation, invocation) && !invocation.IsEnded && !TryInterrupt(EveId.Parse("project_n:prediction_refused"))) CancelCast(PNCastEnd.Interrupted);
         }
-        finally { invocation.PredictionScope?.Rollback(); }
+        finally
+        {
+            invocation.PredictionScope?.Rollback();
+            // The projectiles this guess made go with it (spawned-object sync, plan 4.4a).
+#if UNITY_5_3_OR_NEWER
+            if (invocation.CastKey > 0 && EveRegistrySession.IsReady)
+                try { PNProjectileManager.Resolve(EveRegistrySession.Context, gameObject.scene).DiscardPredicted(invocation.CastKey); } catch (InvalidOperationException) { }
+#endif
+        }
     }
     // G1: a cast that runs on a machine without authority, as a guess (Predicted) or a replay for its pictures (Observed). It is never committed: no activation serial, no OnActivated.
     // One invocation per skill at a time; end it with EndNonAuthorityInvocation. Nothing in Eve uses this yet (G6/G8 will).

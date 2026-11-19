@@ -37,7 +37,9 @@ public sealed class PNStarreaperRainOperation : PNSkillOperation
     public override void Execute(PNSkillActionContext context, JToken token)
     {
         if (executed || context == null || !context.Skill.IsReady || !context.Position.HasValue) throw new InvalidOperationException("Fresh Ready position context required.");
-        PNStarreaperCombatContent.ValidateRainInput(token); executed = true;
+        executed = true;
+        if (context.Mode != PNSkillMode.Authority) return; // blasts are the authority's (a guess or a replay makes none)
+        PNStarreaperCombatContent.ValidateRainInput(token);
         var input = (JObject)token; var caster = context.Skill.GetComponent<PNStat>();
         var scene = caster.gameObject.scene; var manager = PNBlastManager.Resolve(EveRegistrySession.Context, scene);
         if (!ReferenceEquals(manager.Session.Registry, context.Registry)) throw new InvalidOperationException("Rain session mismatch.");

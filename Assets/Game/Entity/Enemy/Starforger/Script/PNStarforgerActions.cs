@@ -175,6 +175,7 @@ public sealed class PNStarforgerSlamHitOperation : PNSkillOperation
     public override void Execute(PNSkillActionContext c, JToken data)
     {
         if (executed) throw new InvalidOperationException("Slam already spent"); executed = true;
+        if (c.Mode != PNSkillMode.Authority) return; // the hitbox is the authority's
         if (hitbox == null) throw new InvalidOperationException("Slam needs the Action's hitbox.");
         var center = c.Position.Value;
         hitbox.Open(EveHitboxShape.Cylinder(radius, height * 2f), center, radius, 0, null, target => target.IsReady && !target.IsDead && PNWorldGameplay.CanTarget(c.Skill, target));

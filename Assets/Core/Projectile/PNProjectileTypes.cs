@@ -14,13 +14,16 @@ public sealed class PNProjectileSpawn
     public Vector3 Direction { get; }
     // Optional initial target (homing); validated whenever it is used.
     public PNStat Target { get; }
-    public PNProjectileSpawn(Scene scene, Vector3 position, Vector3 direction, PNStat target = null)
+    // Index of this projectile in its volley (with the launch's CastKey it names the projectile on every machine).
+    public int CastIndex { get; }
+    public PNProjectileSpawn(Scene scene, Vector3 position, Vector3 direction, PNStat target = null, int castIndex = 0)
     {
         if (!Finite(position)) throw new ArgumentException("Finite projectile position required.", nameof(position));
         if (!Finite(direction)) throw new ArgumentException("Finite projectile direction required.", nameof(direction));
         float length = direction.magnitude;
         if (length < 1e-6f) throw new ArgumentException("Projectile direction cannot be zero.", nameof(direction));
-        Scene = scene; Position = position; Direction = direction / length; Target = target;
+        if (castIndex < 0 || castIndex > 255) throw new ArgumentOutOfRangeException(nameof(castIndex));
+        Scene = scene; Position = position; Direction = direction / length; Target = target; CastIndex = castIndex;
     }
     internal static bool Finite(Vector3 v) => !float.IsNaN(v.x) && !float.IsInfinity(v.x) && !float.IsNaN(v.y) && !float.IsInfinity(v.y) && !float.IsNaN(v.z) && !float.IsInfinity(v.z);
 }
