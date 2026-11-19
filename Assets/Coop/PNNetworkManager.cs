@@ -43,7 +43,7 @@ namespace ProjectN.Coop
             InitializeMove();
             InitializeWorldReplication();
             InitializeSync();
-            InitializeObjectSync();
+            InitializeObjectSync();InitializeCombatEvents();
             InitializeActions();
             if(Transfers==null)throw new InvalidOperationException("World transfer service is not attached.");
             Transfers.Transport=this;
@@ -60,7 +60,7 @@ namespace ProjectN.Coop
             }
             // Keep adapter services reachable if binding cleanup needs a retry.
             if(errors.Count!=0)throw new AggregateException("Binding cleanup failed.",errors);
-            DisposeActions();DisposeObjectSync();DisposeSync();DisposeWorldReplication();DisposeBuff();DisposeMove();
+            DisposeActions();DisposeObjectSync();DisposeCombatEvents();DisposeSync();DisposeWorldReplication();DisposeBuff();DisposeMove();
             foreach(var value in initialStates)if(inbox.Contains(value.Key,value.Value.Token))inbox.Release(value.Key,value.Value.Token);
             initialStates.Clear();peerFences.Clear();clientFence.Clear();stateAdapters.Clear();subscribedSession=null;
         }
@@ -100,7 +100,7 @@ namespace ProjectN.Coop
         {
             if(stopping||!IsPlaying)return;
             if(fatalSerialization){StopSession();return;}
-            try{PumpMove();PumpBuff();PumpActions();MeasureActionPresentation();PumpSync();PumpObjectSync();}catch(Exception error){ProtocolFailure(error,NetworkServer.active);return;}
+            try{PumpMove();PumpBuff();PumpActions();MeasureActionPresentation();PumpSync();PumpObjectSync();PumpCombatEvents();}catch(Exception error){ProtocolFailure(error,NetworkServer.active);return;}
             if(!NetworkServer.active)return;
             try
             {
@@ -229,6 +229,7 @@ namespace ProjectN.Coop
             NetworkClient.RegisterHandler<PNStateFence>(ReceiveFence);
             NetworkClient.RegisterHandler<PNSyncStateMessage>(ReceiveSyncState);
             NetworkClient.RegisterHandler<PNObjectPacket>(ReceiveObjectPacket);
+            NetworkClient.RegisterHandler<PNCombatPacket>(ReceiveCombatPacket);
             RegisterLobbyClient();
         }
         public static GameObject CreateShell<T>(string name) where T:NetworkBehaviour

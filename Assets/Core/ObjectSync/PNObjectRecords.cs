@@ -59,7 +59,7 @@ public readonly struct PNObjectVector
 // One record. `Type` says which fields count:
 //   Spawn: Kind, Id, World, DefinitionId, Input, Position, Direction, Target, Owner, Follow, CastKey/CastIndex, Speed/Scale/Lifetime factors, Stamp, Age, LifeHint.
 //   Retarget: Kind, Id, World, Target, Position, Direction, Stamp (the position and heading correct the drift once).
-//   End: Kind, Id, World, Reason, Position.
+//   End: Kind, Id, World, Reason, Position (the impact point), Direction (the impact normal, zero = unknown), Target (entity hit, 0 = none).
 // Ids are numbers the authority gives out, unique in one play; entity ids are the host entity ids (0 = none). Stamp is the host's unscaled clock, Age the object's own progress
 // in seconds at that stamp (0 for a new object, more for a baseline), LifeHint the seconds the object is expected to live (0 = unknown).
 public sealed class PNObjectRecord
@@ -103,9 +103,10 @@ public sealed class PNObjectRecord
         var record = new PNObjectRecord { Type = PNObjectRecordType.Retarget, Kind = kind, Id = id, World = world, Target = target, Position = position, Direction = direction, Stamp = stamp };
         record.Require(); return record;
     }
-    public static PNObjectRecord End(PNObjectKind kind, long id, PNObjectWorld world, byte reason, PNObjectVector position)
+    // Position is where it ended (the impact point when there was one), Direction the surface normal at the impact (zero = unknown), Target the entity it hit (0 = none).
+    public static PNObjectRecord End(PNObjectKind kind, long id, PNObjectWorld world, byte reason, PNObjectVector position, PNObjectVector normal = default, long target = 0)
     {
-        var record = new PNObjectRecord { Type = PNObjectRecordType.End, Kind = kind, Id = id, World = world, Reason = reason, Position = position };
+        var record = new PNObjectRecord { Type = PNObjectRecordType.End, Kind = kind, Id = id, World = world, Reason = reason, Position = position, Direction = normal, Target = target };
         record.Require(); return record;
     }
 
@@ -118,7 +119,7 @@ public sealed class PNObjectRecord
 
     // Rough size on a compact wire, for the packet budget and the measurements of O6.
     public int EstimatedBytes => Type == PNObjectRecordType.Spawn ? 96 + (Input?.Length ?? 0) + (CastKey?.Length ?? 0) + DefinitionId.ToString().Length
-        : Type == PNObjectRecordType.Retarget ? 56 : 32;
+        : Type == PNObjectRecordType.Retarget ? 56 : 52;
 
     public bool TryValidate(out string error)
     {
@@ -133,8 +134,8 @@ public sealed class PNObjectRecord
         if (Id <= 0) throw new FormatException("An object id is a positive number.");
         if (!World.IsValid) throw new FormatException("An object record names its world.");
         if (!Position.IsFinite) throw new FormatException("Object position must be finite and within range.");
-        if (Type == PNObjectRecordType.End) return;
         if (!Direction.IsFinite) throw new FormatException("Object direction must be finite and within range.");
+        if (Type == PNObjectRecordType.End) return;
         if (Type == PNObjectRecordType.Retarget) { Finite(Stamp, "stamp"); return; }
         if (!DefinitionId.IsValid) throw new FormatException("A spawn record names a definition.");
         if (Direction.SqrLength < 1e-8f) throw new FormatException("A spawn direction cannot be zero.");

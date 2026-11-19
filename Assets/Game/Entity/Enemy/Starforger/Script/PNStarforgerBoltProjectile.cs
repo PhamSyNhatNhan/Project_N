@@ -8,33 +8,17 @@ using UnityEngine.SceneManagement;
 // All movement, prepared damage and admission rules remain in the directional implementation.
 public sealed class PNStarforgerBoltProjectile : PNDirectionalProjectile
 {
-    private PNStarforgerBoltVisual visual;private bool wallContact;private Vector3 wallPoint;
-    private readonly List<PNProjectileContact> single=new List<PNProjectileContact>(1);
+    private PNStarforgerBoltVisual visual;
     public override void OnPoolCreated(){base.OnPoolCreated();visual=PNStarforgerBoltVisual.Create(this);}
-    protected override void Initialize(PNProjectileSpawn spawn){base.Initialize(spawn);wallContact=false;visual?.Begin((float)Launch.ScaleFactor);}
-    protected override void OnTargets(IReadOnlyList<PNProjectileContact> targets)
+    protected override void Initialize(PNProjectileSpawn spawn){base.Initialize(spawn);visual?.Begin((float)Launch.ScaleFactor);}
+    // The contact burst belongs to the impact, so the real bolt, the shooter's guess and a copy on another machine all show it (plan 4.4b).
+    protected override void OnImpact(PNImpact impact)
     {
-        for(int i=0;i<targets.Count&&IsRunning;i++)
-        {
-            var scene=gameObject.scene;var world=World;float size=(float)Launch.ScaleFactor;int before=HitCount;
-            single.Clear();single.Add(targets[i]);base.OnTargets(single);
-            if(HitCount>before)PNStarforgerBoltImpact.Create(scene,world,targets[i].Point,size);
-        }
-        single.Clear();
+        if(impact.Kind!=PNImpactKind.Target&&impact.Kind!=PNImpactKind.Wall)return;
+        PNStarforgerBoltImpact.Create(gameObject.scene,World,impact.Point,(float)Launch.ScaleFactor);
+        base.OnImpact(impact);
     }
-    protected override void OnContacts(PNProjectileContacts contacts)
-    {
-        if(contacts.HasEnvironment){wallContact=true;wallPoint=contacts.Environment.Point;}
-        base.OnContacts(contacts);
-    }
-    protected override void OnEnd(PNProjectileEndReason reason)
-    {
-        // End is queued by the manager; the reason becomes authoritative here,
-        // before pool return clears Launch/World/EndReason.
-        if(reason==PNProjectileEndReason.Environment&&wallContact)PNStarforgerBoltImpact.Create(gameObject.scene,World,wallPoint,(float)Launch.ScaleFactor);
-        base.OnEnd(reason);
-    }
-    protected override void Cleanup(){try{visual?.End();single.Clear();}finally{base.Cleanup();}}
+    protected override void Cleanup(){try{visual?.End();}finally{base.Cleanup();}}
     public override void DisposePooledResources(){visual?.Dispose();visual=null;base.DisposePooledResources();}
 }
 

@@ -50,6 +50,13 @@ public sealed class PNProjectileManager : MonoBehaviour
     public int AdoptTurns { get; private set; }
     public int AdoptTargetChanges { get; private set; }
     public int AdoptFactorFixes { get; private set; }
+    // Impacts told to OnImpact on this machine, by where the projectile came from (plan 4.4b evidence).
+    public int ImpactsReal { get; private set; }
+    public int ImpactsGuess { get; private set; }
+    public int ImpactsCopy { get; private set; }
+    private readonly int[] impactKinds = new int[4];
+    public int ImpactsOfKind(PNImpactKind kind) => impactKinds[(int)kind];
+    internal void NoteImpact(PNImpactOrigin origin, PNImpactKind kind) { impactKinds[(int)kind]++; if (origin == PNImpactOrigin.Real) ImpactsReal++; else if (origin == PNImpactOrigin.Guess) ImpactsGuess++; else ImpactsCopy++; }
     private readonly Dictionary<(long, int), long> predictions = new Dictionary<(long, int), long>();
     private readonly Dictionary<(long, int), double> endedPredictions = new Dictionary<(long, int), double>();
     // The seed of the random numbers of a projectile that belongs to a cast: the same on the shooter's guess, the authority's object and every copy, whatever id the sync gave it.
@@ -255,7 +262,10 @@ public sealed class PNProjectileManager : MonoBehaviour
         if (entry.ObjectId == 0 || objectSync == null) return;
         long id = entry.ObjectId; entry.ObjectId = 0; objectEntries.Remove(id);
         if (entry.Replica) { objectSync.ReplicaEnded(id); return; }
-        try { objectSync.RecordEnd(PNObjectRecord.End(PNObjectKind.Projectile, id, PNObjectWorld.Of(entry.World), (byte)reason, Vec(entry.Instance != null ? entry.Instance.Position : default))); }
+        // Where it ended: the impact point when it had one, with the surface normal and the entity hit, so a copy can draw the same impact.
+        Vector3 at = default, normal = default; long hit = 0; bool known = entry.Instance != null && entry.Instance.TryGetEndImpact(out at, out normal, out hit);
+        if (!known) { at = entry.Instance != null ? entry.Instance.Position : default; normal = default; hit = 0; }
+        try { objectSync.RecordEnd(PNObjectRecord.End(PNObjectKind.Projectile, id, PNObjectWorld.Of(entry.World), (byte)reason, Vec(at), Vec(normal), hit)); }
         catch (FormatException) { objectSync.NoteRefused(); }
     }
     // EN: Builds a view-only copy of a projectile from a Spawn record and lives `elapsed` seconds of its life at once. The copy deals no damage and ends only when told to or at its own lifetime.
@@ -361,6 +371,9 @@ public sealed class PNProjectileManager : MonoBehaviour
         {
             if (!owner.objectEntries.TryGetValue(end.Id, out var handleId)) return;
             var reason = Enum.IsDefined(typeof(PNProjectileEndReason), (int)end.Reason) ? (PNProjectileEndReason)end.Reason : PNProjectileEndReason.Requested;
+            // The record's account of the impact goes to the copy (or the guess it closes) before it stops, so its OnImpact sees where, against what.
+            if (owner.entries.TryGetValue(handleId, out var closing) && closing.Instance != null)
+                closing.Instance.NoteEndHint(new Vector3(end.Position.X, end.Position.Y, end.Position.Z), new Vector3(end.Direction.X, end.Direction.Y, end.Direction.Z), end.Target);
             owner.End(new PNProjectileHandle(owner, handleId), reason);
         }
         public bool TryCapture(long id, out PNObjectVector position, out PNObjectVector direction, out long target, out float age)
@@ -446,6 +459,7 @@ public sealed class PNProjectileManager : MonoBehaviour
         if (closing) return;
         if (Session == null || !Session.IsActive) { Shutdown(); return; }
         if (objectSync != null) { if (objectSync.IsAuthority) objectSync.Flush(); else objectSync.Tick(); }
+        PNCombatEvents.Expire(PNCombatEvents.Clock());
         if (endedPredictions.Count != 0) { double now = PredictionNow; foreach (var key in endedPredictions.Where(x => x.Value < now).Select(x => x.Key).ToArray()) endedPredictions.Remove(key); }
         Submit(() =>
         {

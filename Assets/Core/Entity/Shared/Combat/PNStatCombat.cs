@@ -114,7 +114,13 @@ public partial class PNStat
         if (damage.SessionId != SessionId) throw new ArgumentException("Damage belongs to another session.", nameof(damage));
         if (!HasHealth) return new PNDamageResult(damage, EntityId, 0d, 0d, 0d, ignored: true);
         if (BeforeDamage != null && damage.Amount > 0d && GetCurrent(PNContentIds.Health) > 0d && BlockedByListener(damage))
-            return new PNDamageResult(damage, EntityId, 0d, 0d, 0d, ignored: true);
+        {
+            var blocked = new PNDamageResult(damage, EntityId, 0d, 0d, 0d, ignored: true);
+#if UNITY_5_3_OR_NEWER
+            PublishCombatEvent(blocked, PNCombatEventKind.Blocked);
+#endif
+            return blocked;
+        }
         var damageType = stats.ResolveDamageType(damage.Tags);
         double iframeBefore = IFrameRemaining;
         double duration = damage.IFrameDuration ?? DefaultIFrameDuration;
@@ -147,6 +153,9 @@ public partial class PNStat
         try { using (EveHotPathMetrics.Measure("combat.damage-popup")) ShowDamagePopup(result); } catch (Exception error) { Debug.LogException(error, this); }
 #endif
         NotifyCombat(OnDamageReceived, result);
+#if UNITY_5_3_OR_NEWER
+        PublishCombatEvent(result, PNCombatEventKind.Damage);
+#endif
         if (result.Killed) NotifyCombat(OnDied, result);
         return result;
     

@@ -59,7 +59,7 @@ namespace ProjectN.Coop
                     w.WriteLong(record.Target); w.WriteLong(record.Owner); w.WriteLong(record.Follow); Text(w, record.CastKey, PNObjectSyncLimits.CastKeyChars); w.WriteByte((byte)record.CastIndex);
                     w.WriteDouble(record.Speed); w.WriteDouble(record.Scale); w.WriteDouble(record.Lifetime); w.WriteDouble(record.Stamp); w.WriteFloat(record.Age); w.WriteFloat(record.LifeHint); break;
                 case PNObjectRecordType.Retarget: w.WriteLong(record.Target); Put(w, record.Position); Put(w, record.Direction); w.WriteDouble(record.Stamp); break;
-                case PNObjectRecordType.End: w.WriteByte(record.Reason); Put(w, record.Position); break;
+                case PNObjectRecordType.End: w.WriteByte(record.Reason); Put(w, record.Position); Put(w, record.Direction); w.WriteLong(record.Target); break;
                 default: throw new FormatException("Object record type.");
             }
         }
@@ -77,7 +77,7 @@ namespace ProjectN.Coop
                     return PNObjectRecord.Spawn(kind, id, world, definition, input, position, direction, target, owner, follow, castKey, castIndex, speed, scale, lifetime, stamp, age, lifeHint);
                 }
                 case PNObjectRecordType.Retarget: { long target = r.ReadLong(); var position = Take(r); var direction = Take(r); return PNObjectRecord.Retarget(kind, id, world, target, position, direction, r.ReadDouble()); }
-                case PNObjectRecordType.End: { byte reason = r.ReadByte(); return PNObjectRecord.End(kind, id, world, reason, Take(r)); }
+                case PNObjectRecordType.End: { byte reason = r.ReadByte(); var at = Take(r); var normal = Take(r); return PNObjectRecord.End(kind, id, world, reason, at, normal, r.ReadLong()); }
                 default: throw new FormatException("Object record type.");
             }
         }

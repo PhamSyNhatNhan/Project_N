@@ -38,6 +38,9 @@ public partial class PNStat
         var result = new PNHealResult(heal, EntityId, calculated, before, after, status);
         if (after != before) SetCurrent(PNContentIds.Health, after);
         OnHealReceived(result);
+#if UNITY_5_3_OR_NEWER
+        PublishHealEvent(result);
+#endif
         return result;
     }
 

@@ -53,8 +53,17 @@ public sealed class PNDamage
     public bool IsCritical { get; }
     public double CritRate { get; }
     public double CritDamage { get; }
-    public double? IFrameDuration { get; }
+    public double? IFrameDuration { get; private set; }
     public IReadOnlyList<EveStatModifier> Penetration { get; }
+    // EN: Where and under what name the hit landed, when its carrier knows (a projectile: cast key, index and hit index). Only presentation reads them (the combat event); they never change the amount.
+    // VI: Cu trung roi o dau va mang ten gi, khi vat mang biet. Chi trinh bay doc; khong doi luong sat thuong.
+    public string HitKey { get; private set; }
+    public bool HasHitPoint { get; private set; }
+    public float HitX { get; private set; }
+    public float HitY { get; private set; }
+    public float HitZ { get; private set; }
+    public PNDamage WithHit(string hitKey, float x, float y, float z)
+    { var copy = (PNDamage)MemberwiseClone(); copy.HitKey = string.IsNullOrEmpty(hitKey) ? null : hitKey; copy.HasHitPoint = true; copy.HitX = x; copy.HitY = y; copy.HitZ = z; return copy; }
 
     public PNDamage(Guid sessionId, EveEntityId sourceId, double amount, IEnumerable<EveId> tags,
         bool canCrit = false, bool isCritical = false, double critRate = 0d, double critDamage = 150d)
@@ -98,7 +107,10 @@ public sealed class PNDamage
     internal static readonly IReadOnlyList<EveStatModifier> NoPenetration = Array.AsReadOnly(new EveStatModifier[0]);
 
     public PNDamage WithIFrameDuration(double? duration)
-        => new PNDamage(SessionId, SourceId, Amount, preparedTags, duration, CanCrit, IsCritical, CritRate, CritDamage, Penetration);
+    {
+        if (duration.HasValue && (double.IsNaN(duration.Value) || double.IsInfinity(duration.Value))) throw new ArgumentOutOfRangeException(nameof(duration));
+        var copy = (PNDamage)MemberwiseClone(); copy.IFrameDuration = duration; return copy;
+    }
 
     // EN: Copy carrying the given penetration-route modifiers (stored as an immutable copy). Packets from the public constructors carry none.
     // VI: Bản sao mang các modifier đường penetration cho trước (lưu bản sao bất biến). Gói tạo từ constructor public không mang gì.

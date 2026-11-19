@@ -77,6 +77,31 @@ public readonly struct PNProjectileContact
     public PNProjectileContact(PNStat target, Vector3 point, Vector3 normal, float fraction) { Target = target; Point = point; Normal = normal; Fraction = fraction; }
 }
 
+// EN: What an impact is (plan 4.4b). Target: the projectile hit something that can be hurt. Wall: it ended against the environment. Expired: it ran out its life. Cancelled: another system ended it (a clear, a shield).
+//     Teardown ends (world, scene, session, disabled, error) are not impacts.
+// VI: Loai va cham: trung muc tieu / trung tuong / het doi / bi huy do he thong khac. Ket thuc do don dep (world, scene, session, loi) khong phai va cham.
+public enum PNImpactKind { Target, Wall, Expired, Cancelled }
+// Which machine's object reports it: the real projectile (authority), the shooter's guess, or a view-only copy.
+public enum PNImpactOrigin { Real, Guess, Copy }
+
+// EN: One impact, handed to PNProjectileInstance.OnImpact once per machine. The engine decides nothing about how it looks: an implementation that wants a flash, a burst or a sound makes it here.
+//     Point / Normal / Heading are world space; Normal is zero when unknown; TargetId is the host entity id (0 = none) and Target the live entity when this machine has it.
+// VI: Mot va cham, giao cho OnImpact dung mot lan moi may. Engine khong quyet hinh dang: lop cai dat tu tao hieu ung o day.
+public readonly struct PNImpact
+{
+    public PNImpactKind Kind { get; }
+    public PNImpactOrigin Origin { get; }
+    public Vector3 Point { get; }
+    public Vector3 Normal { get; }
+    public Vector3 Heading { get; }
+    public PNStat Target { get; }
+    public long TargetId { get; }
+    // Order of this hit among the projectile's hits (0 for the first); -1 for an impact that is not a hit.
+    public int HitIndex { get; }
+    public PNImpact(PNImpactKind kind, PNImpactOrigin origin, Vector3 point, Vector3 normal, Vector3 heading, PNStat target, long targetId, int hitIndex)
+    { Kind = kind; Origin = origin; Point = point; Normal = normal; Heading = heading; Target = target; TargetId = targetId; HitIndex = hitIndex; }
+}
+
 public sealed class PNProjectileContacts
 {
     internal readonly List<PNProjectileContact> targets = new List<PNProjectileContact>();

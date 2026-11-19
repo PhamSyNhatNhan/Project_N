@@ -12,7 +12,7 @@ namespace ProjectN.Coop.Tests
     // Client2 (and client1) must see the host's projectiles as copies through the object channel, and see the pet at the same size and near its owner (PNMove + summon_scale).
     public static class PNObjectSyncPlayChecks
     {
-        public static bool Enabled => Environment.GetCommandLineArgs().Contains("--pn-object-sync") || O4 || Refuse || NoGuess || O6;
+        public static bool Enabled => Environment.GetCommandLineArgs().Contains("--pn-object-sync") || O4 || Refuse || NoGuess || O6 || Enemy;
         // O4 (character Eve): client1 casts Skill (three homing projectiles) near enemies; the shooter must see a guess before any answer and no second copy, the host must take the shooter's reports, client2 sees copies.
         private static bool O4 => Environment.GetCommandLineArgs().Contains("--pn-object-sync-o4");
         // --pn-object-sync-o4r: the host refuses the shooter's cast (a Control lock the client did not know yet): the guess must go and nothing must show or hurt anywhere.
@@ -20,6 +20,8 @@ namespace ProjectN.Coop.Tests
         // --pn-object-sync-o4n: the shooter's machine does not guess (hook): the host's real projectiles hit the enemies themselves and the shooter sees ordinary copies.
         private static bool NoGuess => Environment.GetCommandLineArgs().Contains("--pn-object-sync-o4n");
         // --pn-object-sync-o6: late observers and the queue: a fresh baseline of living objects, a flood that overflows the host's queue, and the bytes the channel cost.
+        // --pn-object-sync-enemy: the host fires the enemy and summon projectile definitions at client1's entity; every observer must show each one as a copy, tell OnImpact once per projectile, and draw the Starforger contact burst.
+        private static bool Enemy => Environment.GetCommandLineArgs().Contains("--pn-object-sync-enemy");
         private static bool O6 => Environment.GetCommandLineArgs().Contains("--pn-object-sync-o6");
         private static IEnumerator Wait(Func<bool> ready, string label, double seconds = 60, Func<string> detail = null)
         { double until = Time.realtimeSinceStartupAsDouble + seconds; while (!ready()) { if (Time.realtimeSinceStartupAsDouble > until) throw new TimeoutException(label + (detail != null ? " [" + detail() + "]" : "")); yield return null; } }
@@ -52,6 +54,7 @@ namespace ProjectN.Coop.Tests
             var projectiles = PNProjectileManager.Resolve(EveRegistrySession.Context, scene);
             if (projectiles.Session == null) throw new Exception("no projectile manager");
             if (O4 || Refuse || NoGuess) { yield return O4Body(folder, name, e1, log); yield break; }
+            if (Enemy) { yield return EnemyBody(folder, name, e1, log); yield break; }
             if (O6) { yield return O6Body(folder, name, e1, log); yield break; }
             var petSkill = e1.GetComponent<PNEve2Skill>();
             if (petSkill == null) throw new Exception("this fixture needs Eve 2 (--pn-skill-character=project_n:eve_2)");
@@ -134,6 +137,16 @@ namespace ProjectN.Coop.Tests
             }
             yield return Wait(() => Has("host-enemies"), "enemies");
             yield return new WaitForSecondsRealtime(1.5f); // enemies replicate to the clients
+            // Every machine reacts to hits on the enemies through the hurt signal (the engine adds no reaction of its own): the phases it is told are counted.
+            int early = 0, confirmed = 0, matched = 0, cancelled = 0; double applied = 0;
+            foreach (var stat in UnityEngine.Object.FindObjectsByType<PNStat>())
+                if (stat.gameObject.layer == PNLayers.Enemy && stat.IsReady)
+                    PNHurtSignal.For(stat).Hurt += info =>
+                    {
+                        if (info.Phase == PNHurtPhase.Early) early++; else if (info.Phase == PNHurtPhase.Cancelled) cancelled++;
+                        else { confirmed++; if (info.MatchedEarly) matched++; applied += info.Event.Applied; }
+                    };
+            int delivered0 = PNCombatEvents.Delivered, published0 = PNCombatEvents.Published;
             int peakAny = 0, peakReplicas = 0; bool guessBeforeAck = false; long sent = 0;
             var held = new System.Collections.Generic.List<IDisposable>();
             if (host && Refuse)
@@ -164,6 +177,16 @@ namespace ProjectN.Coop.Tests
                 yield return null;
             }
             foreach (var lease in held) lease.Dispose();
+            yield return new WaitForSecondsRealtime((float)PNCombatEvents.EarlyHoldSeconds + .5f);
+            var combatManager = (PNNetworkManager)NetworkManager.singleton;
+            log.Append(name + " combat: early=" + early + " confirmed=" + confirmed + " matched=" + matched + " cancelled=" + cancelled + " applied=" + applied + " delivered=" + (PNCombatEvents.Delivered - delivered0) + " published=" + (PNCombatEvents.Published - published0) + " pending=" + PNCombatEvents.PendingEarly + (host ? " bytes=" + combatManager.CombatBytesSent + " events=" + combatManager.CombatEventsSent + " packets=" + combatManager.CombatPacketsSent + " dropped=" + combatManager.CombatDropped : "") + "; ");
+            if (PNCombatEvents.PendingEarly != 0) throw new Exception("an early hit is still waiting after its hold " + log);
+            if (early != matched + cancelled) throw new Exception("an early hit was neither matched nor cancelled " + log);
+            if (host && !Refuse && (confirmed < 1 || PNCombatEvents.Published - published0 < 1 || combatManager.CombatEventsSent < 1 || combatManager.CombatDropped != 0)) throw new Exception("the host published no combat event or lost one " + log);
+            if (!host && !Refuse && confirmed < 1) throw new Exception("this client was told no confirmed hit " + log);
+            if (Refuse && !host && confirmed != 0) throw new Exception("a refused cast hurt something that was told here " + log);
+            if (name == "client1" && !Refuse && !NoGuess && (early < 1 || matched < 1)) throw new Exception("the shooter was told no early hit, or none was matched to the host's event " + log);
+            if ((name == "client2" || NoGuess && name == "client1") && early != 0) throw new Exception("this machine guessed nothing but was told an early hit " + log);
             log.Append(name + ": peak=" + peakAny + (name == "client1" ? " adopted=" + projectiles.Adoptions + " turns=" + projectiles.AdoptTurns + " targetChanges=" + projectiles.AdoptTargetChanges + " factorFixes=" + projectiles.AdoptFactorFixes : "") + " replicas=" + peakReplicas + " guessBeforeAck=" + guessBeforeAck + " hitsApplied=" + remote.HitsApplied + " hitsRejected=" + remote.HitsRejected + " predicted=" + remote.PredictedCount + " rolledBack=" + remote.RolledBackCount + " refusals=" + string.Join(";", remote.Refusals.Select(x => x.Key + ":" + x.Reason)) + " acked=" + remote.AckedKey + " sent=" + sent + " health=" + Health() + (host ? " objectBytes=" + ((PNNetworkManager)NetworkManager.singleton).ObjectBytesSent + " records=" + ((PNNetworkManager)NetworkManager.singleton).ObjectRecordsSent + " packets=" + ((PNNetworkManager)NetworkManager.singleton).ObjectPacketsSent : "") + "; ");
             if (host)
             {
@@ -203,6 +226,54 @@ namespace ProjectN.Coop.Tests
             {
                 if (Refuse && peakReplicas != 0) throw new Exception("client2 saw a projectile of a refused cast " + log);
                 if (!Refuse && peakReplicas < 1) throw new Exception("client2 saw no copy " + log);
+            }
+        }
+
+        // Plan 4.4b part 1 on the real wire: the host fires each enemy / summon projectile definition at client1's entity. Every projectile ends in exactly one impact (hit, wall or life end); the host tells it as a Real
+        // impact, each client as a Copy impact, and a client that never drew the Starforger contact burst for a Starforger bolt fails the run. (The host fires them itself so the count is exact; the enemies' own AI is not needed.)
+        private static IEnumerator EnemyBody(string folder, string name, PNPlayerMove e1, System.Text.StringBuilder log)
+        {
+            bool Has(string value) => File.Exists(Path.Combine(folder, value));
+            bool host = name == "host";
+            var projectiles = PNProjectileManager.Resolve(EveRegistrySession.Context, e1.gameObject.scene);
+            var scene = e1.gameObject.scene;
+            var ids = new[] { "project_n:starforger_bolt", "project_n:starweaver_bolt", "project_n:starreaper_arrow", "project_n:starreaper_echo_arrow" };
+            const int each = 3; int launched = ids.Length * each;
+            int starforgerBolts = each;
+            var seen = new System.Collections.Generic.HashSet<PNStarforgerBoltImpact>(); int peakReplicas = 0;
+            int real0 = projectiles.ImpactsReal, copy0 = projectiles.ImpactsCopy;
+            if (host)
+            {
+                yield return new WaitForSecondsRealtime(3f);
+                var source = PNCombatSource.Capture(e1.GetComponent<PNStat>()); var layers = PNTargetLayers.Of(PNLayers.Player);
+                var body = e1.GetComponentInChildren<Collider>(); var target = body != null ? body.bounds.center : e1.transform.position + Vector3.up; log.Append("aim=" + target + " feet=" + e1.transform.position + " layer=" + e1.gameObject.layer + " collider=" + (body != null) + "; ");
+                foreach (var definition in ids)
+                    for (int i = 0; i < each; i++)
+                    {
+                        var launch = new PNProjectileLaunch(EveId.Parse(definition), null, source, layers);
+                        var receipt = projectiles.Create(launch, new PNProjectileSpawn(scene, target + new Vector3(2.5f + .8f * i, 0, 0), Vector3.left));
+                        if (receipt.Status != PNProjectileStatus.Created) throw new Exception("the host could not make " + definition + " (" + receipt.Status + ")");
+                    }
+                Mark(folder, "enemy-fired");
+            }
+            yield return Wait(() => Has("enemy-fired"), "enemy fired");
+            double until = Time.realtimeSinceStartupAsDouble + 8;
+            while (Time.realtimeSinceStartupAsDouble < until)
+            {
+                peakReplicas = Math.Max(peakReplicas, projectiles.ReplicaCount);
+                foreach (var burst in UnityEngine.Object.FindObjectsByType<PNStarforgerBoltImpact>()) seen.Add(burst);
+                yield return null;
+            }
+            int real = projectiles.ImpactsReal - real0, copy = projectiles.ImpactsCopy - copy0;
+            log.Append(name + ": launched=" + launched + " real=" + real + " copy=" + copy + " peakReplicas=" + peakReplicas + " bursts=" + seen.Count + " kinds(target/wall/expired/cancelled)=" + projectiles.ImpactsOfKind(PNImpactKind.Target) + "/" + projectiles.ImpactsOfKind(PNImpactKind.Wall) + "/" + projectiles.ImpactsOfKind(PNImpactKind.Expired) + "/" + projectiles.ImpactsOfKind(PNImpactKind.Cancelled) + "; ");
+            if (host) { if (real < launched) throw new Exception("the host told " + real + " impacts for " + launched + " projectiles (a piercing one tells each hit) " + log); Mark(folder, "enemy-host-done"); }
+            yield return Wait(() => Has("enemy-host-done"), "host done");
+            if (!host)
+            {
+                if (peakReplicas < launched / 2) throw new Exception("this client saw too few copies (" + peakReplicas + ") " + log);
+                if (copy != launched) throw new Exception("this client told " + copy + " impacts for " + launched + " projectiles " + log);
+                if (seen.Count < starforgerBolts) throw new Exception("this client drew " + seen.Count + " Starforger contact bursts for " + starforgerBolts + " bolts " + log);
+                if (projectiles.ReplicaCount != 0) throw new Exception("copies are left over (" + projectiles.ReplicaCount + ") " + log);
             }
         }
 

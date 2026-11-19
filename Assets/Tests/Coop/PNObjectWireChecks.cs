@@ -16,7 +16,7 @@ namespace ProjectN.Coop.Tests
             var world = new PNObjectWorld(ticket.World, ticket.Incarnation);
             var spawn = PNObjectRecord.Spawn(PNObjectKind.Projectile, 17, world, EveId.Parse("project_n:eve_star"), "{\"n\":2}", new PNObjectVector(1.5f, 2, -3), new PNObjectVector(0, 0, 1), 55, 66, 0, "cast-7", 2, 1.25, 2d, .5, 123.5, .75f, 3.5f);
             var retarget = PNObjectRecord.Retarget(PNObjectKind.Projectile, 17, world, 77, new PNObjectVector(4, 5, 6), new PNObjectVector(1, 0, 0), 124.25);
-            var end = PNObjectRecord.End(PNObjectKind.Projectile, 17, world, 3, new PNObjectVector(9, 8, 7));
+            var end = PNObjectRecord.End(PNObjectKind.Projectile, 17, world, 3, new PNObjectVector(9, 8, 7), new PNObjectVector(0, 1, 0), 4242);
             PNObjectPacket RoundTrip(PNObjectPacket packet)
             {
                 using (var writer = NetworkWriterPool.Get()) { writer.WriteObjectPacket(packet); using (var reader = NetworkReaderPool.Get(writer.ToArraySegment())) return reader.ReadObjectPacket(); }
@@ -28,6 +28,7 @@ namespace ProjectN.Coop.Tests
                 && s.Direction.Z == 1f && s.Target == 55 && s.Owner == 66 && s.CastKey == "cast-7" && s.CastIndex == 2 && s.Speed == 1.25 && s.Scale == 2d && s.Lifetime == .5 && s.Stamp == 123.5 && s.Age == .75f && s.LifeHint == 3.5f, "a spawn record survives the wire field by field");
             var r = back.Records[1]; var e = back.Records[2];
             Check(r.Type == PNObjectRecordType.Retarget && r.Id == 17 && r.Target == 77 && r.Position.Y == 5f && r.Direction.X == 1f && r.Stamp == 124.25 && e.Type == PNObjectRecordType.End && e.Reason == 3 && e.Position.X == 9f, "retarget and end records survive the wire");
+            Check(e.Direction.Y == 1f && e.Target == 4242, "an end record keeps the impact normal and the entity it hit");
             var plain = RoundTrip(new PNObjectPacket { Ticket = ticket, Flags = 0, Records = new[] { PNObjectRecord.Spawn(PNObjectKind.Projectile, 18, world, EveId.Parse("project_n:eve_star"), null, new PNObjectVector(0, 0, 0), new PNObjectVector(0, 0, 1), 0, 0, 0, null, 0, 1, 1, 1, 1, 0f, 0f) } });
             Check(plain.Records[0].Input == null && plain.Records[0].CastKey == null, "an absent input and cast key stay absent");
 

@@ -34,6 +34,8 @@ namespace ProjectN.Coop
             // O3: what the host still has to send this client of the spawned-object sync: the baseline of the world first, then the records that came after it (PNObjectTransport.cs).
             public readonly List<PNObjectRecord> ObjectQueue=new List<PNObjectRecord>(),ObjectBaseline=new List<PNObjectRecord>();
             public bool ObjectBaselined,ObjectBaselineStarted,ObjectBaselineDone,ObjectOverflow;
+            // Combat events (PNCombatTransport.cs): what the host still has to tell this client about hits and heals in this world.
+            public readonly List<PNCombatEvent> CombatQueue=new List<PNCombatEvent>();
         }
         public IPNWorldRuntime Worlds;
         public Func<PNWorldOffer,bool> WorldLoadAllowed = offer=>true;
@@ -138,7 +140,7 @@ namespace ProjectN.Coop
             ReleaseWorldSubscription(entry);
         }
         private void ReleaseWorldSubscription(WorldSubscription entry)
-        {entry.FenceLease?.Dispose();entry.FenceLease=null;entry.DescriptorLease?.Dispose();entry.DescriptorLease=null;entry.WorldLease?.Dispose();entry.WorldLease=null;foreach(var lease in entry.TargetLeases)lease.Dispose();entry.TargetLeases.Clear();entry.Incoming.Clear();entry.Targets=null;entry.Chunks=null;entry.Placements=null;entry.ObjectQueue.Clear();entry.ObjectBaseline.Clear();entry.ObjectBaselined=false;entry.Applied.Clear();entry.Granted.Clear();entry.InitialEntities.Clear();entry.AppliedEntities.Clear();}
+        {entry.FenceLease?.Dispose();entry.FenceLease=null;entry.DescriptorLease?.Dispose();entry.DescriptorLease=null;entry.WorldLease?.Dispose();entry.WorldLease=null;foreach(var lease in entry.TargetLeases)lease.Dispose();entry.TargetLeases.Clear();entry.Incoming.Clear();entry.Targets=null;entry.Chunks=null;entry.Placements=null;entry.ObjectQueue.Clear();entry.ObjectBaseline.Clear();entry.ObjectBaselined=false;entry.CombatQueue.Clear();entry.Applied.Clear();entry.Granted.Clear();entry.InitialEntities.Clear();entry.AppliedEntities.Clear();}
         public bool CanObserveWorld(NetworkConnectionToClient connection,Guid world,ulong incarnation)
             =>IsPlaying&&connection.authenticationData is PNPeer peer&&peer.PlayRevision==PlayRevision&&worldPeers.TryGetValue((connection.connectionId,world),out var entry)&&entry.Loaded&&!entry.Closing&&entry.World.Incarnation==incarnation&&(entry.World.State==EveWorldState.Ready||entry.World.State==EveWorldState.Paused);
         public bool CanObserveActor(NetworkConnectionToClient connection,PNActorShell actor)

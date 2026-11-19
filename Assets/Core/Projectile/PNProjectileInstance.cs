@@ -86,6 +86,23 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable, IPNTim
     // Contacts found in the last sub-step: targets sorted by approximate entry order, and an environment hit. Call Finish to end.
     protected abstract void OnContacts(PNProjectileContacts contacts);
     protected virtual void OnEnd(PNProjectileEndReason reason) { }
+    // EN: Called once per impact on every machine that shows this projectile (real, guess or copy; see PNImpact). The default does nothing: the look of an impact belongs to the implementation.
+    //     A hit of a piercing projectile calls it for each hit of the real object and of its guess; a copy is told of the last impact only (its End record).
+    // VI: Goi mot lan moi va cham tren moi may hien vien dan nay. Mac dinh khong lam gi: hinh dang va cham thuoc ve lop cai dat.
+    protected virtual void OnImpact(PNImpact impact) { }
+    // Impacts reported by this projectile since it was bound (checks and diagnostics).
+    public int ImpactCount { get; private set; }
+    private Vector3 wallPoint, wallNormal, endPoint, endNormal; private bool hasWall, hasEndHint, recordHint; private long endTargetId;
+    private PNImpactOrigin ImpactOrigin => Launch != null && Launch.IsReplica ? PNImpactOrigin.Copy : Launch != null && Launch.IsPrediction ? PNImpactOrigin.Guess : PNImpactOrigin.Real;
+    private void RaiseImpact(PNImpactKind kind, Vector3 point, Vector3 normal, PNStat target, long targetId, int hitIndex)
+    {
+        ImpactCount++; Manager?.NoteImpact(ImpactOrigin, kind); endPoint = point; endNormal = normal; endTargetId = targetId; hasEndHint = true;
+        try { OnImpact(new PNImpact(kind, ImpactOrigin, point, normal, heading, target, targetId, hitIndex)); } catch (Exception error) { Debug.LogException(error, this); }
+    }
+    // The End record's own account of the impact (a copy has no contacts of its own).
+    internal void NoteEndHint(Vector3 point, Vector3 normal, long targetId) { endPoint = point; endNormal = normal; endTargetId = targetId; hasEndHint = true; recordHint = true; }
+    // What the authority tells copies about the end: where, against what, and which entity (0 = none).
+    internal bool TryGetEndImpact(out Vector3 point, out Vector3 normal, out long targetId) { point = endPoint; normal = endNormal; targetId = endTargetId; return hasEndHint; }
     protected virtual void Cleanup() { }
     // Layers treated as walls/ground (0 = none). Targets come from the launch mask.
     protected virtual int EnvironmentMask => 0;
@@ -149,7 +166,7 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable, IPNTim
     {
         ObjectSeed = objectSeed; random = null; CastIndex = spawn.CastIndex;
         Manager = manager; Handle = handle; Definition = definition; Launch = launch; World = world; Scene = spawn.Scene; Clock = GetComponent<PNProjectileClock>();
-        EndReason = null; CleanupFailed = false; ending = false; first = true; armed = false; Age = 0; Distance = 0; TickIndex = 0; HitCount = 0; hitContext = null; admission = null; Velocity = default; External = default; DestroyedBy = null;
+        EndReason = null; CleanupFailed = false; ending = false; first = true; armed = false; Age = 0; Distance = 0; TickIndex = 0; HitCount = 0; ImpactCount = 0; hasWall = hasEndHint = recordHint = false; endTargetId = 0; hitContext = null; admission = null; Velocity = default; External = default; DestroyedBy = null;
         position = spawn.Position; heading = spawn.Direction; target = new PNProjectileTarget(spawn.Target); contacts.Clear();
         transform.position = position; transform.rotation = Quaternion.LookRotation(heading);
         IsRunning = true; timeEntry = PNTimeTargets.For(world).Register(this); Initialize(spawn);
@@ -159,7 +176,32 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable, IPNTim
         if (!IsRunning && !CleanupFailed) return;
         IsRunning = false; EndReason = reason; CleanupFailed = true;
         if (timeEntry != null) { PNTimeTargets.Unregister(timeEntry); timeEntry = null; }
+        EmitEndImpact(reason);
         OnEnd(reason); Cleanup(); CleanupFailed = false;
+    }
+    // The impact an end stands for, once: a wall, a hit nobody reported yet (a copy, or a guess the authority's End closes), the end of its life, or being cleared. A real hit already raised its own.
+    private void EmitEndImpact(PNProjectileEndReason reason)
+    {
+        var at = position; var normal = -heading; long id = 0;
+        switch (reason)
+        {
+            case PNProjectileEndReason.Environment:
+                if (recordHint) { at = endPoint; normal = endNormal; }
+                else if (hasWall) { at = wallPoint; normal = wallNormal; }
+                RaiseImpact(PNImpactKind.Wall, at, normal, null, 0, -1); break;
+            case PNProjectileEndReason.Hit:
+                if (HitCount > 0) break;
+                if (hasEndHint) { at = endPoint; normal = endNormal; id = endTargetId; }
+                RaiseImpact(PNImpactKind.Target, at, normal, Resolve(id), id, 0); break;
+            case PNProjectileEndReason.Expired: RaiseImpact(PNImpactKind.Expired, at, default, null, 0, -1); break;
+            case PNProjectileEndReason.Destroyed: RaiseImpact(PNImpactKind.Cancelled, at, default, null, 0, -1); break;
+            default: hasEndHint = false; break;
+        }
+    }
+    private PNStat Resolve(long id)
+    {
+        if (id == 0 || Manager == null || Manager.Session == null || !Manager.Session.Entities.TryGet(new EveEntityId(id), out var loader) || loader == null) return null;
+        return loader.GetComponent<PNStat>();
     }
 
     // One manager tick: advance the clock (always, so modifiers whose owner vanished are reclaimed even at scale 0), then move.
@@ -193,6 +235,7 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable, IPNTim
         if (!IsReplica)
         {
             Detect(from, position, candidates, physics);
+            if (contacts.HasEnvironment) { hasWall = true; wallPoint = contacts.Environment.Point; wallNormal = contacts.Environment.Normal; }
             if (!contacts.IsEmpty) OnContacts(contacts);
         }
         first = false;
@@ -262,6 +305,7 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable, IPNTim
         return false;
     }
 
+    private string HitKey(int hitIndex) => Launch.CastKey.ToString(System.Globalization.CultureInfo.InvariantCulture) + ":" + CastIndex + ":" + hitIndex;
     // ---- hits -------------------------------------------------------------------------------------------------------------
     private PNProjectileHitContext hitContext;
     private PNSkillHitAdmission admission;
@@ -280,17 +324,26 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable, IPNTim
         var result = new PNProjectileHitResult { Target = target, HitIndex = HitCount };
         HitCount++;
         // A guess deals nothing: it tells the authority which target it sees hit, under the projectile's name (cast key + step of its index).
-        if (Launch.IsPrediction) { Launch.ReportSink?.ReportHit(Launch.CastKey, target, PNProjectileManager.ReportStepBase + CastIndex); return result; }
+        if (Launch.IsPrediction)
+        {
+            // The early phase first: the answer can only come after the report goes out.
+            if (Launch.CastKey != 0) PNCombatEvents.RaiseEarly(target.EntityId.Value, HitKey(result.HitIndex), true, contact.Point.x, contact.Point.y, contact.Point.z);
+            Launch.ReportSink?.ReportHit(Launch.CastKey, target, PNProjectileManager.ReportStepBase + CastIndex);
+            RaiseImpact(PNImpactKind.Target, contact.Point, contact.Normal, target, target.EntityId.Value, result.HitIndex);
+            return result;
+        }
         if (Launch.Damage != null)
         {
             var snapshot = Launch.Source.Snapshot ?? throw new InvalidOperationException("Projectile damage needs a source with a combat snapshot.");
-            result.Damage = target.ReceiveDamage(snapshot.CreateDamage(Launch.Damage));
+            // The hit is named by cast key, index in the volley and hit index (the shooter's guess names it the same), so the combat event can be matched to the guess's early phase.
+            result.Damage = target.ReceiveDamage(snapshot.CreateDamage(Launch.Damage).WithHit(Launch.CastKey != 0 ? HitKey(result.HitIndex) : null, contact.Point.x, contact.Point.y, contact.Point.z));
         }
         if (Launch.HitPlan != null)
         {
             if (hitContext == null) { hitContext = new PNProjectileHitContext(Launch.HitPlan.EntrySkillId, Launch.Source, World, Manager.Session.Registry); admission = new PNSkillHitAdmission(); }
             result.Effects = Launch.HitPlan.Execute(hitContext, target, contact.Point, heading, result.HitIndex, admission);
         }
+        RaiseImpact(PNImpactKind.Target, contact.Point, contact.Normal, target, target.EntityId.Value, result.HitIndex);
         return result;
     }
 
