@@ -39,13 +39,24 @@ public abstract class PNTimedBlast : PNBlastInstance
 
     protected sealed override void Initialize(PNBlastCreateRequest context)
     {
-        var input = (JObject)context.Input; var owner = context.Owner ?? throw new ArgumentException("A blast needs its owner's stats.");
+        var input = (JObject)context.Input;
         ValidateCommon(input); ReadShape(input);
-        layerMask = context.Source.TargetLayers.Mask;
-        capture = CreateCapture(PNSkillEffect.Ids(input["tags"]));
-        double amount = 0d; foreach (var component in PNSkillValues.Parse(input["value"]).Components) amount += component.Evaluate(owner);
-        prepared = capture.Prepare(amount, input["canCrit"].Value<bool>(), null);
-        Center = context.Position; Radius = capture.Scale(input["radius"].Value<float>()); Height = capture.Scale(input["height"].Value<float>());
+        if (context.IsReplica)
+        {
+            // A copy on a machine without authority: the same shape and clock, no combat snapshot, nothing to hit (plan O5).
+            layerMask = 0; capture = null; prepared = null;
+            Center = context.Position; Radius = PNHitCapture.ScaleLength(input["radius"].Value<float>(), ScaleFactor); Height = PNHitCapture.ScaleLength(input["height"].Value<float>(), ScaleFactor);
+        }
+        else
+        {
+            var owner = context.Owner ?? throw new ArgumentException("A blast needs its owner's stats.");
+            layerMask = context.Source.TargetLayers.Mask;
+            capture = CreateCapture(PNSkillEffect.Ids(input["tags"]));
+            double amount = 0d; foreach (var component in PNSkillValues.Parse(input["value"]).Components) amount += component.Evaluate(owner);
+            prepared = capture.Prepare(amount, input["canCrit"].Value<bool>(), null);
+            Center = context.Position; Radius = capture.Scale(input["radius"].Value<float>()); Height = capture.Scale(input["height"].Value<float>());
+        }
+        baseRadius = input["radius"].Value<float>(); baseHeight = input["height"].Value<float>();
         delay = input["delay"].Value<float>(); tail = input["tail"].Value<float>(); age = 0; tailAge = 0; detonated = false; HitCount = 0; struck.Clear();
         OnBegin(input);
     }
@@ -63,9 +74,18 @@ public abstract class PNTimedBlast : PNBlastInstance
         tailAge += gameDelta; OnPhase(delay + tailAge, delay);
         if (tailAge >= tail) Finish(PNBlastEndReason.Expired);
     }
+    public override float ProgressSeconds => detonated ? delay + tailAge : age;
+    private float baseRadius, baseHeight;
+    protected virtual void OnShapeChanged() { }
+    protected override void OnScaleCorrected(double scale)
+    {
+        if (!IsReplica || baseRadius <= 0f) return;
+        Radius = PNHitCapture.ScaleLength(baseRadius, scale); Height = PNHitCapture.ScaleLength(baseHeight, scale); OnShapeChanged();
+    }
     private void Detonate()
     {
         struck.Clear();
+        if (IsReplica) { Manager.NoteReplicaDetonated(); OnDetonated(); return; }
         var entities = World != null ? Manager.Session.Entities.Snapshot(World) : Manager.Session.Entities.Snapshot();
         foreach (var entity in entities)
         {

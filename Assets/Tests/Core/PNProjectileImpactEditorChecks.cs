@@ -119,12 +119,12 @@ public static class PNProjectileImpactEditorChecks
             Check(PNImpactProbeProjectile.Log.All(x => x.Cast != 8005), "a plain stop (teardown) is not an impact");
 
             // Piercing: each hit of the real projectile is told; the copy knows only the last one (its End record).
-            Entity(new Vector3(3, 1, 12), PNLayers.Enemy, "Impact first pierced enemy");
-            var second = Entity(new Vector3(6, 1, 12), PNLayers.Enemy, "Impact second enemy"); Advance(.05f);
+            Entity(new Vector3(9, 1, 12), PNLayers.Enemy, "Impact first pierced enemy");
+            var second = Entity(new Vector3(13, 1, 12), PNLayers.Enemy, "Impact second enemy"); Advance(.05f);
             host.Create(Real(ImpactModule.Pierce, 8006), Spawn(new Vector3(0, 1, 12), Vector3.right)); Settle();
             var pierceHost = For(8006, false);
-            Check(pierceHost.Count == 2 && pierceHost[0].Impact.HitIndex == 0 && pierceHost[1].Impact.HitIndex == 1 && pierceHost[1].Impact.TargetId == second.EntityId.Value, "a piercing projectile tells each hit on the real object, in order");
-            Check(For(8006, true).Count == 1 && For(8006, true)[0].Impact.TargetId == second.EntityId.Value, "(its copy is told the last impact once)");
+            Check(pierceHost.Count == 2 && pierceHost[0].Impact.HitIndex == 0 && pierceHost[1].Impact.HitIndex == 1 && pierceHost[1].Impact.TargetId == second.EntityId.Value, "a piercing projectile tells each hit on the real object, in order (cast key and index name the hits)");
+            Check(For(8006, true).Count == 2 && For(8006, true)[0].Impact.HitIndex == 0 && For(8006, true)[1].Impact.HitIndex == 1 && For(8006, true)[1].Impact.TargetId == second.EntityId.Value, "(its copy is told each hit too, by the combat event that carries the hit key, and the End record adds nothing)");
 
             // The shooter's guess: it tells its own hit at once (Guess), and the record that takes it over adds nothing.
             var sink = new Sink(); var shooterEnemy = Entity(new Vector3(3, 1, 20), PNLayers.Enemy, "Impact guess enemy"); Advance(.05f);

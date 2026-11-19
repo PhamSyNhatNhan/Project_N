@@ -26,7 +26,7 @@ public sealed class PNProjectileManager : MonoBehaviour
         internal long Id; internal EveId DefinitionId; internal GameObject Root; internal PNProjectileInstance Instance; internal PoolEntry Pool; internal Scene Scene;
         internal EveWorldContext World; internal IDisposable Lease; internal bool Removed;
         // Spawned-object sync: the id of this object in the records (0 = not synced) and whether it is a view-only copy.
-        internal long ObjectId; internal bool Replica;
+        internal long ObjectId; internal bool Replica; internal string HitPrefix;
         // The shooter's guess (plan 4.4a): whether the authority's record has taken it over (Adopted), the heading it was made with and when (unscaled seconds).
         internal bool Predicted, Adopted; internal Vector3 SpawnHeading; internal double CreatedAt;
         // The state the last record gave a copy (position, heading, speed, the object's age and the host clock then): the authority's audit predicts the copy from it.
@@ -64,6 +64,15 @@ public sealed class PNProjectileManager : MonoBehaviour
     private static readonly object NoWorld = new object();
     private readonly Dictionary<(PNProjectileDefinition, Scene), PoolEntry> pools = new Dictionary<(PNProjectileDefinition, Scene), PoolEntry>();
     private readonly Dictionary<long, Entry> entries = new Dictionary<long, Entry>();
+    // Hit prefix (PNProjectileInstance.HitPrefix) -> the copy it names, so a combat event can tell the copy of a hit of the real projectile (plan 4.4b).
+    private readonly Dictionary<string, long> hitPrefixes = new Dictionary<string, long>();
+    private void OnCombatEvent(PNCombatEvent combatEvent, bool matchedEarly)
+    {
+        if (hitPrefixes.Count == 0 || combatEvent.Kind != PNCombatEventKind.Damage || combatEvent.HitKey == null) return;
+        string key = combatEvent.HitKey; int colon = key.LastIndexOf(':');
+        if (colon <= 0 || !int.TryParse(key.Substring(colon + 1), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int hit)) return;
+        if (hitPrefixes.TryGetValue(key.Substring(0, colon), out var id) && entries.TryGetValue(id, out var entry) && entry.Instance != null) entry.Instance.TellRemoteHit(combatEvent, hit);
+    }
     private readonly List<Entry> order = new List<Entry>();
     // Per-world candidate lists, shared with target selection (autotarget, a volley's aim).
     public PNTargetIndex Targets { get; } = new PNTargetIndex();
@@ -114,7 +123,7 @@ public sealed class PNProjectileManager : MonoBehaviour
         var chosen = profile ?? new PNProjectileProfile(); chosen.Validate();
         MaxActive = chosen.MaxActive; MaxSubSteps = chosen.MaxSubSteps; TargetRefreshSeconds = chosen.TargetRefreshSeconds;
         if (Session == session && !closing) { Targets.Initialize(session, TargetRefreshSeconds); return; }
-        Shutdown(); Session = session ?? throw new ArgumentNullException(nameof(session)); closing = false;
+        Shutdown(); Session = session ?? throw new ArgumentNullException(nameof(session)); closing = false; PNCombatEvents.Observed -= OnCombatEvent; PNCombatEvents.Observed += OnCombatEvent;
         Targets.Initialize(session, TargetRefreshSeconds);
         SceneManager.sceneUnloaded += SceneUnloaded;
     }
@@ -200,7 +209,7 @@ public sealed class PNProjectileManager : MonoBehaviour
             if (!instance.isActiveAndEnabled) throw new InvalidOperationException("Selected projectile component must be active after initialization.");
             if (!instance.IsRunning) throw new InvalidOperationException("Projectile ended during initialization.");
             receipt.Handle = handle; receipt.Status = PNProjectileStatus.Created;
-            if (replica) { entry.Replica = true; entry.ObjectId = replicaId; objectEntries[replicaId] = id; }
+            if (replica) { entry.Replica = true; entry.ObjectId = replicaId; objectEntries[replicaId] = id; entry.HitPrefix = instance.HitPrefix; if (entry.HitPrefix != null) hitPrefixes[entry.HitPrefix] = id; }
             else if (!launch.IsPrediction) RecordSpawn(entry, launch, spawn, objectId);
         }
         catch (Exception error)
@@ -511,6 +520,7 @@ public sealed class PNProjectileManager : MonoBehaviour
         if (!ReferenceEquals(entry.Instance, null) && entry.Instance.CleanupFailed) return;
         if (entry.Removed) return;
         entries.Remove(entry.Id); entry.Removed = true; compactNeeded = true; entry.Lease?.Dispose();
+        if (entry.HitPrefix != null && hitPrefixes.TryGetValue(entry.HitPrefix, out var held) && held == entry.Id) hitPrefixes.Remove(entry.HitPrefix);
         if (entry.Instance == null && !ReferenceEquals(entry.Instance, null)) entry.Instance.CleanupFailed = true;
         try { entry.Pool.Pool.Release(entry.Root, ++stamp); } catch (Exception error) { Debug.LogException(error, this); }
     }
@@ -542,7 +552,7 @@ public sealed class PNProjectileManager : MonoBehaviour
     }
     public void Shutdown()
     {
-        closing = true; SceneManager.sceneUnloaded -= SceneUnloaded;
+        closing = true; SceneManager.sceneUnloaded -= SceneUnloaded; PNCombatEvents.Observed -= OnCombatEvent;
         var errors = new List<Exception>();
         foreach (var entry in entries.Values.ToArray())
         {

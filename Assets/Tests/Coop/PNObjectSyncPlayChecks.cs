@@ -12,7 +12,9 @@ namespace ProjectN.Coop.Tests
     // Client2 (and client1) must see the host's projectiles as copies through the object channel, and see the pet at the same size and near its owner (PNMove + summon_scale).
     public static class PNObjectSyncPlayChecks
     {
-        public static bool Enabled => Environment.GetCommandLineArgs().Contains("--pn-object-sync") || O4 || Refuse || NoGuess || O6 || Enemy;
+        public static bool Enabled => Environment.GetCommandLineArgs().Contains("--pn-object-sync") || O4 || Refuse || NoGuess || O6 || Enemy || Melee || Quiet || O5 || O5b;
+        private static bool O5 => Environment.GetCommandLineArgs().Contains("--pn-object-sync-o5");
+        private static bool O5b => Environment.GetCommandLineArgs().Contains("--pn-object-sync-o5b");
         // O4 (character Eve): client1 casts Skill (three homing projectiles) near enemies; the shooter must see a guess before any answer and no second copy, the host must take the shooter's reports, client2 sees copies.
         private static bool O4 => Environment.GetCommandLineArgs().Contains("--pn-object-sync-o4");
         // --pn-object-sync-o4r: the host refuses the shooter's cast (a Control lock the client did not know yet): the guess must go and nothing must show or hurt anywhere.
@@ -22,6 +24,11 @@ namespace ProjectN.Coop.Tests
         // --pn-object-sync-o6: late observers and the queue: a fresh baseline of living objects, a flood that overflows the host's queue, and the bytes the channel cost.
         // --pn-object-sync-enemy: the host fires the enemy and summon projectile definitions at client1's entity; every observer must show each one as a copy, tell OnImpact once per projectile, and draw the Starforger contact burst.
         private static bool Enemy => Environment.GetCommandLineArgs().Contains("--pn-object-sync-enemy");
+        private static bool Capture => Environment.GetCommandLineArgs().Contains("--pn-capture-burst");
+        // --pn-object-sync-melee: client1's Eve slashes enemies the host put next to her; the host tells each hit as Real, client1 as Guess, client2 (not the shooter) as Copy through the combat channel (plan 4.4b item 1).
+        private static bool Melee => Environment.GetCommandLineArgs().Contains("--pn-object-sync-melee");
+        // --pn-object-sync-quiet: nobody fights for 15 s; every machine tallies the combat events it is told (kind / target layer / source) to find what the background traffic is. Measurement only, it never fails on counts.
+        private static bool Quiet => Environment.GetCommandLineArgs().Contains("--pn-object-sync-quiet");
         private static bool O6 => Environment.GetCommandLineArgs().Contains("--pn-object-sync-o6");
         private static IEnumerator Wait(Func<bool> ready, string label, double seconds = 60, Func<string> detail = null)
         { double until = Time.realtimeSinceStartupAsDouble + seconds; while (!ready()) { if (Time.realtimeSinceStartupAsDouble > until) throw new TimeoutException(label + (detail != null ? " [" + detail() + "]" : "")); yield return null; } }
@@ -55,6 +62,10 @@ namespace ProjectN.Coop.Tests
             if (projectiles.Session == null) throw new Exception("no projectile manager");
             if (O4 || Refuse || NoGuess) { yield return O4Body(folder, name, e1, log); yield break; }
             if (Enemy) { yield return EnemyBody(folder, name, e1, log); yield break; }
+            if (Melee) { yield return MeleeBody(folder, name, e1, log); yield break; }
+            if (O5) { yield return O5Body(folder, name, e1, log); yield break; }
+            if (O5b) { yield return O5bBody(folder, name, e1, log); yield break; }
+            if (Quiet) { yield return QuietBody(folder, name, e1, log); yield break; }
             if (O6) { yield return O6Body(folder, name, e1, log); yield break; }
             var petSkill = e1.GetComponent<PNEve2Skill>();
             if (petSkill == null) throw new Exception("this fixture needs Eve 2 (--pn-skill-character=project_n:eve_2)");
@@ -240,7 +251,7 @@ namespace ProjectN.Coop.Tests
             var ids = new[] { "project_n:starforger_bolt", "project_n:starweaver_bolt", "project_n:starreaper_arrow", "project_n:starreaper_echo_arrow" };
             const int each = 3; int launched = ids.Length * each;
             int starforgerBolts = each;
-            var seen = new System.Collections.Generic.HashSet<PNStarforgerBoltImpact>(); int peakReplicas = 0;
+            var seen = new System.Collections.Generic.HashSet<PNStarforgerBoltImpact>(); int peakReplicas = 0, shots = 0;
             int real0 = projectiles.ImpactsReal, copy0 = projectiles.ImpactsCopy;
             if (host)
             {
@@ -261,7 +272,14 @@ namespace ProjectN.Coop.Tests
             while (Time.realtimeSinceStartupAsDouble < until)
             {
                 peakReplicas = Math.Max(peakReplicas, projectiles.ReplicaCount);
-                foreach (var burst in UnityEngine.Object.FindObjectsByType<PNStarforgerBoltImpact>()) seen.Add(burst);
+                bool fresh = false; foreach (var burst in UnityEngine.Object.FindObjectsByType<PNStarforgerBoltImpact>()) fresh |= seen.Add(burst);
+                if (fresh && Capture && !host && shots < 4)
+                {
+                    // --pn-capture-burst: a frame of this client's own window just after a burst began, for the user to review the look (the window must be visible, not batchmode).
+                    yield return new WaitForSecondsRealtime(.12f); yield return new WaitForEndOfFrame();
+                    var texture = ScreenCapture.CaptureScreenshotAsTexture();
+                    if (texture != null) { File.WriteAllBytes(Path.Combine(folder, "burst-" + name + "-" + (++shots) + ".png"), texture.EncodeToPNG()); UnityEngine.Object.Destroy(texture); }
+                }
                 yield return null;
             }
             int real = projectiles.ImpactsReal - real0, copy = projectiles.ImpactsCopy - copy0;
@@ -277,6 +295,197 @@ namespace ProjectN.Coop.Tests
             }
         }
 
+        // Tally of every combat event this process was told since it started (measurement of the traffic before any scenario begins).
+        private static readonly System.Collections.Generic.SortedDictionary<string, int> StartupTally = new System.Collections.Generic.SortedDictionary<string, int>();
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+        private static void TraceStartup()
+        {
+            if (!Environment.GetCommandLineArgs().Contains("--pn-object-sync-o6")) return;
+            PNCombatEvents.Observed += (e, m) =>
+            {
+                string layer = "?"; if (EveRegistrySession.IsReady && EveRegistrySession.Context.Entities.TryGet(new EveEntityId(e.TargetId), out var loader) && loader != null) layer = LayerMask.LayerToName(loader.gameObject.layer) + "/" + loader.gameObject.name;
+                var k = e.Kind + " target=" + layer + " source=" + (e.SourceId == 0 ? "none" : "yes") + " applied=" + (e.Applied > 0 ? ">0" : "0") + " before=" + e.HealthBefore + " after=" + e.HealthAfter + " key=" + (e.HitKey == null ? "none" : "yes") + " t=" + (int)Time.realtimeSinceStartup;
+                StartupTally[k] = (StartupTally.TryGetValue(k, out var n) ? n : 0) + 1;
+            };
+        }
+
+        private static IEnumerator MeleeBody(string folder, string name, PNPlayerMove e1, System.Text.StringBuilder log)
+        {
+            bool Has(string value) => File.Exists(Path.Combine(folder, value));
+            bool host = name == "host";
+            var eve = e1.GetComponent<EveCharacterSkill>(); var remote = e1.GetComponent<PNSkillRemoteInput>();
+            if (eve == null) throw new Exception("the melee fixture needs Eve (--pn-skill-character=project_n:eve)");
+            if (host)
+            {
+                var world = PNLocalWorldContext.Current.World;
+                foreach (var offset in new[] { new Vector3(1.2f, 0, 0), new Vector3(-1.2f, 0, 0) })
+                {
+                    var request = new PNEntityRequest { Entity = "project_n:enemy", Template = "project_n:enemy", Character = "project_n:dummy_lorica", World = world, WorldIncarnation = world.Incarnation, ContentSlot = PNGridWorldController.SlotId, SceneKey = "objectsync:melee" + offset.x, EntityKey = "", Position = e1.transform.position + offset };
+                    if (PNEntityHosts.For(EveRegistrySession.Context).TrySpawn(request, null, null, error => Debug.LogException(error)) == null) throw new Exception("the host refused an enemy");
+                }
+                yield return Wait(() => UnityEngine.Object.FindObjectsByType<PNStat>().Any(x => x.gameObject.layer == PNLayers.Enemy && x.IsReady), "enemies exist");
+                Mark(folder, "host-enemies");
+            }
+            yield return Wait(() => Has("host-enemies"), "enemies");
+            yield return new WaitForSecondsRealtime(1.5f);
+            int real = 0, guess = 0, copy = 0; var keys = new System.Collections.Generic.HashSet<string>();
+            eve.ActionImpact += impact => { if (impact.Origin == PNActionImpactOrigin.Real) real++; else if (impact.Origin == PNActionImpactOrigin.Guess) guess++; else copy++; keys.Add(impact.CastKey + ":" + impact.ActionOrdinal + ":" + impact.HitIndex + ":" + impact.TargetId); };
+            if (name == "client1")
+            {
+                yield return Wait(() => remote != null && remote.IsBound && !eve.IsBusy, "Eve ready");
+                yield return new WaitForSecondsRealtime(1f);
+                for (int i = 0; i < 3; i++)
+                {
+                    eve.RequestSlot(PNSkillSlots.Attack, new PNSkillInputEvent(PNSkillInputPhase.Started, PNSkillInteraction.Tap));
+                    eve.RequestSlot(PNSkillSlots.Attack, new PNSkillInputEvent(PNSkillInputPhase.Performed, PNSkillInteraction.Tap));
+                    eve.RequestSlot(PNSkillSlots.Attack, new PNSkillInputEvent(PNSkillInputPhase.Canceled, PNSkillInteraction.Tap));
+                    long sent = remote.LastSentKey;
+                    yield return Wait(() => remote.AckedKey >= sent && !eve.IsBusy, "the host answered the slash");
+                    yield return new WaitForSecondsRealtime(.6f);
+                }
+                Mark(folder, "client1-cast");
+            }
+            yield return Wait(() => Has("client1-cast"), "client1 cast");
+            yield return new WaitForSecondsRealtime(3f);
+            log.Append(name + ": real=" + real + " guess=" + guess + " copy=" + copy + " keys=" + keys.Count + "; ");
+            if (host)
+            {
+                File.WriteAllText(Path.Combine(folder, "host.real"), keys.Count.ToString());
+                if (real < 1 || guess != 0 || copy != 0) throw new Exception("the host must tell Real impacts only " + log);
+                Mark(folder, "host-counted");
+            }
+            yield return Wait(() => Has("host-counted"), "host counted");
+            int hostKeys = int.Parse(File.ReadAllText(Path.Combine(folder, "host.real")));
+            if (name == "client1" && (guess < 1 || real != 0 || copy != 0)) throw new Exception("the shooter must tell its own Guess impacts only " + log);
+            if (name == "client2" && (copy != hostKeys || real != 0 || guess != 0 || copy < 1)) throw new Exception("client2 must tell one Copy for each hit the host told (" + hostKeys + ") " + log);
+        }
+
+        // O5 over the real wire (--pn-object-sync-o5, character Eve): client1 dashes (Eve's time field is an area) while the host's Starweaver casts its blasts. Every machine other than the authority must show the area and the blasts as copies,
+        // the dasher's own guess must be taken over by the record (one area, not two), a copy deals nothing, and the offset between a copy's detonation and the first Damage event told afterwards is logged (measurement).
+        private static IEnumerator O5Body(string folder, string name, PNPlayerMove e1, System.Text.StringBuilder log)
+        {
+            bool Has(string value) => File.Exists(Path.Combine(folder, value));
+            bool host = name == "host";
+            var eve = e1.GetComponent<EveCharacterSkill>(); var remote = e1.GetComponent<PNSkillRemoteInput>();
+            if (eve == null) throw new Exception("the O5 fixture needs Eve (--pn-skill-character=project_n:eve)");
+            var scene = e1.gameObject.scene;
+            var areas = PNAreaManager.Resolve(EveRegistrySession.Context, scene); var blasts = PNBlastManager.Resolve(EveRegistrySession.Context, scene);
+            if (host)
+            {
+                var world = PNLocalWorldContext.Current.World;
+                var request = new PNEntityRequest { Entity = "project_n:enemy", Template = "project_n:enemy", Character = Environment.GetCommandLineArgs().Contains("--pn-object-sync-reaper") ? "project_n:starreaper" : "project_n:starweaver", World = world, WorldIncarnation = world.Incarnation, ContentSlot = PNGridWorldController.SlotId, SceneKey = "objectsync:o5weaver", EntityKey = "", Position = e1.transform.position + new Vector3(4f, 0, 0) };
+                if (PNEntityHosts.For(EveRegistrySession.Context).TrySpawn(request, null, null, error => Debug.LogException(error)) == null) throw new Exception("the host refused the Starweaver");
+                Mark(folder, "host-enemy");
+            }
+            yield return Wait(() => Has("host-enemy"), "the Starweaver");
+            var damageTimes = new System.Collections.Generic.List<double>(); var detonations = new System.Collections.Generic.List<double>();
+            Action<PNCombatEvent, bool> onEvent = (combatEvent, matched) => { if (combatEvent.Kind == PNCombatEventKind.Damage) damageTimes.Add(Time.realtimeSinceStartupAsDouble); };
+            PNCombatEvents.Observed += onEvent;
+            int peakAreaCopies = 0, peakBlastCopies = 0, peakAreaActive = 0, peakBlastActive = 0, lastDetonated = blasts.ReplicasDetonated;
+            try
+            {
+                if (name == "client1")
+                {
+                    yield return Wait(() => remote != null && remote.IsBound && !eve.IsBusy, "Eve ready");
+                    yield return new WaitForSecondsRealtime(1.5f);
+                    eve.RequestSlot(PNSkillSlots.Dash, new PNSkillInputEvent(PNSkillInputPhase.Started, PNSkillInteraction.Tap));
+                    eve.RequestSlot(PNSkillSlots.Dash, new PNSkillInputEvent(PNSkillInputPhase.Performed, PNSkillInteraction.Tap));
+                    eve.RequestSlot(PNSkillSlots.Dash, new PNSkillInputEvent(PNSkillInputPhase.Canceled, PNSkillInteraction.Tap));
+                    Mark(folder, "client1-dash");
+                }
+                double until = Time.realtimeSinceStartupAsDouble + 45;
+                while (Time.realtimeSinceStartupAsDouble < until)
+                {
+                    peakAreaCopies = Math.Max(peakAreaCopies, areas.ReplicaCount); peakBlastCopies = Math.Max(peakBlastCopies, blasts.ReplicaCount);
+                    peakAreaActive = Math.Max(peakAreaActive, areas.ActiveCount); peakBlastActive = Math.Max(peakBlastActive, blasts.ActiveCount);
+                    if (blasts.ReplicasDetonated > lastDetonated) { lastDetonated = blasts.ReplicasDetonated; detonations.Add(Time.realtimeSinceStartupAsDouble); }
+                    yield return null;
+                }
+            }
+            finally { PNCombatEvents.Observed -= onEvent; }
+            var offsets = new System.Collections.Generic.List<string>();
+            foreach (var detonation in detonations) { double hit = damageTimes.FirstOrDefault(x => x >= detonation - .5 && x <= detonation + 3); offsets.Add(hit > 0 ? ((hit - detonation) * 1000).ToString("F0") + "ms" : "none"); }
+            log.Append(name + ": areaCopies=" + peakAreaCopies + " blastCopies=" + peakBlastCopies + " areaActive=" + peakAreaActive + " blastActive=" + peakBlastActive + " detonated=" + blasts.ReplicasDetonated + " adoptions=" + areas.Adoptions + " detToDamage=[" + string.Join(",", offsets) + "] objectRecords=" + ((PNNetworkManager)NetworkManager.singleton).ObjectRecordsSent + " objectBytes=" + ((PNNetworkManager)NetworkManager.singleton).ObjectBytesSent + "; ");
+            if (host)
+            {
+                if (peakAreaCopies != 0 || peakBlastCopies != 0) throw new Exception("the authority must build no copies " + log);
+                if (peakBlastActive < 1) throw new Exception("the Starweaver cast no blast on the host in 45 s " + log);
+                Mark(folder, "host-observed");
+            }
+            yield return Wait(() => Has("host-observed"), "host observed");
+            if (name == "client1" && (areas.Adoptions < 1 || peakAreaCopies != 1)) throw new Exception("the dasher's guess must be taken over by the record: one area copy and one adoption " + log);
+            if (name == "client2" && peakAreaCopies < 1) throw new Exception("client2 never saw the dash field " + log);
+            if (name != "host" && (peakBlastCopies < 1 || blasts.ReplicasDetonated < 1)) throw new Exception("this client never saw a blast copy detonate " + log);
+        }
+
+        // O5 blast guess over the real wire (--pn-object-sync-o5b, character Eve, CLONE-ONLY build where Eve's dash also creates a 1 s blast at its end): client1 dashes, so it draws a guess blast at cast time that the host's record must take over
+        // (one blast on client1, no copy on the host), client2 shows a copy, and the offsets between a drawn detonation and the first Damage event told afterwards are logged on both (measurement of "guess starts one trip early").
+        private static IEnumerator O5bBody(string folder, string name, PNPlayerMove e1, System.Text.StringBuilder log)
+        {
+            bool Has(string value) => File.Exists(Path.Combine(folder, value));
+            bool host = name == "host";
+            var eve = e1.GetComponent<EveCharacterSkill>(); var remote = e1.GetComponent<PNSkillRemoteInput>();
+            if (eve == null) throw new Exception("the O5b fixture needs Eve (--pn-skill-character=project_n:eve)");
+            var scene = e1.gameObject.scene; var blasts = PNBlastManager.Resolve(EveRegistrySession.Context, scene);
+            if (host)
+            {
+                var world = PNLocalWorldContext.Current.World;
+                foreach (var offset in new[] { new Vector3(2f, 0, 0), new Vector3(-2f, 0, 0), new Vector3(0, 0, 2f), new Vector3(0, 0, -2f) })
+                {
+                    var request = new PNEntityRequest { Entity = "project_n:enemy", Template = "project_n:enemy", Character = "project_n:dummy_lorica", World = world, WorldIncarnation = world.Incarnation, ContentSlot = PNGridWorldController.SlotId, SceneKey = "objectsync:o5b" + offset.x + "_" + offset.z, EntityKey = "", Position = e1.transform.position + offset };
+                    if (PNEntityHosts.For(EveRegistrySession.Context).TrySpawn(request, null, null, error => Debug.LogException(error)) == null) throw new Exception("the host refused a dummy");
+                }
+                Mark(folder, "host-enemy");
+            }
+            yield return Wait(() => Has("host-enemy"), "the dummies");
+            var damageTimes = new System.Collections.Generic.List<double>(); var detonations = new System.Collections.Generic.List<double>();
+            Action<PNCombatEvent, bool> onEvent = (combatEvent, matched) => { if (combatEvent.Kind == PNCombatEventKind.Damage) damageTimes.Add(Time.realtimeSinceStartupAsDouble); };
+            PNCombatEvents.Observed += onEvent;
+            int peakCopies = 0, peakActive = 0, peakGuess = 0, lastDetonated = blasts.ReplicasDetonated;
+            try
+            {
+                if (name == "client1")
+                {
+                    yield return Wait(() => remote != null && remote.IsBound && !eve.IsBusy, "Eve ready");
+                    yield return new WaitForSecondsRealtime(1.5f);
+                    eve.RequestSlot(PNSkillSlots.Dash, new PNSkillInputEvent(PNSkillInputPhase.Started, PNSkillInteraction.Tap));
+                    eve.RequestSlot(PNSkillSlots.Dash, new PNSkillInputEvent(PNSkillInputPhase.Performed, PNSkillInteraction.Tap));
+                    eve.RequestSlot(PNSkillSlots.Dash, new PNSkillInputEvent(PNSkillInputPhase.Canceled, PNSkillInteraction.Tap));
+                }
+                double until = Time.realtimeSinceStartupAsDouble + 12;
+                while (Time.realtimeSinceStartupAsDouble < until)
+                {
+                    peakCopies = Math.Max(peakCopies, blasts.ReplicaCount); peakActive = Math.Max(peakActive, blasts.ActiveCount); peakGuess = Math.Max(peakGuess, blasts.GuessCount);
+                    if (blasts.ReplicasDetonated > lastDetonated) { lastDetonated = blasts.ReplicasDetonated; detonations.Add(Time.realtimeSinceStartupAsDouble); }
+                    yield return null;
+                }
+            }
+            finally { PNCombatEvents.Observed -= onEvent; }
+            var offsets = new System.Collections.Generic.List<string>();
+            foreach (var detonation in detonations) { double hit = damageTimes.FirstOrDefault(x => x >= detonation - .5 && x <= detonation + 3); offsets.Add(hit > 0 ? ((hit - detonation) * 1000).ToString("F0") + "ms" : "none"); }
+            log.Append(name + ": copies=" + peakCopies + " active=" + peakActive + " guess=" + peakGuess + " detonated=" + blasts.ReplicasDetonated + " adoptions=" + blasts.Adoptions + " damageEvents=" + damageTimes.Count + " detToDamage=[" + string.Join(",", offsets) + "]; ");
+            if (host) { if (peakCopies != 0 || peakGuess != 0) throw new Exception("the authority must build no copies or guesses " + log); Mark(folder, "host-observed"); }
+            yield return Wait(() => Has("host-observed"), "host observed");
+            if (name == "client1" && (blasts.Adoptions != 1 || peakGuess != 1 || peakActive != 1)) throw new Exception("the dasher's guess blast must be taken over by the record: one blast, one adoption " + log);
+            if (name == "client2" && (peakCopies != 1 || blasts.ReplicasDetonated != 1)) throw new Exception("client2 must show exactly one blast copy and see it detonate " + log);
+        }
+
+        private static IEnumerator QuietBody(string folder, string name, PNPlayerMove e1, System.Text.StringBuilder log)
+        {
+            var tally = new System.Collections.Generic.SortedDictionary<string, int>(); var manager = (PNNetworkManager)NetworkManager.singleton;
+            Action<PNCombatEvent, bool> count = (e, m) =>
+            {
+                string layer = "?"; if (EveRegistrySession.Context.Entities.TryGet(new EveEntityId(e.TargetId), out var loader) && loader != null) layer = LayerMask.LayerToName(loader.gameObject.layer) + "/" + loader.gameObject.name;
+                var k = e.Kind + " target=" + layer + " source=" + (e.SourceId == 0 ? "none" : "yes") + " applied=" + (e.Applied > 0 ? ">0" : "0") + " tags=" + string.Join("+", e.Tags ?? new string[0]);
+                tally[k] = (tally.TryGetValue(k, out var n) ? n : 0) + 1;
+            };
+            PNCombatEvents.Observed += count; int sent0 = manager.CombatEventsSent, bytes0 = (int)manager.CombatBytesSent;
+            yield return new WaitForSecondsRealtime(15f);
+            PNCombatEvents.Observed -= count;
+            int total = 0; foreach (var pair in tally) total += pair.Value;
+            log.Append(name + " quiet: told=" + total + " sent=" + (manager.CombatEventsSent - sent0) + " bytes=" + (manager.CombatBytesSent - bytes0) + " {" + string.Join(" | ", tally.Select(x => x.Key + " x" + x.Value)) + "}; ");
+        }
+
         // O6 on the real wire: the host makes long-lived projectiles, every observer gets a fresh baseline of them, then a flood overflows the host's queue and every observer must still end with the same living set.
         private static IEnumerator O6Body(string folder, string name, PNPlayerMove e1, System.Text.StringBuilder log)
         {
@@ -287,6 +496,14 @@ namespace ProjectN.Coop.Tests
             const int living = 5;
             var handles = new System.Collections.Generic.List<PNProjectileHandle>();
             var scene = e1.gameObject.scene; double madeAt = 0;
+            var o6Tally = new System.Collections.Generic.SortedDictionary<string, int>();
+            Action<PNCombatEvent, bool> o6Count = (e, m) =>
+            {
+                string layer = "?"; if (EveRegistrySession.Context.Entities.TryGet(new EveEntityId(e.TargetId), out var loader) && loader != null) layer = LayerMask.LayerToName(loader.gameObject.layer) + "/" + loader.gameObject.name;
+                var k = e.Kind + " target=" + layer + " source=" + (e.SourceId == 0 ? "none" : "yes") + " applied=" + (e.Applied > 0 ? ">0" : "0") + " key=" + (e.HitKey == null ? "none" : "yes");
+                o6Tally[k] = (o6Tally.TryGetValue(k, out var n) ? n : 0) + 1;
+            };
+            PNCombatEvents.Observed += o6Count;
             if (host)
             {
                 yield return new WaitForSecondsRealtime(2f);
@@ -344,6 +561,7 @@ namespace ProjectN.Coop.Tests
             yield return Wait(() => Has("o6-flooded"), "flooded");
             yield return new WaitForSecondsRealtime(1f);
             if (!host && (projectiles.ReplicaCount != living || projectiles.Snapshot().Count != living)) throw new Exception("after the flood this client has " + projectiles.ReplicaCount + " copies / " + projectiles.Snapshot().Count + " projectiles, not " + living);
+            PNCombatEvents.Observed -= o6Count; log.Append(name + " o6 combat tally: {" + string.Join(" | ", o6Tally.Select(x => x.Key + " x" + x.Value)) + "} startup={" + string.Join(" | ", StartupTally.Select(x => x.Key + " x" + x.Value)) + "} sent=" + manager.CombatEventsSent + "; ");
             log.Append(name + ": made=" + made + " overflows=" + (manager.ObjectOverflows - overflows0) + " baselinesSent=" + manager.ObjectBaselinesSent + " baselinesApplied=" + manager.ObjectBaselinesApplied + " bytes=" + (manager.ObjectBytesSent - bytes0) + " records=" + (manager.ObjectRecordsSent - records0) + " packets=" + manager.ObjectPacketsSent + "; ");
             if (host) { foreach (var handle in handles) handle.End(); Mark(folder, "o6-ended"); }
             yield return Wait(() => Has("o6-ended"), "o6 ended");

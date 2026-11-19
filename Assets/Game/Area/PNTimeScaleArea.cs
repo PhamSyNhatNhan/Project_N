@@ -110,6 +110,7 @@ public class PNTimeScaleArea : PNAreaInstance
         VisualSettings = new PNTimeScaleAreaVisualSettings(data["visual"]);
         pollPeriod = (float)PNBuffContentBatch.Number(data, "pollPeriod");
         fadeIn = (float)PNBuffContentBatch.Number(data, "fadeIn"); fadeOut = (float)PNBuffContentBatch.Number(data, "fadeOut");
+        if (context.IsReplica) { InitializeReplica(context); return; }
         if (settings.Dependent && !ValidEntity(context.Owner)) throw new ArgumentException("Dependent area requires a live same-session owner.");
         if (context.Follow != null && !ValidEntity(context.Follow)) throw new ArgumentException("Follow target must be live in same session.");
         ownerIdentity = settings.Dependent ? new PNSource(context.Owner.SessionId, context.Owner.EntityId) : null;
@@ -135,6 +136,22 @@ public class PNTimeScaleArea : PNAreaInstance
         if (dust == null) dust = new PNTimeScaleDust(transform);
         dust.Initialize(this, VisualSettings);
     }
+    // A copy on a machine without authority draws the field: no Buff, no clock effect, no owner / follow signals. It follows its entity when this machine has it; the authority's End record ends it.
+    private void InitializeReplica(PNAreaCreateRequest context)
+    {
+        ownerIdentity = followIdentity = null; ownerCollection = followCollection = null; followLost = context.Follow == null;
+        elapsed = 0; pollElapsed = pollPeriod; visualAge = 0; VisualStrength = 0; VisualRadius = 0; clockGrants.Clear();
+        PNTimeScaleAreaRendering.Register(this);
+        if (dust == null) dust = new PNTimeScaleDust(transform);
+        dust.Initialize(this, VisualSettings);
+    }
+    public override float ProgressSeconds => (float)elapsed;
+    protected override void OnScaleCorrected(double scale)
+    {
+        if (settings == null) return;
+        float corrected = settings.Radius * (float)scale;
+        if (!float.IsNaN(corrected) && !float.IsInfinity(corrected) && corrected > 0f) radius = corrected;
+    }
     private bool ValidEntity(PNStat entity) => entity != null && entity.IsReady && entity.isActiveAndEnabled && !entity.IsDead && entity.SessionId == Manager.Session.SessionId && ReferenceEquals(entity.GetComponent<EveEntityIdentity>()?.World,World);
     private static PNBuffCollection CurrentCollection(PNStat entity)
     { var manager = entity != null ? entity.GetComponent<PNBuffManager>() : null; return manager != null && manager.IsReady ? manager.Buffs : null; }
@@ -142,6 +159,7 @@ public class PNTimeScaleArea : PNAreaInstance
     public override void Advance(float gameDelta)
     {
         if (!IsRunning) return;
+        if (IsReplica) { AdvanceReplica(gameDelta); return; }
         if (settings.Dependent && (!SameEntity(request.Owner, ownerIdentity) || ownerCollection != null && !ReferenceEquals(ownerCollection, CurrentCollection(request.Owner)))) { Finish(PNAreaEndReason.OwnerUnavailable); return; }
         elapsed += gameDelta;
         if (settings.Duration.HasValue && elapsed >= settings.Duration.Value) { Finish(PNAreaEndReason.Expired); return; }
@@ -156,6 +174,22 @@ public class PNTimeScaleArea : PNAreaInstance
         pollElapsed += gameDelta;
         if (pollElapsed < pollPeriod) return;
         pollElapsed %= pollPeriod; Poll(); PollClocks();
+    }
+    private void AdvanceReplica(float gameDelta)
+    {
+        elapsed += gameDelta;
+        if (settings.Duration.HasValue && elapsed >= settings.Duration.Value) { Finish(PNAreaEndReason.Expired); return; }
+        if (request.Follow != null && !followLost)
+        {
+            if (request.Follow != null && request.Follow.isActiveAndEnabled) transform.position = request.Follow.transform.position; else followLost = true;
+        }
+        visualAge += gameDelta; VisualStrength = Mathf.Clamp01(visualAge / fadeIn);
+        VisualRadius = radius * Mathf.SmoothStep(0, 1, Mathf.Clamp01(visualAge / VisualSettings.BirthDuration));
+        dust.Advance(gameDelta, VisualStrength, true);
+        // The copy slows the non-entity time targets (projectile / area / blast copies) the way the authority's zone does, so a copy inside the field ages as slowly as the real one. Entities get nothing here (no Buff): they follow the authority's snapshots.
+        pollElapsed += gameDelta;
+        if (pollElapsed < pollPeriod) return;
+        pollElapsed %= pollPeriod; PollClocks();
     }
     private void Poll()
     {

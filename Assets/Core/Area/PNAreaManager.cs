@@ -45,6 +45,23 @@ public sealed class PNAreaCreateRequest
     public PNStat Follow { get; }
     public Vector3 Position { get; }
     public Scene Scene { get; }
+    // EN: A view-only copy on a machine without authority (plan O5): no combat source, no Buff and no clock effect; `owner` / `follow` (when this machine has them) are only for what is drawn and where it sits;
+    //     `scale` is the creator's area_scale the record carries.
+    // VI: Ban hinh chi de xem o may khong co authority: khong nguon combat, khong Buff, khong tac dong dong ho; owner / follow chi de ve va dat cho; scale la area_scale cua nguoi tao.
+    public bool IsReplica { get; private set; }
+    public double ReplicaScale { get; private set; } = 1d;
+    // EN: The cast that made the area (0 = none) and which area of that cast (the Action ordinal). The authority writes it into the record; a shooter's guess is named by it, so the record can take the guess over.
+    // VI: Cast tao ra vung (0 = khong) va la vung thu may cua cast (so thu tu Action). Authority ghi vao ban ghi; ban doan cua nguoi ban mang ten do de ban ghi nhan lai.
+    public long CastKey { get; private set; }
+    public int CastIndex { get; private set; }
+    public PNAreaCreateRequest WithCast(long castKey, int castIndex) { CastKey = castKey > 0 ? castKey : 0; CastIndex = Math.Max(0, Math.Min(255, castIndex)); return this; }
+    public static PNAreaCreateRequest Replica(EveId id, JToken input, Scene scene, Vector3 position, PNStat owner, PNStat follow, double scale)
+    {
+        if (double.IsNaN(scale) || double.IsInfinity(scale) || scale < 0d) throw new ArgumentException("An area copy needs a finite scale.", nameof(scale));
+        return new PNAreaCreateRequest(id, input, scene, position, owner, follow, scale);
+    }
+    private PNAreaCreateRequest(EveId id, JToken input, Scene scene, Vector3 position, PNStat owner, PNStat follow, double scale)
+    { AreaId = id; this.input = input?.DeepClone(); Scene = scene; Position = position; Owner = owner; Follow = follow; IsReplica = true; ReplicaScale = scale; }
     public PNAreaCreateRequest(EveId id, JToken input, PNCombatSource source, Scene scene, Vector3 position, PNStat owner = null, PNStat follow = null)
     { AreaId = id; this.input = input?.DeepClone(); Source = source; Scene = scene; Position = position; Owner = owner; Follow = follow; }
 }
@@ -70,12 +87,15 @@ public abstract class PNAreaInstance : MonoBehaviour, EveIPoolable, IPNTimeTarge
     {
         get
         {
-            if (double.IsNaN(scaleFactor)) scaleFactor = created?.Source?.Snapshot != null ? created.Source.Snapshot.Calculate(1d, PNContentIds.AreaScale) : 1d;
+            if (double.IsNaN(scaleFactor)) scaleFactor = created != null && created.IsReplica ? created.ReplicaScale : created?.Source?.Snapshot != null ? created.Source.Snapshot.Calculate(1d, PNContentIds.AreaScale) : 1d;
             return scaleFactor;
         }
     }
     // The creator's area_scale as the sync record carries it.
     public double SyncScale => ScaleFactor;
+    // A guess made with another area_scale than the authority's record carries takes the record's (the area draws at the size the authority's area really has).
+    internal void CorrectScale(double scale) { scaleFactor = scale; OnScaleCorrected(scale); }
+    protected virtual void OnScaleCorrected(double scale) { }
     internal float ScaleDelta(float gameDelta)
     {
         if (!AffectedByTime || Clock == null || Clock.ModifierCount == 0) return gameDelta;
@@ -88,6 +108,10 @@ public abstract class PNAreaInstance : MonoBehaviour, EveIPoolable, IPNTimeTarge
         if (Clock != null) Clock.ClearModifiers();
     }
     public PNAreaHandle Handle { get; private set; }
+    // A view-only copy of the authority's area: draws, applies nothing, ends when the authority says so.
+    public bool IsReplica => created != null && created.IsReplica;
+    // Seconds of its own life the area has lived (what a late observer's copy is brought to); 0 when the implementation does not say.
+    public virtual float ProgressSeconds => 0f;
     public bool IsRunning { get; private set; }
     public EveWorldContext World { get; private set; }
     public PNAreaEndReason? EndReason { get; private set; }
@@ -136,7 +160,7 @@ public sealed class PNAreaManager : MonoBehaviour
         internal GameObject Template; internal EveEasyPooling Pool; internal Scene Scene;
         internal readonly Dictionary<GameObject, PNAreaInstance> Instances = new Dictionary<GameObject, PNAreaInstance>();
     }
-    private sealed class Entry { internal EveId Id, ProfileId; internal GameObject Root; internal PNAreaInstance Instance; internal PoolEntry Pool; internal Scene Scene; internal float Retirement;internal EveWorldContext World;internal IDisposable Lease; }
+    private sealed class Entry { internal EveId Id, ProfileId; internal GameObject Root; internal PNAreaInstance Instance; internal PoolEntry Pool; internal Scene Scene; internal float Retirement;internal bool Replica;internal EveWorldContext World;internal IDisposable Lease; internal bool Guess, Adopted; internal double CreatedAt; internal (long, int) GuessKey; }
     private readonly Dictionary<(PNAreaDefinition, Scene), PoolEntry> pools = new Dictionary<(PNAreaDefinition, Scene), PoolEntry>();
     private readonly Dictionary<long, Entry> entries = new Dictionary<long, Entry>();
     private readonly Queue<Action> pending = new Queue<Action>();
@@ -176,17 +200,18 @@ public sealed class PNAreaManager : MonoBehaviour
         var receipt = new PNAreaReceipt();
         Submit(() => CreateNow(request, receipt)); return receipt;
     }
-    private void CreateNow(PNAreaCreateRequest request, PNAreaReceipt receipt)
+    private void CreateNow(PNAreaCreateRequest request, PNAreaReceipt receipt, long replicaId = 0, bool guess = false)
     {
+        bool replica = replicaId != 0 || guess;
         GameObject root = null; PoolEntry pool = null; long id = 0;
         try
         {
-            if (closing || !isActiveAndEnabled || Session == null || !Session.IsActive || !Session.HasAuthority) { receipt.Status = PNAreaStatus.Rejected; return; }
-            if (request == null || request.Source == null || request.Source.SessionId != Session.SessionId || !request.Scene.IsValid() || !request.Scene.isLoaded)
+            if (closing || !isActiveAndEnabled || Session == null || !Session.IsActive || !replica && !Session.HasAuthority || replica && (request == null || !request.IsReplica || replicaId != 0 && objectEntries.ContainsKey(replicaId) || guess && (request.CastKey <= 0 || predictions.ContainsKey((request.CastKey, request.CastIndex))))) { receipt.Status = PNAreaStatus.Rejected; return; }
+            if (request == null || !replica && (request.Source == null || request.Source.SessionId != Session.SessionId) || !request.Scene.IsValid() || !request.Scene.isLoaded)
                 throw new ArgumentException("Area requires valid source/session and loaded scene.");
             var p = request.Position;
             var world=PNWorldGameplay.ForScene(Session,request.Scene);
-            if(world!=null&&!world.CanExecute||request.Owner!=null&&(!PNWorldGameplay.CanExecute(request.Owner)||!ReferenceEquals(request.Owner.GetComponent<EveEntityIdentity>()?.World,world))||request.Follow!=null&&(!PNWorldGameplay.CanExecute(request.Follow)||!ReferenceEquals(request.Follow.GetComponent<EveEntityIdentity>()?.World,world)))
+            if(world!=null&&!world.CanExecute||!replica&&(request.Owner!=null&&(!PNWorldGameplay.CanExecute(request.Owner)||!ReferenceEquals(request.Owner.GetComponent<EveEntityIdentity>()?.World,world))||request.Follow!=null&&(!PNWorldGameplay.CanExecute(request.Follow)||!ReferenceEquals(request.Follow.GetComponent<EveEntityIdentity>()?.World,world))))
                 throw new InvalidOperationException("Area world/owner/follow is unavailable or crosses worlds.");
             if (!Finite(p.x) || !Finite(p.y) || !Finite(p.z)) throw new ArgumentException("Finite area position required.");
             var definition = Session.Registry.Instances().GetEffectiveKind<PNAreaDefinition>(request.AreaId);
@@ -227,7 +252,9 @@ public sealed class PNAreaManager : MonoBehaviour
             PNWorldPresentationRegistration.Register(world,root);
             if (!instance.IsRunning) throw new InvalidOperationException("Area ended during initialization.");
             receipt.Handle = handle; receipt.Status = PNAreaStatus.Created;
-            RecordSpawn(id, entries[id], request);
+            if (guess) { var made = entries[id]; made.Replica = true; made.Guess = true; made.CreatedAt = PredictionNow; made.GuessKey = (request.CastKey, request.CastIndex); predictions[made.GuessKey] = id; }
+            else if (replica) { entries[id].Replica = true; objectEntries[replicaId] = id; objectIds[id] = replicaId; }
+            else RecordSpawn(id, entries[id], request);
         }
         catch (Exception error)
         {
@@ -276,7 +303,7 @@ public sealed class PNAreaManager : MonoBehaviour
         if (!Finite(gameDelta) || gameDelta < 0) throw new ArgumentOutOfRangeException(nameof(gameDelta));
         if (closing) return;
         if (Session == null || !Session.IsActive) { Shutdown(); return; }
-        objectSync?.Flush();
+        if (objectSync != null) { if (objectSync.IsAuthority) objectSync.Flush(); else objectSync.Tick(); }
         Submit(() => {
             foreach (var pair in entries.ToArray())
             {
@@ -286,6 +313,7 @@ public sealed class PNAreaManager : MonoBehaviour
                     if (entry.Instance == null) { Return(pair.Key, entry); continue; }
                     if(entry.World!=null&&!entry.World.CanExecute)continue;
                     if (entry.Instance.IsRunning && !entry.Instance.isActiveAndEnabled) { End(new PNAreaHandle(this, pair.Key), PNAreaEndReason.Disabled); continue; }
+                    if (entry.Guess && !entry.Adopted && entry.Instance.IsRunning && PredictionNow - entry.CreatedAt > OrphanSeconds) { End(new PNAreaHandle(this, pair.Key), PNAreaEndReason.Requested); continue; }
                     if (entry.Instance.IsRunning) entry.Instance.Advance(entry.Instance.ScaleDelta(gameDelta));
                     else { entry.Instance.AdvanceRetirement(gameDelta); entry.Retirement -= gameDelta; if (entry.Retirement <= 0) Return(pair.Key, entry); }
                 }
@@ -298,7 +326,105 @@ public sealed class PNAreaManager : MonoBehaviour
     private readonly Dictionary<long, long> objectIds = new Dictionary<long, long>();
     // EN: The spawned-object sync of this play. On the authority every area made here is recorded (Spawn at creation, End when it stops). Null = no sync.
     // VI: Dich vu dong bo vat the cua phien. O authority moi area tao ra deu duoc ghi (Spawn luc tao, End luc dung).
-    public PNObjectSyncService ObjectSync { get => objectSync; set => objectSync = value; }
+    public PNObjectSyncService ObjectSync
+    {
+        get => objectSync;
+        set
+        {
+            if (ReferenceEquals(objectSync, value)) return;
+            if (objectSync != null) { objectSync.SetSink(PNObjectKind.Area, null); objectSync.SetSource(PNObjectKind.Area, null); }
+            objectSync = value;
+            if (value != null) { bridge = bridge ?? new ObjectBridge(this); value.SetSink(PNObjectKind.Area, bridge); value.SetSource(PNObjectKind.Area, bridge); }
+        }
+    }
+    private ObjectBridge bridge;
+    private readonly Dictionary<long, long> objectEntries = new Dictionary<long, long>();
+    // ---- the shooter's guess (plan O5 step 4): the player's own machine draws the area when it casts, named by (cast key, index); the authority's Spawn record with that name takes it over instead of making a second one ----
+    // A guess nobody takes over within OrphanSeconds (the authority refused the cast) is removed. A guess draws only: no Buff, no clock effect.
+    public const double OrphanSeconds = 1d;
+    private readonly Dictionary<(long, int), long> predictions = new Dictionary<(long, int), long>();
+    public Func<double> PredictionClock { get; set; }
+    private double PredictionNow => PredictionClock != null ? PredictionClock() : Time.unscaledTimeAsDouble;
+    public int Adoptions { get; private set; }
+    public int AdoptScaleFixes { get; private set; }
+    public int GuessCount { get { int count = 0; foreach (var entry in entries.Values) if (entry.Guess && !entry.Adopted && entry.Instance != null && entry.Instance.IsRunning) count++; return count; } }
+    // EN: Draws the shooter's guess of an area. `request` is a view-only request (PNAreaCreateRequest.Replica) with the cast key; nothing is recorded or sent.
+    // VI: Ve ban doan cua nguoi ban. request la yeu cau chi-de-xem (Replica) co cast key; khong ghi, khong gui.
+    public PNAreaReceipt CreateGuess(PNAreaCreateRequest request)
+    {
+        if (request == null || !request.IsReplica || request.CastKey <= 0) throw new ArgumentException("A guess needs a view-only request with a cast key.", nameof(request));
+        var receipt = new PNAreaReceipt();
+        Submit(() => CreateNow(request, receipt, 0, true)); return receipt;
+    }
+    // The cast was refused (or taken back): the areas it guessed go now, not after OrphanSeconds. An area the authority's record already took over is the real one's copy and stays.
+    public void DiscardPredicted(long castKey)
+    {
+        if (castKey <= 0) return;
+        foreach (var pair in predictions.ToArray())
+            if (pair.Key.Item1 == castKey && entries.TryGetValue(pair.Value, out var entry) && entry.Guess && !entry.Adopted) End(new PNAreaHandle(this, pair.Value));
+    }
+    private bool TryAdopt(PNObjectRecord record)
+    {
+        if (string.IsNullOrEmpty(record.CastKey) || !long.TryParse(record.CastKey, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var castKey)) return false;
+        var key = (castKey, record.CastIndex);
+        if (!predictions.TryGetValue(key, out var handleId) || !entries.TryGetValue(handleId, out var entry) || entry.Instance == null || !entry.Instance.IsRunning || entry.Adopted) return false;
+        entry.Adopted = true; predictions.Remove(key); objectEntries[record.Id] = handleId; objectIds[handleId] = record.Id; Adoptions++;
+        if (!double.IsNaN(record.Scale) && !double.IsInfinity(record.Scale) && record.Scale > 0d && Math.Abs(record.Scale - entry.Instance.SyncScale) > 1e-3 * Math.Max(1d, record.Scale)) { entry.Instance.CorrectScale(record.Scale); AdoptScaleFixes++; }
+        return true;
+    }
+    public int ReplicaCount { get { int count = 0; foreach (var entry in entries.Values) if (entry.Replica) count++; return count; } }
+    // EN: Builds a view-only copy of an area from a Spawn record and brings it to `elapsed` seconds of its own life. It applies no Buff and no clock effect and ends when told to or at its own end.
+    // VI: Dung ban hinh cua mot vung tu ban ghi Spawn va dua no toi `elapsed` giay cua doi no. Khong ap Buff / dong ho.
+    public PNAreaReceipt CreateReplica(PNObjectRecord record, double elapsed)
+    {
+        if (record == null || record.Type != PNObjectRecordType.Spawn || record.Kind != PNObjectKind.Area) throw new ArgumentException("An area Spawn record is required.", nameof(record));
+        var receipt = new PNAreaReceipt();
+        Submit(() => CreateReplicaNow(record, elapsed, receipt)); return receipt;
+    }
+    private void CreateReplicaNow(PNObjectRecord record, double elapsed, PNAreaReceipt receipt)
+    {
+        try
+        {
+            if (closing || Session == null || !Session.IsActive || objectEntries.ContainsKey(record.Id)) { receipt.Status = PNAreaStatus.Rejected; return; }
+            if (TryAdopt(record)) { receipt.Status = PNAreaStatus.Created; return; }
+            EveWorldContext world = null;
+            foreach (var candidate in Session.Worlds.Snapshot()) if (candidate.InstanceId == record.World.Instance && candidate.Incarnation == record.World.Incarnation) { world = candidate; break; }
+            if (world == null || !world.CanExecute || !world.PhysicsOwner.IsValid()) { receipt.Status = PNAreaStatus.Rejected; return; }
+            JToken input = record.Input == null ? null : JToken.Parse(record.Input);
+            PNStat owner = null, follow = null;
+            if (record.Owner != 0 && Session.Entities.TryGet(new EveEntityId(record.Owner), out var ownerLoader) && ownerLoader != null) owner = ownerLoader.GetComponent<PNStat>();
+            if (record.Follow != 0 && Session.Entities.TryGet(new EveEntityId(record.Follow), out var followLoader) && followLoader != null) follow = followLoader.GetComponent<PNStat>();
+            var request = PNAreaCreateRequest.Replica(record.DefinitionId, input, world.PhysicsOwner, new Vector3(record.Position.X, record.Position.Y, record.Position.Z), owner, follow, record.Scale);
+            CreateNow(request, receipt, record.Id);
+            if (receipt.Status == PNAreaStatus.Created && entries.TryGetValue(receipt.Handle.InstanceId, out var made) && made.Instance != null && elapsed > 1e-4d)
+                made.Instance.Advance((float)Math.Min(elapsed, PNObjectSyncLimits.MaxReplicaSeconds));
+        }
+        catch (Exception error) { receipt.Error = error; receipt.Status = PNAreaStatus.Failed; }
+    }
+    private sealed class ObjectBridge : IPNObjectSyncSink, IPNObjectSyncSource
+    {
+        private readonly PNAreaManager owner;
+        public ObjectBridge(PNAreaManager manager) { owner = manager; }
+        public bool Spawned(PNObjectRecord spawn, double elapsed) { var receipt = owner.CreateReplica(spawn, elapsed); return receipt.Status == PNAreaStatus.Created || receipt.Status == PNAreaStatus.Pending; }
+        public void Retargeted(PNObjectRecord retarget) { }
+        public void Ended(PNObjectRecord end)
+        {
+            if (!owner.objectEntries.TryGetValue(end.Id, out var handleId)) return;
+            var reason = Enum.IsDefined(typeof(PNAreaEndReason), (int)end.Reason) ? (PNAreaEndReason)end.Reason : PNAreaEndReason.Requested;
+            owner.End(new PNAreaHandle(owner, handleId), reason);
+        }
+        public bool TryCapture(long id, out PNObjectVector position, out PNObjectVector direction, out long target, out float age)
+        {
+            position = default; direction = new PNObjectVector(0, 0, 1); target = 0; age = 0f;
+            foreach (var pair in owner.entries)
+            {
+                if (pair.Value.Instance == null || !pair.Value.Instance.IsRunning || !owner.objectIds.TryGetValue(pair.Key, out var objectId) || objectId != id) continue;
+                var at = pair.Value.Instance.transform.position; position = new PNObjectVector(at.x, at.y, at.z);
+                age = Mathf.Min(pair.Value.Instance.ProgressSeconds, (float)PNObjectSyncLimits.MaxReplicaSeconds); return true;
+            }
+            return false;
+        }
+    }
     private void RecordSpawn(long id, Entry entry, PNAreaCreateRequest request)
     {
         if (objectSync == null || !objectSync.IsAuthority || entry.World == null) return;
@@ -308,7 +434,7 @@ public sealed class PNAreaManager : MonoBehaviour
             if (input != null && input.Length > PNObjectSyncLimits.InputChars) { objectSync.NoteRefused(); return; }
             var at = request.Position; long objectId = objectSync.NextId();
             var record = PNObjectRecord.Spawn(PNObjectKind.Area, objectId, PNObjectWorld.Of(entry.World), entry.Id, input, new PNObjectVector(at.x, at.y, at.z), new PNObjectVector(0, 0, 1), 0,
-                request.Owner != null ? request.Owner.EntityId.Value : 0L, request.Follow != null ? request.Follow.EntityId.Value : 0L, null, 0, 1d, entry.Instance.SyncScale, 1d, objectSync.Now, 0f, 0f);
+                request.Owner != null ? request.Owner.EntityId.Value : 0L, request.Follow != null ? request.Follow.EntityId.Value : 0L, request.CastKey > 0 ? request.CastKey.ToString(System.Globalization.CultureInfo.InvariantCulture) : null, request.CastIndex, 1d, entry.Instance.SyncScale, 1d, objectSync.Now, 0f, 0f);
             objectIds[id] = objectId;
             if (!objectSync.RecordSpawn(record)) objectIds.Remove(id);
         }
@@ -318,6 +444,7 @@ public sealed class PNAreaManager : MonoBehaviour
     {
         if (objectSync == null || !objectIds.TryGetValue(id, out var objectId)) return;
         objectIds.Remove(id);
+        if (entry.Replica) { objectEntries.Remove(objectId); objectSync.ReplicaEnded(objectId); return; }
         var at = entry.Instance != null ? entry.Instance.transform.position : default;
         try { objectSync.RecordEnd(PNObjectRecord.End(PNObjectKind.Area, objectId, PNObjectWorld.Of(entry.World), (byte)reason, new PNObjectVector(at.x, at.y, at.z))); }
         catch (FormatException) { objectSync.NoteRefused(); }
@@ -332,6 +459,7 @@ public sealed class PNAreaManager : MonoBehaviour
         // A failed gameplay cleanup keeps its owner; pool eviction is not a cleanup retry.
         if (!ReferenceEquals(entry.Instance, null) && entry.Instance.CleanupFailed) return;
         entries.Remove(id);entry.Lease?.Dispose();
+        if (entry.Guess && predictions.TryGetValue(entry.GuessKey, out var guessId) && guessId == id) predictions.Remove(entry.GuessKey);
         if (entry.Instance == null && !ReferenceEquals(entry.Instance, null)) entry.Instance.CleanupFailed = true;
         try { entry.Pool.Pool.Release(entry.Root); } catch (Exception error) { Debug.LogException(error, this); }
     }
@@ -367,7 +495,7 @@ public sealed class PNAreaManager : MonoBehaviour
     }
     public void Shutdown()
     {
-        closing = true; SceneManager.sceneUnloaded -= SceneUnloaded;
+        closing = true; SceneManager.sceneUnloaded -= SceneUnloaded; objectEntries.Clear(); objectIds.Clear(); predictions.Clear();
         var errors = new List<Exception>();
         foreach (var pair in entries.ToArray())
         {

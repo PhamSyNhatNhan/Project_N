@@ -23,7 +23,7 @@ public partial class PNStat
                 Kind = kind, World = CombatEventWorld(), TargetId = EntityId.Value, SourceId = damage.SourceId.IsValid ? damage.SourceId.Value : 0L,
                 Applied = (float)result.AppliedDamage, Calculated = (float)result.CalculatedDamage, LoricaAbsorbed = (float)result.LoricaAbsorbed,
                 HealthBefore = (float)result.HealthBefore, HealthAfter = (float)result.HealthAfter, Critical = result.IsCritical, Killed = result.Killed, LoricaBroke = result.LoricaBroke,
-                InIFrame = result.IFrameBefore > 0d, HasPoint = damage.HasHitPoint, PointX = damage.HitX, PointY = damage.HitY, PointZ = damage.HitZ, HitKey = damage.HitKey, Tags = tags
+                InIFrame = result.IFrameBefore > 0d, HasPoint = damage.HasHitPoint, PointX = damage.HitX, PointY = damage.HitY, PointZ = damage.HitZ, HasNormal = damage.HasHitNormal, NormalX = damage.HitNormalX, NormalY = damage.HitNormalY, NormalZ = damage.HitNormalZ, HitKey = damage.HitKey, Tags = tags
             });
         }
         catch (Exception error) { Debug.LogException(error, this); }

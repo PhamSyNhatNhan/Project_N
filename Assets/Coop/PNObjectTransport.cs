@@ -150,8 +150,8 @@ namespace ProjectN.Coop
             public void Send(PNObjectRecord record) => owner.QueueObject(record);
         }
 
-        // Only projectiles have a client sink yet (areas and blasts: stage O5), so only they travel.
-        private static bool ObjectTravels(PNObjectKind kind) => kind == PNObjectKind.Projectile;
+        // Projectiles, areas and blasts have a client sink (O3, O5), so they travel.
+        private static bool ObjectTravels(PNObjectKind kind) => kind == PNObjectKind.Projectile || kind == PNObjectKind.Area || kind == PNObjectKind.Blast;
 
         // ---- host ----
         private void QueueObject(PNObjectRecord record)

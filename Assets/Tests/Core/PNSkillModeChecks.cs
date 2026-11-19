@@ -113,6 +113,12 @@ public static class PNSkillModeChecks
                     self.GetCurrent(PNContentIds.Health) == hostHealth - 10 &&
                     !action.Damage.CanCrit && action.Damage.IFrameDuration == .75,
                     "authority confirms duplicate targets once with authored crit and iframe policy"));
+            // Plan 4.4b item 1: the authority tells each hit of an Action once as a Real impact (a cast with no key still tells it, with castKey 0).
+            var realImpacts = new System.Collections.Generic.List<PNActionImpact>(); Action<PNActionImpact> realListener = x => realImpacts.Add(x); skill.ActionImpact += realListener;
+            DamageAction(skill, PNSkillMode.Authority, action => Check(realImpacts.Count == 1 && realImpacts[0].Origin == PNActionImpactOrigin.Real && realImpacts[0].TargetId == self.EntityId.Value && realImpacts[0].Target == self && skill.ActionImpactsReal == 1, "an authority hit tells one Real action impact with its target"));
+            skill.ActionImpact -= realListener; DamageAction(skill, PNSkillMode.Authority, action => Check(realImpacts.Count == 1 && skill.ActionImpactsReal == 1, "a removed listener hears nothing (nothing is raised with no listener)"));
+            var keyText = PNActionImpact.Key(77, 3, 2, 99); Check(keyText == "77:a3:2:99" && PNActionImpact.TryParse(keyText, out long pk, out long po, out int ph, out long pt) && pk == 77 && po == 3 && ph == 2 && pt == 99, "an action hit key round-trips");
+            Check(!PNActionImpact.TryParse("77:3:2:99", out _, out _, out _, out _) && !PNActionImpact.TryParse("77:a3:2", out _, out _, out _, out _) && !PNActionImpact.TryParse("o5:0", out _, out _, out _, out _) && !PNActionImpact.TryParse("77:a3:-1:99", out _, out _, out _, out _), "projectile keys and malformed keys are not action keys");
             skill.ReportSink = null; context.Mode = PNSkillMode.Predicted; Check(!context.Hit(self, null, null, 0, null).Reported, "a predicted hit with no sink is skipped quietly");
         }
         finally { Cleanup(hostScene); }
@@ -172,6 +178,20 @@ public static class PNSkillModeChecks
             Check(predicted.CastKey > 0 && pctx.Hit(own, null, null, 0, null).Reported && keySink.Hits == 1 && keySink.LastKey == predicted.CastKey && keySink.LastStep == 0, "a guessed hit is reported under the cast's key, step 0");
             Check(pctx.Hit(own, null, null, 0, null, 5).Reported && keySink.LastStep == 0 && pctx2.Hit(own, null, null, 0, null).Reported && keySink.LastStep == 1 && keySink.Hits == 3, "one context keeps its step, the next context of the cast gets the next one");
             Check(!pctx.Hit(null, null, null, 0, null).Reported && keySink.Hits == 3, "a hit with no target reports nothing");
+            // Plan 4.4b item 1: a guessed hit raises the early phase under the action key and tells the shooter's own Guess impact before it reports.
+            var guessImpacts = new System.Collections.Generic.List<PNActionImpact>(); Action<PNActionImpact> guessListener = x => guessImpacts.Add(x); skill.ActionImpact += guessListener;
+            int earlyBefore = PNCombatEvents.EarlyTold; long ordinalNow = pctx.ActionOrdinal;
+            Check(pctx.Hit(own, null, null, 0, null, 4).Reported && PNCombatEvents.EarlyTold == earlyBefore + 1 && guessImpacts.Count == 1 && guessImpacts[0].Origin == PNActionImpactOrigin.Guess && guessImpacts[0].HitIndex == 4 && guessImpacts[0].CastKey == predicted.CastKey && guessImpacts[0].ActionOrdinal == ordinalNow, "a guessed hit raises the early phase and tells its own Guess impact");
+            // Another player's machine (a client that is not the shooter) is told by the combat event carrying the key: one Copy per hit, only for this skill's owner as source and only for action keys.
+            var copyImpacts = new System.Collections.Generic.List<PNActionImpact>(); Action<PNActionImpact> copyListener = x => copyImpacts.Add(x); skill.ActionImpact += copyListener;
+            PNCombatEvent Hurt(string key, long source) => new PNCombatEvent { World = new PNObjectWorld(Guid.NewGuid(), 1UL), Kind = PNCombatEventKind.Damage, TargetId = own.EntityId.Value, SourceId = source, Applied = 1, Calculated = 1, HealthBefore = 2, HealthAfter = 1, HasPoint = true, PointX = 1, PointY = 2, PointZ = 3, HitKey = key, Tags = PNCombatEvent.NoTags };
+            PNCombatEvents.Deliver(Hurt(PNActionImpact.Key(5, 2, 1, own.EntityId.Value), own.EntityId.Value + 1)); PNCombatEvents.Deliver(Hurt("5:0:1", own.EntityId.Value)); PNCombatEvents.Deliver(Hurt(PNActionImpact.Key(5, 2, 1, own.EntityId.Value + 7), own.EntityId.Value));
+            Check(copyImpacts.Count == 0, "a combat event of another source, a projectile key or a key naming another target is not this skill's impact");
+            PNCombatEvents.Deliver(Hurt(PNActionImpact.Key(5, 2, 1, own.EntityId.Value), own.EntityId.Value));
+            Check(copyImpacts.Count == 1 && copyImpacts[0].Origin == PNActionImpactOrigin.Copy && copyImpacts[0].HitIndex == 1 && copyImpacts[0].ActionOrdinal == 2 && copyImpacts[0].CastKey == 5 && copyImpacts[0].Point == new Vector3(1, 2, 3) && skill.ActionImpactsCopy == 1, "a copy is told one impact from the event with the action key, at its point");
+            skill.ActionImpact -= copyListener; PNCombatEvents.Deliver(Hurt(PNActionImpact.Key(5, 2, 1, own.EntityId.Value), own.EntityId.Value)); Check(copyImpacts.Count == 1, "no listener, no observer: nothing is told");
+            skill.ActionImpact -= guessListener; PNCombatEvents.Expire(double.MaxValue); Check(PNCombatEvents.PendingEarly == 0, "the early hold of a guess that is never confirmed ends");
+            skill.ReportSink = keySink; keySink.Hits = 3;
             double replicaHealth = own.GetCurrent(PNContentIds.Health);
             DamageAction(skill, PNSkillMode.Predicted, action =>
                 Check(action.Damage == null && action.Results.Count == 0 && keySink.Hits == 4 &&

@@ -305,7 +305,17 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable, IPNTim
         return false;
     }
 
-    private string HitKey(int hitIndex) => Launch.CastKey.ToString(System.Globalization.CultureInfo.InvariantCulture) + ":" + CastIndex + ":" + hitIndex;
+    // EN: What names this projectile's hits across machines: the cast key and index of a cast projectile, else "o" + its sync id (an enemy's or a summon's). A hit key is this prefix + ":" + the hit index.
+    // VI: Ten cua cac cu trung cua vien nay giua cac may: cast key + so thu tu (vien cua cast), khong thi "o" + id dong bo. Khoa cu trung = tien to + ":" + so cu trung.
+    internal string HitPrefix => Launch == null ? null : Launch.CastKey != 0 ? Launch.CastKey.ToString(System.Globalization.CultureInfo.InvariantCulture) + ":" + CastIndex : ObjectSeed != 0 ? "o" + ObjectSeed.ToString(System.Globalization.CultureInfo.InvariantCulture) : null;
+    private string HitKey(int hitIndex) { var prefix = HitPrefix; return prefix == null ? null : prefix + ":" + hitIndex; }
+    // A copy is told of a hit of the real projectile by the combat event that carries its key (a piercing projectile's middle hits, which its End record cannot name).
+    internal void TellRemoteHit(PNCombatEvent combatEvent, int hitIndex)
+    {
+        if (!IsRunning || ending || !IsReplica || hitIndex < HitCount) return;
+        HitCount = hitIndex + 1;
+        RaiseImpact(PNImpactKind.Target, combatEvent.HasPoint ? new Vector3(combatEvent.PointX, combatEvent.PointY, combatEvent.PointZ) : position, combatEvent.HasNormal ? new Vector3(combatEvent.NormalX, combatEvent.NormalY, combatEvent.NormalZ) : -heading, Resolve(combatEvent.TargetId), combatEvent.TargetId, hitIndex);
+    }
     // ---- hits -------------------------------------------------------------------------------------------------------------
     private PNProjectileHitContext hitContext;
     private PNSkillHitAdmission admission;
@@ -336,7 +346,7 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable, IPNTim
         {
             var snapshot = Launch.Source.Snapshot ?? throw new InvalidOperationException("Projectile damage needs a source with a combat snapshot.");
             // The hit is named by cast key, index in the volley and hit index (the shooter's guess names it the same), so the combat event can be matched to the guess's early phase.
-            result.Damage = target.ReceiveDamage(snapshot.CreateDamage(Launch.Damage).WithHit(Launch.CastKey != 0 ? HitKey(result.HitIndex) : null, contact.Point.x, contact.Point.y, contact.Point.z));
+            result.Damage = target.ReceiveDamage(snapshot.CreateDamage(Launch.Damage).WithHit(HitKey(result.HitIndex), contact.Point.x, contact.Point.y, contact.Point.z, contact.Normal.x, contact.Normal.y, contact.Normal.z));
         }
         if (Launch.HitPlan != null)
         {

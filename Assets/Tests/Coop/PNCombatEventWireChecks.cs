@@ -20,7 +20,7 @@ namespace ProjectN.Coop.Tests
             PNCombatEvent Make(string key = "7001:0:0") => new PNCombatEvent
             {
                 Kind = PNCombatEventKind.Damage, World = world, TargetId = 55, SourceId = 66, Applied = 12.5f, Calculated = 20f, LoricaAbsorbed = 7.5f, HealthBefore = 100f, HealthAfter = 87.5f,
-                Critical = true, Killed = false, LoricaBroke = true, InIFrame = false, HasPoint = true, PointX = 1.5f, PointY = 2f, PointZ = -3f, HitKey = key, Tags = new[] { "base:physical", "base:slash" }
+                Critical = true, Killed = false, LoricaBroke = true, InIFrame = false, HasPoint = true, PointX = 1.5f, PointY = 2f, PointZ = -3f, HasNormal = true, NormalX = 0f, NormalY = 1f, NormalZ = 0f, HitKey = key, Tags = new[] { "base:physical", "base:slash" }
             };
 
             // ---- hub ----
@@ -60,9 +60,9 @@ namespace ProjectN.Coop.Tests
                 int refused = PNCombatEvents.Refused; var bad = Make(); bad.Applied = float.NaN; PNCombatEvents.Deliver(bad); bad = Make(); bad.TargetId = 0; PNCombatEvents.Deliver(bad); bad = Make(); bad.Tags = new string[9]; PNCombatEvents.Deliver(bad);
                 Check(PNCombatEvents.Refused == refused + 3, "a NaN amount, a missing target and too many tags are refused (" + (PNCombatEvents.Refused - refused) + ")");
                 // a listener that throws does not stop the others or the caller
-                PNCombatEvents.Observed += (e, matched) => throw new InvalidOperationException("listener fault");
+                Action<PNCombatEvent, bool> faulty = (e, matched) => throw new InvalidOperationException("listener fault"); PNCombatEvents.Observed += faulty;
                 int before = seen; try { PNCombatEvents.Deliver(Make("x")); } catch (Exception) { throw new Exception("a faulty listener reached the caller"); }
-                Check(seen == before + 1, "a faulty listener is contained");
+                Check(seen == before + 1, "a faulty listener is contained"); PNCombatEvents.Observed -= faulty;
             }
             finally { PNCombatEvents.Observed -= onObserved; PNCombatEvents.Early -= onEarly; PNCombatEvents.EarlyCancelled -= onCancelled; PNCombatEvents.Reset(); PNCombatEvents.Clock = null; }
 
@@ -71,15 +71,15 @@ namespace ProjectN.Coop.Tests
             {
                 using (var writer = NetworkWriterPool.Get()) { writer.WriteCombatPacket(packet); using (var reader = NetworkReaderPool.Get(writer.ToArraySegment())) return reader.ReadCombatPacket(); }
             }
-            var second = Make(null); second.Kind = PNCombatEventKind.Heal; second.HasPoint = false; second.Tags = PNCombatEvent.NoTags; second.Critical = second.Killed = second.LoricaBroke = false; second.Serial = 9; second.Clock = 321.25;
+            var second = Make(null); second.Kind = PNCombatEventKind.Heal; second.HasPoint = false; second.HasNormal = false; second.Tags = PNCombatEvent.NoTags; second.Critical = second.Killed = second.LoricaBroke = false; second.Serial = 9; second.Clock = 321.25;
             var first = Make(); first.Serial = 8; first.Clock = 320.5; first.Killed = true;
             var back = RoundTrip(new PNCombatPacket { Ticket = ticket, Events = new[] { first, second } });
             Check(back.Ticket.Equals(ticket) && back.Events.Length == 2, "a packet keeps its ticket and its events");
             var a = back.Events[0];
             Check(a.Kind == PNCombatEventKind.Damage && a.World.Equals(world) && a.Serial == 8 && a.TargetId == 55 && a.SourceId == 66 && a.Applied == 12.5f && a.Calculated == 20f && a.LoricaAbsorbed == 7.5f && a.HealthBefore == 100f && a.HealthAfter == 87.5f
-                && a.Critical && a.Killed && a.LoricaBroke && !a.InIFrame && a.HasPoint && a.PointX == 1.5f && a.PointY == 2f && a.PointZ == -3f && a.HitKey == "7001:0:0" && a.Tags.Length == 2 && a.Tags[1] == "base:slash" && a.Clock == 320.5, "a damage event survives the wire field by field");
+                && a.Critical && a.Killed && a.LoricaBroke && !a.InIFrame && a.HasPoint && a.PointX == 1.5f && a.PointY == 2f && a.PointZ == -3f && a.HasNormal && a.NormalY == 1f && a.HitKey == "7001:0:0" && a.Tags.Length == 2 && a.Tags[1] == "base:slash" && a.Clock == 320.5, "a damage event survives the wire field by field");
             var b = back.Events[1];
-            Check(b.Kind == PNCombatEventKind.Heal && !b.HasPoint && b.HitKey == null && b.Tags.Length == 0 && !b.Critical && b.Clock == 321.25 && b.Serial == 9, "a heal event without point, key or tags stays without them");
+            Check(b.Kind == PNCombatEventKind.Heal && !b.HasPoint && !b.HasNormal && b.HitKey == null && b.Tags.Length == 0 && !b.Critical && b.Clock == 321.25 && b.Serial == 9, "a heal event without point, key or tags stays without them");
             var other = Make(); other.World = new PNObjectWorld(Guid.NewGuid(), 3);
             Reject(() => RoundTrip(new PNCombatPacket { Ticket = ticket, Events = new[] { other } }), "an event of another world than the ticket's is refused");
             Reject(() => RoundTrip(new PNCombatPacket { Ticket = ticket, Events = new PNCombatEvent[0] }), "an empty packet is refused");

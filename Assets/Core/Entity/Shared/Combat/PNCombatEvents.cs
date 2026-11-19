@@ -33,6 +33,11 @@ public sealed class PNCombatEvent
     public float PointX { get; set; }
     public float PointY { get; set; }
     public float PointZ { get; set; }
+    // The surface normal at the hit (a projectile contact); absent for a hit that has none.
+    public bool HasNormal { get; set; }
+    public float NormalX { get; set; }
+    public float NormalY { get; set; }
+    public float NormalZ { get; set; }
     // Names the hit across machines (projectile: cast key, index in the volley and hit index) so the shooter's early phase can be matched; null when the hit has no key.
     public string HitKey { get; set; }
     public string[] Tags { get; set; } = NoTags;
@@ -46,7 +51,7 @@ public sealed class PNCombatEvent
         if (!Enum.IsDefined(typeof(PNCombatEventKind), Kind)) error = "Unknown combat event kind.";
         else if (TargetId <= 0) error = "A combat event names its target.";
         else if (SourceId < 0) error = "Source id cannot be negative.";
-        else if (!Finite(Applied) || !Finite(Calculated) || !Finite(LoricaAbsorbed) || !Finite(HealthBefore) || !Finite(HealthAfter) || !Finite(PointX) || !Finite(PointY) || !Finite(PointZ) || double.IsNaN(Clock) || double.IsInfinity(Clock)) error = "Combat event numbers must be finite.";
+        else if (!Finite(Applied) || !Finite(Calculated) || !Finite(LoricaAbsorbed) || !Finite(HealthBefore) || !Finite(HealthAfter) || !Finite(PointX) || !Finite(PointY) || !Finite(PointZ) || !Finite(NormalX) || !Finite(NormalY) || !Finite(NormalZ) || double.IsNaN(Clock) || double.IsInfinity(Clock)) error = "Combat event numbers must be finite.";
         else if (Applied < 0f || Calculated < 0f || LoricaAbsorbed < 0f || HealthBefore < 0f || HealthAfter < 0f) error = "Combat event amounts cannot be negative.";
         else if (HitKey != null && HitKey.Length > MaxText) error = "Hit key too long.";
         else if (Tags == null || Tags.Length > MaxTags) error = "Too many tags.";
@@ -55,7 +60,7 @@ public sealed class PNCombatEvent
     }
     private static bool Finite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
     // Rough size on a compact wire, for the packet budget.
-    public int EstimatedBytes { get { int size = 72 + (HitKey?.Length ?? 0); if (Tags != null) foreach (var tag in Tags) size += 2 + tag.Length; return size; } }
+    public int EstimatedBytes { get { int size = 85 + (HitKey?.Length ?? 0); if (Tags != null) foreach (var tag in Tags) size += 2 + tag.Length; return size; } }
 }
 
 // A hit the shooter's machine knows before the host answered.
@@ -121,7 +126,7 @@ public static class PNCombatEvents
         if (pending.ContainsKey(hitKey) || pending.Count >= MaxPendingEarly) return;
         var hit = new PNEarlyHit(targetId, hitKey, hasPoint, x, y, z);
         pending[hitKey] = (hit, now + Math.Max(.1d, EarlyHoldSeconds)); EarlyTold++;
-        Safe(() => Early?.Invoke(hit));
+        Each(Early, x => x(hit));
     }
     // Cancels the early hits whose hold ended (called every frame by a hurt signal, or by a test).
     public static void Expire(double now)
@@ -130,7 +135,7 @@ public static class PNCombatEvents
         List<string> due = null;
         foreach (var pair in pending) if (now >= pair.Value.Deadline) (due ?? (due = new List<string>())).Add(pair.Key);
         if (due == null) return;
-        foreach (var key in due) { var hit = pending[key].Hit; pending.Remove(key); EarlyCancels++; Safe(() => EarlyCancelled?.Invoke(hit)); }
+        foreach (var key in due) { var hit = pending[key].Hit; pending.Remove(key); EarlyCancels++; Each(EarlyCancelled, x => x(hit)); }
     }
     public static int PendingEarly => pending.Count;
     private static void Tell(PNCombatEvent combatEvent)
@@ -138,7 +143,13 @@ public static class PNCombatEvents
         bool matched = combatEvent.HitKey != null && pending.Remove(combatEvent.HitKey);
         if (matched) EarlyMatched++;
         Told++;
-        Safe(() => Observed?.Invoke(combatEvent, matched));
+        Each(Observed, x => x(combatEvent, matched));
+    }
+    // Every subscriber is called on its own: one that throws is logged and the others still hear the event (a multicast invoke would stop at the first fault).
+    private static void Each<T>(T handlers, Action<T> call) where T : class
+    {
+        var list = (handlers as Delegate)?.GetInvocationList(); if (list == null) return;
+        foreach (var handler in list) Safe(() => call((T)(object)handler));
     }
     private static void Safe(Action action)
     {
@@ -152,9 +163,9 @@ public static class PNCombatEvents
 #endif
         }
     }
-    // Forgets everything (a new session, a test).
+    // Forgets everything, subscribers included (a test, or a new session before anything subscribes).
     public static void Reset()
     {
-        pending.Clear(); Published = Delivered = Told = EarlyTold = EarlyMatched = EarlyCancels = Refused = 0; nextSerial = 0; Transport = null;
+        pending.Clear(); Published = Delivered = Told = EarlyTold = EarlyMatched = EarlyCancels = Refused = 0; nextSerial = 0; Transport = null; Observed = null; Early = null; EarlyCancelled = null;
     }
 }

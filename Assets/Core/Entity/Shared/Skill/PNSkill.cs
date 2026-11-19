@@ -96,7 +96,12 @@ public partial class PNSkill : EveSkill, EveIEntityLoadPreparation, EveIEntityCo
             // The projectiles this guess made go with it (spawned-object sync, plan 4.4a).
 #if UNITY_5_3_OR_NEWER
             if (invocation.CastKey > 0 && EveRegistrySession.IsReady)
+            {
                 try { PNProjectileManager.Resolve(EveRegistrySession.Context, gameObject.scene).DiscardPredicted(invocation.CastKey); } catch (InvalidOperationException) { }
+                // Areas and blasts have their own books of guesses (each manager discards its own).
+                try { PNAreaManager.Resolve(EveRegistrySession.Context, gameObject.scene).DiscardPredicted(invocation.CastKey); } catch (InvalidOperationException) { }
+                try { PNBlastManager.Resolve(EveRegistrySession.Context, gameObject.scene).DiscardPredicted(invocation.CastKey); } catch (InvalidOperationException) { }
+            }
 #endif
         }
     }
@@ -199,7 +204,7 @@ public partial class PNSkill : EveSkill, EveIEntityLoadPreparation, EveIEntityCo
     protected virtual void Update()
     { if (!IsReady) return; if (!HasGameplayAuthority) { if (Effects != null && Effects.HasPredictedAuxiliaries) AdvanceAuxiliaryEffects(Time.deltaTime); return; } var clock = GetComponent<EveTimeScale>(); var delta=clock != null && clock.isActiveAndEnabled ? clock.DeltaTime : Time.deltaTime; AdvanceAuxiliaryEffects(delta);AdvanceBindings(delta); }
     protected virtual void OnDisable() { if(GetComponent<EveEntityIdentity>()?.IsChangingWorld==true)return;try{CancelBindingInputs();}finally{SuspendBindingSelections();prepared?.Dispose();prepared = null;EndActivation(true, PNCastEnd.Disabled);Effects?.CancelExecutions();} }
-    protected virtual void OnDestroy() => Unload();
+    protected virtual void OnDestroy() { StopActionImpactObserver(); Unload(); }
     public virtual void CancelWorldExecutions()
     {
         CancelBindingInputs();TryInterrupt(EveId.Parse("project_n:world_transfer"));prepared?.Dispose();prepared=null;EndActivation(true);Effects?.CancelExecutions();

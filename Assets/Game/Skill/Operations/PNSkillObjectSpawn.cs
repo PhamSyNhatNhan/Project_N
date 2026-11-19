@@ -94,10 +94,29 @@ internal static class PNSkillObjectSpawn
         var data = (JObject)token; var caster = context.Skill.GetComponent<PNStat>();
         var manager = PNAreaManager.Resolve(EveRegistrySession.Context, caster.gameObject.scene);
         if (!ReferenceEquals(manager.Session.Registry, context.Registry)) throw new InvalidOperationException("Area operation session mismatch.");
-        var result = manager.Create(new PNAreaCreateRequest(EveId.Parse(PNBuffContentBatch.String(data, "areaId")), data["input"],
+        var request = new PNAreaCreateRequest(EveId.Parse(PNBuffContentBatch.String(data, "areaId")), data["input"],
             PNCombatSource.Capture(caster), caster.gameObject.scene, context.Position.Value, caster,
-            PNBuffContentBatch.Bool(data, "followCaster") ? caster : null));
-        return result;
+            PNBuffContentBatch.Bool(data, "followCaster") ? caster : null);
+        // The cast names the area in its record, so the shooter's own guess (CreateAreaGuess) is taken over instead of a second one being drawn.
+        if (context.Invocation != null) request.WithCast(context.Invocation.CastKey, (int)Math.Min(context.ActionOrdinal, 255L));
+        return manager.Create(request);
+    }
+
+    // The shooter's guess of an area on a machine without authority: drawn only (no Buff, no clock effect), named by the cast, taken over by the authority's record. A machine without an area service makes none.
+    internal static void CreateAreaGuess(PNSkillActionContext context, JToken token)
+    {
+        long castKey = context.Invocation != null ? context.Invocation.CastKey : 0L;
+        if (castKey <= 0) return;
+        var data = (JObject)token; var caster = context.Skill.GetComponent<PNStat>();
+        if (caster == null || !caster.IsReady) return;
+        PNAreaManager manager;
+        try { manager = PNAreaManager.Resolve(EveRegistrySession.Context, caster.gameObject.scene); } catch (InvalidOperationException) { return; }
+        if (!ReferenceEquals(manager.Session.Registry, context.Registry)) throw new InvalidOperationException("Area operation session mismatch.");
+        var factors = context.Skill.GetComponent<PNSkillScaleState>();
+        var request = PNAreaCreateRequest.Replica(EveId.Parse(PNBuffContentBatch.String(data, "areaId")), data["input"], caster.gameObject.scene, context.Position.Value, caster,
+            PNBuffContentBatch.Bool(data, "followCaster") ? caster : null, factors?.ReadScale(PNContentIds.AreaScale) ?? 1d).WithCast(castKey, (int)Math.Min(context.ActionOrdinal, 255L));
+        var receipt = manager.CreateGuess(request);
+        if (receipt.Status == PNAreaStatus.Failed) Debug.LogException(receipt.Error);
     }
 
     internal static PNBlastReceipt CreateBlast(PNSkillActionContext context, JToken token)
@@ -105,9 +124,28 @@ internal static class PNSkillObjectSpawn
         var data = (JObject)token; var caster = context.Skill.GetComponent<PNStat>();
         var manager = PNBlastManager.Resolve(EveRegistrySession.Context, caster.gameObject.scene);
         if (!ReferenceEquals(manager.Session.Registry, context.Registry)) throw new InvalidOperationException("Blast operation session mismatch.");
-        var result = manager.Create(new PNBlastCreateRequest(EveId.Parse(PNBuffContentBatch.String(data, "blastId")), data["input"], PNCombatSource.Capture(caster),
-            caster.gameObject.scene, context.Position.Value, caster, PNCreateBlastOperation.ParseDependency(data)));
-        return result;
+        var request = new PNBlastCreateRequest(EveId.Parse(PNBuffContentBatch.String(data, "blastId")), data["input"], PNCombatSource.Capture(caster),
+            caster.gameObject.scene, context.Position.Value, caster, PNCreateBlastOperation.ParseDependency(data));
+        if (context.Invocation != null) request.WithCast(context.Invocation.CastKey, (int)Math.Min(context.ActionOrdinal, 255L));
+        return manager.Create(request);
+    }
+
+    // The shooter's guess of a blast on a machine without authority: drawn only (never any damage), named by the cast, taken over by the authority's record. Null when this machine has no blast service or no cast name.
+    internal static PNBlastReceipt CreateBlastGuess(PNSkillActionContext context, JToken token)
+    {
+        long castKey = context.Invocation != null ? context.Invocation.CastKey : 0L;
+        if (castKey <= 0) return null;
+        var data = (JObject)token; var caster = context.Skill.GetComponent<PNStat>();
+        if (caster == null || !caster.IsReady) return null;
+        PNBlastManager manager;
+        try { manager = PNBlastManager.Resolve(EveRegistrySession.Context, caster.gameObject.scene); } catch (InvalidOperationException) { return null; }
+        if (!ReferenceEquals(manager.Session.Registry, context.Registry)) throw new InvalidOperationException("Blast operation session mismatch.");
+        var factors = context.Skill.GetComponent<PNSkillScaleState>();
+        var request = PNBlastCreateRequest.Replica(EveId.Parse(PNBuffContentBatch.String(data, "blastId")), data["input"], caster.gameObject.scene, context.Position.Value, caster,
+            factors?.ReadScale(PNContentIds.BlastScale) ?? 1d).WithCast(castKey, (int)Math.Min(context.ActionOrdinal, 255L));
+        var receipt = manager.CreateGuess(request);
+        if (receipt.Status == PNBlastStatus.Failed) Debug.LogException(receipt.Error);
+        return receipt;
     }
 
     internal static PNSummonStatus CreateSummon(PNSkillActionContext context, JToken token, ref int replaced, out EveEntityPreparationScheduler.Candidate accepted)

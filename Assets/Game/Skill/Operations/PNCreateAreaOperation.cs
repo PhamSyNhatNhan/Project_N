@@ -18,7 +18,11 @@ public class PNCreateAreaOperation : PNSkillOperation
     {
         if (executed || context == null || !context.Skill.IsReady || !context.Position.HasValue) throw new InvalidOperationException("Fresh Ready position context required.");
         Validate(token, context.Registry); executed = true;
-        if (PNSkillObjectSpawn.Admit(context) != PNSkillSpawnAdmission.Authority) return;
+        var admission = PNSkillObjectSpawn.Admit(context);
+#if UNITY_5_3_OR_NEWER
+        if (admission == PNSkillSpawnAdmission.Predicted) { PNSkillObjectSpawn.CreateAreaGuess(context, token); return; }
+#endif
+        if (admission != PNSkillSpawnAdmission.Authority) return;
 #if UNITY_5_3_OR_NEWER
         Result = PNSkillObjectSpawn.CreateArea(context, token);
         if (Result.Status == PNAreaStatus.Failed) throw new InvalidOperationException("Area creation failed.", Result.Error);

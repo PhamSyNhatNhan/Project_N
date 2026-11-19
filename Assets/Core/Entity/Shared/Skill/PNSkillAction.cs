@@ -142,10 +142,15 @@ public class PNSkillActionContext
         return new PNDamage(packet.SessionId, packet.SourceId, packet.Amount * (original.IsCritical ? original.CritDamage / 100 : 1), packet.Tags, packet.IFrameDuration, original.CanCrit, original.IsCritical, original.CritRate, original.CritDamage).WithPenetration(packet.Penetration);
     }
     public PNDamageResult ReceiveHit(PNStat target, Vector3? point, PNDamage original, double amount, PNCombatSourceSnapshot capture, int hitIndex = 0)
+        => ReceiveHit(target, point, original, amount, capture, hitIndex, null);
+    // `hitKey` names the hit across machines (PNActionImpact.Key); the combat event carries it so a guess's early phase and another player's copy can match it.
+    private PNDamageResult ReceiveHit(PNStat target, Vector3? point, PNDamage original, double amount, PNCombatSourceSnapshot capture, int hitIndex, string hitKey)
     {
         var values = Invocation != null && AllowContributions ? Invocation.State.Combined(ContributionSnapshot) : Array.Empty<PNSkillContribution>();
         var tags = Invocation != null && AllowContributions ? Invocation.State.Tags(this, values) : EffectiveTags();
-        var result = target.ReceiveDamage(ReclassifyDamage(original, amount, capture, tags));
+        var packet = ReclassifyDamage(original, amount, capture, tags);
+        if (hitKey != null) { var at = point ?? target.transform.position; packet = packet.WithHit(hitKey, at.x, at.y, at.z); }
+        var result = target.ReceiveDamage(packet);
         if (Invocation != null) Invocation.State.Fire(this, "OnHit", target, point, values, hitIndex);
         return result;
     }
@@ -191,14 +196,20 @@ public class PNSkillActionContext
         switch (Mode)
         {
             case PNSkillMode.Authority:
-                var result = ReceiveHit(target, point, original, amount, capture, hitIndex);
+                long castKey = Invocation?.CastKey ?? 0; string hitKey = castKey > 0 && target != null ? PNActionImpact.Key(castKey, ActionOrdinal, hitIndex, target.EntityId.Value) : null;
+                var result = ReceiveHit(target, point, original, amount, capture, hitIndex, hitKey);
                 Skill?.OnHitConfirmed(this, target, result);
+                if (target != null && Skill != null && Skill.HasActionImpactListeners) Skill.RaiseActionImpact(PNActionImpactOrigin.Real, castKey, ActionOrdinal, hitIndex, target.EntityId.Value, target, point ?? target.transform.position);
                 return PNHitOutcome.Hit(result);
             case PNSkillMode.Predicted:
                 // G6c: the framework reports the hit under the cast's key; a context with no keyed cast (or no wire) reports nothing.
                 var sink = Skill?.ReportSink; long key = Invocation?.CastKey ?? 0;
                 if (sink == null || key <= 0 || target == null) return PNHitOutcome.Skip(false);
                 if (step < 0) step = Invocation.NextStep();
+                // The early phase and the guess's own impact come before the report (the report may be answered at once on a loopback).
+                var at = point ?? target.transform.position;
+                PNCombatEvents.RaiseEarly(target.EntityId.Value, PNActionImpact.Key(key, ActionOrdinal, hitIndex, target.EntityId.Value), true, at.x, at.y, at.z);
+                if (Skill.HasActionImpactListeners) Skill.RaiseActionImpact(PNActionImpactOrigin.Guess, key, ActionOrdinal, hitIndex, target.EntityId.Value, target, at);
                 sink.ReportHit(key, target, step);
                 return PNHitOutcome.Skip(true);
             default:

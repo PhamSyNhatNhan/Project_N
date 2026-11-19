@@ -62,8 +62,15 @@ public sealed class PNDamage
     public float HitX { get; private set; }
     public float HitY { get; private set; }
     public float HitZ { get; private set; }
+    // The surface normal at the hit, when the carrier knows it (a projectile contact does; a melee sweep does not).
+    public bool HasHitNormal { get; private set; }
+    public float HitNormalX { get; private set; }
+    public float HitNormalY { get; private set; }
+    public float HitNormalZ { get; private set; }
     public PNDamage WithHit(string hitKey, float x, float y, float z)
     { var copy = (PNDamage)MemberwiseClone(); copy.HitKey = string.IsNullOrEmpty(hitKey) ? null : hitKey; copy.HasHitPoint = true; copy.HitX = x; copy.HitY = y; copy.HitZ = z; return copy; }
+    public PNDamage WithHit(string hitKey, float x, float y, float z, float normalX, float normalY, float normalZ)
+    { var copy = WithHit(hitKey, x, y, z); copy.HasHitNormal = true; copy.HitNormalX = normalX; copy.HitNormalY = normalY; copy.HitNormalZ = normalZ; return copy; }
 
     public PNDamage(Guid sessionId, EveEntityId sourceId, double amount, IEnumerable<EveId> tags,
         bool canCrit = false, bool isCritical = false, double critRate = 0d, double critDamage = 150d)

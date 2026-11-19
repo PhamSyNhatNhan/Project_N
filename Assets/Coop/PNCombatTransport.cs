@@ -37,13 +37,14 @@ namespace ProjectN.Coop
             int size = r.ReadByte(); if (size > PNCombatEvent.MaxText) throw new FormatException("Combat string bound.");
             if (size == 0) return null; var b = r.ReadBytesSegment(size); return Utf8.GetString(b.Array, b.Offset, b.Count);
         }
-        private const byte Crit = 1, Killed = 2, LoricaBroke = 4, IFrame = 8, Point = 16;
+        private const byte Crit = 1, Killed = 2, LoricaBroke = 4, IFrame = 8, Point = 16, Normal = 32;
         public static void Put(NetworkWriter w, PNCombatEvent e)
         {
-            byte flags = (byte)((e.Critical ? Crit : 0) | (e.Killed ? Killed : 0) | (e.LoricaBroke ? LoricaBroke : 0) | (e.InIFrame ? IFrame : 0) | (e.HasPoint ? Point : 0));
+            byte flags = (byte)((e.Critical ? Crit : 0) | (e.Killed ? Killed : 0) | (e.LoricaBroke ? LoricaBroke : 0) | (e.InIFrame ? IFrame : 0) | (e.HasPoint ? Point : 0) | (e.HasNormal ? Normal : 0));
             w.WriteByte((byte)e.Kind); w.WriteByte(flags); w.WriteLong(e.Serial); w.WriteLong(e.TargetId); w.WriteLong(e.SourceId);
             w.WriteFloat(e.Applied); w.WriteFloat(e.Calculated); w.WriteFloat(e.LoricaAbsorbed); w.WriteFloat(e.HealthBefore); w.WriteFloat(e.HealthAfter); w.WriteDouble(e.Clock);
             if (e.HasPoint) { w.WriteFloat(e.PointX); w.WriteFloat(e.PointY); w.WriteFloat(e.PointZ); }
+            if (e.HasNormal) { w.WriteFloat(e.NormalX); w.WriteFloat(e.NormalY); w.WriteFloat(e.NormalZ); }
             Text(w, e.HitKey);
             var tags = e.Tags ?? PNCombatEvent.NoTags; if (tags.Length > PNCombatEvent.MaxTags) throw new FormatException("Combat tag count.");
             w.WriteByte((byte)tags.Length); foreach (var tag in tags) Text(w, tag);
@@ -51,10 +52,11 @@ namespace ProjectN.Coop
         public static PNCombatEvent Take(NetworkReader r, PNObjectWorld world)
         {
             var e = new PNCombatEvent { World = world, Kind = (PNCombatEventKind)r.ReadByte() }; byte flags = r.ReadByte();
-            e.Critical = (flags & Crit) != 0; e.Killed = (flags & Killed) != 0; e.LoricaBroke = (flags & LoricaBroke) != 0; e.InIFrame = (flags & IFrame) != 0; e.HasPoint = (flags & Point) != 0;
+            e.Critical = (flags & Crit) != 0; e.Killed = (flags & Killed) != 0; e.LoricaBroke = (flags & LoricaBroke) != 0; e.InIFrame = (flags & IFrame) != 0; e.HasPoint = (flags & Point) != 0; e.HasNormal = (flags & Normal) != 0;
             e.Serial = r.ReadLong(); e.TargetId = r.ReadLong(); e.SourceId = r.ReadLong();
             e.Applied = r.ReadFloat(); e.Calculated = r.ReadFloat(); e.LoricaAbsorbed = r.ReadFloat(); e.HealthBefore = r.ReadFloat(); e.HealthAfter = r.ReadFloat(); e.Clock = r.ReadDouble();
             if (e.HasPoint) { e.PointX = r.ReadFloat(); e.PointY = r.ReadFloat(); e.PointZ = r.ReadFloat(); }
+            if (e.HasNormal) { e.NormalX = r.ReadFloat(); e.NormalY = r.ReadFloat(); e.NormalZ = r.ReadFloat(); }
             e.HitKey = Text(r); int count = r.ReadByte(); if (count > PNCombatEvent.MaxTags) throw new FormatException("Combat tag count.");
             var tags = new string[count]; for (int i = 0; i < count; i++) tags[i] = Text(r) ?? throw new FormatException("Combat tag.");
             e.Tags = count == 0 ? PNCombatEvent.NoTags : tags;
