@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using EveEngine;
@@ -12,10 +13,12 @@ namespace ProjectN.Coop.Tests
     // Client2 (and client1) must see the host's projectiles as copies through the object channel, and see the pet at the same size and near its owner (PNMove + summon_scale).
     public static class PNObjectSyncPlayChecks
     {
-        public static bool Enabled => Environment.GetCommandLineArgs().Contains("--pn-object-sync") || O4 || Refuse || NoGuess || O6 || Enemy || Melee || Quiet || O5 || O5b || Load || Hits || Dodge || DodgeBlast || Strike;
+        public static bool Enabled => Environment.GetCommandLineArgs().Contains("--pn-object-sync") || O4 || Refuse || NoGuess || O6 || Enemy || Melee || Quiet || O5 || O5b || Load || Hits || Dodge || DodgeBlast || Strike || StrikeAll;
         private static bool Dodge => Environment.GetCommandLineArgs().Contains("--pn-object-sync-dodge");
         // V2 variant of the dodge fixture: the host drops a cylinder blast where it sees the player (plan 4.4c); the machine of the player decides whether it hurt him.
         // O7 (--pn-object-sync-strike): the host spawns a Starkeeper next to the players and its AI sweeps them; every other machine must replay the sweep from the enemy's `skill_cast` block.
+        // G8c (--pn-object-sync-strikeall): one of every enemy next to the players; each Action the host publishes must be replayed on the others, none dropped, whatever context it needs.
+        private static bool StrikeAll => Environment.GetCommandLineArgs().Contains("--pn-object-sync-strikeall");
         private static bool Strike => Environment.GetCommandLineArgs().Contains("--pn-object-sync-strike");
         private static bool DodgeBlast => Environment.GetCommandLineArgs().Contains("--pn-object-sync-dodgeblast");
         private static bool Load => Environment.GetCommandLineArgs().Contains("--pn-object-sync-load");
@@ -76,6 +79,7 @@ namespace ProjectN.Coop.Tests
             if (Hits) { yield return HitsBody(folder, name, e1, log); yield break; }
             if (Dodge || DodgeBlast) { yield return DodgeBody(folder, name, e1, log); yield break; }
             if (Strike) { yield return StrikeBody(folder, name, e1, log); yield break; }
+            if (StrikeAll) { yield return StrikeAllBody(folder, name, e1, log); yield break; }
             if (Quiet) { yield return QuietBody(folder, name, e1, log); yield break; }
             if (O6) { yield return O6Body(folder, name, e1, log); yield break; }
             var petSkill = e1.GetComponent<PNEve2Skill>();
@@ -698,25 +702,117 @@ namespace ProjectN.Coop.Tests
             }
             yield return Wait(() => UnityEngine.Object.FindObjectsByType<PNSkill>().Any(x => x.gameObject.layer == PNLayers.Enemy && x.IsReady && x.GetComponent<PNSkillCastView>() != null && x.GetComponent<PNSkillCastView>().IsBound), "the Starkeeper with a cast channel exists");
             watched = UnityEngine.Object.FindObjectsByType<PNSkill>().First(x => x.gameObject.layer == PNLayers.Enemy && x.IsReady && x.GetComponent<PNSkillCastView>() != null);
-            Action<PNSkillCastEvent> count = e => { if (e.Kind == PNSkill.ActionKind) announced++; };
-            if (host) watched.CastEvent += count;
+            long publishedBefore = watched.ActionRunsPublished; // G8c: the runs go through the Action stream, not the skill_cast event
             var manager = (PNNetworkManager)NetworkManager.singleton;
             int played = 0, viewPlayed = 0, widest = 0; double until = Time.realtimeSinceStartupAsDouble + 25;
             try
             {
                 while (Time.realtimeSinceStartupAsDouble < until)
                 {
-                    if (watched != null) { played = Math.Max(played, watched.ObservedActionsPlayed); var view = watched.GetComponent<PNSkillCastView>(); if (view != null) { viewPlayed = Math.Max(viewPlayed, view.PlayedCount); if (host) widest = Math.Max(widest, System.Text.Encoding.UTF8.GetByteCount(view.Capture().ToString(Newtonsoft.Json.Formatting.None))); } }
+                    if (watched != null) { played = Math.Max(played, watched.ReplayedRunsStarted); viewPlayed = Math.Max(viewPlayed, watched.ReplayedRunsDropped); if (host) announced = Math.Max(announced, (int)(watched.ActionRunsPublished - publishedBefore)); var view = watched.GetComponent<PNSkillCastView>(); if (view != null) { if (host) widest = Math.Max(widest, System.Text.Encoding.UTF8.GetByteCount(view.Capture().ToString(Newtonsoft.Json.Formatting.None))); } }
                     yield return null;
                 }
             }
-            finally { if (host && watched != null) watched.CastEvent -= count; }
+            finally { }
             if (host) { File.WriteAllText(Path.Combine(folder, "host.announced"), announced.ToString()); Mark(folder, "host-strikes"); }
             yield return Wait(() => Has("host-strikes"), "host strikes");
             int hostCasts = int.Parse(File.ReadAllText(Path.Combine(folder, "host.announced")));
-            log.Append(name + ": starkeeperSweeps(host announced)=" + hostCasts + " replayedHere=" + played + " viewEvents=" + viewPlayed + (host ? " widestCastBlockBytes=" + widest + "/" + PNSkillCastView.StateBytes : "") + "; ");
+            log.Append(name + ": starkeeperSweeps(host announced)=" + hostCasts + " replayedHere=" + played + " dropped=" + viewPlayed + (host ? " widestCastBlockBytes=" + widest + "/" + PNSkillCastView.StateBytes : "") + "; ");
             if (hostCasts < 1) throw new Exception("the Starkeeper never swept " + log);
             if (!host && played < 1) throw new Exception("this machine replayed no strike although the host announced " + hostCasts + " " + log);
+        }
+
+        private static IEnumerator StrikeAllBody(string folder, string name, PNPlayerMove e1, System.Text.StringBuilder log)
+        {
+            bool Has(string value) => File.Exists(Path.Combine(folder, value));
+            bool host = name == "host";
+            var characters = new[] { "project_n:starkeeper", "project_n:starforger", "project_n:starreaper", "project_n:starweaver", "project_n:starchanter", "project_n:starherald" };
+            if (host)
+            {
+                var world = PNLocalWorldContext.Current.World;
+                for (int i = 0; i < characters.Length; i++)
+                {
+                    var request = new PNEntityRequest { Entity = "project_n:enemy", Template = "project_n:enemy", Character = characters[i], World = world, WorldIncarnation = world.Incarnation, ContentSlot = PNGridWorldController.SlotId, SceneKey = "objectsync:strikeall" + i, EntityKey = "", Position = e1.transform.position + new Vector3((characters[i] == "project_n:starreaper" ? 1.2f : 4f + (i % 3) * 1.5f), 0, (i / 3 - 0.5f) * 3f) };
+                    if (PNEntityHosts.For(EveRegistrySession.Context).TrySpawn(request, null, null, error => Debug.LogException(error)) == null) throw new Exception("the host refused " + characters[i]);
+                }
+            }
+            var published = new Dictionary<(int, string), int>(); var replayed = new Dictionary<(int, string), int>(); var dropped = new Dictionary<(int, string), int>();
+            var manager = (PNNetworkManager)NetworkManager.singleton; long packets0 = manager.ActionPacketsSent, bytes0 = manager.ActionBytesSent;
+            var shotsFolder = Path.Combine(folder, "shots"); if (!host) Directory.CreateDirectory(shotsFolder);
+            var shotCounts = new Dictionary<string, int>(); var shotSeen = new Dictionary<(int, string), int>(); var shotDue = new List<(double due, PNSkill skill, string id)>();
+            var names = new SortedSet<string>(); var hurt = new HashSet<int>(); var instances = new Dictionary<int, string>(); var leftovers = new HashSet<int>(); bool firstFrameDone = false; var trace = new Dictionary<int, double[]>(); var traceInfo = new Dictionary<int, string>(); double nextPull = 0; bool pulled = false;
+            double until = Time.realtimeSinceStartupAsDouble + 40;
+            while (Time.realtimeSinceStartupAsDouble < until)
+            {
+                for (int d = shotDue.Count - 1; d >= 0; d--)
+                {
+                    if (Time.realtimeSinceStartupAsDouble < shotDue[d].due) continue;
+                    var due = shotDue[d]; shotDue.RemoveAt(d);
+                    if (due.skill == null) continue;
+                    shotCounts.TryGetValue(due.id, out int taken); if (taken >= 2) continue; shotCounts[due.id] = taken + 1;
+                    Texture2D texture = null;
+                    try { texture = ShotFrame(due.skill.transform, e1.transform); File.WriteAllBytes(Path.Combine(shotsFolder, name + "_" + due.skill.name.Replace("(Clone)", "").Replace(' ', '_') + "_" + due.id.Replace("project_n:", "") + "_" + (taken + 1) + ".png"), texture.EncodeToPNG()); }
+                    catch (Exception e) { log.Append("shot failed " + e.Message + "; "); }
+                    finally { if (texture != null) UnityEngine.Object.Destroy(texture); }
+                }
+                foreach (var skill in UnityEngine.Object.FindObjectsByType<PNSkill>())
+                {
+                    if (skill == null || skill.gameObject.layer != PNLayers.Enemy) continue;
+                    int id = skill.GetHashCode();
+                    if (!firstFrameDone) leftovers.Add(id); // enemies of an earlier phase that are still listed in the first frame: not this scenario's
+                    if (leftovers.Contains(id)) continue;
+                    names.Add(skill.name.Replace("(Clone)", ""));
+                    if (host && skill.name.Contains("tarreaper") && Time.realtimeSinceStartupAsDouble > nextPull) { pulled = true; skill.transform.position = e1.transform.position + new Vector3(1f, 0f, 0f); }
+                    double nowT = Time.realtimeSinceStartupAsDouble - (until - 40);
+                    if (!trace.TryGetValue(id, out var life)) { var ni = skill.GetComponentInParent<NetworkIdentity>(); life = new[] { nowT, nowT }; trace[id] = life; traceInfo[id] = skill.name.Replace("(Clone)", "") + " net=" + (ni != null ? ni.netId.ToString() : "none") + " root=" + skill.transform.root.name + " pos=" + skill.transform.position.ToString("0.0") + " born=" + nowT.ToString("0.00") + " comps=" + string.Join("+", skill.GetComponents<Component>().Select(c => c.GetType().Name).Where(c => c.StartsWith("PNEnemy") || c.Contains("Identity") || c.Contains("Loader")).Take(6)); }
+                    life[1] = nowT;
+                    instances[id] = skill.name.Replace("(Clone)", "") + "@" + nowT.ToString("0") + "s";
+                    if (host && skill.name.Contains("tarchanter") && hurt.Add(id)) { var stat = skill.GetComponent<PNStat>(); if (stat != null) stat.SetCurrent(PNContentIds.Health, stat.GetMax(PNContentIds.Health) * .5d); }
+                    if (!host) foreach (var pair in skill.ReplayedBySkill) { shotSeen.TryGetValue((id, pair.Key), out int before); if (pair.Value > before) { shotSeen[(id, pair.Key)] = pair.Value; shotDue.Add((Time.realtimeSinceStartupAsDouble + .2d, skill, pair.Key)); } }
+                    foreach (var pair in skill.PublishedBySkill) published[(id, pair.Key)] = pair.Value;
+                    foreach (var pair in skill.ReplayedBySkill) replayed[(id, pair.Key)] = pair.Value;
+                    foreach (var pair in skill.DroppedBySkill) dropped[(id, pair.Key)] = pair.Value;
+                }
+                firstFrameDone = true;
+                if (pulled) { pulled = false; nextPull = Time.realtimeSinceStartupAsDouble + 3d; }
+                yield return null;
+            }
+            Dictionary<string, int> Sum(Dictionary<(int, string), int> table) { var total = new Dictionary<string, int>(); foreach (var pair in table) { total.TryGetValue(pair.Key.Item2, out int n); total[pair.Key.Item2] = n + pair.Value; } return total; }
+            string Show(Dictionary<string, int> table) => string.Join(",", table.OrderBy(x => x.Key).Select(x => x.Key.Replace("project_n:", "") + "=" + x.Value));
+            var hostTable = Sum(published);
+            var publishedKeys = new List<string>(); var replayedKeys = new List<string>();
+            foreach (var skill in UnityEngine.Object.FindObjectsByType<PNSkill>()) { if (skill == null || skill.gameObject.layer != PNLayers.Enemy) continue; publishedKeys.AddRange(skill.PublishedKeys); replayedKeys.AddRange(skill.ReplayedKeys); }
+            if (host) { File.WriteAllText(Path.Combine(folder, "host.published"), Show(hostTable)); File.WriteAllLines(Path.Combine(folder, "host.keys"), publishedKeys); Mark(folder, "host-strikes-all"); }
+            yield return Wait(() => Has("host-strikes-all"), "host strikes");
+            var seen = Sum(replayed); var lost = Sum(dropped);
+            log.Append(name + ": published{" + File.ReadAllText(Path.Combine(folder, "host.published")) + "} replayed{" + Show(seen) + "} dropped{" + Show(lost) + "}; ");
+            log.Append(name + " actionStream: packets=" + (manager.ActionPacketsSent - packets0) + " bytes~=" + (manager.ActionBytesSent - bytes0) + " over 40 s; enemiesSeen=" + string.Join("/", names) + "; ");
+            if (!host)
+            {
+                var hostKeys = File.ReadAllLines(Path.Combine(folder, "host.keys")); var mine = new HashSet<string>(replayedKeys);
+                var missing = hostKeys.Where(k => !mine.Contains(k)).ToList();
+                log.Append(name + " lives=" + string.Join(" | ", trace.OrderBy(t => t.Value[0]).Select(t => traceInfo[t.Key] + " seen " + t.Value[0].ToString("0.00") + ".." + t.Value[1].ToString("0.00"))) + "; ");
+                log.Append(name + " instances(last seen s)=" + string.Join("|", instances.Select(x => x.Value + "#" + replayed.Where(r => r.Key.Item1 == x.Key).Sum(r => r.Value))) + "; seenKeys=" + string.Join(",", UnityEngine.Object.FindObjectsByType<PNSkill>().Where(k => k != null && k.gameObject.layer == PNLayers.Enemy).SelectMany(k => k.SeenKeys).Where(k => k.EndsWith("star_sweep")).Take(40)) + "; ");
+                log.Append(name + " keys: host=" + hostKeys.Length + " replayedHere=" + replayedKeys.Count + " missing=[" + string.Join(",", missing) + "] extra=" + replayedKeys.Count(k => !hostKeys.Contains(k)) + "; ");
+            }
+            if (hostTable.Count == 0 && host) throw new Exception("no enemy published an Action " + log);
+            if (!host && lost.Count > 0) throw new Exception("this machine dropped replays " + log);
+            if (!host && seen.Count == 0) throw new Exception("this machine replayed nothing " + log);
+        }
+
+        // The game camera's picture of one enemy rendered into a texture (the window may be hidden).
+        private static Texture2D ShotFrame(Transform subject, Transform focus)
+        {
+            var cam = Camera.main; if (cam == null) cam = Camera.allCameras.Where(c => c.enabled).OrderByDescending(c => c.depth).FirstOrDefault();
+            if (cam == null) throw new Exception("no camera");
+            var rt = RenderTexture.GetTemporary(960, 540, 24); var previous = cam.targetTexture; var active = RenderTexture.active; var home = cam.transform.position;
+            var shift = subject.position - focus.position; shift.y = 0; cam.transform.position = home + shift; cam.transform.position += cam.transform.forward * Vector3.Distance(cam.transform.position, subject.position) * .6f;
+            try
+            {
+                cam.targetTexture = rt; cam.Render(); RenderTexture.active = rt;
+                var texture = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false); texture.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0); texture.Apply(); return texture;
+            }
+            finally { cam.transform.position = home; cam.targetTexture = previous; RenderTexture.active = active; RenderTexture.ReleaseTemporary(rt); }
         }
 
         private static IEnumerator QuietBody(string folder, string name, PNPlayerMove e1, System.Text.StringBuilder log)

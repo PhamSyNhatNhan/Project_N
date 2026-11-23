@@ -18,7 +18,7 @@ public static class PNHeraldCombatContent
                 references.Require<PNSkillOperationDefinition>(new JValue("base:lock_movement"), "movementLock");
                 references.Require<PNBuffDefinition>(data["buffId"], "sidusBuff");
                 references.Require<PNBuffDefinition>(data["guard"]["buffId"], "guardBuff");
-            }).ReplayOnObservers());
+            }));
     }
     private static void Positive(JObject p, string key, double maximum)
     { double n = PNBuffContentBatch.Number(p, key); if (double.IsNaN(n) || double.IsInfinity(n) || n <= 0 || n > maximum) throw new FormatException("Invalid Herald number: " + key); }

@@ -7,7 +7,7 @@ public static class PNStarweaverCombatContent
     public static readonly EveId Weave=EveId.Parse("project_n:starweaver_weave"), Triangle=EveId.Parse("project_n:starweaver_constellation"), Action=EveId.Parse("project_n:starweaver_cast"), Bolt=EveId.Parse("project_n:starweaver_bolt"), TriangleBlast=EveId.Parse("project_n:starweaver_triangle_blast");
     public static void Register(EveRegistryHub hub)
     {
-        hub.Actions().Register(new PNSkillActionDefinition(Action,typeof(PNStarweaverCastAction),(a,h)=>ValidatePayload(a.Perform,h),PNSkillContextRequirements.Direction).ReplayOnObservers());
+        hub.Actions().Register(new PNSkillActionDefinition(Action,typeof(PNStarweaverCastAction),(a,h)=>ValidatePayload(a.Perform,h),PNSkillContextRequirements.Direction|PNSkillContextRequirements.Position));
         hub.Instances().Register(new PNBlastDefinition(TriangleBlast,typeof(PNStarweaverTriangleBlast),new JObject(),(token,registry)=>PNBuffContentBatch.Fields(PNBuffContentBatch.Object(token)),ValidateTriangleInput));
         hub.Instances().Register(new PNProjectileDefinition(Bolt,typeof(PNStarweaverProjectile),JObject.Parse(@"{'speed':5,'acceleration':0,'speedMin':0,'speedMax':5,'life':{'mode':'Time','value':1.2},'volume':{'size':[0.10,0.14,0.16]},'environmentMask':['Wall'],'hitLimit':1}"),PNDirectionalSettings.ValidateDefinition,PNDirectionalSettings.ValidateInput));
         foreach(bool triangle in new[]{false,true})

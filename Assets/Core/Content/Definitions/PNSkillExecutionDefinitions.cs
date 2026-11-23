@@ -36,9 +36,9 @@ public class PNSkillActionDefinition : PNSkillExecutionDefinition<PNSkillAction>
     private readonly Action<PNSkillActionData, EveRegistryHub> validator;
     private readonly Action<JToken, PNContentReferenceContext> referenceValidator;
     public PNSkillContextRequirements RequiredContext { get; }
-    // G8b: an Action that draws something other players must see. The framework tells the other machines when the authority begins it and each of them plays the same Action in an Observed invocation
-    // (no Ability, no motion, no hit: the services filter by mode). The Action itself has no code for it; its definition says so once.
-    public bool ObserverReplay { get; private set; }
+    // G8c: every Action is shown to the other machines. The framework tells them when the authority begins it and each of them plays the same Action in an Observed context
+    // (no Ability, no motion, no hit: the services filter by mode). The Action itself has no code for it; a definition with nothing to draw says so once (`NoReplayOnObservers`).
+    public bool ObserverReplay { get; private set; } = true;
     // The selected implementation consumes the driver-supplied progress units. This
     // describes timing only; safe visual seek is a separate, not-yet-enabled capability.
     public bool DriverProgress { get; private set; }
@@ -63,7 +63,7 @@ public class PNSkillActionDefinition : PNSkillExecutionDefinition<PNSkillAction>
     internal IPNSkillActionPresentation CreatePresentation(PNSkill skill, PNSkillData data, UnityEngine.Vector3 direction, double scale)
         => scaledPresentation != null ? scaledPresentation(skill, data, direction, scale) : PresentationFactory?.Invoke(skill, data, direction);
     public PNSkillActionDefinition WithDriverProgress() { DriverProgress = true; return this; }
-    public PNSkillActionDefinition ReplayOnObservers() { ObserverReplay = true; return this; }
+    public PNSkillActionDefinition NoReplayOnObservers() { ObserverReplay = false; return this; }
     public PNSkillActionDefinition(EveId id, Type implementationType) : this(id, implementationType, null) { }
     public PNSkillActionDefinition(EveId id, Type implementationType, Action<PNSkillActionData, EveRegistryHub> validate) : this(id, implementationType, validate, PNSkillContextRequirements.None) { }
     public PNSkillActionDefinition(EveId id, Type implementationType, Action<PNSkillActionData, EveRegistryHub> validate, PNSkillContextRequirements requiredContext,

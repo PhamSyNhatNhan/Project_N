@@ -14,6 +14,7 @@ public sealed class PNActionPublicationRecovery : IDisposable
         public string Entry, Data, Action;
         public double X, Z, Start, Stamp, Progress, Rate, Scale;
         public int Charge;
+        public PNActionRunContext Ctx;
     }
     readonly Dictionary<PNActionRunKey, Row> live = new Dictionary<PNActionRunKey, Row>();
     readonly PNActionPublicationBudget budget;
@@ -34,13 +35,16 @@ public sealed class PNActionPublicationRecovery : IDisposable
         => Begin(key,entry,data,action,x,z,stamp,1);
 
     public void Begin(PNActionRunKey key,string entry,string data,string action,double x,double z,double stamp,double scale)
+        => Begin(key,entry,data,action,stamp,scale,PNActionRunContext.FromDirection(x,z));
+
+    public void Begin(PNActionRunKey key,string entry,string data,string action,double stamp,double scale,PNActionRunContext ctx)
     {
         if(disposed)return;
         if(live.ContainsKey(key)){Invalidate();return;}
         PNTimeMath.Nonnegative(scale);
-        int charge=checked(256+Encoding.UTF8.GetByteCount(entry)+Encoding.UTF8.GetByteCount(data)+Encoding.UTF8.GetByteCount(action));
+        int charge=checked(256+Encoding.UTF8.GetByteCount(entry)+Encoding.UTF8.GetByteCount(data)+Encoding.UTF8.GetByteCount(action)+ctx.Targets.Count*8);
         if(live.Count>=4096||charge>limit-bytes||!budget.Take(charge)) { Complete=false;Failure=PNActionPublicationStatus.ResourceExhausted;return; }
-        live.Add(key,new Row{Key=key,Entry=entry,Data=data,Action=action,X=x,Z=z,Start=stamp,Stamp=stamp,Charge=charge,Scale=scale});bytes+=charge;
+        live.Add(key,new Row{Key=key,Entry=entry,Data=data,Action=action,X=ctx.X,Z=ctx.Z,Start=stamp,Stamp=stamp,Charge=charge,Scale=scale,Ctx=ctx});bytes+=charge;
     }
     public void Advance(PNActionRunKey key,double stamp,double step,double rate)
     {
@@ -75,7 +79,7 @@ public sealed class PNActionPublicationRecovery : IDisposable
             candidate=new PNActionPublication(sessionBudget:budget);
             foreach(var row in live.Values)
             {
-                var status=candidate.RestoreCurrent(row.Key,row.Entry,row.Data,row.Action,row.X,row.Z,row.Start,row.Stamp,row.Progress,row.Rate,stamp,row.Scale);
+                var status=candidate.RestoreCurrent(row.Key,row.Entry,row.Data,row.Action,row.Ctx,row.Start,row.Stamp,row.Progress,row.Rate,stamp,row.Scale);
                 if(status!=PNActionPublicationStatus.Ok){Failure=status;return State=status==PNActionPublicationStatus.ResourceExhausted?PNActionRecoveryState.Pending:PNActionRecoveryState.Failed;}
             }
             if(!candidate.Complete){Failure=candidate.Status;return State=PNActionRecoveryState.Pending;}

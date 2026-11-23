@@ -135,8 +135,7 @@ public sealed class PNStarforgerSlamAction : PNAgentTrajectoryAction
     {
         flying = true;
         block = gate => gate.Block(); if (caster != null) caster.BeforeDamage += block;
-        var buffs = cast.Skill.GetComponent<PNBuffManager>();
-        if (buffs != null && buffs.IsReady) { var ids = PNStarforgerCast.ControlBuffIds(cast.Registry); if (ids.Length > 0) lease = buffs.Buffs.Immune(ids, null, false); }
+        { var ids = PNStarforgerCast.ControlBuffIds(cast.Registry); if (ids.Length > 0) lease = cast.GrantImmunity(ids); }
         skill?.FireStarsToward(landing);
         body?.PlayAction("air", hopSeconds + .1f);body?.Actor?.SetPhase(0);
     }

@@ -82,6 +82,8 @@ public class PNAgentTrajectoryAction : PNSkillAction, IPNSkillMotionAction, IPNS
     private Vector3 origin, direction, side, anchor;
     private float elapsed;
     private bool performed, disposed, scanning;
+    // G8c: on a machine that only shows the Action (Mode Observed) the body's place comes from Move: no motor, no movement lock, no contact; the duration still runs.
+    private bool timelineOnly;
     private PNHitboxCast cast;
     private PNStat caster;
     private PNDamage damage;
@@ -107,8 +109,10 @@ public class PNAgentTrajectoryAction : PNSkillAction, IPNSkillMotionAction, IPNS
     }
     public override void Start(PNSkillActionContext value)
     {
-        if (context != null || disposed || value == null || !value.Direction.HasValue || cancelOwner == null) throw new InvalidOperationException("Invalid trajectory Start or missing motion owner.");
+        bool shown = value != null && value.Mode == PNSkillMode.Observed;
+        if (context != null || disposed || value == null || !value.Direction.HasValue || cancelOwner == null && !shown) throw new InvalidOperationException("Invalid trajectory Start or missing motion owner.");
         settings = PNAgentTrajectorySettings.Parse(MotionPayload(value), value.Registry, Contact);
+        if (shown) { context = value; timelineOnly = true; context.BeginAction(); return; }
         if (!value.Skill.Controls.IsAllowed(settings.Permission)) throw new InvalidOperationException("Motion permission denied.");
         direction = value.Direction.Value; direction.y = 0;
         if (direction.sqrMagnitude < .000001f) throw new ArgumentException("Planar direction required."); direction.Normalize(); side = new Vector3(-direction.z, 0, direction.x);
@@ -140,6 +144,7 @@ public class PNAgentTrajectoryAction : PNSkillAction, IPNSkillMotionAction, IPNS
     {
         if (!ReferenceEquals(context, value) || performed || disposed) throw new InvalidOperationException("Invalid trajectory Perform.");
         performed = true;
+        if (timelineOnly) return;
         if (Contact)
         {
             foreach (var component in settings.Values.Components) rawAmount += component.Evaluate(caster);
@@ -163,6 +168,14 @@ public class PNAgentTrajectoryAction : PNSkillAction, IPNSkillMotionAction, IPNS
     {
         PNAgentGeometry.Nonnegative(delta, nameof(delta));
         if (scanning) throw new InvalidOperationException("Trajectory timeline cannot reenter.");
+        if (timelineOnly)
+        {
+            if (disposed || Outcome != PNMotionOutcome.Running) return true;
+            if (!performed || delta == 0) return false;
+            elapsed = Math.Min(settings.Duration, elapsed + delta);
+            if (elapsed >= settings.Duration) Outcome = PNMotionOutcome.Completed;
+            return Outcome != PNMotionOutcome.Running;
+        }
         if (Outcome != PNMotionOutcome.Running || disposed) return true;
         if (!performed || delta == 0 || !PNWorldGameplay.CanExecute(context.Skill) || !motor.CanWrite) return false;
         float next = Mathf.Min(settings.Duration, elapsed + delta); float from = elapsed / settings.Duration, to = next / settings.Duration;

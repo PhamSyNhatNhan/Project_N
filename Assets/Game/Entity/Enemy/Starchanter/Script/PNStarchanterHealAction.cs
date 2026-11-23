@@ -70,8 +70,8 @@ public sealed class PNStarchanterHealAction : PNSkillAction
     {
         var g = context.Data.Action.Perform["guard"];
         if (buffs == null || !buffs.IsReady) return false;
-        var outcome = context.ApplyBuff(buffs, new PNBuffApplyRequest(EveId.Parse(g["buffId"].Value<string>()), PNCombatSource.Capture(caster),
-            new JObject { ["duration"] = g["duration"].Value<double>(), ["hits"] = g["hits"].Value<int>() }));
+        var outcome = context.ApplyBuff(buffs, EveId.Parse(g["buffId"].Value<string>()), caster,
+            new JObject { ["duration"] = g["duration"].Value<double>(), ["hits"] = g["hits"].Value<int>() });
         if (!outcome.Applied) { guardSkipped = true; return true; }                // this machine does not hold the guard: the authority does, and the picture goes on
         if (!outcome.Succeeded) return false;
         guard = outcome.Receipt.Handle; hasGuard = true; return true;
@@ -132,7 +132,7 @@ public sealed class PNStarchanterBoostAction : PNSkillAction
         {
             var manager = target.GetComponent<PNBuffManager>(); if (manager == null || !manager.IsReady) continue;
             if (!target.Set.TryGetBase(moveSpeed, out _)) continue;                  // a dummy or a pet without a move speed has nothing to speed up
-            try { if (context.ApplyBuff(manager, new PNBuffApplyRequest(buffId, PNCombatSource.Capture(caster))).Succeeded) presentation?.BoostRecipient(target.transform.position); }
+            try { if (context.ApplyBuff(manager, buffId, caster).Succeeded) presentation?.BoostRecipient(target.transform.position); }
             catch (Exception error) { Debug.LogException(error, target); }
         }
     }

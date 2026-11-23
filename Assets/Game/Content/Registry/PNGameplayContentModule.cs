@@ -169,7 +169,7 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         // Puts a locomotion on the skill body for a while (Docs/SandboxPlan.md G12): the registered way for a skill to fly or cross a hole. Not wired into any existing skill.
         hub.Actions().Register(new PNSkillActionDefinition(LocomotionAction, typeof(PNLocomotionAction), ValidateEffectAction, PNSkillContextRequirements.None));
 #endif
-        var sweep = new PNSkillActionDefinition(SweepAction, typeof(EveSweepAction), ValidateEffectAction, PNSkillContextRequirements.Direction).ReplayOnObservers().WithDriverProgress();
+        var sweep = new PNSkillActionDefinition(SweepAction, typeof(EveSweepAction), ValidateEffectAction, PNSkillContextRequirements.Direction).WithDriverProgress();
 #if UNITY_5_3_OR_NEWER
         sweep.WithScaledPresentation(PNContentIds.MeleeScale,EveSweepVisual.CreatePresentation);
 #endif

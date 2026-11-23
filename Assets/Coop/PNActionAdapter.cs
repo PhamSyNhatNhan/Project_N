@@ -62,6 +62,7 @@ namespace ProjectN.Coop
         readonly PNActionPresentationStats[] actionPresentationStats=new PNActionPresentationStats[3];
         readonly List<PNObservedAction> observedRuns=new List<PNObservedAction>();
         readonly List<PNObservedAction> supportedRuns=new List<PNObservedAction>();
+        readonly List<PNObservedAction> replayRuns=new List<PNObservedAction>();
         public PNActionPresentationStats ActionPresentationStats(PNActionPresentationPhase phase)
             =>actionPresentationStats[(int)phase];
 
@@ -132,10 +133,13 @@ namespace ProjectN.Coop
             }
             if(coverage==PNActionPresentationCoverage.Active)
             {
-                supportedRuns.Clear();
+                supportedRuns.Clear();replayRuns.Clear();
                 foreach(var run in observedRuns)
-                    if(run.Capability==1&&skill.CanPresentObservedAction(run.DataId,run.ActionId))
-                        supportedRuns.Add(run);
+                {
+                    // An Action with its own view (Eve sweep) is drawn by that view from the direction; any other Action runs itself in an Observed context from the whole frozen context (G8c).
+                    if(skill.CanPresentObservedAction(run.DataId,run.ActionId)){if((run.Capability&PNActionRunContext.DirectionBit)!=0)supportedRuns.Add(run);}
+                    else if(skill.CanReplayObservedRun(run.DataId,run.ActionId))replayRuns.Add(run);
+                }
                 int winner=0;
                 for(int i=1;i<supportedRuns.Count;i++)
                 {
@@ -150,11 +154,15 @@ namespace ProjectN.Coop
                     skill.PresentObservedAction(run.Key,run.DataId,
                         new Vector3((float)run.DirectionX,0,(float)run.DirectionZ).normalized,run.Progress,i==winner,run.PresentationScale);
                 }
+                foreach(var run in replayRuns)skill.ReplayObservedRun(run.Key,run.DataId,run.Context,run.Progress);
             }
             skill.ReconcileObservedActionPresentation(coverage!=PNActionPresentationCoverage.Unknown,binding.EndAtPose);
+            skill.AdvanceObservedActionsThisFrame(Time.deltaTime);
         }
         public long ActionRecoveries {get;private set;}
         public long ActionPacketsSent {get;private set;}
+        // Body bytes plus a fixed 80 byte estimate of the header, per packet handed to the connection (measurement only).
+        public long ActionBytesSent {get;private set;}
         public long ActionFenceBaselines {get;private set;}
         public int ActionQueuedBytes=>actionSendLedger.Used;
         public int ActionReceiveBytes=>actionReceiveLedger.Used;
@@ -333,7 +341,7 @@ namespace ProjectN.Coop
                         PNActionDiagnostics.Emit("pending-required",p.Connection.connectionId,identity,null,now,required);
                     }
                     if(p.Sender.NeedsBaseline){p.BeginRecovery(HostActionDeadline(p.Connection,now));continue;}
-                    for(int n=0;n<8;n++)if(!p.Sender.DrainOne(now,bytes=>TakeActionBudget(p.Connection.connectionId,bytes,now),packet=>{p.Connection.Send(packet,Channels.Reliable);ActionPacketsSent++;PNActionDiagnostics.Emit("send",p.Connection.connectionId,packet,null,now,0);}))break;
+                    for(int n=0;n<8;n++)if(!p.Sender.DrainOne(now,bytes=>TakeActionBudget(p.Connection.connectionId,bytes,now),packet=>{p.Connection.Send(packet,Channels.Reliable);ActionPacketsSent++;ActionBytesSent+=(packet.Body?.Length??0)+80;PNActionDiagnostics.Emit("send",p.Connection.connectionId,packet,null,now,0);}))break;
                 }
                 catch(Exception e){LastFailure="Action stream: "+e.Message;p.Connection.Disconnect();RemoveActionPeer(p);}
             }

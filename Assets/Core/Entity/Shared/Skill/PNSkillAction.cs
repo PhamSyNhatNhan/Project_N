@@ -37,6 +37,13 @@ public class PNSkillActionContext
     internal double RunProgress, RunStamp;
     internal double? PendingRunStart;
     internal double PresentationScale = 1;
+    // G8c: immunity from Buffs is state of the body and only the authority changes it. A context that only shows the Action (Observed, or a prediction) gets nothing back, so an Action asks here instead of reaching the Buff collection itself.
+    public PNBuffImmunityLease GrantImmunity(IEnumerable<EveId> ids, IEnumerable<EveId> tags = null, bool purge = false)
+    {
+        if (Mode != PNSkillMode.Authority) return null;
+        var buffs = Skill != null ? Skill.GetComponent<PNBuffManager>() : null;
+        return buffs != null && buffs.IsReady ? buffs.Buffs.Immune(ids, tags, purge) : null;
+    }
     public void CommitPresentationScale(double scale)
     {
         PNTimeMath.Nonnegative(scale);
@@ -101,11 +108,12 @@ public class PNSkillActionContext
             Direction = new Vector3((float)(value.x / length), (float)(value.y / length), (float)(value.z / length));
         }
     }
-    // G8b: where the authority begins an Action whose definition asks for observers (`ReplayOnObservers`), the other players' machines are told (the `skill_cast` block) and replay it; the same on its end.
+    // G8b: where the authority begins an Action (every Action unless its definition says `NoReplayOnObservers`), the other machines are told and replay it. Since G8c the Action stream carries it (whole context); this `skill_cast` event is the fallback when the stream is off.
     private bool announced;
     private void Announce()
     {
-        if (Mode != PNSkillMode.Authority || Invocation == null || Skill == null || Data == null || announced) return;
+        // G8c: with the Action stream on, the run reaches the other machines through it (whole context, one scheduler); the `skill_cast` event is the way for a machine without it.
+        if (Mode != PNSkillMode.Authority || Invocation == null || Skill == null || Data == null || announced || PNSkill.ActionPublicationEnabled) return;
         try { if (!Registry.Actions().Get(Data.Action.Id).ObserverReplay) return; } catch (Exception) { return; }
         announced = true; Skill.AnnounceObservedAction(SkillId, Direction);
     }
@@ -221,6 +229,13 @@ public class PNSkillActionContext
     {
         if (manager == null) throw new ArgumentNullException(nameof(manager));
         return Mode == PNSkillMode.Authority ? PNBuffOutcome.Done(manager.Buffs.Apply(request)) : PNBuffOutcome.Skip();
+    }
+
+    // The same door when the Action names the source Stat: the combat source is captured only where the Buff is really applied (the authority), because capturing it is itself a gameplay step that other machines refuse.
+    public PNBuffOutcome ApplyBuff(PNBuffManager manager, EveId buffId, PNStat source, JToken input = null)
+    {
+        if (manager == null) throw new ArgumentNullException(nameof(manager));
+        return Mode == PNSkillMode.Authority ? PNBuffOutcome.Done(manager.Buffs.Apply(new PNBuffApplyRequest(buffId, PNCombatSource.Capture(source), input))) : PNBuffOutcome.Skip();
     }
 
     // The door for a heal an Action gives. Authority heals; every other mode skips it.

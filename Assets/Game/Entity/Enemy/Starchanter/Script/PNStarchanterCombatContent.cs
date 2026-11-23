@@ -25,7 +25,7 @@ public static class PNStarchanterCombatContent
             {
                 references.Require<PNSkillOperationDefinition>(new JValue("base:lock_movement"), "movementLock");
                 references.Require<PNBuffDefinition>(data["buffId"], "boostBuff");
-            }).ReplayOnObservers());
+            }));
         var skills = hub.GetOrCreate<EveSkillDefinition>();
         skills.Register(Skill(Heal, 16, HealAction, JObject.Parse(@"{
           'teleportOut':0.6,'teleportIn':0.7,'duration':5,'interval':1.5,'tickPercent':0.05,'finalPercent':0.10,'radius':2,'landingDistance':0.8,'recovery':0.4,

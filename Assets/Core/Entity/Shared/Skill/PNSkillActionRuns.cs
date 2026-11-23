@@ -55,6 +55,11 @@ public partial class PNSkill
     public void SealActionRuns(double stamp) { actionRuns?.CaptureHolds(stamp); publicationRecovery?.Seal(stamp); if(ActionPublicationEnabled && actionPublication!=null)Publish(()=>actionPublication.Seal(stamp)); }
     public long ActionIdentityRejected { get; private set; }
     public long ActionCapabilityRejected { get; private set; }
+    // Runs this authority began and offered to the Action stream (the other machines replay each of them).
+    public long ActionRunsPublished { get; private set; }
+    public readonly Dictionary<string, int> PublishedBySkill = new Dictionary<string, int>();
+    // Diagnostics: the keys ("cast:ordinal:skill") of the runs published, at most 256.
+    public readonly List<string> PublishedKeys = new List<string>();
     private PNActionExecutionFrame actionFrame;
     private double previousActionFrameEnd;
     private double currentActionFrameStart;
@@ -98,9 +103,9 @@ public partial class PNSkill
         if (context.Mode != PNSkillMode.Authority || context.Invocation == null || context.Data == null || !ActionStamp(out var stamp)) return;
         if (context.ActionOrdinal == 0 || context.Invocation.CastKey < 0 || context.Invocation.Id <= 0) { ActionIdentityRejected++; return; }
         var definition = context.Registry.Actions().Get(context.Data.Action.Id);
-        // Only the audited planar direction payload is supported in this stage.
+        // G8c: the run carries what the Action's definition asks for (direction, position, target ids); an Action with no driver progress simply has no progress rows.
         if (!definition.ObserverReplay) return;
-        if (!definition.DriverProgress || (definition.RequiredContext & ~PNSkillContextRequirements.Direction) != 0 || !context.Direction.HasValue || context.Targets.Count != 0 || context.Position.HasValue) { ActionCapabilityRejected++; return; }
+        if (!PNActionRunContext.TryFrom(context, definition.RequiredContext, out var wire)) { ActionCapabilityRejected++; return; }
         if (definition.PresentationScaleTag.HasValue && !commitPresentation)
         {
             context.PendingRunStart = actionFrame?.Stamp ?? stamp;
@@ -120,18 +125,19 @@ public partial class PNSkill
             stamp = context.PendingRunStart.Value;
             context.PendingRunStart = null;
         }
-        var direction = context.Direction.Value;
         var shared=PublicationBudget(session);
         if(publicationRecovery==null)publicationRecovery=new PNActionPublicationRecovery(shared);
         var entry=context.Registry.Skills.ResolveIdentity(context.EntrySkillId).ToString();
         var data=context.Registry.Skills.ResolveIdentity(context.SkillId).ToString();
         var action=definition.Id.ToString();
-        TrackAuthority(()=>publicationRecovery.Begin(key,entry,data,action,direction.x,direction.z,stamp,context.PresentationScale));
+        ActionRunsPublished++; { var tally = context.Registry.Skills.ResolveIdentity(context.SkillId).ToString(); PublishedBySkill.TryGetValue(tally, out int published); PublishedBySkill[tally] = published + 1; if (PublishedKeys.Count < 256) PublishedKeys.Add(key.Cast + ":" + key.Ordinal + ":" + tally); }
+        TrackAuthority(()=>publicationRecovery.Begin(key,entry,data,action,stamp,context.PresentationScale,wire));
         // Initial source only at the start of a complete census. Mid-life enable
         // requires the explicit safe-cut recovery API, never an empty new source.
         if(ActionPublicationEnabled && actionPublication==null && publicationRecovery.Complete && publicationRecovery.Count==1) {actionPublication=new PNActionPublication(sessionBudget:shared);if(actionPublication.Complete)publications.Add(actionPublication);}
-        if(ActionPublicationEnabled && actionPublication!=null) Publish(()=>actionPublication.Begin(key,entry,data,action,direction.x,direction.z,stamp,context.PresentationScale));
-        actionRuns.Admit(key, context.Registry.Skills.ResolveIdentity(context.EntrySkillId).ToString(), context.Registry.Skills.ResolveIdentity(context.SkillId).ToString(), definition.Id.ToString(), direction.x, direction.z, stamp);
+        if(ActionPublicationEnabled && actionPublication!=null) Publish(()=>actionPublication.Begin(key,entry,data,action,stamp,context.PresentationScale,wire));
+        // The local run store is the planar-direction shadow (4 active / 16 slots); an Action with no direction is published but never admitted there.
+        if (wire.HasDirection) actionRuns.Admit(key, context.Registry.Skills.ResolveIdentity(context.EntrySkillId).ToString(), context.Registry.Skills.ResolveIdentity(context.SkillId).ToString(), definition.Id.ToString(), wire.X, wire.Z, stamp);
         // Keep observational driver/finish boundaries even for refused runs. Store
         // mutation still requires admission; this does not publish refused rows.
         context.RunStore = actionRuns; context.RunKey = key; context.RunStamp = stamp;

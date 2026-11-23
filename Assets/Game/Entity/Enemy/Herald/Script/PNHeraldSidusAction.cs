@@ -30,8 +30,8 @@ public sealed class PNHeraldSidusAction : PNSkillAction
     {
         var g = context.Data.Action.Perform["guard"];
         if (buffs == null || !buffs.IsReady) return false;
-        var outcome = context.ApplyBuff(buffs, new PNBuffApplyRequest(EveId.Parse(g["buffId"].Value<string>()), PNCombatSource.Capture(caster),
-            new JObject { ["duration"] = g["duration"].Value<double>(), ["hits"] = g["hits"].Value<int>() }));
+        var outcome = context.ApplyBuff(buffs, EveId.Parse(g["buffId"].Value<string>()), caster,
+            new JObject { ["duration"] = g["duration"].Value<double>(), ["hits"] = g["hits"].Value<int>() });
         if (!outcome.Succeeded) return false;
         guard = outcome.Receipt.Handle; hasGuard = true; return true;
     }
@@ -60,7 +60,7 @@ public sealed class PNHeraldSidusAction : PNSkillAction
             try
             {
                 // The Buff context service gives the Buff on the authority and skips it elsewhere; the Buff reaches other machines by its own replication.
-                if (context.ApplyBuff(manager, new PNBuffApplyRequest(buffId, PNCombatSource.Capture(caster))).Succeeded) presentation?.Recipient(target.transform.position);
+                if (context.ApplyBuff(manager, buffId, caster).Succeeded) presentation?.Recipient(target.transform.position);
             }
             catch (Exception error) { Debug.LogException(error, target); }
         }

@@ -2,7 +2,7 @@ using System;
 using EveEngine;
 using UnityEngine;
 
-// EN: Eve's look for the OTHER players (Docs/SkillNetworkFrameworkPlan.md G8). Her slashes are Actions the framework replays on every observer (`ReplayOnObservers`, nothing here). What is not an Action goes
+// EN: Eve's look for the OTHER players (Docs/SkillNetworkFrameworkPlan.md G8). Her slashes are Actions the framework replays on every observer (every Action is replayed by default since G8c, nothing here). What is not an Action goes
 //     through `Presentation`: Burst (the weapon's form) and the energy trail of a motion. The authority sets them where Eve draws them herself; an observer draws them from `OnPresentationChanged`. The owner's client
 //     and the authority draw their own look in the cast code and ignore the picture.
 // VI: Hình dạng của Eve cho NGƯỜI KHÁC. Nhát chém là Action do bộ khung phát lại; thứ không phải Action (Burst, vệt năng lượng của motion) đi qua Presentation; người xem vẽ từ OnPresentationChanged.

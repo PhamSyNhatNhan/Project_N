@@ -57,7 +57,15 @@ namespace ProjectN.Coop
         internal static int RequiredSize(PNActionPublication.Required row)
         {
             if(row==null)throw new FormatException("Action required row");
-            switch(row.RecordKind){case 0:return 87+StringSize(row.EntryId)+StringSize(row.DataId)+StringSize(row.ActionId)+(row.PresentationScale==1?0:9);case 2:return 96;case 3:return 105;case 4:return 91;default:throw new FormatException("Action required kind");}
+            switch(row.RecordKind){case 0:return 87+StringSize(row.EntryId)+StringSize(row.DataId)+StringSize(row.ActionId)+ContextExtraSize(row);case 2:return 96;case 3:return 105;case 4:return 91;default:throw new FormatException("Action required kind");}
+        }
+        // Scale (9) when it differs from 1 or an extra part follows; the extra array (5) + three position numbers + one integer per target.
+        static int ContextExtraSize(PNActionPublication.Required row)
+        {
+            var ctx=row.RunContext;if(ctx==null)throw new FormatException("Action context");
+            int size=row.PresentationScale==1&&!ctx.HasExtra?0:9;
+            if(ctx.HasExtra)size+=5+(ctx.HasPosition?27:0)+ctx.Targets.Count*9;
+            return size;
         }
         static int StringSize(string text){if(text==null)throw new FormatException("Action string");int n=Utf8.GetByteCount(text);if(n>384)throw new FormatException("Action string");return 5+n;}
         internal static PNActionPacket[] PackRequired(PNActionStream stream,long request,long q,double t,long cut,System.Collections.Generic.IReadOnlyList<PNActionPublication.Required> rows,int count)
@@ -79,13 +87,20 @@ namespace ProjectN.Coop
                     if(kind==0)
                     {
                         if(double.IsNaN(row.DirectionX)||double.IsInfinity(row.DirectionX)||double.IsNaN(row.DirectionZ)||double.IsInfinity(row.DirectionZ))throw new FormatException("Action direction number");
-                        bool scaled = row.PresentationScale != 1;
-                        ArrayHead(scaled ? 8 : 7);
-                        Text(row.EntryId);Text(row.DataId);Text(row.ActionId);Integer(1);
+                        var ctx=row.RunContext;if(ctx==null)throw new FormatException("Action context");
+                        bool scaled = row.PresentationScale != 1||ctx.HasExtra;
+                        ArrayHead((scaled ? 8 : 7)+(ctx.HasExtra?1:0));
+                        Text(row.EntryId);Text(row.DataId);Text(row.ActionId);Integer(ctx.Mask);
                         writer.Write((byte)2);writer.Write(row.DirectionX);
                         writer.Write((byte)2);writer.Write(row.DirectionZ);
                         Number(row.StartStamp);
                         if (scaled) Number(row.PresentationScale);
+                        if (ctx.HasExtra)
+                        {
+                            ArrayHead((ctx.HasPosition?3:0)+(ctx.HasTargets?ctx.Targets.Count:0));
+                            if(ctx.HasPosition){writer.Write((byte)2);writer.Write(ctx.Px);writer.Write((byte)2);writer.Write(ctx.Py);writer.Write((byte)2);writer.Write(ctx.Pz);}
+                            if(ctx.HasTargets)foreach(var id in ctx.Targets)Integer(id);
+                        }
                     }
                     else if(kind==4){if(row.TerminalKind<1||row.TerminalKind>2)throw new FormatException("Action terminal kind");Integer(row.RunRevision);Integer(row.TerminalKind);Number(row.RecordTime);Number(row.RecordedProgress);Integer(row.RunHistoryGeneration);}
                     else{Integer(row.RunHistoryGeneration);Integer(row.RunRevision);if(kind==3){if(row.ResetReason<1||row.ResetReason>2)throw new FormatException("Action reset reason");Integer(row.ResetReason);}ArrayHead(3);Number(row.RecordTime);Number(row.RecordedProgress);Number(row.RecordedRate);}

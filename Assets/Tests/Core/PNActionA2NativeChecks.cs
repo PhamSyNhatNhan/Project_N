@@ -20,7 +20,7 @@ public sealed class PNActionA2Probe : PNSkillAction {
  public override void Cancel(PNSkillActionContext c) { c.CancelEffects(); }
 }
 public sealed class PNActionA2Module : PNGameplayContentModule {
- public override void Register(EveRegistryHub hub) { base.Register(hub); hub.Actions().Register(new PNSkillActionDefinition(EveId.Parse("test:a2_action"), typeof(PNActionA2Probe)).ReplayOnObservers().WithDriverProgress()); }
+ public override void Register(EveRegistryHub hub) { base.Register(hub); hub.Actions().Register(new PNSkillActionDefinition(EveId.Parse("test:a2_action"), typeof(PNActionA2Probe)).WithDriverProgress()); }
 }
 public static class PNActionA2NativeChecks {
  public static string Boundaries() {

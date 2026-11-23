@@ -42,11 +42,31 @@ internal static class PNActionState {
     public static string Key(JToken t) { var a = Array(t, 2); long cast = Integer(a[0], long.MinValue); Need(cast != 0, "cast zero"); return cast + ":" + Integer(a[1]); }
     public static void Context(JToken t)
     {
-        Need(t is JArray && (((JArray)t).Count == 7 || ((JArray)t).Count == 8), "Action context size");
+        Need(t is JArray && ((JArray)t).Count >= 7 && ((JArray)t).Count <= 9, "Action context size");
         var a = (JArray)t;
         for (int i = 0; i < 3; i++) { Need(a[i].Type == JTokenType.String, "id type"); string s = (string)a[i]; Need(s.Length <= 96 && Encoding.UTF8.GetByteCount(s) <= 384 && Regex.IsMatch(s, @"^[a-z0-9_.-]+:[a-z0-9_./-]+$"), "id"); string ns=s.Substring(0,s.IndexOf(':')); Need(ns.Length<=64&&ns!="."&&ns!="..","id namespace"); }
-        Need(Integer(a[3]) == 1, "capability"); double x = Number(a[4], -1), z = Number(a[5], -1); Need(x <= 1 && z <= 1 && x*x+z*z > 1e-8, "direction"); Number(a[6]);
-        if (a.Count == 8) Number(a[7]);
+        // Capability is the context mask: 1 direction, 2 position, 4 targets (G8c). Mask 1 is the whole of the first stages' rows.
+        long mask = Integer(a[3], 0); Need(mask <= PNActionRunContext.AllBits, "capability");
+        double x = Number(a[4], -1), z = Number(a[5], -1);
+        if ((mask & PNActionRunContext.DirectionBit) != 0) Need(x <= 1 && z <= 1 && x*x+z*z > 1e-8, "direction"); else Need(x == 0 && z == 0, "direction absent");
+        Number(a[6]);
+        bool extra = (mask & (PNActionRunContext.PositionBit | PNActionRunContext.TargetsBit)) != 0;
+        Need(extra ? a.Count == 9 : (a.Count == 7 || a.Count == 8), "Action context arity");
+        if (a.Count >= 8) Number(a[7]);
+        if (extra)
+        {
+            var ext = (JArray)(a[8] is JArray ? a[8] : null); Need(ext != null, "context extra");
+            int at = 0;
+            if ((mask & PNActionRunContext.PositionBit) != 0)
+            {
+                Need(ext.Count >= 3, "position size");
+                for (int i = 0; i < 3; i++) { Need(ext[i].Type == JTokenType.Float || ext[i].Type == JTokenType.Integer, "position token"); double v = (double)ext[i]; Need(!double.IsNaN(v) && !double.IsInfinity(v) && Math.Abs(v) <= PNActionRunContext.MaxCoordinate, "position range"); }
+                at = 3;
+            }
+            int targets = ext.Count - at;
+            if ((mask & PNActionRunContext.TargetsBit) != 0) Need(targets >= 1 && targets <= PNActionRunContext.MaxTargets, "targets size"); else Need(targets == 0, "targets absent");
+            for (int i = at; i < ext.Count; i++) Integer(ext[i]);
+        }
     }
     public static void Scope(JToken t)
     {

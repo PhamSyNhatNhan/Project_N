@@ -99,7 +99,7 @@ public sealed class PNSkillCastView : MonoBehaviour, IPNSyncEntityListener, IPNS
     // Observed Actions advance by their own timelines (the skill has no per-frame hook of its own on an observer).
     private void Update()
     {
-        if (skill != null && skill.ObservedActionCount > 0) skill.AdvanceObservedActions(Time.deltaTime);
+        if (skill != null && skill.ObservedActionCount > 0) skill.AdvanceObservedActionsThisFrame(Time.deltaTime);
         if (sync != null && sync.IsAuthority && skill?.ActionRuns != null)
         {
             var stamp = PNTimeService.For(sync.Session).Sample().Local;

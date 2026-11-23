@@ -23,7 +23,7 @@ public static class PNStarforgerCombatContent
         hub.Operations().Register(new PNSkillOperationDefinition(SlamHit, typeof(PNStarforgerSlamHitOperation), ValidateSlamHit, PNSkillContextRequirements.Position));
         hub.Actions().Register(new PNSkillActionDefinition(SlamAction, typeof(PNStarforgerSlamAction), (a, h) => ValidateSlam(a, h), PNSkillContextRequirements.Direction | PNSkillContextRequirements.Position,
             (data, references) => references.Require<PNSkillOperationDefinition>(new JValue("base:lock_movement"), "movementLock")));
-        hub.Actions().Register(new PNSkillActionDefinition(StarAction, typeof(PNStarforgerStarAction), (a, h) => ValidateStar(a, h), PNSkillContextRequirements.Direction).ReplayOnObservers());
+        hub.Actions().Register(new PNSkillActionDefinition(StarAction, typeof(PNStarforgerStarAction), (a, h) => ValidateStar(a, h), PNSkillContextRequirements.Direction));
         var skills = hub.GetOrCreate<EveSkillDefinition>();
         skills.Register(Skill(Slam, "base:skill", false, 10, SlamAction, JObject.Parse(@"{
           'range':3.5,'crouch':0.5,'recovery':0.8,

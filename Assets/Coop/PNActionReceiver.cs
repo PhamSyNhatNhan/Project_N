@@ -14,6 +14,8 @@ namespace ProjectN.Coop
         public readonly string EntryId, DataId, ActionId;
         public readonly long Capability;
         public readonly double DirectionX, DirectionZ, Start, Progress, Rate, PresentationScale;
+        // G8c: the whole frozen context (direction, position, target ids); `Capability` is its mask.
+        public readonly PNActionRunContext Context;
 
         internal PNObservedAction(Guid source, PNActionState.Run run, double progress, double rate)
         {
@@ -22,8 +24,22 @@ namespace ProjectN.Coop
             EntryId=(string)run.D[0]; DataId=(string)run.D[1]; ActionId=(string)run.D[2];
             Capability=(long)run.D[3];
             DirectionX=(double)run.D[4]; DirectionZ=(double)run.D[5]; Start=(double)run.D[6];
-            PresentationScale=run.D.Count==8?(double)run.D[7]:1;
+            PresentationScale=run.D.Count>=8?(double)run.D[7]:1;
+            Context=ReadContext(run.D,(int)Capability);
             Progress=progress; Rate=rate;
+        }
+        static PNActionRunContext ReadContext(JArray d,int mask)
+        {
+            double x=(double)d[4],z=(double)d[5];
+            bool extra=(mask&(PNActionRunContext.PositionBit|PNActionRunContext.TargetsBit))!=0;
+            double px=0,py=0,pz=0;var ids=new List<long>();
+            if(extra)
+            {
+                var ext=(JArray)d[8];int at=0;
+                if((mask&PNActionRunContext.PositionBit)!=0){px=(double)ext[0];py=(double)ext[1];pz=(double)ext[2];at=3;}
+                for(int i=at;i<ext.Count;i++)ids.Add((long)ext[i]);
+            }
+            return PNActionRunContext.Of((mask&PNActionRunContext.DirectionBit)!=0,x,z,(mask&PNActionRunContext.PositionBit)!=0,px,py,pz,ids);
         }
     }
     public sealed class PNActionReceiveBudget
