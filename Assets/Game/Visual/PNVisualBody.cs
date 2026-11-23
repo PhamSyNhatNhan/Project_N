@@ -33,7 +33,22 @@ public sealed class PNVisualBody : MonoBehaviour
         if (actor == null || dead || broken || !actor.Play(state, true)) return false;
         holdTimer = Mathf.Max(.05f, seconds); locomotion = ""; return true;
     }
-    public void EndAction() { holdTimer = 0f; locomotion = ""; }
+    public void EndAction() { holdTimer = 0f; locomotion = ""; drivenState = ""; actor?.ReleaseAction(); }
+    // PV3: the motion of an Action run, placed by the run's AGE (the same on the machine that runs the Action and on one that only watches): `age` and `duration` are the run's own seconds
+    // (its clock, attack speed and slow areas already inside), so the puppet neither double counts its own clock nor drifts from the host. `seeking` restarts the state and places it.
+    // A Time clock motion takes age x speed scale (looping ones wrap), a Phase clock motion takes age / duration. Returns false when this body cannot show it (no puppet, dead, broken).
+    private string drivenState = "";
+    public bool PlayActionAt(string state, double age, double duration, bool seeking)
+    {
+        if (actor == null || dead || broken) return false;
+        if (seeking || drivenState != state || !actor.IsDriven)
+        {
+            if (!actor.Play(state, true)) return false;
+            drivenState = state;
+        }
+        actor.DriveAction(age, duration);
+        holdTimer = Mathf.Max(holdTimer, .1f); locomotion = ""; return true;
+    }
     public bool PullingUp => pullPending;
 
     public PNVisualActor Actor => actor;

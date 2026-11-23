@@ -171,9 +171,18 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
 #endif
         var sweep = new PNSkillActionDefinition(SweepAction, typeof(EveSweepAction), ValidateEffectAction, PNSkillContextRequirements.Direction).WithDriverProgress();
 #if UNITY_5_3_OR_NEWER
-        sweep.WithScaledPresentation(PNContentIds.MeleeScale,EveSweepVisual.CreatePresentation);
+        sweep.WithView(EveSweepVisual.CreateView,PNContentIds.MeleeScale,onRunningMachines:false); // PV5: Eve's sweep stops drawing itself, then this becomes true
 #endif
         hub.Actions().Register(sweep);
+        // Looks (Docs/ObservedViewPlan.md PV3): pictures that logic only names; the engine draws them on every machine.
+        var looks = hub.GetOrCreate<PNLookDefinition>();
+#if UNITY_5_3_OR_NEWER
+        looks.Register(new PNLookDefinition(EveBurstLook.Id, EveBurstLook.Create));
+        looks.Register(new PNLookDefinition(EveMotionTrailLook.Id, EveMotionTrailLook.Create));
+#endif
+        foreach (var look in looks.Snapshot().Values)
+            if (look.Id.Namespace == "project_n")
+                looks.RegisterBase(new EveId("base", look.Id.Path), look.Id, "project_n", compatible: (original, replacement) => true);
         hub.Actions().Register(new PNSkillActionDefinition(MotionAction,typeof(PNMotionAction), ValidateEffectAction, PNSkillContextRequirements.Direction));
         hub.Actions().Register(new PNSkillActionDefinition(EveId.Parse("project_n:buff_action"), typeof(PNBuffAction), ValidateEffectAction, PNSkillContextRequirements.None,
             (data, context) => { var obj = PNBuffContentBatch.Object(data); context.Require<PNSkillOperationDefinition>(obj["operationId"], "operationId"); context.Registry.Operations().Get(context.Read(obj["operationId"], "operationId")).ValidateReferences(obj["data"], context); }));
@@ -276,7 +285,10 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
             if(!hub.Get<PNWorldDefinition>().TryGet(room.World,out _))throw new FormatException("Room "+room.Id+" uses unknown world "+room.World+".");
 #endif
         foreach (var action in hub.Actions().Snapshot().Values)
+        {
+            PNActionViewPolicy.ValidateDeclaration(action, PNActionViewPolicy.DeclarationRequired);
             if (action.PresentationScaleTag.HasValue) hub.Get<PNTagDefinition>().Get(action.PresentationScaleTag.Value);
+        }
 #if UNITY_5_3_OR_NEWER
         PNSkillScaleState.SelectFactors(hub);
 #endif

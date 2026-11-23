@@ -13,11 +13,13 @@ namespace ProjectN.Coop.Tests
     // Client2 (and client1) must see the host's projectiles as copies through the object channel, and see the pet at the same size and near its owner (PNMove + summon_scale).
     public static class PNObjectSyncPlayChecks
     {
-        public static bool Enabled => Environment.GetCommandLineArgs().Contains("--pn-object-sync") || O4 || Refuse || NoGuess || O6 || Enemy || Melee || Quiet || O5 || O5b || Load || Hits || Dodge || DodgeBlast || Strike || StrikeAll;
+        public static bool Enabled => Environment.GetCommandLineArgs().Contains("--pn-object-sync") || O4 || Refuse || NoGuess || O6 || Enemy || Melee || Quiet || O5 || O5b || Load || Hits || Dodge || DodgeBlast || Strike || StrikeAll || Slow;
         private static bool Dodge => Environment.GetCommandLineArgs().Contains("--pn-object-sync-dodge");
         // V2 variant of the dodge fixture: the host drops a cylinder blast where it sees the player (plan 4.4c); the machine of the player decides whether it hurt him.
         // O7 (--pn-object-sync-strike): the host spawns a Starkeeper next to the players and its AI sweeps them; every other machine must replay the sweep from the enemy's `skill_cast` block.
         // G8c (--pn-object-sync-strikeall): one of every enemy next to the players; each Action the host publishes must be replayed on the others, none dropped, whatever context it needs.
+        // Time check (--pn-object-sync-slow): the host slows a Starkeeper's own clock (as a slow area would) 15 s in; every machine records how long its copy of each sweep ran against how long the stream listed the run.
+        private static bool Slow => Environment.GetCommandLineArgs().Contains("--pn-object-sync-slow");
         private static bool StrikeAll => Environment.GetCommandLineArgs().Contains("--pn-object-sync-strikeall");
         private static bool Strike => Environment.GetCommandLineArgs().Contains("--pn-object-sync-strike");
         private static bool DodgeBlast => Environment.GetCommandLineArgs().Contains("--pn-object-sync-dodgeblast");
@@ -79,6 +81,7 @@ namespace ProjectN.Coop.Tests
             if (Hits) { yield return HitsBody(folder, name, e1, log); yield break; }
             if (Dodge || DodgeBlast) { yield return DodgeBody(folder, name, e1, log); yield break; }
             if (Strike) { yield return StrikeBody(folder, name, e1, log); yield break; }
+            if (Slow) { yield return SlowBody(folder, name, e1, log); yield break; }
             if (StrikeAll) { yield return StrikeAllBody(folder, name, e1, log); yield break; }
             if (Quiet) { yield return QuietBody(folder, name, e1, log); yield break; }
             if (O6) { yield return O6Body(folder, name, e1, log); yield break; }
@@ -722,6 +725,56 @@ namespace ProjectN.Coop.Tests
             if (!host && played < 1) throw new Exception("this machine replayed no strike although the host announced " + hostCasts + " " + log);
         }
 
+        private static IEnumerator SlowBody(string folder, string name, PNPlayerMove e1, System.Text.StringBuilder log)
+        {
+            bool Has(string value) => File.Exists(Path.Combine(folder, value));
+            bool host = name == "host";
+            if (host)
+            {
+                var world = PNLocalWorldContext.Current.World;
+                var request = new PNEntityRequest { Entity = "project_n:enemy", Template = "project_n:enemy", Character = "project_n:starkeeper", World = world, WorldIncarnation = world.Incarnation, ContentSlot = PNGridWorldController.SlotId, SceneKey = "objectsync:slow", EntityKey = "", Position = e1.transform.position + new Vector3(4f, 0, 0) };
+                if (PNEntityHosts.For(EveRegistrySession.Context).TrySpawn(request, null, null, error => Debug.LogException(error)) == null) throw new Exception("the host refused the Starkeeper");
+            }
+            double begin = Time.realtimeSinceStartupAsDouble, until = begin + 50; bool slowed = false; float hostScale = 1f;
+            double actionStart = -1, streamStart = -1; bool actionOpen = false, streamOpen = false; bool slowAtStart = false; float scaleAtStart = 1f;
+            var rows = new List<string>(); var leftovers = new HashSet<int>(); bool first = true;
+            while (Time.realtimeSinceStartupAsDouble < until)
+            {
+                double t = Time.realtimeSinceStartupAsDouble - begin;
+                PNSkill keeper = null;
+                foreach (var skill in UnityEngine.Object.FindObjectsByType<PNSkill>())
+                {
+                    if (skill == null || skill.gameObject.layer != PNLayers.Enemy || !skill.name.Contains("tarkeeper")) continue;
+                    if (first) leftovers.Add(skill.GetHashCode());
+                    if (!leftovers.Contains(skill.GetHashCode())) keeper = skill;
+                }
+                first = false;
+                if (host && !slowed && t > 15 && keeper != null)
+                {
+                    var clock = keeper.GetComponent<EveEngine.EveTimeScale>();
+                    if (clock != null) { clock.AddTimedModifier(EveId.Parse("test:slow"), EveEngine.EveTimeModifierKind.Scale, -0.8f, 60f); slowed = true; File.WriteAllText(Path.Combine(folder, "slow-on"), t.ToString("0.0")); }
+                }
+                if (keeper != null)
+                {
+                    var clock = keeper.GetComponent<EveEngine.EveTimeScale>(); float scale = clock != null ? clock.Scale : -1f; if (host) hostScale = scale;
+                    bool action = keeper.ObservedActionCount > 0, stream = keeper.ReplayedRunCount > 0;
+                    if (!host)
+                    {
+                        if (action && !actionOpen) { actionOpen = true; actionStart = t; slowAtStart = Has("slow-on"); scaleAtStart = scale; }
+                        if (stream && !streamOpen) { streamOpen = true; streamStart = t; }
+                        if (!action && actionOpen) { actionOpen = false; rows.Add((slowAtStart ? "SLOW" : "norm") + " action=" + (t - actionStart).ToString("0.00") + "s"); actionStart = -1; }
+                        if (!stream && streamOpen) { streamOpen = false; rows.Add((slowAtStart ? "SLOW" : "norm") + " streamListed=" + (t - streamStart).ToString("0.00") + "s localScale=" + scaleAtStart.ToString("0.00")); }
+                    }
+                }
+                yield return null;
+            }
+            if (host) { File.WriteAllText(Path.Combine(folder, "host.slow"), "hostScale=" + hostScale.ToString("0.00") + " slowed=" + slowed); Mark(folder, "host-slow"); }
+            yield return Wait(() => Has("host-slow"), "host slow");
+            log.Append(name + " slow: " + File.ReadAllText(Path.Combine(folder, "host.slow")) + " rows[" + string.Join(" | ", rows) + "]; ");
+            if (host && !slowed) throw new Exception("the host never slowed the Starkeeper " + log);
+            if (!host && rows.Count == 0) throw new Exception("this machine saw no sweep " + log);
+        }
+
         private static IEnumerator StrikeAllBody(string folder, string name, PNPlayerMove e1, System.Text.StringBuilder log)
         {
             bool Has(string value) => File.Exists(Path.Combine(folder, value));
@@ -740,7 +793,7 @@ namespace ProjectN.Coop.Tests
             var manager = (PNNetworkManager)NetworkManager.singleton; long packets0 = manager.ActionPacketsSent, bytes0 = manager.ActionBytesSent;
             var shotsFolder = Path.Combine(folder, "shots"); if (!host) Directory.CreateDirectory(shotsFolder);
             var shotCounts = new Dictionary<string, int>(); var shotSeen = new Dictionary<(int, string), int>(); var shotDue = new List<(double due, PNSkill skill, string id)>();
-            var names = new SortedSet<string>(); var hurt = new HashSet<int>(); var instances = new Dictionary<int, string>(); var leftovers = new HashSet<int>(); bool firstFrameDone = false; var trace = new Dictionary<int, double[]>(); var traceInfo = new Dictionary<int, string>(); double nextPull = 0; bool pulled = false;
+            var names = new SortedSet<string>(); var hurt = new HashSet<int>(); var instances = new Dictionary<int, string>(); var leftovers = new HashSet<int>(); bool firstFrameDone = false; var bytesSeen = new Dictionary<(int, string), long>(); var rowsSeen = new Dictionary<(int, string), int>(); var trace = new Dictionary<int, double[]>(); var traceInfo = new Dictionary<int, string>(); double nextPull = 0; bool pulled = false;
             double until = Time.realtimeSinceStartupAsDouble + 40;
             while (Time.realtimeSinceStartupAsDouble < until)
             {
@@ -762,6 +815,7 @@ namespace ProjectN.Coop.Tests
                     if (!firstFrameDone) leftovers.Add(id); // enemies of an earlier phase that are still listed in the first frame: not this scenario's
                     if (leftovers.Contains(id)) continue;
                     names.Add(skill.name.Replace("(Clone)", ""));
+                    if (host && skill.ActionPublication != null) { foreach (var pair in skill.ActionPublication.EmittedBytes) bytesSeen[(id, pair.Key)] = Math.Max(bytesSeen.TryGetValue((id, pair.Key), out long bb) ? bb : 0, pair.Value); foreach (var pair in skill.ActionPublication.EmittedRows) rowsSeen[(id, pair.Key)] = Math.Max(rowsSeen.TryGetValue((id, pair.Key), out int rr) ? rr : 0, pair.Value); }
                     if (host && skill.name.Contains("tarreaper") && Time.realtimeSinceStartupAsDouble > nextPull) { pulled = true; skill.transform.position = e1.transform.position + new Vector3(1f, 0f, 0f); }
                     double nowT = Time.realtimeSinceStartupAsDouble - (until - 40);
                     if (!trace.TryGetValue(id, out var life)) { var ni = skill.GetComponentInParent<NetworkIdentity>(); life = new[] { nowT, nowT }; trace[id] = life; traceInfo[id] = skill.name.Replace("(Clone)", "") + " net=" + (ni != null ? ni.netId.ToString() : "none") + " root=" + skill.transform.root.name + " pos=" + skill.transform.position.ToString("0.0") + " born=" + nowT.ToString("0.00") + " comps=" + string.Join("+", skill.GetComponents<Component>().Select(c => c.GetType().Name).Where(c => c.StartsWith("PNEnemy") || c.Contains("Identity") || c.Contains("Loader")).Take(6)); }
@@ -782,6 +836,13 @@ namespace ProjectN.Coop.Tests
             var hostTable = Sum(published);
             var publishedKeys = new List<string>(); var replayedKeys = new List<string>();
             foreach (var skill in UnityEngine.Object.FindObjectsByType<PNSkill>()) { if (skill == null || skill.gameObject.layer != PNLayers.Enemy) continue; publishedKeys.AddRange(skill.PublishedKeys); replayedKeys.AddRange(skill.ReplayedKeys); }
+            if (host)
+            {
+                var byData = new SortedDictionary<string, long>(); var rowsByData = new SortedDictionary<string, int>();
+                foreach (var pair in bytesSeen) { byData.TryGetValue(pair.Key.Item2, out long v); byData[pair.Key.Item2] = v + pair.Value; }
+                foreach (var pair in rowsSeen) { rowsByData.TryGetValue(pair.Key.Item2, out int v); rowsByData[pair.Key.Item2] = v + pair.Value; }
+                log.Append("rowBytes{" + string.Join(",", byData.Select(x => x.Key.Replace("project_n:", "") + "=" + x.Value + "B/" + rowsByData[x.Key] + "r")) + "}; ");
+            }
             if (host) { File.WriteAllText(Path.Combine(folder, "host.published"), Show(hostTable)); File.WriteAllLines(Path.Combine(folder, "host.keys"), publishedKeys); Mark(folder, "host-strikes-all"); }
             yield return Wait(() => Has("host-strikes-all"), "host strikes");
             var seen = Sum(replayed); var lost = Sum(dropped);

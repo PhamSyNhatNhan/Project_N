@@ -7,7 +7,7 @@ using EveEngine;
 
 // EN: Trail records two blade anchors as the real sword moves; no prebuilt arc.
 // VI: Trail ghi hai điểm trên lưỡi kiếm đang chuyển động; không dựng sẵn cung chém.
-public sealed class EveSweepVisual : MonoBehaviour, IPNSkillActionPresentation
+public sealed class EveSweepVisual : MonoBehaviour, IPNActionView
 {
     private struct BladeSample { public float Time; public Vector3 Near, Tip; }
     private readonly List<BladeSample> samples = new List<BladeSample>(80);
@@ -48,17 +48,25 @@ public sealed class EveSweepVisual : MonoBehaviour, IPNSkillActionPresentation
         try { v.Initialize(); if(renderStart)v.Render(0,0); return v; }
         catch { EveVfxUtility.DestroyResource(root); throw; }
     }
-    public static IPNSkillActionPresentation CreatePresentation(PNSkill skill,PNSkillData data,Vector3 direction)
-        => CreatePresentation(skill,data,direction,1);
-    public static IPNSkillActionPresentation CreatePresentation(PNSkill skill,PNSkillData data,Vector3 direction,double scale)
+    public static IPNActionView CreateView(PNActionViewBuild build)
     {
+        var skill=build.Skill;var direction=build.Direction;
         var rig=skill.GetComponentInChildren<EveWeaponRig>();
         var pose=EveHitboxPose.Planar(skill.transform.position+rig.HandOffset(direction),direction);
-        var settings=EveSweepSettings.Parse(data.Action.Perform);
-        settings.ApplyScale(scale);
+        var settings=EveSweepSettings.Parse(build.Data.Action.Perform);
+        settings.ApplyScale(build.Scale);
         return Create(skill.transform,pose,settings,false);
     }
-    public void Show(double progress,bool driveWeapon,bool seek)
+    private bool lead=true,shown;
+    public bool Lead { set { lead=value; } }
+    public void Advance(double age,double rate,bool seeking)
+    {
+        Show(age,lead,seeking||!shown);
+        shown=true;
+    }
+    public void Fact(string key,double[] values,double age) { }
+    public void Result(in PNActionViewResult result) { }
+    private void Show(double progress,bool driveWeapon,bool seek)
     {
         if(this==null)return;
         float normalized=Mathf.Clamp01((float)(progress/settings.Duration));
@@ -78,10 +86,12 @@ public sealed class EveSweepVisual : MonoBehaviour, IPNSkillActionPresentation
         if(this==null)return;
         if(weapon!=null)weapon.EndStrike(this);
         gameObject.SetActive(false);
+        shown=false;
     }
-    public void End(bool completed)
+    public void End(PNActionViewEnd kind)
     {
         if(this==null)return;
+        bool completed=kind==PNActionViewEnd.Completed;
         if(released&&hasTail&&!completed)
         {
             hasTail=false;

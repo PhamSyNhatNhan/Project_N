@@ -171,6 +171,7 @@ public sealed class EveWeaponRig : UnityEngine.MonoBehaviour
     internal void EndStrike(EveSweepVisual source)
     {if(ReferenceEquals(strikeOwner,source))EndStrike();}
     public void SetBurst(bool active){burst=active;UpdatePose();}
+    public bool IsBurst=>burst;
     public void Charge(float progress){charging=UnityEngine.Mathf.Clamp01(progress);if(!striking)UpdatePose();}
     private void LateUpdate()=>UpdatePose();
     private void UpdatePose()

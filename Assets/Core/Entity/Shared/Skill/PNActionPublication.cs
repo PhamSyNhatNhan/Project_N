@@ -43,6 +43,7 @@ public sealed class PNActionPublication : IDisposable
     {
         public PNActionRunKey Key; public string Entry,Data,Action; public double X,Z,Start,T,P,R,AT,AP,Scale; public PNActionRunContext Ctx;
         public long Rev=1,Hg=1,Need; public int Charge; public string KeyJson,ContextJson;
+        public readonly List<PNActionFact> Facts=new List<PNActionFact>();
         public JArray K => new JArray(Key.Cast,Key.Ordinal);
         public JArray D => MakeContext(Entry,Data,Action,Ctx,Start,Scale);
     }
@@ -61,6 +62,10 @@ public sealed class PNActionPublication : IDisposable
         }
         return row;
     }
+    // PV2: a presentation fact `[age, key, values...]` (bounds in PNActionFact).
+    internal static JArray FactArray(PNActionFact fact){var a=new JArray(fact.Age,fact.Key);for(int i=0;i<fact.Count;i++)a.Add(fact[i]);return a;}
+    static string FactJson(PNActionFact fact){var text=new StringBuilder();text.Append('[').Append(N(fact.Age)).Append(',').Append(JsonConvert.ToString(fact.Key));for(int i=0;i<fact.Count;i++)text.Append(',').Append(N(fact[i]));return text.Append(']').ToString();}
+    static string FactsJson(List<PNActionFact> facts){var text=new StringBuilder("[");for(int i=0;i<facts.Count;i++){if(i>0)text.Append(',');text.Append(FactJson(facts[i]));}return text.Append(']').ToString();}
     // Encoded strings are immutable and shared by subscription readers.
     public sealed class Required
     {
@@ -69,7 +74,7 @@ public sealed class PNActionPublication : IDisposable
         public string Json { get; internal set; }
         public int Bytes { get; internal set; }
         internal int Kind,Reason,EndKind;internal PNActionRunKey Key;internal long Revision,HistoryGeneration;
-        internal string Entry,Data,Action;internal double X,Z,Start,Time,Progress,Rate,Scale;internal PNActionRunContext Ctx;
+        internal string Entry,Data,Action;internal double X,Z,Start,Time,Progress,Rate,Scale;internal PNActionRunContext Ctx;internal PNActionFact Fact;
         // Frozen scalar view for transport encoders. JSON/ToArray remain compatible.
         public int RecordKind=>Kind;public PNActionRunKey RunKey=>Key;
         public long RunRevision=>Revision;public long RunHistoryGeneration=>HistoryGeneration;
@@ -77,13 +82,14 @@ public sealed class PNActionPublication : IDisposable
         public double DirectionX=>X;public double DirectionZ=>Z;public double StartStamp=>Start;
         public double PresentationScale=>Scale;public PNActionRunContext RunContext=>Ctx;
         public double RecordTime=>Time;public double RecordedProgress=>Progress;public double RecordedRate=>Rate;
-        public int ResetReason=>Reason;public int TerminalKind=>EndKind;
+        public int ResetReason=>Reason;public int TerminalKind=>EndKind;public PNActionFact PresentationFact=>Fact;
         // Mutable copy of frozen primitives. Callers cannot mutate journal state.
         public JArray ToArray()
         {
             var key=new JArray(Key.Cast,Key.Ordinal);
             if(Kind==0)return new JArray(0,N,key,MakeContext(Entry,Data,Action,Ctx,Start,Scale));
             if(Kind==4)return new JArray(4,N,key,Revision,EndKind,Time,Progress,HistoryGeneration);
+            if(Kind==5)return new JArray(5,N,key,Time,FactArray(Fact));
             var anchor=new JArray(Time,Progress,Rate);
             return Kind==2?new JArray(2,N,key,HistoryGeneration,Revision,anchor):new JArray(3,N,key,HistoryGeneration,Revision,Reason,anchor);
         }
@@ -98,17 +104,21 @@ public sealed class PNActionPublication : IDisposable
     static int Bytes(string s)=>System.Text.Encoding.UTF8.GetByteCount(s);
     static string Encode(JToken value)=>value.ToString(Formatting.None);
     bool Live => !Disposed && Complete;
-    void Emit(State s,double time,int tag,string suffix,double at=0,double progress=0,double rate=0,int end=0)
+    // Diagnostics (PV0): journal rows and bytes by skill data id and row tag (1 begin, 2 sample, 3 correction, 4 end), counted when a row is emitted.
+    public readonly Dictionary<string,long> EmittedBytes=new Dictionary<string,long>();
+    public readonly Dictionary<string,int> EmittedRows=new Dictionary<string,int>();
+    void Emit(State s,double time,int tag,string suffix,double at=0,double progress=0,double rate=0,int end=0,PNActionFact fact=null)
     {
         if(Sequence==long.MaxValue) {Fail(PNActionPublicationStatus.InvariantFault);return;}
         long n=++Sequence;
         string json="["+tag+","+n+","+s.KeyJson+","+suffix+"]";int charge=Bytes(json);
         if(charge>3840){Fail(PNActionPublicationStatus.ResourceExhausted);return;}
+        { var tally=s.Data+"|t"+tag; EmittedBytes.TryGetValue(tally,out long b); EmittedBytes[tally]=b+charge; EmittedRows.TryGetValue(tally,out int r); EmittedRows[tally]=r+1; }
         if(charge>JournalLimit-JournalBytes){ClearJournal();Resets++;}
         s.Need=n;
         if(charge>JournalLimit)return; // complete current state survives a lost journal prefix
         if(!budget.Take(charge+64)){ClearJournal();Resets++;if(!budget.Take(charge+64))return;}
-        journal.Enqueue(new Required{N=n,Stamp=time,Json=json,Bytes=charge,Kind=tag,Key=s.Key,Revision=tag==4?checked(s.Rev+1):s.Rev,HistoryGeneration=s.Hg,Entry=s.Entry,Data=s.Data,Action=s.Action,X=s.X,Z=s.Z,Start=s.Start,Time=at,Progress=progress,Rate=rate,Reason=1,EndKind=end,Scale=s.Scale,Ctx=s.Ctx});JournalBytes+=charge;
+        journal.Enqueue(new Required{N=n,Stamp=time,Json=json,Bytes=charge,Kind=tag,Key=s.Key,Revision=tag==4?checked(s.Rev+1):s.Rev,HistoryGeneration=s.Hg,Entry=s.Entry,Data=s.Data,Action=s.Action,X=s.X,Z=s.Z,Start=s.Start,Time=at,Progress=progress,Rate=rate,Reason=1,EndKind=end,Scale=s.Scale,Ctx=s.Ctx,Fact=fact});JournalBytes+=charge;
     }
     public PNActionPublication(int currentBytes=1048576,int journalBytes=4194304,PNActionPublicationBudget sessionBudget=null)
     {
@@ -138,11 +148,14 @@ public sealed class PNActionPublication : IDisposable
     internal PNActionPublicationStatus RestoreCurrent(PNActionRunKey key,string entry,string data,string action,double x,double z,double start,double stamp,double progress,double rate,double cut,double scale=1)
         => RestoreCurrent(key,entry,data,action,PNActionRunContext.FromDirection(x,z),start,stamp,progress,rate,cut,scale);
     internal PNActionPublicationStatus RestoreCurrent(PNActionRunKey key,string entry,string data,string action,PNActionRunContext ctx,double start,double stamp,double progress,double rate,double cut,double scale=1)
+        => RestoreCurrent(key,entry,data,action,ctx,start,stamp,progress,rate,cut,scale,null);
+    internal PNActionPublicationStatus RestoreCurrent(PNActionRunKey key,string entry,string data,string action,PNActionRunContext ctx,double start,double stamp,double progress,double rate,double cut,double scale,IReadOnlyList<PNActionFact> facts)
     {
         PNTimeMath.Nonnegative(progress);PNTimeMath.Nonnegative(rate);PNTimeMath.Nonnegative(stamp);PNTimeMath.Nonnegative(cut);
         if(start>stamp||stamp>cut)return Fail(PNActionPublicationStatus.InvariantFault);
         var status=Begin(key,entry,data,action,start,scale,ctx);
         if(status!=PNActionPublicationStatus.Ok)return status;
+        if(facts!=null)foreach(var fact in facts){status=Fact(key,fact);if(status!=PNActionPublicationStatus.Ok)return status;}
         ClearJournal(); // imported S is not replayable history; baseline owns the cut
         Sequence=0;
         var row=active[key];row.T=cut;row.P=progress;row.R=stamp<cut?0:rate;
@@ -172,6 +185,18 @@ public sealed class PNActionPublication : IDisposable
         end=Math.Max(end,s.T);begin=Math.Max(begin,s.T);double p=s.P;
         if(begin>s.T)Sample(s,s.T,p,0,end);
         Sample(s,begin,p,rate,end);Sample(s,end,p+step,rate,end);return Status;
+    }
+    // PV2: a fact the Action decided for its view, at the run's progress `fact.Age`. Past the per-run bound it is dropped (counted), never a failure of the stream.
+    public long FactsDropped { get; private set; }
+    public PNActionPublicationStatus Fact(PNActionRunKey key,PNActionFact fact)
+    {
+        if(!Live)return Status;if(fact==null)throw new ArgumentNullException(nameof(fact));
+        if(!active.TryGetValue(key,out var s))return PNActionPublicationStatus.Ok; // a fact after the end has no run to belong to
+        if(s.Facts.Count>=PNActionFact.MaxPerRun){FactsDropped++;return PNActionPublicationStatus.Ok;}
+        string json=FactJson(fact);int charge=Bytes(json)+16;
+        if(charge>CurrentLimit-CurrentBytes||!budget.Take(charge))return Fail(PNActionPublicationStatus.ResourceExhausted);
+        s.Facts.Add(fact);s.Charge+=charge;CurrentBytes+=charge;
+        Emit(s,s.T,5,N(s.T)+","+json,s.T,s.P,0,0,fact);if(Live)foreach(var peer in subscriptions)peer.Changed(key,s.T);return Status;
     }
     public PNActionPublicationStatus End(PNActionRunKey key,double time,PNActionRunEnd kind)
     {
@@ -211,7 +236,7 @@ public sealed class PNActionPublication : IDisposable
         var actualScope=(JArray)scope.DeepClone();actualScope[5]=Source.ToString("N");
         var text=new StringBuilder();text.Append("[2,").Append(Encode(actualScope)).Append(',').Append(CaptureRevision).Append(',').Append(N(time)).Append(',').Append(Sequence).Append(",[");
         bool first=true;foreach(var state in active.Values.OrderBy(v=>v.Key.Cast).ThenBy(v=>v.Key.Ordinal))
-        {if(!first)text.Append(',');first=false;text.Append('[').Append(state.KeyJson).Append(',').Append(state.ContextJson).Append(',').Append(state.Rev).Append(',').Append(state.Hg).Append(',').Append(N(state.P)).Append(',').Append(N(state.R)).Append(']');}
+        {if(!first)text.Append(',');first=false;text.Append('[').Append(state.KeyJson).Append(',').Append(state.ContextJson).Append(',').Append(state.Rev).Append(',').Append(state.Hg).Append(',').Append(N(state.P)).Append(',').Append(N(state.R));if(state.Facts.Count>0)text.Append(',').Append(FactsJson(state.Facts));text.Append(']');}
         string json=text.Append("]]").ToString();
         if(leases.Count>=1024||Bytes(json)>1048576-LeaseBytes||!budget.Take(Bytes(json)+64)){LastCaptureStatus=PNActionPublicationStatus.ResourceExhausted;return null;}
         var lease=new Snapshot(this,json,time);leases.Add(lease);LeaseBytes+=lease.Bytes;return lease;

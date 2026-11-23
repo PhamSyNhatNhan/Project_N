@@ -15,6 +15,7 @@ public sealed class PNActionPublicationRecovery : IDisposable
         public double X, Z, Start, Stamp, Progress, Rate, Scale;
         public int Charge;
         public PNActionRunContext Ctx;
+        public readonly List<PNActionFact> Facts = new List<PNActionFact>();
     }
     readonly Dictionary<PNActionRunKey, Row> live = new Dictionary<PNActionRunKey, Row>();
     readonly PNActionPublicationBudget budget;
@@ -53,6 +54,15 @@ public sealed class PNActionPublicationRecovery : IDisposable
         row.Progress+=step;row.Stamp=Math.Max(stamp,row.Stamp);row.Rate=rate;
         if(double.IsNaN(row.Progress)||double.IsInfinity(row.Progress))Invalidate();
     }
+    // PV2: the facts of a live run come back with it after a recovery (the same per-run bound as the stream).
+    public void Fact(PNActionRunKey key,PNActionFact fact)
+    {
+        if(disposed||fact==null)return;
+        if(!live.TryGetValue(key,out var row)||row.Facts.Count>=PNActionFact.MaxPerRun)return;
+        int charge=64+fact.Key.Length+fact.Count*8;
+        if(charge>limit-bytes||!budget.Take(charge)){Complete=false;Failure=PNActionPublicationStatus.ResourceExhausted;return;}
+        row.Facts.Add(fact);row.Charge+=charge;bytes+=charge;
+    }
     public void End(PNActionRunKey key)
     { if(live.TryGetValue(key,out var row)){live.Remove(key);bytes-=row.Charge;budget.Return(row.Charge);} }
     public void Seal(double stamp)
@@ -79,7 +89,7 @@ public sealed class PNActionPublicationRecovery : IDisposable
             candidate=new PNActionPublication(sessionBudget:budget);
             foreach(var row in live.Values)
             {
-                var status=candidate.RestoreCurrent(row.Key,row.Entry,row.Data,row.Action,row.Ctx,row.Start,row.Stamp,row.Progress,row.Rate,stamp,row.Scale);
+                var status=candidate.RestoreCurrent(row.Key,row.Entry,row.Data,row.Action,row.Ctx,row.Start,row.Stamp,row.Progress,row.Rate,stamp,row.Scale,row.Facts);
                 if(status!=PNActionPublicationStatus.Ok){Failure=status;return State=status==PNActionPublicationStatus.ResourceExhausted?PNActionRecoveryState.Pending:PNActionRecoveryState.Failed;}
             }
             if(!candidate.Complete){Failure=candidate.Status;return State=PNActionRecoveryState.Pending;}

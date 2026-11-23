@@ -142,6 +142,13 @@ public partial class PNSkill
         // mutation still requires admission; this does not publish refused rows.
         context.RunStore = actionRuns; context.RunKey = key; context.RunStamp = stamp;
     }
+    // PV2: a fact of a published run goes into the stream (and the recovery census) at the run's progress.
+    internal void PublishActionFact(PNSkillActionContext context, PNActionFact fact)
+    {
+        if (context.RunStore == null || !ReferenceEquals(context.RunStore, actionRuns)) return;
+        if (publicationRecovery != null) TrackAuthority(() => publicationRecovery.Fact(context.RunKey, fact));
+        if (ActionPublicationEnabled && actionPublication != null) Publish(() => actionPublication.Fact(context.RunKey, fact));
+    }
     internal void EndActionRun(PNSkillActionContext context, bool cancelled)
     {
         context.PendingRunStart = null;
@@ -205,10 +212,14 @@ public partial class PNSkill
             bool exhausts = delta > consumed && step == (float)((delta - consumed) * speed);
             consumed = exhausts ? delta : consumed + step / speed;
             double next = delta > 0 ? Math.Min(end, start + (end - start) * Math.Min(1, consumed / delta)) : end;
-            Record(context, begin, next, step, raw > 0 ? delta / raw * speed : 0);
-            Stamp = next; advance?.Invoke(step);
+            double rate = raw > 0 ? delta / raw * speed : 0;
+            Record(context, begin, next, step, rate);
+            Stamp = next;
+            // The view takes the step first, so a fact the Action presents during this step has the run's age (the same age the stream publishes).
+            context?.Skill?.AdvanceActionView(context, step, rate);
+            advance?.Invoke(step);
         }
-        public void Hold(PNSkillActionContext context) { var begin = Stamp; Stamp = end; Record(context, begin, end, 0, 0); }
+        public void Hold(PNSkillActionContext context) { var begin = Stamp; Stamp = end; Record(context, begin, end, 0, 0); context?.Skill?.AdvanceActionView(context, 0, 0); }
         private static void Record(PNSkillActionContext context, double begin, double stamp, double step, double rate)
         {
             if (context?.RunStore == null || !ReferenceEquals(context.RunStore,context.Skill?.actionRuns)) return;

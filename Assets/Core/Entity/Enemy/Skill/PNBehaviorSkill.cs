@@ -165,7 +165,14 @@ public class PNBehaviorSkill : PNSkill
     private void AdvanceAction(float delta)
     {
         var action = running; if (action == null) return;
-        if (action.AdvanceAuxiliary(delta * ExecutionSpeed) && ReferenceEquals(action, running)) EndAction(false);
+        // Through the Action execution frame, so the run publishes its own progress and rate: a machine replaying it follows this enemy's clock (slow areas, attack speed), not its own.
+        float speed = ExecutionSpeed; bool done = false;
+        using (var frame = BeginActionExecutionFrame(delta))
+        {
+            if (speed <= 0 || delta <= 0) { frame.Hold(runningContext); done = action.AdvanceAuxiliary(delta * speed); }
+            else frame.Advance(runningContext, delta * speed, speed, step => done = action.AdvanceAuxiliary(step));
+        }
+        if (done && ReferenceEquals(action, running)) EndAction(false);
     }
     private void EndAction(bool cancelled)
     {

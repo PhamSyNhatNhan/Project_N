@@ -20,6 +20,9 @@ public sealed class EveClientRoleProbeSkill : EveCharacterSkill
         base.OnHitConfirmed(context, target, result);
         ConfirmedHits++;
     }
+    // A check may add a skill it registers itself (PNActionViewChecks) to the built-in data this entity selects.
+    public static System.Collections.Generic.List<EveEngine.EveId> ExtraBuiltIn;
+    public override System.Collections.Generic.IEnumerable<EveEngine.EveId> BuiltInSkillIds => ExtraBuiltIn != null ? System.Linq.Enumerable.Concat(base.BuiltInSkillIds, ExtraBuiltIn) : base.BuiltInSkillIds;
     public void Prepare() { if (pc == null) Awake(); OnEnable(); }
     public string Gates() => "IsReady=" + IsReady + " CanInput=" + CanInput + " InputArmed=" + InputArmed + " HasGameplayAuthority=" + HasGameplayAuthority + " sessionHasAuthority=" + EveRegistrySession.Context.HasAuthority;
     public bool Slot(EveId slot) => RequestSlot(slot, new PNSkillInputEvent(PNSkillInputPhase.Started, PNSkillInteraction.Tap));

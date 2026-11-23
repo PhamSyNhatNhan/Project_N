@@ -65,7 +65,7 @@ namespace ProjectN.Coop.Tests
             var receiverField=actions.GetType().GetField("Receiver",Flags);
             PNActionReceiver Receiver()=>(PNActionReceiver)receiverField.GetValue(actions);
             var request=typeof(PNNetworkManager).GetMethod("RequestAction",Flags);
-            var views=(IDictionary)typeof(PNSkill).GetField("presentedActions",Flags).GetValue(skill);
+            var views=(IDictionary)typeof(PNSkill).GetField("observedViews",Flags).GetValue(skill);
             uint netId=shell.netId;
             var expected=new List<PNObservedAction>();
             var modifier=EveId.Parse("test:t53_sweep_speed");
@@ -229,7 +229,7 @@ namespace ProjectN.Coop.Tests
                     actions=binding.GetType().GetField("Actions",Flags).GetValue(binding);
                     subject=EveRegistrySession.Context.Entities.Snapshot().Single(x=>x.LoadContext?.Identity.Id.Value==entity).GetComponent<PNPlayerMove>();
                     skill=subject.GetComponent<EveCharacterSkill>();
-                    views=(IDictionary)typeof(PNSkill).GetField("presentedActions",Flags).GetValue(skill);
+                    views=(IDictionary)typeof(PNSkill).GetField("observedViews",Flags).GetValue(skill);
                     yield return Until(()=>visible!=null&&key.Equals(originalKey)&&HasUpdatedScale(),"fresh observer receives current entity scale and seeks the frozen run");
                     if(visible==first||progress+.0001<firstProgress)throw new Exception("Rebind reused stale view or replayed startup");
                     capture.Invoke(null,new object[]{PathFor("observer-rebound.png")});

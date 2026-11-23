@@ -72,7 +72,6 @@ public partial class EveCharacterSkill
     protected override void AwakeSetUp()
     {
         base.AwakeSetUp();
-        Presentation.Changed += OnPresentationChanged;
         AttackInput.HoldMode = PlayerSkillHoldMode.Repeat;
         DashInput.CanTap = true; DashInput.PressImmediately = true; DashInput.HoldMode = PlayerSkillHoldMode.None;
 
@@ -282,11 +281,8 @@ public partial class EveCharacterSkill
     private void StartBurstCast()
     {
         gauge.TryConsume(moveset.BurstCost); burst.TryActivate();
-        stacks.Add(moveset.BurstInitialStacks); Presentation.Set(BurstPresentation, "1");
+        stacks.Add(moveset.BurstInitialStacks); SetLook(BurstLook, true);
         repeatStrokes.SetAmount(0);
-#if UNITY_5_3_OR_NEWER
-        WeaponRig.SetBurst(true); EnsureEnergy().Flash();
-#endif
     }
     public bool TryRepeatAttack()
     {
@@ -408,7 +404,7 @@ public partial class EveCharacterSkill
     {
         if (state == RepeatChainId) { risingMomentum = null; return; }
         if (state != BurstStateId) return;
-        burstFinisher = false; blazingAssault = null; Presentation.Set(BurstPresentation, "");
+        burstFinisher = false; blazingAssault = null; SetLook(BurstLook, false);
         EndRepeatChain();
         if (CurrentCast == EveCast.Repeat) CancelMoveset();
         if (stacks.IsAttached) stacks.Clear();
@@ -560,7 +556,7 @@ public partial class EveCharacterSkill
     {
 #if UNITY_5_3_OR_NEWER
         // A replica shows the Burst's end from the state the authority sent; the authority's own visuals go off in `OnAbilityEnded`.
-        if (!HasGameplayAuthority && change.After?.Id == BurstStateId && !change.After.IsActive) { WeaponRig?.SetBurst(false); energy?.SetBurst(false); }
+        if (!HasGameplayAuthority && change.After?.Id == BurstStateId && !change.After.IsActive) SetLook(BurstLook, false);
 #endif
         if (change.Reason == PNAbilityChangeReason.Reset) lastCdr = double.NaN;
     }
@@ -609,7 +605,6 @@ public partial class EveCharacterSkill
 #if UNITY_5_3_OR_NEWER
         energy?.Clear();
 #endif
-        ReplayPresentation();
     }
     private void UnloadMoveset()
     {

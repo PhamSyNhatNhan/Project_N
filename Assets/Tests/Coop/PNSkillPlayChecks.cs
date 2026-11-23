@@ -87,8 +87,8 @@ namespace ProjectN.Coop.Tests
                 string label = null;
                 if (slash < 14 && (seen.ObservedActionCount > 0 || seen.GetComponentInChildren<EveSweepVisual>() != null))
                     label = "slash_" + (++slash);
-                else if (seen.Presentation.Get(EveCharacterSkill.MotionPresentation) == "1" && motion < 10) label = "motion_" + (++motion);
-                else if (seen.Presentation.Get(EveCharacterSkill.BurstPresentation) == "1" && burst < 4 && Time.realtimeSinceStartup >= nextBurst) { label = "burst_" + (++burst); nextBurst = Time.realtimeSinceStartup + .6f; }
+                else if (seen.HasLook(EveCharacterSkill.MotionTrailLook) && motion < 10) label = "motion_" + (++motion);
+                else if (seen.HasLook(EveCharacterSkill.BurstLook) && burst < 4 && Time.realtimeSinceStartup >= nextBurst) { label = "burst_" + (++burst); nextBurst = Time.realtimeSinceStartup + .6f; }
                 if (label != null)
                 {
                     yield return new WaitForEndOfFrame();
@@ -335,8 +335,8 @@ namespace ProjectN.Coop.Tests
                 }
                 if (name == "client2")
                 {
-                    yield return Wait(() => eveSkill.Presentation.Get(EveCharacterSkill.BurstPresentation) == "1", "client2 sees client1's Burst in the presentation picture"); if (failed) yield break;
-                    try { Check(eveSkill.Presentation.Get(EveCharacterSkill.BurstPresentation) == "1", "client2 holds client1's Burst picture"); } catch (Exception e) { Fail(e); yield break; }
+                    yield return Wait(() => eveSkill.HasLook(EveCharacterSkill.BurstLook), "client2 sees client1's Burst look"); if (failed) yield break;
+                    try { Check(eveSkill.HasLook(EveCharacterSkill.BurstLook), "client2 holds client1's Burst look"); } catch (Exception e) { Fail(e); yield break; }
                 }
                 yield return Wait(() => Has("client1-repeated"), "client1 repeated"); if (failed) yield break;
                 if (Arg("--pn-skill-review") != null)

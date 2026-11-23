@@ -147,8 +147,22 @@ public static class EveCastViewChecks
             Check(enemy.GetCurrent(PNContentIds.Health) == hp, "the observed slash hits nothing");
             Check(!skill.IsBusy && skill.CurrentInvocation == null, "no cast runs on the observer");
 
-            Check(skill.Presentation.Apply(new System.Collections.Generic.Dictionary<string, string> { [EveCharacterSkill.BurstPresentation] = "1" }) && skill.Presentation.Get(EveCharacterSkill.BurstPresentation) == "1", "Burst on is drawn from the presentation picture");
-            Check(skill.Presentation.Apply(new System.Collections.Generic.Dictionary<string, string>()) && skill.Presentation.Get(EveCharacterSkill.BurstPresentation) == "", "Burst off is drawn from the next picture");
+            bool burstApplied = skill.Presentation.Apply(new System.Collections.Generic.Dictionary<string, string> { [EveCharacterSkill.BurstLook.Path] = EveCharacterSkill.BurstLook.Namespace });
+            Check(burstApplied && skill.HasLook(EveCharacterSkill.BurstLook) && skill.WeaponRig.IsBurst, "Burst on is drawn from the picture (the registered look) applied=" + burstApplied + " has=" + skill.HasLook(EveCharacterSkill.BurstLook) + " rig=" + (skill.WeaponRig != null) + " burst=" + (skill.WeaponRig != null && skill.WeaponRig.IsBurst) + " ready=" + skill.IsReady + " fail=" + skill.LookFailures);
+            Check(skill.Presentation.Apply(new System.Collections.Generic.Dictionary<string, string>()) && !skill.HasLook(EveCharacterSkill.BurstLook) && !skill.WeaponRig.IsBurst, "Burst off is drawn from the next picture");
+            // the owner's machine draws its own guess and takes it off from the replica's state change, not from a picture: the look must leave the skill's list, or the next Burst is never drawn
+            skill.SetLook(EveCharacterSkill.BurstLook, true);
+            Check(skill.HasLook(EveCharacterSkill.BurstLook) && skill.WeaponRig.IsBurst, "a locally drawn Burst is on");
+            var burstAbility = abilities.Find(EveCharacterSkill.BurstStateId)[0];
+            var snapshotCtor = typeof(PNAbilitySnapshot).GetConstructors(System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)[0];
+            var changeCtor = typeof(PNAbilityChange).GetConstructors(System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)[0];
+            var snapshot = snapshotCtor.Invoke(new object[] { burstAbility });
+            var change = changeCtor.Invoke(new object[] { PNAbilityChangeReason.Ended, snapshot, snapshot, null });
+            typeof(EveCharacterSkill).GetMethod("OnAbilityChanged", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).Invoke(skill, new object[] { change });
+            Check(!skill.HasLook(EveCharacterSkill.BurstLook) && !skill.WeaponRig.IsBurst, "the replica's Burst end takes the look off the list too, so the next Burst can be drawn");
+            skill.SetLook(EveCharacterSkill.BurstLook, true);
+            Check(skill.HasLook(EveCharacterSkill.BurstLook) && skill.WeaponRig.IsBurst, "and the next Burst is drawn again");
+            skill.SetLook(EveCharacterSkill.BurstLook, false);
             Check(Send(Block(12, new object[] { 12L, "action", "base:eve_no_such_profile", 1f, 0f, 0f })) && skill.ObservedActionCount == 0 && skill.ObservedActionsPlayed == 2, "an unknown Action is dropped without a sound");
             Check(Send(Block(13, new object[] { 13L, "action", "base:eve_attack_right", 0f, 0f, 0f })) && skill.ObservedActionCount == 0 && skill.ObservedActionsPlayed == 2, "a slash without a direction draws nothing");
             Check(Send(Block(14, new object[] { 14L, "action", "base:eve_attack_left", 0f, 1f, 0f })) && skill.ObservedActionCount == 1, "a new slash starts");

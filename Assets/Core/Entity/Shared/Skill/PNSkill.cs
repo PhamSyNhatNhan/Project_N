@@ -244,6 +244,7 @@ public partial class PNSkill : EveSkill, EveIEntityLoadPreparation, EveIEntityCo
         if (IsInitialized) return;
         this.registry = registry;
         Effects = new PNSkillEffectState(this, registry);
+        HookLooks();
         base.LoadDefinition(registry, id);
         foreach(var skillId in BuiltInSkillIds)
         {
@@ -309,7 +310,7 @@ public partial class PNSkill : EveSkill, EveIEntityLoadPreparation, EveIEntityCo
 
     public override void Unload()
     {
-        try { EndObservedActions(); UnloadBindings(); }
+        try { EndObservedActions(); ClearEntityLooks(); UnloadBindings(); }
         finally {
         try { prepared?.Dispose(); prepared = null; EndActivation(true, PNCastEnd.Unloaded); Effects?.Dispose(); Effects = null; }
         finally { ReleaseActionRuns(); registry = null;builtInData.Clear(); LastControlDecision = null; base.Unload(); }

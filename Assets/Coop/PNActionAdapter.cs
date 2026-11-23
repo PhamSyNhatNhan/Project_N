@@ -137,7 +137,7 @@ namespace ProjectN.Coop
                 foreach(var run in observedRuns)
                 {
                     // An Action with its own view (Eve sweep) is drawn by that view from the direction; any other Action runs itself in an Observed context from the whole frozen context (G8c).
-                    if(skill.CanPresentObservedAction(run.DataId,run.ActionId)){if((run.Capability&PNActionRunContext.DirectionBit)!=0)supportedRuns.Add(run);}
+                    if(skill.CanPresentObservedAction(run.DataId,run.ActionId))supportedRuns.Add(run);
                     else if(skill.CanReplayObservedRun(run.DataId,run.ActionId))replayRuns.Add(run);
                 }
                 int winner=0;
@@ -151,8 +151,10 @@ namespace ProjectN.Coop
                 for(int i=0;i<supportedRuns.Count;i++)
                 {
                     var run=supportedRuns[i];
-                    skill.PresentObservedAction(run.Key,run.DataId,
-                        new Vector3((float)run.DirectionX,0,(float)run.DirectionZ).normalized,run.Progress,i==winner,run.PresentationScale);
+                    var ctx=run.Context;
+                    var direction=ctx.HasDirection?new Vector3((float)ctx.X,0,(float)ctx.Z).normalized:Vector3.forward;
+                    Vector3? position=ctx.HasPosition?new Vector3((float)ctx.Px,(float)ctx.Py,(float)ctx.Pz):(Vector3?)null;
+                    skill.PresentObservedRun(run.Key,run.DataId,direction,position,run.Progress,i==winner,run.PresentationScale,Time.deltaTime,run.Rate,run.Facts);
                 }
                 foreach(var run in replayRuns)skill.ReplayObservedRun(run.Key,run.DataId,run.Context,run.Progress);
             }

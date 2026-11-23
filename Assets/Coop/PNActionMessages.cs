@@ -57,7 +57,7 @@ namespace ProjectN.Coop
         internal static int RequiredSize(PNActionPublication.Required row)
         {
             if(row==null)throw new FormatException("Action required row");
-            switch(row.RecordKind){case 0:return 87+StringSize(row.EntryId)+StringSize(row.DataId)+StringSize(row.ActionId)+ContextExtraSize(row);case 2:return 96;case 3:return 105;case 4:return 91;default:throw new FormatException("Action required kind");}
+            switch(row.RecordKind){case 0:return 87+StringSize(row.EntryId)+StringSize(row.DataId)+StringSize(row.ActionId)+ContextExtraSize(row);case 2:return 96;case 3:return 105;case 4:return 91;case 5:return FactSize(row.PresentationFact);default:throw new FormatException("Action required kind");}
         }
         // Scale (9) when it differs from 1 or an extra part follows; the extra array (5) + three position numbers + one integer per target.
         static int ContextExtraSize(PNActionPublication.Required row)
@@ -67,6 +67,8 @@ namespace ProjectN.Coop
             if(ctx.HasExtra)size+=5+(ctx.HasPosition?27:0)+ctx.Targets.Count*9;
             return size;
         }
+        // [5,n,[cast,ordinal],stamp,[age,key,values...]] (PV2).
+        static int FactSize(PNActionFact fact){if(fact==null)throw new FormatException("Action fact");return 69+StringSize(fact.Key)+fact.Count*9;}
         static int StringSize(string text){if(text==null)throw new FormatException("Action string");int n=Utf8.GetByteCount(text);if(n>384)throw new FormatException("Action string");return 5+n;}
         internal static PNActionPacket[] PackRequired(PNActionStream stream,long request,long q,double t,long cut,System.Collections.Generic.IReadOnlyList<PNActionPublication.Required> rows,int count)
         {
@@ -83,7 +85,7 @@ namespace ProjectN.Coop
                 {
                     var row=rows[i];int kind=row.RecordKind;
                     if(row.N<=0||row.RunKey.Cast==0||row.RunKey.Ordinal<=0||row.RunRevision<=0||row.RunHistoryGeneration<=0)throw new FormatException("Action required scalar");
-                    ArrayHead(kind==0?4:kind==2?6:kind==3?7:8);Integer(kind);Integer(row.N);ArrayHead(2);Integer(row.RunKey.Cast);Integer(row.RunKey.Ordinal);
+                    ArrayHead(kind==0?4:kind==2?6:kind==3?7:kind==5?5:8);Integer(kind);Integer(row.N);ArrayHead(2);Integer(row.RunKey.Cast);Integer(row.RunKey.Ordinal);
                     if(kind==0)
                     {
                         if(double.IsNaN(row.DirectionX)||double.IsInfinity(row.DirectionX)||double.IsNaN(row.DirectionZ)||double.IsInfinity(row.DirectionZ))throw new FormatException("Action direction number");
@@ -101,6 +103,12 @@ namespace ProjectN.Coop
                             if(ctx.HasPosition){writer.Write((byte)2);writer.Write(ctx.Px);writer.Write((byte)2);writer.Write(ctx.Py);writer.Write((byte)2);writer.Write(ctx.Pz);}
                             if(ctx.HasTargets)foreach(var id in ctx.Targets)Integer(id);
                         }
+                    }
+                    else if(kind==5)
+                    {
+                        var fact=row.PresentationFact;if(fact==null)throw new FormatException("Action fact");
+                        Number(row.RecordTime);ArrayHead(2+fact.Count);Number(fact.Age);Text(fact.Key);
+                        for(int f=0;f<fact.Count;f++){double v=fact[f];if(!PNActionFact.ValidValue(v))throw new FormatException("Action fact number");writer.Write((byte)2);writer.Write(v);}
                     }
                     else if(kind==4){if(row.TerminalKind<1||row.TerminalKind>2)throw new FormatException("Action terminal kind");Integer(row.RunRevision);Integer(row.TerminalKind);Number(row.RecordTime);Number(row.RecordedProgress);Integer(row.RunHistoryGeneration);}
                     else{Integer(row.RunHistoryGeneration);Integer(row.RunRevision);if(kind==3){if(row.ResetReason<1||row.ResetReason>2)throw new FormatException("Action reset reason");Integer(row.ResetReason);}ArrayHead(3);Number(row.RecordTime);Number(row.RecordedProgress);Number(row.RecordedRate);}

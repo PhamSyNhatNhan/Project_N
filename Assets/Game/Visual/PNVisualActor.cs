@@ -592,6 +592,10 @@ public sealed class PNVisualActor : MonoBehaviour
     public void SetFacingLeft(bool left) { if (animator != null) animator.FacingLeft = left; }
     public void SetExpression(PNVisualExpressionDefinition expression) => animator?.SetExpression(expression);
     public void SetRate(float rate) { if (animator != null) animator.RateMultiplier = rate; }
+    // PV3: the body shows an Action run's age instead of its own clock (see PNVisualAnimator.Drive).
+    public void DriveAction(double age, double duration) => animator?.Drive(age, duration);
+    public void ReleaseAction() => animator?.Release();
+    public bool IsDriven => animator != null && animator.Driven;
     // Effects for the WHOLE actor: flash towards white (0..1) and fade (alpha multiplier 0..1).
     public void SetFlash(float value) { flash = Mathf.Clamp01(value); dirty = true; }
     public void SetFade(float value) { fade = Mathf.Clamp01(value); dirty = true; }

@@ -36,40 +36,44 @@ public class PNSkillActionDefinition : PNSkillExecutionDefinition<PNSkillAction>
     private readonly Action<PNSkillActionData, EveRegistryHub> validator;
     private readonly Action<JToken, PNContentReferenceContext> referenceValidator;
     public PNSkillContextRequirements RequiredContext { get; }
-    // G8c: every Action is shown to the other machines. The framework tells them when the authority begins it and each of them plays the same Action in an Observed context
-    // (no Ability, no motion, no hit: the services filter by mode). The Action itself has no code for it; a definition with nothing to draw says so once (`NoReplayOnObservers`).
-    public bool ObserverReplay { get; private set; } = true;
+    // Observed View (Docs/ObservedViewPlan.md): an Action says once how it is drawn. `WithView` names the view the engine builds and drives on every machine that shows the run
+    // (the Authority and the Predicted machine run the Action and its view; the others run only the view). `NoView` says there is nothing to draw (the run is then not published).
+    // An Action with neither keeps the legacy replay (G8c) until `PNActionViewPolicy.DeclarationRequired` turns the declaration into a registration error (mods included).
+    public bool ObserverReplay => !noView;
+    public bool HasView => ViewFactory != null;
+    // The run of THIS skill data has a view: the definition's, or the generic one that follows the look the data names (`perform.look`).
+    public bool HasViewFor(PNSkillData data) => ViewFactory != null || PNLookData.Declares(data);
+    // False only while an Action still draws itself on the machines that run it (Eve's sweep until PV5): the engine then builds its view on the machines that only watch.
+    public bool ViewOnRunningMachines { get; private set; } = true;
+    public bool ViewDeclared => ViewFactory != null || noView;
+    private bool noView;
     // The selected implementation consumes the driver-supplied progress units. This
     // describes timing only; safe visual seek is a separate, not-yet-enabled capability.
     public bool DriverProgress { get; private set; }
-    [JsonIgnore] public Func<PNSkill,PNSkillData,UnityEngine.Vector3,IPNSkillActionPresentation> PresentationFactory { get; private set; }
+    [JsonIgnore] public Func<PNActionViewBuild,IPNActionView> ViewFactory { get; private set; }
     public EveId? PresentationScaleTag { get; private set; }
-    private Func<PNSkill,PNSkillData,UnityEngine.Vector3,double,IPNSkillActionPresentation> scaledPresentation;
-    public PNSkillActionDefinition WithPresentation(Func<PNSkill,PNSkillData,UnityEngine.Vector3,IPNSkillActionPresentation> factory)
+    // `scaleTag` (optional) names the registered tag whose factor scales the picture; the committed scale reaches the factory as `PNActionViewBuild.Scale`.
+    public PNSkillActionDefinition WithView(Func<PNActionViewBuild,IPNActionView> factory, EveId? scaleTag = null, bool onRunningMachines = true)
     {
-        PresentationFactory = factory ?? throw new ArgumentNullException(nameof(factory));
-        scaledPresentation = null;
-        PresentationScaleTag = null;
+        if (noView) throw new InvalidOperationException("An Action declares WithView or NoView, not both.");
+        if (scaleTag.HasValue && !scaleTag.Value.IsValid) throw new ArgumentException("A registered presentation scale tag is required.", nameof(scaleTag));
+        ViewFactory = factory ?? throw new ArgumentNullException(nameof(factory));
+        PresentationScaleTag = scaleTag; ViewOnRunningMachines = onRunningMachines;
         return this;
     }
-    public PNSkillActionDefinition WithScaledPresentation(EveId tag, Func<PNSkill,PNSkillData,UnityEngine.Vector3,double,IPNSkillActionPresentation> factory)
+    public PNSkillActionDefinition NoView()
     {
-        if (!tag.IsValid) throw new ArgumentException("A registered presentation scale tag is required.", nameof(tag));
-        scaledPresentation = factory ?? throw new ArgumentNullException(nameof(factory));
-        PresentationFactory = (skill, data, direction) => factory(skill, data, direction, 1);
-        PresentationScaleTag = tag;
-        return this;
+        if (ViewFactory != null) throw new InvalidOperationException("An Action declares WithView or NoView, not both.");
+        noView = true; return this;
     }
-    internal IPNSkillActionPresentation CreatePresentation(PNSkill skill, PNSkillData data, UnityEngine.Vector3 direction, double scale)
-        => scaledPresentation != null ? scaledPresentation(skill, data, direction, scale) : PresentationFactory?.Invoke(skill, data, direction);
+    internal IPNActionView CreateView(PNActionViewBuild build) => ViewFactory?.Invoke(build);
     public PNSkillActionDefinition WithDriverProgress() { DriverProgress = true; return this; }
-    public PNSkillActionDefinition NoReplayOnObservers() { ObserverReplay = false; return this; }
     public PNSkillActionDefinition(EveId id, Type implementationType) : this(id, implementationType, null) { }
     public PNSkillActionDefinition(EveId id, Type implementationType, Action<PNSkillActionData, EveRegistryHub> validate) : this(id, implementationType, validate, PNSkillContextRequirements.None) { }
     public PNSkillActionDefinition(EveId id, Type implementationType, Action<PNSkillActionData, EveRegistryHub> validate, PNSkillContextRequirements requiredContext,
         Action<JToken, PNContentReferenceContext> validateReferences = null) : base(id, implementationType) { validator = validate; RequiredContext = requiredContext; referenceValidator = validateReferences; }
     public void ValidateReferences(JToken data, PNContentReferenceContext context) => referenceValidator?.Invoke(data, context);
-    public void ValidatePayload(PNSkillActionData data, EveRegistryHub hub) { data.ValidateTags(hub); validator?.Invoke(data, hub); }
+    public void ValidatePayload(PNSkillActionData data, EveRegistryHub hub) { data.ValidateTags(hub); PNLookData.Validate(data, this, hub); validator?.Invoke(data, hub); }
 }
 
 // EN: Core registry entry for work that actions can compose.

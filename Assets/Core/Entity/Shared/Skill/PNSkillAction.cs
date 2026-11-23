@@ -123,15 +123,19 @@ public class PNSkillActionContext
         if (begun || completed) return; begun = true;
         ActionOrdinal = Invocation?.NextActionOrdinal() ?? 0;
         if (Invocation != null && !Invocation.Contexts.Contains(this)) Invocation.Contexts.Add(this);
-        Skill?.BeginActionRun(this);
+        Skill?.BeginActionRun(this); Skill?.BeginActionView(this);
         if (Invocation != null) ContributionSnapshot = Invocation.State.Snapshot();
         if (Invocation != null && SkillId != Invocation.SkillId && Registry.Skills.GetEffective(SkillId).Data is JObject root && root["effects"] != null)
             AuthoredEffects = PNSkillMetadata.Parse(root, Registry).Effects;
         Fire("OnActionStart"); Announce();
         if (Invocation?.IsEnded == true) throw new OperationCanceledException("Invocation cancelled during Action start.");
     }
-    public void CompleteAction() { if (completed) return; completed = true; try { Fire("OnComplete"); } finally { Skill?.EndActionRun(this, false); AnnounceEnd(); } }
-    public void CancelEffects() { if (completed) return; completed = true; try { Fire("OnCancel"); } finally { Skill?.EndActionRun(this, true); AnnounceEnd(); } }
+    // A one-shot fact for this run's view (`key` and up to a few numbers): the Action says WHAT it decided, never where it runs. The engine hands it to the view at the run's current age; an
+    // Action without a view (or on a machine that shows none) simply has no one to tell, so this never changes by role.
+    public void Present(string key, params double[] values) => Skill?.PresentActionFact(this, key, values);
+    internal int PresentedFacts;
+    public void CompleteAction() { if (completed) return; completed = true; try { Fire("OnComplete"); } finally { Skill?.EndActionView(this, false); Skill?.EndActionRun(this, false); AnnounceEnd(); } }
+    public void CancelEffects() { if (completed) return; completed = true; try { Fire("OnCancel"); } finally { Skill?.EndActionView(this, true); Skill?.EndActionRun(this, true); AnnounceEnd(); } }
     public void Fire(string trigger, PNStat hit = null, Vector3? point = null)
     { if (Invocation != null) Invocation.State.Fire(this, trigger, hit, point); }
     public IReadOnlyList<EveId> EffectiveTags()

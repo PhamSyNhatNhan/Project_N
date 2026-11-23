@@ -16,6 +16,8 @@ namespace ProjectN.Coop
         public readonly double DirectionX, DirectionZ, Start, Progress, Rate, PresentationScale;
         // G8c: the whole frozen context (direction, position, target ids); `Capability` is its mask.
         public readonly PNActionRunContext Context;
+        // PV2: the run's presentation facts known so far (append only; the view takes the new ones and holds those from the future).
+        public readonly IReadOnlyList<PNActionFact> Facts;
 
         internal PNObservedAction(Guid source, PNActionState.Run run, double progress, double rate)
         {
@@ -27,6 +29,7 @@ namespace ProjectN.Coop
             PresentationScale=run.D.Count>=8?(double)run.D[7]:1;
             Context=ReadContext(run.D,(int)Capability);
             Progress=progress; Rate=rate;
+            Facts=run.Facts.Count==0?(IReadOnlyList<PNActionFact>)Array.Empty<PNActionFact>():run.Facts.ToArray();
         }
         static PNActionRunContext ReadContext(JArray d,int mask)
         {
@@ -201,7 +204,7 @@ namespace ProjectN.Coop
             // One retention pass per atomic batch, not an allocation of the
             // whole run dictionary for every individual U/R record.
             target.Prune(p.T);
-            foreach(var token in records){var a=token as JArray;PNActionState.Record(a);int tag=(int)a[0];double stamp=tag==0?(double)a[3][6]:tag==1?(double)a[3]:tag==4?(double)a[5]:(double)a[tag==2?5:6][0];if(stamp>p.T||stamp<target.Floor)throw new FormatException("Action capture/coverage");if(!target.Apply(a,false))ignoredCount++;else if(tag==1)latestCount++;else requiredCount++;if(target.ResidentCharge>ModelLimit)throw new FormatException("Action model bound");}
+            foreach(var token in records){var a=token as JArray;PNActionState.Record(a);int tag=(int)a[0];double stamp=tag==0?(double)a[3][6]:tag==1?(double)a[3]:tag==4?(double)a[5]:tag==5?(double)a[3]:(double)a[tag==2?5:6][0];if(stamp>p.T||stamp<target.Floor)throw new FormatException("Action capture/coverage");if(!target.Apply(a,false))ignoredCount++;else if(tag==1)latestCount++;else requiredCount++;if(target.ResidentCharge>ModelLimit)throw new FormatException("Action model bound");}
             Certify(target,p);
             return (requiredCount,latestCount,ignoredCount);
         }

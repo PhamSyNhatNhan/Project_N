@@ -53,6 +53,23 @@ public sealed class PNVisualAnimator
     public string BaseState { get; private set; } = "";
     public string OverlayState { get; private set; } = "";
     public float BaseTime { get; private set; }
+    // PV3: a body that shows ANOTHER clock (the age of an Action run) takes its time from it instead of integrating its own: no double counting with slow areas or attack speed.
+    public bool Driven { get; private set; }
+    // Places the motion at `age` seconds of the run. A Time clock motion takes `age` x its speed scale (looping motions wrap, others stop at their end); a Phase clock motion takes age / duration.
+    public void Drive(double age, double duration)
+    {
+        if (baseMotion == null) return;
+        Driven = true;
+        var m = baseMotion.Motion;
+        if (m.Clock == PNVisualClock.Time)
+        {
+            double t = age * (m.SpeedScale <= 0f ? 1f : m.SpeedScale); if (t < 0) t = 0;
+            if (m.Loop && m.Duration > 0f) t %= m.Duration; else if (t > m.Duration) t = m.Duration;
+            BaseTime = (float)t;
+        }
+        else SetPhase(duration > 0 ? (float)(age / duration) : 0f);
+    }
+    public void Release() { Driven = false; }
     public bool BaseFinished => baseMotion != null && !baseMotion.Motion.Loop && baseMotion.Motion.Clock == PNVisualClock.Time && BaseTime >= baseMotion.Motion.Duration;
     public bool OverlayActive => overlay != null;
 
@@ -100,7 +117,7 @@ public sealed class PNVisualAnimator
         if (motion.BlendIn > 0f && baseMotion != null) { Array.Copy(baseShown, baseFrom, baseShown.Length); if (defShown != null) Array.Copy(defShown, defFrom, defShown.Length); blending = true; blendTime = 0f; blendDuration = motion.BlendIn; } else blending = false;
         // "current" keys start from the pose being shown at this instant
         Array.Copy(baseShown, current, baseShown.Length);
-        baseMotion = c; BaseState = state; BaseTime = 0f; phase = 0f;
+        baseMotion = c; BaseState = state; BaseTime = 0f; phase = 0f; Driven = false;
         return true;
     }
 
@@ -137,7 +154,7 @@ public sealed class PNVisualAnimator
         if (baseMotion != null)
         {
             var m = baseMotion.Motion;
-            if (m.Clock == PNVisualClock.Time) { float rate = (m.SpeedScale <= 0f ? 1f : m.SpeedScale) * RateMultiplier; BaseTime += dt * (rate < 0f ? 0f : rate); if (m.Loop && m.Duration > 0f) BaseTime %= m.Duration; else if (BaseTime > m.Duration) BaseTime = m.Duration; }
+            if (m.Clock == PNVisualClock.Time) { if (Driven) { } else { float rate = (m.SpeedScale <= 0f ? 1f : m.SpeedScale) * RateMultiplier; BaseTime += dt * (rate < 0f ? 0f : rate); if (m.Loop && m.Duration > 0f) BaseTime %= m.Duration; else if (BaseTime > m.Duration) BaseTime = m.Duration; } }
             else BaseTime = phase * m.Duration;
         }
         if (blending) { blendTime += dt; if (blendTime >= blendDuration) blending = false; }

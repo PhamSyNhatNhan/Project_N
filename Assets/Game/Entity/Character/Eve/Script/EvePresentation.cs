@@ -1,39 +1,18 @@
-using System;
 using EveEngine;
-using UnityEngine;
 
-// EN: Eve's look for the OTHER players (Docs/SkillNetworkFrameworkPlan.md G8). Her slashes are Actions the framework replays on every observer (every Action is replayed by default since G8c, nothing here). What is not an Action goes
-//     through `Presentation`: Burst (the weapon's form) and the energy trail of a motion. The authority sets them where Eve draws them herself; an observer draws them from `OnPresentationChanged`. The owner's client
-//     and the authority draw their own look in the cast code and ignore the picture.
-// VI: Hình dạng của Eve cho NGƯỜI KHÁC. Nhát chém là Action do bộ khung phát lại; thứ không phải Action (Burst, vệt năng lượng của motion) đi qua Presentation; người xem vẽ từ OnPresentationChanged.
+// EN: Eve's looks for EVERY machine (Docs/ObservedViewPlan.md PV3). Her slashes are Actions whose views the engine drives; what is not an Action (the Burst form of the sword, the energy trail of a motion)
+//     is a registered look (`EveLooks.cs`) that this code only turns on and off with `SetLook`. The engine draws it where Eve is simulated and publishes it for everyone else; nothing here reads a
+//     picture or knows a role.
+// VI: Hình dạng của Eve cho MỌI máy: nhát chém là view do engine đẩy; Burst và vệt năng lượng là look đăng ký, code Eve chỉ bật/tắt bằng SetLook.
 public partial class EveCharacterSkill
 {
-    public const string BurstPresentation = "burst", MotionPresentation = "motion";
+    public static readonly EveId BurstLook = EveId.Parse("project_n:eve_burst"), MotionTrailLook = EveId.Parse("project_n:eve_motion_trail");
 
-    // The energy trail of a motion: drawn here and published for the observers (a client's `Set` is ignored, so the owner's guess only draws).
-    private void MotionLook(bool on)
-    {
-        Presentation.Set(MotionPresentation, on ? "1" : "");
+    // The energy trail of a motion.
+    private void MotionLook(bool on) => SetLook(MotionTrailLook, on);
 #if UNITY_5_3_OR_NEWER
-        if (on) EnsureEnergy().SetMotion(true); else energy?.SetMotion(false);
+    // What the looks need from Eve's visuals.
+    internal EveEnergyVisual LookEnergy() => EnsureEnergy();
+    internal EveEnergyVisual LookEnergyIfAny => energy;
 #endif
-    }
-
-    private void OnPresentationChanged(string key, string value)
-    {
-        if (HasGameplayAuthority || IsOwnerClient || ownedAbilities == null || movesetRegistry == null) return;
-        bool on = value == "1";
-#if UNITY_5_3_OR_NEWER
-        switch (key)
-        {
-            case BurstPresentation: WeaponRig?.SetBurst(on); if (on) EnsureEnergy().Flash(); else energy?.SetBurst(false); break;
-            case MotionPresentation: if (on) EnsureEnergy().SetMotion(true); else if (energy != null && !IsBusy) energy.SetMotion(false); break;
-        }
-#endif
-    }
-    // An observer whose entity finished loading after the picture arrived draws what the picture already says.
-    private void ReplayPresentation()
-    {
-        foreach (var pair in Presentation.Values) OnPresentationChanged(pair.Key, pair.Value);
-    }
 }
