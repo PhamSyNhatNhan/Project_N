@@ -80,6 +80,26 @@ public class PNTimeScaleArea : PNAreaInstance
     private Action disabled;
     private PNBuffCollection ownerCollection, followCollection;
     private bool followLost;
+    // Plan 4.4c V3: the players whose machine says they stand inside (taken instead of the authority's own overlap test while the policy holds); on a copy, what this machine last told.
+    private readonly Dictionary<EveEntityId, PNStat> claimedPresence = new Dictionary<EveEntityId, PNStat>();
+    private bool toldInside;
+    public override bool TakeClaimedPresence(PNStat target, bool inside, float tolerance)
+    {
+        if (!IsRunning || IsReplica || target == null || !ValidEntity(target) || PNLayers.Contains(settings.Layers, target.gameObject.layer) == settings.Exclude) return false;
+        if (!inside) { claimedPresence.Remove(target.EntityId); return true; }
+        if ((target.transform.position - transform.position).magnitude > radius + Mathf.Max(0f, tolerance) + 1f) return false;
+        claimedPresence[target.EntityId] = target; return true;
+    }
+    // A copy on the machine of a player: tells the authority when his body enters or leaves the field (state changes only).
+    private void ClaimPresence()
+    {
+        var sink = Manager.ClaimBook.SinkFor(out var me); if (sink == null || me == null || !me.IsReady) return;
+        bool selected = PNLayers.Contains(settings.Layers, me.gameObject.layer) != settings.Exclude;
+        var collider = me.GetComponent<Collider>(); bool now = selected && !PNTargetCandidates.IsDead(me) && collider != null && (collider.bounds.ClosestPoint(transform.position) - transform.position).magnitude <= radius;
+        if (now == toldInside) return;
+        long id = Manager.ObjectIdOf(this); if (id <= 0) return;
+        if (sink.SendClaim(PNObjectKind.Area, id, now ? 1 : 0)) { toldInside = now; Manager.ClaimBook.NoteSent(); }
+    }
     public override void ActorWorldChanging(PNStat actor)
     {
         if(request==null)return;
@@ -130,7 +150,7 @@ public class PNTimeScaleArea : PNAreaInstance
             ownerSignal = context.Owner.GetComponent<PNAreaOwnerSignal>() ?? context.Owner.gameObject.AddComponent<PNAreaOwnerSignal>();
             disabled = () => Finish(PNAreaEndReason.OwnerUnavailable); ownerSignal.Disabled += disabled;
         }
-        elapsed = 0; pollElapsed = pollPeriod; visualAge = 0; VisualStrength = 0; VisualRadius = 0;
+        elapsed = 0; pollElapsed = pollPeriod; visualAge = 0; VisualStrength = 0; VisualRadius = 0; claimedPresence.Clear(); toldInside = false;
         clockGrants.Clear();
         PNTimeScaleAreaRendering.Register(this);
         if (dust == null) dust = new PNTimeScaleDust(transform);
@@ -140,7 +160,7 @@ public class PNTimeScaleArea : PNAreaInstance
     private void InitializeReplica(PNAreaCreateRequest context)
     {
         ownerIdentity = followIdentity = null; ownerCollection = followCollection = null; followLost = context.Follow == null;
-        elapsed = 0; pollElapsed = pollPeriod; visualAge = 0; VisualStrength = 0; VisualRadius = 0; clockGrants.Clear();
+        elapsed = 0; pollElapsed = pollPeriod; visualAge = 0; VisualStrength = 0; VisualRadius = 0; clockGrants.Clear(); claimedPresence.Clear(); toldInside = false;
         PNTimeScaleAreaRendering.Register(this);
         if (dust == null) dust = new PNTimeScaleDust(transform);
         dust.Initialize(this, VisualSettings);
@@ -189,11 +209,12 @@ public class PNTimeScaleArea : PNAreaInstance
         // The copy slows the non-entity time targets (projectile / area / blast copies) the way the authority's zone does, so a copy inside the field ages as slowly as the real one. Entities get nothing here (no Buff): they follow the authority's snapshots.
         pollElapsed += gameDelta;
         if (pollElapsed < pollPeriod) return;
-        pollElapsed %= pollPeriod; PollClocks();
+        pollElapsed %= pollPeriod; PollClocks(); ClaimPresence();
     }
     private void Poll()
     {
         inside.Clear(); var physics = gameObject.scene.GetPhysicsScene(); int count;
+        var claims = Manager.ClaimBook.Policy;
         do
         {
             count = physics.OverlapSphere(transform.position, radius, buffer, ~0, QueryTriggerInteraction.Ignore);
@@ -206,12 +227,23 @@ public class PNTimeScaleArea : PNAreaInstance
             // Only root body colliders participate, not children/hitboxes.
             var target = collider != null ? collider.GetComponent<PNStat>() : null;
             if (!ValidEntity(target) || !ReferenceEquals(target.GetComponent<EveEntityIdentity>()?.World,World)) continue;
+            if (claims != null && target.gameObject.layer == PNLayers.Player && claims.ClaimsDecide(target)) continue;
             bool selected = PNLayers.Contains(settings.Layers, target.gameObject.layer);
             if (selected == settings.Exclude) continue;
             var clock = target.GetComponent<EveTimeScale>(); var buffs = target.GetComponent<PNBuffManager>();
             if (clock == null || !clock.isActiveAndEnabled || buffs == null || !buffs.IsReady) continue;
             inside[target.EntityId] = target;
         }
+        // The players whose machine decides stand inside as long as it says so (it withdraws the claim when he leaves; a machine that fell silent gives him back to the test above).
+        if (claimedPresence.Count != 0)
+            foreach (var pair in claimedPresence.ToArray())
+            {
+                var stat = pair.Value;
+                if (claims == null || stat == null || !ValidEntity(stat) || !claims.ClaimsDecide(stat)) { claimedPresence.Remove(pair.Key); continue; }
+                var clock = stat.GetComponent<EveTimeScale>(); var buffs = stat.GetComponent<PNBuffManager>();
+                if (clock == null || !clock.isActiveAndEnabled || buffs == null || !buffs.IsReady) continue;
+                inside[pair.Key] = stat;
+            }
         foreach (var pair in grants.ToArray()) if (!inside.ContainsKey(pair.Key)) { Revoke(pair.Value); grants.Remove(pair.Key); }
         foreach (var pair in inside)
         {

@@ -53,6 +53,9 @@ public sealed class PNBlastCreateRequest
     // VI: Cast tao ra blast (0 = khong) va la blast thu may cua cast (so thu tu Action). Authority ghi vao ban ghi; ban doan cua nguoi ban mang ten do de ban ghi nhan lai.
     public long CastKey { get; private set; }
     public int CastIndex { get; private set; }
+    // The layers the real blast can hurt (the Spawn record's TargetMask): a copy needs them to know whether it can hurt the player of this machine (plan 4.4c).
+    public int ReplicaTargets { get; private set; }
+    public PNBlastCreateRequest WithReplicaTargets(int mask) { ReplicaTargets = mask > 0 ? mask : 0; return this; }
     public PNBlastCreateRequest WithCast(long castKey, int castIndex) { CastKey = castKey > 0 ? castKey : 0; CastIndex = Math.Max(0, Math.Min(255, castIndex)); return this; }
     public static PNBlastCreateRequest Replica(EveId id, JToken input, Scene scene, Vector3 position, PNStat owner, double scale)
     {
@@ -125,6 +128,8 @@ public abstract class PNBlastInstance : MonoBehaviour, EveIPoolable, IPNTimeTarg
     protected PNHitCapture CreateCapture(System.Collections.Generic.IEnumerable<EveId> attackTags)
         => new PNHitCapture(created.Source.Snapshot ?? throw new InvalidOperationException("The blast needs a combat snapshot."), ScaleFactor,
             (attackTags ?? Array.Empty<EveId>()).Concat(new[] { PNContentIds.BlastDamage }));
+    // The layers a copy may hurt (0 on the authority and for a guess); see PNBlastCreateRequest.ReplicaTargets.
+    protected int ReplicaTargetMask => created != null ? created.ReplicaTargets : 0;
     public bool IsRunning { get; private set; }
     public EveWorldContext World { get; private set; }
     public PNBlastEndReason? EndReason { get; private set; }
@@ -316,6 +321,7 @@ public sealed class PNBlastManager : MonoBehaviour
         if (closing) return;
         if (Session == null || !Session.IsActive) { Shutdown(); return; }
         if (objectSync != null) { if (objectSync.IsAuthority) objectSync.Flush(); else objectSync.Tick(); }
+        if (tickets.Count != 0) { double now = PredictionNow; foreach (var pair in tickets.ToArray()) if (now > pair.Value.Expires) tickets.Remove(pair.Key); }
         Submit(() => {
             foreach (var pair in entries.ToArray())
             {
@@ -351,6 +357,33 @@ public sealed class PNBlastManager : MonoBehaviour
         }
     }
     private ObjectBridge bridge;
+    // ---- hit claims (plan 4.4c V2, way B) ----
+    private PNHurtClaimBook claimBook = new PNHurtClaimBook();
+    public PNHurtClaimBook ClaimBook { get => claimBook; set => claimBook = value ?? new PNHurtClaimBook(); }
+    private sealed class ClaimTicket { internal double Expires; internal Vector3 Center; internal float Radius, Height; internal Action<PNStat> Apply; internal readonly HashSet<long> Claimed = new HashSet<long>(); }
+    private readonly Dictionary<long, ClaimTicket> tickets = new Dictionary<long, ClaimTicket>();
+    // The sync id of a blast of this manager (a copy's or the authority's); 0 when it has none.
+    public long ObjectIdOf(PNBlastInstance instance) => instance != null && objectIds.TryGetValue(instance.Handle.InstanceId, out var id) ? id : 0L;
+    // EN: The authority's blast has detonated: for PNHurtClaimLimits.ClaimGraceSeconds a player whose machine decides his own hits may claim it (the claim travels a trip after the copy's detonation). `apply` deals the blast's own prepared damage.
+    // VI: Blast cua authority vua no: trong ClaimGraceSeconds nguoi choi ma may tu quyet duoc bao trung (lenh di mat mot chuyen sau luc ban hinh no). apply gay sat thuong da chuan bi cua chinh blast.
+    public void OpenClaims(PNBlastInstance instance, Vector3 center, float radius, float height, Action<PNStat, string> apply)
+    {
+        long objectId = ObjectIdOf(instance); if (objectId <= 0 || claimBook.Policy == null) return;
+        tickets[objectId] = new ClaimTicket { Expires = PredictionNow + PNHurtClaimLimits.ClaimGraceSeconds, Center = center, Radius = radius, Height = height, Apply = stat => apply(stat, "o" + objectId.ToString(System.Globalization.CultureInfo.InvariantCulture) + ":" + PNHurtClaimLimits.ClaimKeyIndex(stat.EntityId.Value)) };
+    }
+    // EN: A claim from the machine of `target`: the blast named by `objectId` hurts him once when the policy says his machine decides, the claim comes within the grace after the detonation and he is near the blast.
+    public bool AcceptHurtClaim(long objectId, PNStat target, float tolerance)
+    {
+        if (objectId <= 0 || target == null || Session == null || !Session.HasAuthority) return false;
+        var policy = claimBook.Policy;
+        if (policy == null || !policy.ClaimsDecide(target)) return claimBook.Refuse("policy");
+        if (!tickets.TryGetValue(objectId, out var ticket) || PredictionNow > ticket.Expires) return claimBook.Refuse("gone");
+        if (!ticket.Claimed.Add(target.EntityId.Value)) return claimBook.Refuse("again");
+        if (!target.IsReady || PNTargetCandidates.IsDead(target) || !PNWorldGameplay.CanExecute(target)) return claimBook.Refuse("rule");
+        var d = target.transform.position - ticket.Center; float slack = Mathf.Max(0f, tolerance) + 1f;
+        if (Mathf.Sqrt(d.x * d.x + d.z * d.z) > ticket.Radius + slack || Mathf.Abs(d.y) > ticket.Height + slack + 1f) return claimBook.Refuse("rule");
+        ticket.Apply(target); claimBook.NoteAccepted(); return true;
+    }
     private readonly Dictionary<long, long> objectEntries = new Dictionary<long, long>();
     // ---- the shooter's guess (plan O5, own book of the blast manager): the player's machine draws the blast at the cast, named by (cast key, index); the authority's Spawn record with that name takes it over ----
     // A guess nobody takes over within OrphanSeconds (the authority refused the cast) is removed; a refused or taken-back cast removes it at once (DiscardPredicted). It draws only: no damage, ever.
@@ -410,7 +443,7 @@ public sealed class PNBlastManager : MonoBehaviour
             JToken input = record.Input == null ? null : JToken.Parse(record.Input);
             PNStat owner = null;
             if (record.Owner != 0 && Session.Entities.TryGet(new EveEntityId(record.Owner), out var loader) && loader != null) owner = loader.GetComponent<PNStat>();
-            var request = PNBlastCreateRequest.Replica(record.DefinitionId, input, world.PhysicsOwner, new Vector3(record.Position.X, record.Position.Y, record.Position.Z), owner, record.Scale);
+            var request = PNBlastCreateRequest.Replica(record.DefinitionId, input, world.PhysicsOwner, new Vector3(record.Position.X, record.Position.Y, record.Position.Z), owner, record.Scale).WithReplicaTargets(record.TargetMask);
             CreateNow(request, receipt, record.Id);
             if (receipt.Status == PNBlastStatus.Created && entries.TryGetValue(receipt.Handle.InstanceId, out var made) && made.Instance != null && elapsed > 1e-4d)
                 made.Instance.Advance((float)Math.Min(elapsed, PNObjectSyncLimits.MaxReplicaSeconds));
@@ -450,7 +483,7 @@ public sealed class PNBlastManager : MonoBehaviour
             if (input != null && input.Length > PNObjectSyncLimits.InputChars) { objectSync.NoteRefused(); return; }
             var at = request.Position; long objectId = objectSync.NextId();
             var record = PNObjectRecord.Spawn(PNObjectKind.Blast, objectId, PNObjectWorld.Of(entry.World), entry.Id, input, new PNObjectVector(at.x, at.y, at.z), new PNObjectVector(0, 0, 1), 0,
-                request.Owner != null ? request.Owner.EntityId.Value : 0L, 0L, request.CastKey > 0 ? request.CastKey.ToString(System.Globalization.CultureInfo.InvariantCulture) : null, request.CastIndex, 1d, entry.Instance.SyncScale, 1d, objectSync.Now, 0f, 0f);
+                request.Owner != null ? request.Owner.EntityId.Value : 0L, 0L, request.CastKey > 0 ? request.CastKey.ToString(System.Globalization.CultureInfo.InvariantCulture) : null, request.CastIndex, 1d, entry.Instance.SyncScale, 1d, objectSync.Now, 0f, 0f, request.Source != null ? request.Source.TargetLayers.Mask : 0);
             objectIds[id] = objectId;
             if (!objectSync.RecordSpawn(record)) objectIds.Remove(id);
         }
@@ -511,7 +544,7 @@ public sealed class PNBlastManager : MonoBehaviour
     }
     public void Shutdown()
     {
-        closing = true; SceneManager.sceneUnloaded -= SceneUnloaded; objectEntries.Clear(); objectIds.Clear(); predictions.Clear();
+        closing = true; SceneManager.sceneUnloaded -= SceneUnloaded; objectEntries.Clear(); objectIds.Clear(); predictions.Clear(); tickets.Clear();
         var errors = new List<Exception>();
         foreach (var pair in entries.ToArray())
         {

@@ -61,6 +61,7 @@ namespace ProjectN.Composition
                     PNTimeService.Attach(EveRegistrySession.Context,new PNMirrorTimeline(manager,EveRegistrySession.Context,profile.MoveInterpolationSeconds));
                     var game=runtime.GetComponent<PNGameSession>();manager.Factory=game.Factory;manager.Scheduler=game.Scheduler;manager.Worlds=game.Worlds;
                     manager.Transfers=game.Transfers;manager.SyncProvider=()=>game.Sync;manager.ObjectSyncProvider=()=>game.ObjectSync;
+                    if(game.HurtClaims!=null)game.HurtClaims.SilentSeconds=manager.OwnerSilentSeconds;
                     game.Lifetimes.RestoredActor+=manager.PublishRestoredActor;
                 };
                 root.SetActive(true);

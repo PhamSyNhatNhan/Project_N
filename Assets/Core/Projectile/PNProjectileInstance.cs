@@ -238,12 +238,13 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable, IPNTim
             if (contacts.HasEnvironment) { hasWall = true; wallPoint = contacts.Environment.Point; wallNormal = contacts.Environment.Normal; }
             if (!contacts.IsEmpty) OnContacts(contacts);
         }
+        else ClaimDetect(from, position, candidates, physics);
         first = false;
     }
-    private void Detect(Vector3 from, Vector3 to, PNTargetCandidates candidates, PhysicsScene physics)
+    private void Detect(Vector3 from, Vector3 to, PNTargetCandidates candidates, PhysicsScene physics, long only = 0)
     {
         var segment = to - from; float length = segment.magnitude, segment2 = length * length;
-        int environment = EnvironmentMask; Vector3 right = default, up = default, forward = default; bool framed = false;
+        int environment = only != 0 ? 0 : EnvironmentMask; Vector3 right = default, up = default, forward = default; bool framed = false;
         if (environment != 0 && length > 1e-5f && physics.IsValid())
         {
             using (EveHotPathMetrics.Measure("projectile.env-cast"))
@@ -254,13 +255,13 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable, IPNTim
             }
         }
         // The authority's projectile of a predicting shooter leaves target contacts to the shooter's reports (plan 4.4a); walls above stay its own.
-        if (Launch.ShooterDecides) { armed = true; return; }
+        if (Launch.ShooterDecides && only == 0) { armed = true; return; }
         if (candidates == null || candidates.Count == 0) { armed = true; return; }
         using (EveHotPathMetrics.Measure("projectile.targets"))
         {
             int mask = Launch.TargetLayers.Mask; float radius = HalfExtents.magnitude; var items = candidates.RawItems;
             // The shooter is skipped for the whole step while unarmed; it becomes a target only in steps that start armed.
-            bool skipShooter = !armed; long shooter = Launch.SourceId.Value;
+            bool skipShooter = !armed && only == 0; long shooter = Launch.SourceId.Value; var claimPolicy = only == 0 ? Manager?.HurtClaimPolicy : null;
             float sx = segment.x, sy = segment.y, sz = segment.z;
             // Only candidates near the step (spatial hash on XZ), then a scalar coarse test: the segment must pass within the two bounding radii.
             int n = candidates.Query(Mathf.Min(from.x, to.x), Mathf.Min(from.z, to.z), Mathf.Max(from.x, to.x), Mathf.Max(from.z, to.z), radius, out var indices);
@@ -268,7 +269,10 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable, IPNTim
             {
                 ref var candidate = ref items[indices[k]];
                 if (((mask >> candidate.Layer) & 1) == 0) continue;
+                if (only != 0 && candidate.EntityId != only) continue;
                 if (skipShooter && candidate.EntityId == shooter) continue;
+                // A player whose machine decides his own hits (plan 4.4c) is left to the claims; the policy takes the decision back when that machine falls silent.
+                if (claimPolicy != null && candidate.Stat != null && candidate.Layer == PNLayers.Player && claimPolicy.ClaimsDecide(candidate.Stat)) continue;
                 float rx = candidate.Center.x - from.x, ry = candidate.Center.y - from.y, rz = candidate.Center.z - from.z;
                 float fraction = segment2 < 1e-12f ? 0f : (rx * sx + ry * sy + rz * sz) / segment2;
                 fraction = fraction < 0f ? 0f : fraction > 1f ? 1f : fraction;
@@ -287,9 +291,40 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable, IPNTim
                 if (normal.sqrMagnitude < 1e-10f) { point = at; normal = -forward; } else normal = normal.normalized;
                 contacts.targets.Add(new PNProjectileContact(candidate.Stat, point, normal, fraction));
             }
-            if (skipShooter) armed = Age >= ShooterGraceSeconds || !InsideShooter(to, heading, candidates);
+            if (skipShooter && only == 0) armed = Age >= ShooterGraceSeconds || !InsideShooter(to, heading, candidates);
         }
         if (contacts.targets.Count > 1) contacts.targets.Sort((x, y) => x.Fraction.CompareTo(y.Fraction));
+    }
+
+    // ---- hit claims (plan 4.4c) ----
+    // A copy tests only the player of this machine: the machine of a player decides the hits on him. The first contact raises his early phase and sends the claim; the real object's hit event answers it (or the early phase is cancelled).
+    private System.Collections.Generic.HashSet<long> claimedHere;
+    private long claimTarget; // set while the authority applies a claimed hit: names the hit by the victim (PNHurtClaimLimits.ClaimKeyIndex)
+    private void ClaimDetect(Vector3 from, Vector3 to, PNTargetCandidates candidates, PhysicsScene physics)
+    {
+        var manager = Manager; if (manager == null || Launch == null || Launch.TargetLayers.IsEmpty || candidates == null || candidates.Count == 0) return;
+        var sink = manager.ClaimSinkFor(out var me); if (sink == null || me == null || !me.IsReady || PNTargetCandidates.IsDead(me)) return;
+        if (((Launch.TargetLayers.Mask >> me.gameObject.layer) & 1) == 0 || (claimedHere != null && claimedHere.Contains(me.EntityId.Value))) return;
+        contacts.Clear(); Detect(from, to, candidates, physics, me.EntityId.Value);
+        if (contacts.targets.Count == 0) return;
+        var contact = contacts.targets[0]; contacts.Clear();
+        long id = manager.SyncIdOf(this); if (id <= 0) return;
+        if (claimedHere == null) claimedHere = new System.Collections.Generic.HashSet<long>(); claimedHere.Add(me.EntityId.Value);
+        int hit = Mathf.Min(claimedHere.Count - 1, PNHurtClaimLimits.MaxHit);
+        var key = HitKey(PNHurtClaimLimits.ClaimKeyIndex(me.EntityId.Value)); if (key != null) PNCombatEvents.RaiseEarly(me.EntityId.Value, key, true, contact.Point.x, contact.Point.y, contact.Point.z);
+        if (sink.SendClaim(PNObjectKind.Projectile, id, hit)) manager.NoteClaimSent();
+    }
+    // A claim the authority took from the machine of `target`: runs the implementation's own contact rule for it (hit limit, Finish). `tolerance` is the slack the claim's trip gets over the object's reach.
+    internal bool TakeClaimedHit(PNStat target, float tolerance)
+    {
+        if (!IsRunning || ending || Manager == null || Launch == null || Launch.IsReplica || Launch.IsPrediction || target == null) return false;
+        if (((Launch.TargetLayers.Mask >> target.gameObject.layer) & 1) == 0) return false;
+        float reach = HalfExtents.magnitude + Mathf.Max(0f, tolerance) + (Velocity + External).magnitude * ReportLagSeconds + 1f;
+        if ((target.transform.position - position).magnitude > reach) return false;
+        int before = HitCount; contacts.Clear(); claimTarget = target.EntityId.Value;
+        contacts.targets.Add(new PNProjectileContact(target, target.transform.position, -heading, 0f));
+        try { OnContacts(contacts); } finally { contacts.Clear(); claimTarget = 0; }
+        return HitCount > before;
     }
 
     // True while this projectile's box at `at` overlaps its shooter's box (false when the shooter is no candidate: dead, unloaded, no box).
@@ -312,8 +347,9 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable, IPNTim
     // A copy is told of a hit of the real projectile by the combat event that carries its key (a piercing projectile's middle hits, which its End record cannot name).
     internal void TellRemoteHit(PNCombatEvent combatEvent, int hitIndex)
     {
-        if (!IsRunning || ending || !IsReplica || hitIndex < HitCount) return;
-        HitCount = hitIndex + 1;
+        bool claimed = hitIndex >= PNHurtClaimLimits.ClaimKeyBase;
+        if (!IsRunning || ending || !IsReplica || (!claimed && hitIndex < HitCount)) return;
+        if (!claimed) HitCount = hitIndex + 1;
         RaiseImpact(PNImpactKind.Target, combatEvent.HasPoint ? new Vector3(combatEvent.PointX, combatEvent.PointY, combatEvent.PointZ) : position, combatEvent.HasNormal ? new Vector3(combatEvent.NormalX, combatEvent.NormalY, combatEvent.NormalZ) : -heading, Resolve(combatEvent.TargetId), combatEvent.TargetId, hitIndex);
     }
     // ---- hits -------------------------------------------------------------------------------------------------------------
@@ -346,7 +382,7 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable, IPNTim
         {
             var snapshot = Launch.Source.Snapshot ?? throw new InvalidOperationException("Projectile damage needs a source with a combat snapshot.");
             // The hit is named by cast key, index in the volley and hit index (the shooter's guess names it the same), so the combat event can be matched to the guess's early phase.
-            result.Damage = target.ReceiveDamage(snapshot.CreateDamage(Launch.Damage).WithHit(HitKey(result.HitIndex), contact.Point.x, contact.Point.y, contact.Point.z, contact.Normal.x, contact.Normal.y, contact.Normal.z));
+            result.Damage = target.ReceiveDamage(snapshot.CreateDamage(Launch.Damage).WithHit(HitKey(claimTarget == target.EntityId.Value ? PNHurtClaimLimits.ClaimKeyIndex(claimTarget) : result.HitIndex), contact.Point.x, contact.Point.y, contact.Point.z, contact.Normal.x, contact.Normal.y, contact.Normal.z));
         }
         if (Launch.HitPlan != null)
         {
@@ -381,7 +417,7 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable, IPNTim
     public virtual void OnPoolRelease()
     {
         if (timeEntry != null) { PNTimeTargets.Unregister(timeEntry); timeEntry = null; }
-        Manager = null; World = null; Definition = null; Launch = null; Handle = default; EndReason = null; IsRunning = false; ending = false; DestroyedBy = null; target = default; hitContext = null; admission = null;
+        claimedHere?.Clear(); Manager = null; World = null; Definition = null; Launch = null; Handle = default; EndReason = null; IsRunning = false; ending = false; DestroyedBy = null; target = default; hitContext = null; admission = null;
         if (CleanupFailed) throw new InvalidOperationException("Faulted projectile cleanup; the pool must discard this instance.");
     }
     protected virtual void OnDisable() { if (IsRunning) Finish(PNProjectileEndReason.Disabled); }

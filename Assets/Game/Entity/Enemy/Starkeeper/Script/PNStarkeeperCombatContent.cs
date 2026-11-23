@@ -10,7 +10,7 @@ public static class PNStarkeeperCombatContent
         SweepAction = EveId.Parse("project_n:starkeeper_sweep_action"), StarPointAction = EveId.Parse("project_n:starkeeper_star_point_action");
     public static void Register(EveRegistryHub hub)
     {
-        hub.Actions().Register(new PNSkillActionDefinition(SweepAction, typeof(PNStarkeeperSweepAction), (a, h) => ValidateSweep(a, h), PNSkillContextRequirements.Direction));
+        hub.Actions().Register(new PNSkillActionDefinition(SweepAction, typeof(PNStarkeeperSweepAction), (a, h) => ValidateSweep(a, h), PNSkillContextRequirements.Direction).ReplayOnObservers());
         hub.Actions().Register(new PNSkillActionDefinition(StarPointAction, typeof(PNStarkeeperStarPointAction), (a, h) => ValidateStarPoint(a, h),
             PNSkillContextRequirements.Direction | PNSkillContextRequirements.Position,
             (data, references) => references.Require<PNSkillOperationDefinition>(new JValue("base:lock_movement"), "movementLock")));

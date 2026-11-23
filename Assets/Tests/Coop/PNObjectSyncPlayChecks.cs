@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.IO;
 using System.Linq;
@@ -12,7 +12,14 @@ namespace ProjectN.Coop.Tests
     // Client2 (and client1) must see the host's projectiles as copies through the object channel, and see the pet at the same size and near its owner (PNMove + summon_scale).
     public static class PNObjectSyncPlayChecks
     {
-        public static bool Enabled => Environment.GetCommandLineArgs().Contains("--pn-object-sync") || O4 || Refuse || NoGuess || O6 || Enemy || Melee || Quiet || O5 || O5b;
+        public static bool Enabled => Environment.GetCommandLineArgs().Contains("--pn-object-sync") || O4 || Refuse || NoGuess || O6 || Enemy || Melee || Quiet || O5 || O5b || Load || Hits || Dodge || DodgeBlast || Strike;
+        private static bool Dodge => Environment.GetCommandLineArgs().Contains("--pn-object-sync-dodge");
+        // V2 variant of the dodge fixture: the host drops a cylinder blast where it sees the player (plan 4.4c); the machine of the player decides whether it hurt him.
+        // O7 (--pn-object-sync-strike): the host spawns a Starkeeper next to the players and its AI sweeps them; every other machine must replay the sweep from the enemy's `skill_cast` block.
+        private static bool Strike => Environment.GetCommandLineArgs().Contains("--pn-object-sync-strike");
+        private static bool DodgeBlast => Environment.GetCommandLineArgs().Contains("--pn-object-sync-dodgeblast");
+        private static bool Load => Environment.GetCommandLineArgs().Contains("--pn-object-sync-load");
+        private static bool Hits => Environment.GetCommandLineArgs().Contains("--pn-object-sync-hits");
         private static bool O5 => Environment.GetCommandLineArgs().Contains("--pn-object-sync-o5");
         private static bool O5b => Environment.GetCommandLineArgs().Contains("--pn-object-sync-o5b");
         // O4 (character Eve): client1 casts Skill (three homing projectiles) near enemies; the shooter must see a guess before any answer and no second copy, the host must take the shooter's reports, client2 sees copies.
@@ -65,6 +72,10 @@ namespace ProjectN.Coop.Tests
             if (Melee) { yield return MeleeBody(folder, name, e1, log); yield break; }
             if (O5) { yield return O5Body(folder, name, e1, log); yield break; }
             if (O5b) { yield return O5bBody(folder, name, e1, log); yield break; }
+            if (Load) { yield return LoadBody(folder, name, e1, log); yield break; }
+            if (Hits) { yield return HitsBody(folder, name, e1, log); yield break; }
+            if (Dodge || DodgeBlast) { yield return DodgeBody(folder, name, e1, log); yield break; }
+            if (Strike) { yield return StrikeBody(folder, name, e1, log); yield break; }
             if (Quiet) { yield return QuietBody(folder, name, e1, log); yield break; }
             if (O6) { yield return O6Body(folder, name, e1, log); yield break; }
             var petSkill = e1.GetComponent<PNEve2Skill>();
@@ -468,6 +479,244 @@ namespace ProjectN.Coop.Tests
             yield return Wait(() => Has("host-observed"), "host observed");
             if (name == "client1" && (blasts.Adoptions != 1 || peakGuess != 1 || peakActive != 1)) throw new Exception("the dasher's guess blast must be taken over by the record: one blast, one adoption " + log);
             if (name == "client2" && (peakCopies != 1 || blasts.ReplicasDetonated != 1)) throw new Exception("client2 must show exactly one blast copy and see it detonate " + log);
+        }
+
+        // O6 load (--pn-object-sync-load): the host keeps 100 long-lived homing projectiles flying toward enemies far away (so they curve and the audit has something to correct) and the run reports what the object channel cost:
+        // bytes, records and packets per second on the host, the audit's copy error and corrections, overflows, and how many copies each client held at its peak. (Measurement; the checks are only "nothing was lost": no overflow, the clients saw nearly all.)
+        // What the datagram fault transport (--pn-sim-kcp) dropped on this machine, so a loss run can show the loss was real.
+        private static string FaultText() { var fault = UnityEngine.Object.FindFirstObjectByType<ProjectN.Composition.PNKcpFaultTransport>(); return fault == null ? " fault=off" : " dropped=" + fault.DroppedDatagrams + "/" + fault.AttemptedDatagrams + " datagrams"; }
+
+        private static IEnumerator LoadBody(string folder, string name, PNPlayerMove e1, System.Text.StringBuilder log)
+        {
+            bool Has(string value) => File.Exists(Path.Combine(folder, value));
+            bool host = name == "host"; const int total = 100;
+            var scene = e1.gameObject.scene; var projectiles = PNProjectileManager.Resolve(EveRegistrySession.Context, scene);
+            var manager = (PNNetworkManager)NetworkManager.singleton;
+            if (host)
+            {
+                var world = PNLocalWorldContext.Current.World;
+                for (int i = 0; i < 4; i++)
+                {
+                    float angle = i * Mathf.PI * .5f; var offset = new Vector3(Mathf.Cos(angle), 0, Mathf.Sin(angle)) * 12f;
+                    var request = new PNEntityRequest { Entity = "project_n:enemy", Template = "project_n:enemy", Character = "project_n:dummy_lorica", World = world, WorldIncarnation = world.Incarnation, ContentSlot = PNGridWorldController.SlotId, SceneKey = "objectsync:load" + i, EntityKey = "", Position = e1.transform.position + offset };
+                    if (PNEntityHosts.For(EveRegistrySession.Context).TrySpawn(request, null, null, error => Debug.LogException(error)) == null) throw new Exception("the host refused an enemy");
+                }
+                Mark(folder, "host-enemy");
+            }
+            yield return Wait(() => Has("host-enemy"), "the far enemies");
+            yield return new WaitForSecondsRealtime(3f);
+            int peakReplicas = 0, peakAny = 0; var handles = new System.Collections.Generic.List<PNProjectileHandle>(); var spawnAt = new System.Collections.Generic.List<Vector3>();
+            long bytes0 = manager.ObjectBytesSent; int records0 = manager.ObjectRecordsSent, packets0 = manager.ObjectPacketsSent, overflows0 = manager.ObjectOverflows;
+            int checks0 = projectiles.AuditChecks, corrections0 = projectiles.AuditCorrections; double window = 0;
+            if (host)
+            {
+                var source = PNCombatSource.Capture(e1.GetComponent<PNStat>()); var layers = PNTargetLayers.Of(PNLayers.Enemy); var id = EveId.Parse("base:eve_skill_homing");
+                double started = Time.realtimeSinceStartupAsDouble;
+                for (int burst = 0; burst < 10; burst++)
+                {
+                    for (int i = 0; i < total / 10; i++)
+                    {
+                        float angle = (burst * 10 + i) * 2.399963f; var direction = new Vector3(Mathf.Cos(angle), 0, Mathf.Sin(angle));
+                        var launch = new PNProjectileLaunch(id, new Newtonsoft.Json.Linq.JObject(), source, layers, null, null, .02d, 1d, 30d);
+                        var receipt = projectiles.Create(launch, new PNProjectileSpawn(scene, e1.transform.position + direction * 1.5f + Vector3.up * .5f, direction));
+                        if (receipt.Status != PNProjectileStatus.Created) throw new Exception("the host could not make projectile " + (burst * 10 + i) + " (" + receipt.Status + ")");
+                        handles.Add(receipt.Handle); spawnAt.Add(e1.transform.position + direction * 1.5f + Vector3.up * .5f);
+                    }
+                    yield return new WaitForSecondsRealtime(.5f);
+                }
+                Mark(folder, "load-made");
+            }
+            yield return Wait(() => Has("load-made"), "the load made", 90);
+            double until = Time.realtimeSinceStartupAsDouble + 12; double begin = Time.realtimeSinceStartupAsDouble;
+            while (Time.realtimeSinceStartupAsDouble < until)
+            {
+                peakReplicas = Math.Max(peakReplicas, projectiles.ReplicaCount); peakAny = Math.Max(peakAny, projectiles.Snapshot().Count);
+                yield return null;
+            }
+            window = Time.realtimeSinceStartupAsDouble - begin;
+            int alive = host ? handles.Count(x => x.IsAlive) : projectiles.Snapshot().Count;
+            float travelled = 0; int moving = 0;
+            if (host) for (int i = 0; i < handles.Count; i++) { var shot = projectiles.Get(handles[i]); if (shot != null && shot.IsRunning) { float d = (shot.Position - spawnAt[i]).magnitude; travelled += d; if (d > .5f) moving++; } }
+            if (host)
+            {
+                double span = 5d + window; // the launch took 5 s, then the 12 s window
+                log.Append("host: made=" + handles.Count + " aliveAfterWindow=" + alive + " moving=" + moving + " meanTravel=" + (alive > 0 ? (travelled / alive).ToString("F1") : "-") + " objectBytes=" + (manager.ObjectBytesSent - bytes0) + " (" + ((manager.ObjectBytesSent - bytes0) / span).ToString("F0") + " B/s) records=" + (manager.ObjectRecordsSent - records0) + " packets=" + (manager.ObjectPacketsSent - packets0)
+                    + " overflows=" + (manager.ObjectOverflows - overflows0) + " audits=" + (projectiles.AuditChecks - checks0) + " corrections=" + (projectiles.AuditCorrections - corrections0) + " meanError=" + (projectiles.AuditChecks > checks0 ? (projectiles.AuditErrorSum / projectiles.AuditChecks).ToString("F3") : "-") + " maxError=" + projectiles.AuditMaxError.ToString("F2") + FaultText() + "; ");
+                File.WriteAllText(Path.Combine(folder, "host.alive"), peakAny.ToString());
+                Mark(folder, "host-observed");
+            }
+            yield return Wait(() => Has("host-observed"), "host observed");
+            if (!host) log.Append(name + ": peakCopies=" + peakReplicas + " aliveAfterWindow=" + alive + " baselinesApplied=" + manager.ObjectBaselinesApplied + FaultText() + "; ");
+            if (host && handles.Count != total) throw new Exception("the host made fewer than " + total + " " + log);
+            if (host && manager.ObjectOverflows - overflows0 != 0) throw new Exception("the object queue overflowed under the load " + log);
+            if (!host) { int hostPeak = int.Parse(File.ReadAllText(Path.Combine(folder, "host.alive"))); if (peakReplicas < hostPeak * .9) throw new Exception("this client saw only " + peakReplicas + " of the host's " + hostPeak + " projectiles " + log); }
+        }
+
+        // O6 hits (--pn-object-sync-hits, character Eve): client1 casts Eve's Skill again and again beside two enemies for 30 s. The host counts the hits it applied and the hits it refused, client1 counts how many early phases
+        // the host matched or cancelled; the log shows the refused rate. (Measurement; the checks are only "every early hit was matched or cancelled" and "the host applied some".)
+        private static IEnumerator HitsBody(string folder, string name, PNPlayerMove e1, System.Text.StringBuilder log)
+        {
+            bool Has(string value) => File.Exists(Path.Combine(folder, value));
+            bool host = name == "host";
+            var eve = e1.GetComponent<EveCharacterSkill>(); var remote = e1.GetComponent<PNSkillRemoteInput>();
+            if (eve == null) throw new Exception("the hits fixture needs Eve (--pn-skill-character=project_n:eve)");
+            if (host)
+            {
+                var world = PNLocalWorldContext.Current.World;
+                foreach (var offset in new[] { new Vector3(3f, 0, 0), new Vector3(-3f, 0, 2f) })
+                {
+                    var request = new PNEntityRequest { Entity = "project_n:enemy", Template = "project_n:enemy", Character = "project_n:dummy_lorica", World = world, WorldIncarnation = world.Incarnation, ContentSlot = PNGridWorldController.SlotId, SceneKey = "objectsync:hits" + offset.x, EntityKey = "", Position = e1.transform.position + offset };
+                    if (PNEntityHosts.For(EveRegistrySession.Context).TrySpawn(request, null, null, error => Debug.LogException(error)) == null) throw new Exception("the host refused an enemy");
+                }
+                Mark(folder, "host-enemies");
+            }
+            yield return Wait(() => Has("host-enemies"), "enemies");
+            yield return new WaitForSecondsRealtime(1.5f);
+            int early = 0, confirmed = 0, matched = 0, cancelled = 0;
+            foreach (var stat in UnityEngine.Object.FindObjectsByType<PNStat>())
+                if (stat.gameObject.layer == PNLayers.Enemy && stat.IsReady)
+                    PNHurtSignal.For(stat).Hurt += info => { if (info.Phase == PNHurtPhase.Early) early++; else if (info.Phase == PNHurtPhase.Cancelled) cancelled++; else { confirmed++; if (info.MatchedEarly) matched++; } };
+            int casts = 0;
+            if (name == "client1") yield return Wait(() => remote != null && remote.IsBound && !eve.IsBusy, "Eve ready");
+            double until = Time.realtimeSinceStartupAsDouble + 30;
+            while (Time.realtimeSinceStartupAsDouble < until)
+            {
+                if (name == "client1" && !eve.IsBusy && eve.SkillRecovery.Current >= 1)
+                {
+                    eve.RequestSlot(PNSkillSlots.Skill, new PNSkillInputEvent(PNSkillInputPhase.Started, PNSkillInteraction.Tap));
+                    eve.RequestSlot(PNSkillSlots.Skill, new PNSkillInputEvent(PNSkillInputPhase.Performed, PNSkillInteraction.Tap));
+                    eve.RequestSlot(PNSkillSlots.Skill, new PNSkillInputEvent(PNSkillInputPhase.Canceled, PNSkillInteraction.Tap)); casts++;
+                }
+                yield return null;
+            }
+            yield return new WaitForSecondsRealtime((float)PNCombatEvents.EarlyHoldSeconds + .5f);
+            int applied = remote.HitsApplied, rejected = remote.HitsRejected; var manager = (PNNetworkManager)NetworkManager.singleton;
+            log.Append(name + ": casts=" + casts + " early=" + early + " matched=" + matched + " cancelled=" + cancelled + " confirmed=" + confirmed + " hitsApplied=" + applied + " hitsRejected=" + rejected + " refusedRate=" + (applied + rejected > 0 ? (100d * rejected / (applied + rejected)).ToString("F1") + "%" : "-") + " refusals=" + string.Join(";", remote.Refusals.Select(x => x.Reason).GroupBy(x => x).Select(g => g.Key + "x" + g.Count())) + (host ? " combatBytes=" + manager.CombatBytesSent + " combatEvents=" + manager.CombatEventsSent + " dropped=" + manager.CombatDropped : "") + FaultText() + "; ");
+            if (PNCombatEvents.PendingEarly != 0) throw new Exception("an early hit is still waiting after its hold " + log);
+            if (early != matched + cancelled) throw new Exception("an early hit was neither matched nor cancelled " + log);
+            if (host) { if (applied < 1) throw new Exception("the host applied no reported hit in 30 s " + log); Mark(folder, "host-observed"); }
+            yield return Wait(() => Has("host-observed"), "host observed");
+        }
+
+        // O6 dodge (--pn-object-sync-dodge): the host (the enemy AI's stand-in) fires enemy bolts at client1's player, which keeps walking a square. The host decides every hit from its own view of the player (plan 4.4b part 2, way A);
+        // client1 notes per shot whether the copy it sees ever overlapped its own player's body. The log gives the shots the host hit although client1 saw a dodge (the number the plan wants) and the reverse. (Measurement; the checks are
+        // only "the host fired every shot, was told and counted each one, and client1 moved".)
+        private static IEnumerator DodgeBody(string folder, string name, PNPlayerMove e1, System.Text.StringBuilder log)
+        {
+            bool Has(string value) => File.Exists(Path.Combine(folder, value));
+            bool host = name == "host"; const int shots = 20; const string definition = "project_n:starweaver_bolt";
+            var scene = e1.gameObject.scene; var projectiles = PNProjectileManager.Resolve(EveRegistrySession.Context, scene);
+            long playerId = e1.GetComponent<EveEntityIdentity>().Id.Value;
+            var body = e1.GetComponentInChildren<Collider>(); if (body == null) throw new Exception("the player has no collider");
+            int current = -1; var hostHit = new bool[shots]; var toldHit = new bool[shots]; var sawOverlap = new bool[shots]; var closest = new float[shots]; for (int i = 0; i < shots; i++) closest[i] = float.MaxValue;
+            var kinds = new System.Collections.Generic.SortedDictionary<string, int>(); int target0 = projectiles.ImpactsOfKind(PNImpactKind.Target), wall0 = projectiles.ImpactsOfKind(PNImpactKind.Wall), expired0 = projectiles.ImpactsOfKind(PNImpactKind.Expired);
+            Action<PNCombatEvent, bool> onEvent = (combatEvent, matched) => { { string layer = "?"; if (EveRegistrySession.Context.Entities.TryGet(new EveEntityId(combatEvent.TargetId), out var loader) && loader != null) layer = LayerMask.LayerToName(loader.gameObject.layer); var k = (combatEvent.TargetId == playerId ? "self/" : "other/") + layer + "/" + combatEvent.Kind + (combatEvent.Applied > 0 ? ">0" : "=0"); kinds[k] = (kinds.TryGetValue(k, out var n) ? n : 0) + 1; } if (combatEvent.Kind == PNCombatEventKind.Damage && combatEvent.TargetId == playerId && current >= 0) { if (host) hostHit[current] = true; toldHit[current] = true; } };
+            PNCombatEvents.Observed += onEvent;
+            UnityEngine.InputSystem.Keyboard keyboard = null; Vector3 start = e1.transform.position, low = start, high = start;
+            PNStat shooter = null;
+            if (host)
+            {
+                var world = PNLocalWorldContext.Current.World;
+                var request = new PNEntityRequest { Entity = "project_n:enemy", Template = "project_n:enemy", Character = "project_n:dummy_lorica", World = world, WorldIncarnation = world.Incarnation, ContentSlot = PNGridWorldController.SlotId, SceneKey = "objectsync:dodgeshooter", EntityKey = "", Position = e1.transform.position + new Vector3(30f, 0, 0) };
+                if (PNEntityHosts.For(EveRegistrySession.Context).TrySpawn(request, null, null, error => Debug.LogException(error)) == null) throw new Exception("the host refused the shooter");
+                yield return Wait(() => UnityEngine.Object.FindObjectsByType<PNStat>().Any(x => x.gameObject.layer == PNLayers.Enemy && x.IsReady), "the shooter exists");
+                shooter = UnityEngine.Object.FindObjectsByType<PNStat>().First(x => x.gameObject.layer == PNLayers.Enemy && x.IsReady);
+            }
+            try
+            {
+                yield return new WaitForSecondsRealtime(3f);
+                if (name == "client1") keyboard = UnityEngine.InputSystem.InputSystem.AddDevice<UnityEngine.InputSystem.Keyboard>();
+                var keys = new[] { UnityEngine.InputSystem.Key.D, UnityEngine.InputSystem.Key.None, UnityEngine.InputSystem.Key.W, UnityEngine.InputSystem.Key.None, UnityEngine.InputSystem.Key.A, UnityEngine.InputSystem.Key.None, UnityEngine.InputSystem.Key.S, UnityEngine.InputSystem.Key.None };
+                double nextShot = Time.realtimeSinceStartupAsDouble + .5, nextKey = 0; int keyIndex = 0, fired = 0;
+                double until = nextShot + shots * 1.5 + 3;
+                while (Time.realtimeSinceStartupAsDouble < until)
+                {
+                    double now = Time.realtimeSinceStartupAsDouble;
+                    var position = e1.transform.position; low = Vector3.Min(low, position); high = Vector3.Max(high, position);
+                    if (name == "client1" && now >= nextKey) { UnityEngine.InputSystem.InputSystem.QueueStateEvent(keyboard, new UnityEngine.InputSystem.LowLevel.KeyboardState(keys[keyIndex++ % keys.Length])); nextKey = now + .45; }
+                    if (host && fired < shots && now >= nextShot)
+                    {
+                        current = fired; var source = PNCombatSource.Capture(shooter); var target = body.bounds.center;
+                        var launch = new PNProjectileLaunch(EveId.Parse(definition), null, source, PNTargetLayers.Of(PNLayers.Player), source.Snapshot.PrepareDamage(1d, false, null, EveId.Parse("base:magic")));
+                        if (DodgeBlast)
+                        {
+                            var blasts = PNBlastManager.Resolve(EveRegistrySession.Context, scene);
+                            var input = Newtonsoft.Json.Linq.JObject.Parse("{'delay':0.4,'tail':0.4,'radius':2.0,'height':2.0,'value':{'amount':1},'canCrit':false,'tags':['base:magic']}");
+                            var made = blasts.Create(new PNBlastCreateRequest(PNBlastGameplayContent.Cylinder, input, source, scene, new Vector3(target.x, target.y - 0.5f, target.z), shooter, PNBlastDependency.Independent));
+                            if (made.Status != PNBlastStatus.Created) throw new Exception("the host could not drop blast " + fired + " (" + made.Status + ")");
+                        }
+                        else
+                        {
+                        var receipt = projectiles.Create(launch, new PNProjectileSpawn(scene, target + new Vector3(3.5f, 0, 0), Vector3.left));
+                        if (receipt.Status != PNProjectileStatus.Created) throw new Exception("the host could not fire shot " + fired + " (" + receipt.Status + ")");
+                        }
+                        Mark(folder, "shot-" + fired); fired++; nextShot += 1.5;
+                    }
+                    if (host && current >= 0) foreach (var snapshot in projectiles.Snapshot()) if (snapshot.IsRunning && snapshot.DefinitionId.ToString() == definition) closest[current] = Math.Min(closest[current], (snapshot.Position - body.bounds.center).magnitude);
+                    if (!host)
+                    {
+                        for (int i = shots - 1; i >= 0; i--) if (Has("shot-" + i)) { current = i; break; }
+                        if (current >= 0) foreach (var snapshot in projectiles.Snapshot()) if (snapshot.IsRunning && snapshot.DefinitionId.ToString() == definition) closest[current] = Math.Min(closest[current], (snapshot.Position - body.bounds.center).magnitude);
+                        if (current >= 0)
+                        {
+                            var box = body.bounds; foreach (var snapshot in projectiles.Snapshot()) if (snapshot.IsRunning && snapshot.DefinitionId.ToString() == definition && new Bounds(snapshot.Position, snapshot.HalfExtents * 2f).Intersects(box)) sawOverlap[current] = true;
+                        }
+                    }
+                    yield return null;
+                }
+                if (keyboard != null) UnityEngine.InputSystem.InputSystem.QueueStateEvent(keyboard, new UnityEngine.InputSystem.LowLevel.KeyboardState());
+            }
+            finally { PNCombatEvents.Observed -= onEvent; if (keyboard != null) UnityEngine.InputSystem.InputSystem.RemoveDevice(keyboard); }
+            string Bits(bool[] values) => new string(values.Select(x => x ? '1' : '0').ToArray());
+            if (host) { File.WriteAllText(Path.Combine(folder, "host.dodge"), Bits(hostHit)); Mark(folder, "host-observed"); }
+            yield return Wait(() => Has("host-observed"), "host observed");
+            var hostBits = File.ReadAllText(Path.Combine(folder, "host.dodge")).Select(x => x == '1').ToArray();
+            int hits = hostBits.Count(x => x), told = toldHit.Count(x => x);
+            string claims = " claims(accepted/refused/sent)=" + projectiles.ClaimsAccepted + "/" + projectiles.ClaimsRefused + "/" + projectiles.ClaimsSent + " refusals{" + string.Join(",", projectiles.ClaimRefusals.Select(x => x.Key + "x" + x.Value)) + "}";
+            string spread = claims + " impacts(target/wall/expired)=" + (projectiles.ImpactsOfKind(PNImpactKind.Target) - target0) + "/" + (projectiles.ImpactsOfKind(PNImpactKind.Wall) - wall0) + "/" + (projectiles.ImpactsOfKind(PNImpactKind.Expired) - expired0) + " eventsOnPlayer={" + string.Join(",", kinds.Select(x => x.Key + "x" + x.Value)) + "} walked=" + (high - low).ToString("F1") + " closest=" + string.Join(",", closest.Select(x => x == float.MaxValue ? "-" : x.ToString("F1")));
+            if (name == "client1")
+            {
+                int saw = sawOverlap.Count(x => x); int dodgedButHit = 0, sawButMissed = 0; for (int i = 0; i < shots; i++) { if (hostBits[i] && !sawOverlap[i]) dodgedButHit++; if (!hostBits[i] && sawOverlap[i]) sawButMissed++; }
+                log.Append("client1: shots=" + shots + " hostHit=" + hits + " toldHit=" + told + " sawOverlap=" + saw + " hitButSawDodge=" + dodgedButHit + " (" + (hits > 0 ? (100d * dodgedButHit / hits).ToString("F0") : "-") + "% of the host's hits) sawHitButHostMissed=" + sawButMissed + " hostBits=" + string.Concat(hostBits.Select(x => x ? '1' : '0')) + " sawBits=" + Bits(sawOverlap) + spread + FaultText() + "; ");
+            }
+            else log.Append(name + ": hostHit=" + hits + " toldHit=" + told + spread + "; ");
+            if (host && !Has("shot-" + (shots - 1))) throw new Exception("the host did not fire every shot " + log);
+            if (name == "client1" && (high - low).magnitude < .5f) throw new Exception("client1 did not move " + log);
+            if (!host && told != hits) throw new Exception("this machine was told " + told + " hits but the host applied " + hits + " " + log);
+        }
+
+        // O7: the enemy's own AI casts; the host counts the Actions it announced, each other machine counts the ones it replayed on ITS copy of that enemy (and the cast channel's bytes are logged for the budget).
+        private static IEnumerator StrikeBody(string folder, string name, PNPlayerMove e1, System.Text.StringBuilder log)
+        {
+            bool Has(string value) => File.Exists(Path.Combine(folder, value));
+            bool host = name == "host"; int announced = 0; PNSkill watched = null;
+            if (host)
+            {
+                var world = PNLocalWorldContext.Current.World;
+                var request = new PNEntityRequest { Entity = "project_n:enemy", Template = "project_n:enemy", Character = "project_n:starkeeper", World = world, WorldIncarnation = world.Incarnation, ContentSlot = PNGridWorldController.SlotId, SceneKey = "objectsync:strike", EntityKey = "", Position = e1.transform.position + new Vector3(5f, 0, 0) };
+                if (PNEntityHosts.For(EveRegistrySession.Context).TrySpawn(request, null, null, error => Debug.LogException(error)) == null) throw new Exception("the host refused the Starkeeper");
+            }
+            yield return Wait(() => UnityEngine.Object.FindObjectsByType<PNSkill>().Any(x => x.gameObject.layer == PNLayers.Enemy && x.IsReady && x.GetComponent<PNSkillCastView>() != null && x.GetComponent<PNSkillCastView>().IsBound), "the Starkeeper with a cast channel exists");
+            watched = UnityEngine.Object.FindObjectsByType<PNSkill>().First(x => x.gameObject.layer == PNLayers.Enemy && x.IsReady && x.GetComponent<PNSkillCastView>() != null);
+            Action<PNSkillCastEvent> count = e => { if (e.Kind == PNSkill.ActionKind) announced++; };
+            if (host) watched.CastEvent += count;
+            var manager = (PNNetworkManager)NetworkManager.singleton;
+            int played = 0, viewPlayed = 0, widest = 0; double until = Time.realtimeSinceStartupAsDouble + 25;
+            try
+            {
+                while (Time.realtimeSinceStartupAsDouble < until)
+                {
+                    if (watched != null) { played = Math.Max(played, watched.ObservedActionsPlayed); var view = watched.GetComponent<PNSkillCastView>(); if (view != null) { viewPlayed = Math.Max(viewPlayed, view.PlayedCount); if (host) widest = Math.Max(widest, System.Text.Encoding.UTF8.GetByteCount(view.Capture().ToString(Newtonsoft.Json.Formatting.None))); } }
+                    yield return null;
+                }
+            }
+            finally { if (host && watched != null) watched.CastEvent -= count; }
+            if (host) { File.WriteAllText(Path.Combine(folder, "host.announced"), announced.ToString()); Mark(folder, "host-strikes"); }
+            yield return Wait(() => Has("host-strikes"), "host strikes");
+            int hostCasts = int.Parse(File.ReadAllText(Path.Combine(folder, "host.announced")));
+            log.Append(name + ": starkeeperSweeps(host announced)=" + hostCasts + " replayedHere=" + played + " viewEvents=" + viewPlayed + (host ? " widestCastBlockBytes=" + widest + "/" + PNSkillCastView.StateBytes : "") + "; ");
+            if (hostCasts < 1) throw new Exception("the Starkeeper never swept " + log);
+            if (!host && played < 1) throw new Exception("this machine replayed no strike although the host announced " + hostCasts + " " + log);
         }
 
         private static IEnumerator QuietBody(string folder, string name, PNPlayerMove e1, System.Text.StringBuilder log)

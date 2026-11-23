@@ -14,7 +14,7 @@ using UnityEngine;
 // VI: Input skill của người chơi qua mạng (S2, chưa dự đoán). Client chủ nhân không chạy skill: lệnh bấm ô thành lệnh `project_n:skill_input`; authority chạy như input của chính chủ, kiểm người gửi là chủ,
 //     ô còn đúng profile (N4), thử bấm; chưa bắt đầu được thì xếp một hàng ngắn tối đa 250 ms (N6), quá hạn thì từ chối. Kết quả về chủ qua khối owner-only `project_n:skill_cast_result`.
 [DisallowMultipleComponent]
-public sealed class PNSkillRemoteInput : MonoBehaviour, IPNSyncEntityListener, IPNSkillInputForwarder, IPNSkillDecisionSource, IPNSkillReportSink
+public sealed class PNSkillRemoteInput : MonoBehaviour, IPNSyncEntityListener, IPNSkillInputForwarder, IPNSkillDecisionSource, IPNSkillReportSink, IPNHurtClaimSink
 {
     public static readonly EveId Command = EveId.Parse("project_n:skill_input"), ResultState = EveId.Parse("project_n:skill_cast_result");
     public const int CommandBytes = 256, ResultBytes = 512, QueueLimit = 8, KeptRefusals = 4;
@@ -22,6 +22,9 @@ public sealed class PNSkillRemoteInput : MonoBehaviour, IPNSyncEntityListener, I
     // S4-S5: the owner's client reports the hits it saw and the choices it made at decision points inside a cast.
     public static readonly EveId HitCommand = EveId.Parse("project_n:skill_hit"), DecisionCommand = EveId.Parse("project_n:skill_decision");
     public const int HitCommandBytes = 512, DecisionCommandBytes = 256, MaxTargetsPerReport = 16, MaxHitsPerCast = 64, MaxDecisionsPerPoint = 4, KeyWindow = 64;
+    // 4.4c: the machine of a player says which object hit him; the authority checks it (PNProjectileManager.AcceptHurtClaim) and applies the damage.
+    public static readonly EveId HurtClaimCommand = EveId.Parse("project_n:hurt_claim");
+    public const int HurtClaimCommandBytes = 128;
     public const float HitTolerance = 1.5f; public const double DecisionSeconds = 3;
     // G4: a skill names its decision points at the `Choose` call, so the host keeps no list; it only bounds how many answers wait (per point and in all) and for how long.
     public const int MaxDecisionsWaiting = 16;
@@ -103,10 +106,12 @@ public sealed class PNSkillRemoteInput : MonoBehaviour, IPNSyncEntityListener, I
         if (!service.IsAuthority && skill is PNPlayerSkill player) player.RefreshInput();
         if (!service.IsAuthority && view != null) { view.Applying += BeforeImage; view.Applied += Reapply; }
         if (service.IsAuthority && skill != null) { skill.AcceptsRemoteInput = true; skill.DecisionSource = this; }
+        if (!service.IsAuthority) RegisterClaimSink();
     }
 
     public void OnUnbound()
     {
+        UnregisterClaimSink();
         if (view != null) { view.Applying -= BeforeImage; view.Applied -= Reapply; }
         foreach (var guessed in presses.Values.Where(x => x.Casts.Count > 0).ToArray()) { try { RollBackCasts(guessed); } catch (Exception) { } }
         if (skill != null) skill.PredictedCastBegan -= OnPredictedCast;
@@ -216,6 +221,45 @@ public sealed class PNSkillRemoteInput : MonoBehaviour, IPNSyncEntityListener, I
     {
         if (!IsActive || castKey <= 0 || !PNSkillDecisions.IsValidPoint(point) || value == null) return false;
         return sync.Send(target, DecisionCommand, new JObject { ["k"] = castKey, ["n"] = point, ["v"] = value });
+    }
+
+    // ---- hit claims (plan 4.4c) ----
+    private PNProjectileManager claimManager;
+    public int ClaimsApplied { get; private set; }
+    public int ClaimsRejected { get; private set; }
+    private void RegisterClaimSink()
+    {
+        try { claimManager = PNProjectileManager.Resolve(EveRegistrySession.Context, gameObject.scene); claimManager.RegisterClaimSink(this); }
+        catch (InvalidOperationException) { claimManager = null; }
+    }
+    private void UnregisterClaimSink() { claimManager?.UnregisterClaimSink(this); claimManager = null; }
+    // The player of this machine, only on the component of the entity this machine owns (the copies of other players answer null).
+    public PNStat Claimant { get { var stat = GetComponent<PNStat>(); return IsActive && skill != null && skill.IsOwnerClient && stat != null && stat.IsReady && !stat.IsDead ? stat : null; } }
+    public bool SendClaim(PNObjectKind kind, long objectId, int hit)
+    {
+        if (!IsActive || objectId <= 0 || hit < 0 || hit > PNHurtClaimLimits.MaxHit) return false;
+        return sync.Send(target, HurtClaimCommand, new JObject { ["t"] = (int)kind, ["o"] = objectId, ["h"] = hit });
+    }
+    // The authority: a claim from the machine of this player. Only the owner's connection may send it; the manager does the rest.
+    public void ReceiveHurtClaim(long senderOwnerId, JObject payload)
+    {
+        if (!IsBound || sync == null || !sync.IsAuthority) return;
+        var loader = GetComponent<EveEntityLoader>();
+        if (loader == null || loader.LoadContext == null || loader.LoadContext.Identity.OwnerId != senderOwnerId) return;
+        long objectId = (long)Required(payload, "o"); int kind = (int)Required(payload, "t"), hit = (int)Required(payload, "h");
+        if (objectId <= 0 || hit < 0 || hit > PNHurtClaimLimits.MaxHit || kind != (int)PNObjectKind.Projectile && kind != (int)PNObjectKind.Blast && kind != (int)PNObjectKind.Area) throw new FormatException("Hurt claim.");
+        var stat = GetComponent<PNStat>(); if (stat == null || !stat.IsReady || stat.IsDead) { ClaimsRejected++; return; }
+        bool applied = false;
+        try
+        {
+            var scene = stat.gameObject.scene;
+            // One command, the kind says which manager owns the object (plan 4.4c): a projectile and a blast take one hit, an area takes "inside" (hit 1) or "outside" (hit 0).
+            if (kind == (int)PNObjectKind.Projectile) applied = PNProjectileManager.Resolve(EveRegistrySession.Context, scene).AcceptHurtClaim(objectId, stat, HitTolerance);
+            else if (kind == (int)PNObjectKind.Blast) applied = PNBlastManager.Resolve(EveRegistrySession.Context, scene).AcceptHurtClaim(objectId, stat, HitTolerance);
+            else applied = PNAreaManager.Resolve(EveRegistrySession.Context, scene).AcceptHurtClaim(objectId, stat, HitTolerance, hit != 0);
+        }
+        catch (InvalidOperationException) { }
+        if (applied) ClaimsApplied++; else ClaimsRejected++;
     }
 
     // ---- authority: hits and decisions ----
@@ -425,6 +469,16 @@ public sealed class PNSkillHitCommandHandler : IPNSyncCommandHandler
         var entity = context.TargetObject as Component; var remote = entity != null ? entity.GetComponent<PNSkillRemoteInput>() : null;
         if (remote == null) return;
         remote.ReceiveHits(context.SenderOwnerId, context.Payload as JObject ?? throw new FormatException("Skill hit payload."));
+    }
+}
+
+public sealed class PNHurtClaimCommandHandler : IPNSyncCommandHandler
+{
+    public void Execute(PNSyncCommandContext context)
+    {
+        var entity = context.TargetObject as Component; var remote = entity != null ? entity.GetComponent<PNSkillRemoteInput>() : null;
+        if (remote == null) return;
+        remote.ReceiveHurtClaim(context.SenderOwnerId, context.Payload as JObject ?? throw new FormatException("Hurt claim payload."));
     }
 }
 

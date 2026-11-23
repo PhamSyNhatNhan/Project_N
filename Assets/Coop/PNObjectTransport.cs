@@ -57,7 +57,7 @@ namespace ProjectN.Coop
                 case PNObjectRecordType.Spawn:
                     Text(w, record.DefinitionId.ToString(), PNObjectLimits.DefinitionChars); Text(w, record.Input, PNObjectSyncLimits.InputChars); Put(w, record.Position); Put(w, record.Direction);
                     w.WriteLong(record.Target); w.WriteLong(record.Owner); w.WriteLong(record.Follow); Text(w, record.CastKey, PNObjectSyncLimits.CastKeyChars); w.WriteByte((byte)record.CastIndex);
-                    w.WriteDouble(record.Speed); w.WriteDouble(record.Scale); w.WriteDouble(record.Lifetime); w.WriteDouble(record.Stamp); w.WriteFloat(record.Age); w.WriteFloat(record.LifeHint); break;
+                    w.WriteDouble(record.Speed); w.WriteDouble(record.Scale); w.WriteDouble(record.Lifetime); w.WriteDouble(record.Stamp); w.WriteFloat(record.Age); w.WriteFloat(record.LifeHint); w.WriteInt(record.TargetMask); break;
                 case PNObjectRecordType.Retarget: w.WriteLong(record.Target); Put(w, record.Position); Put(w, record.Direction); w.WriteDouble(record.Stamp); break;
                 case PNObjectRecordType.End: w.WriteByte(record.Reason); Put(w, record.Position); Put(w, record.Direction); w.WriteLong(record.Target); break;
                 default: throw new FormatException("Object record type.");
@@ -73,8 +73,8 @@ namespace ProjectN.Coop
                 {
                     var definition = EveId.Parse(Text(r, PNObjectLimits.DefinitionChars) ?? throw new FormatException("Object definition.")); string input = Text(r, PNObjectSyncLimits.InputChars);
                     var position = Take(r); var direction = Take(r); long target = r.ReadLong(), owner = r.ReadLong(), follow = r.ReadLong(); string castKey = Text(r, PNObjectSyncLimits.CastKeyChars); int castIndex = r.ReadByte();
-                    double speed = r.ReadDouble(), scale = r.ReadDouble(), lifetime = r.ReadDouble(), stamp = r.ReadDouble(); float age = r.ReadFloat(), lifeHint = r.ReadFloat();
-                    return PNObjectRecord.Spawn(kind, id, world, definition, input, position, direction, target, owner, follow, castKey, castIndex, speed, scale, lifetime, stamp, age, lifeHint);
+                    double speed = r.ReadDouble(), scale = r.ReadDouble(), lifetime = r.ReadDouble(), stamp = r.ReadDouble(); float age = r.ReadFloat(), lifeHint = r.ReadFloat(); int targetMask = r.ReadInt();
+                    return PNObjectRecord.Spawn(kind, id, world, definition, input, position, direction, target, owner, follow, castKey, castIndex, speed, scale, lifetime, stamp, age, lifeHint, targetMask);
                 }
                 case PNObjectRecordType.Retarget: { long target = r.ReadLong(); var position = Take(r); var direction = Take(r); return PNObjectRecord.Retarget(kind, id, world, target, position, direction, r.ReadDouble()); }
                 case PNObjectRecordType.End: { byte reason = r.ReadByte(); var at = Take(r); var normal = Take(r); return PNObjectRecord.End(kind, id, world, reason, at, normal, r.ReadLong()); }
@@ -131,6 +131,14 @@ namespace ProjectN.Coop
         public void RebaselineObjects() { foreach (var entry in worldPeers.Values) if (!(entry.Connection is LocalConnectionToClient)) entry.ObjectOverflow = true; }
         public int ObjectRecordsQueued => worldPeers.Values.Sum(x => x.ObjectQueue.Count + x.ObjectBaseline.Count);
         public PNObjectSyncService ObjectSyncService => objects;
+        // Seconds since the machine of this owner last sent anything to the host (plan 4.4c: a silent machine stops deciding the hits on its player); negative when no remote connection has this owner.
+        public double OwnerSilentSeconds(long ownerId)
+        {
+            if (!NetworkServer.active) return -1d;
+            foreach (var connection in NetworkServer.connections.Values)
+                if (connection != null && connection.authenticationData is PNPeer peer && peer.Owner == ownerId && !(connection is LocalConnectionToClient)) return UnityEngine.Time.time - connection.lastMessageTime;
+            return -1d;
+        }
 
         private void InitializeObjectSync()
         {

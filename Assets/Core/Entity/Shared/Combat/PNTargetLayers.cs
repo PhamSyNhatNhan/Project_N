@@ -30,6 +30,14 @@ public sealed class PNTargetLayers
         return new PNTargetLayers((int[])layers.Clone(), mask);
     }
 
+    // The set a Spawn record's mask names (ascending layer order; the authored order does not travel). 0 -> None.
+    public static PNTargetLayers FromMask(int mask)
+    {
+        if (mask <= 0) return None;
+        var layers = new List<int>(); for (int i = 0; i < 32; i++) if (PNLayers.Contains(mask, i)) layers.Add(i);
+        return Of(layers.ToArray());
+    }
+
     // ["Enemy","Projectile"] -> ordered set. Absent token -> None. Non-array, non-string, unknown or duplicate names are rejected.
     public static PNTargetLayers Parse(JToken token, string path)
     {

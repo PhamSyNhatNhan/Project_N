@@ -44,7 +44,7 @@ public abstract class PNTimedBlast : PNBlastInstance
         if (context.IsReplica)
         {
             // A copy on a machine without authority: the same shape and clock, no combat snapshot, nothing to hit (plan O5).
-            layerMask = 0; capture = null; prepared = null;
+            layerMask = ReplicaTargetMask; capture = null; prepared = null;
             Center = context.Position; Radius = PNHitCapture.ScaleLength(input["radius"].Value<float>(), ScaleFactor); Height = PNHitCapture.ScaleLength(input["height"].Value<float>(), ScaleFactor);
         }
         else
@@ -85,12 +85,20 @@ public abstract class PNTimedBlast : PNBlastInstance
     private void Detonate()
     {
         struck.Clear();
-        if (IsReplica) { Manager.NoteReplicaDetonated(); OnDetonated(); return; }
+        if (IsReplica) { Manager.NoteReplicaDetonated(); OnDetonated(); ClaimOwnBody(); return; }
+        var claims = Manager.ClaimBook.Policy;
+        if (claims != null)
+        {
+            // The machine of a player decides his own hits (plan 4.4c): the blast does not test him here, it only keeps the damage ready for his claim.
+            var cap = capture; var ready = prepared; float x = Center.x, y = Center.y, z = Center.z;
+            Manager.OpenClaims(this, Center, Radius, Height, (stat, key) => stat.ReceiveDamage(cap.Damage(ready).WithHit(key, x, y, z)));
+        }
         var entities = World != null ? Manager.Session.Entities.Snapshot(World) : Manager.Session.Entities.Snapshot();
         foreach (var entity in entities)
         {
             var target = entity.GetComponent<PNStat>();
             if (target == null || !Valid(target) || !PNLayers.Contains(layerMask, target.gameObject.layer) || struck.Contains(target.EntityId)) continue;
+            if (claims != null && target.gameObject.layer == PNLayers.Player && claims.ClaimsDecide(target)) continue;
             var collider = target.GetComponent<Collider>(); if (collider == null) continue;
             var b = collider.bounds;
             if (b.max.y < Center.y - Height || b.min.y > Center.y + Height || !Hits(b)) continue;
@@ -98,6 +106,18 @@ public abstract class PNTimedBlast : PNBlastInstance
             target.ReceiveDamage(capture.Damage(prepared));
         }
         OnDetonated();
+    }
+    // A copy on the machine of a player: tests only his body against the shape at the detonation and claims once (the early phase first, so he reacts at once).
+    private void ClaimOwnBody()
+    {
+        if (layerMask == 0) return;
+        var sink = Manager.ClaimBook.SinkFor(out var me); if (sink == null || me == null || !me.IsReady || PNTargetCandidates.IsDead(me) || !PNLayers.Contains(layerMask, me.gameObject.layer)) return;
+        var collider = me.GetComponent<Collider>(); if (collider == null) return;
+        var b = collider.bounds;
+        if (b.max.y < Center.y - Height || b.min.y > Center.y + Height || !Hits(b)) return;
+        long id = Manager.ObjectIdOf(this); if (id <= 0) return;
+        PNCombatEvents.RaiseEarly(me.EntityId.Value, "o" + id.ToString(System.Globalization.CultureInfo.InvariantCulture) + ":" + PNHurtClaimLimits.ClaimKeyIndex(me.EntityId.Value), true, b.center.x, b.center.y, b.center.z);
+        if (sink.SendClaim(PNObjectKind.Blast, id, 0)) Manager.ClaimBook.NoteSent();
     }
     private bool Valid(PNStat s) => s.IsReady && s.gameObject.activeInHierarchy && !PNTargetCandidates.IsDead(s) && PNWorldGameplay.CanExecute(s) && ReferenceEquals(s.GetComponent<EveEntityIdentity>()?.World, World);
     protected override void Cleanup() { try { OnEnded(); } finally { struck.Clear(); } }

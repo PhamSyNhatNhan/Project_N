@@ -25,7 +25,7 @@ public sealed class PNProjectileLaunch
     // Frozen OnHit effects (null when it carries none).
     public PNSkillHitSnapshot HitPlan { get; }
     // Layers the projectile can target / hit (the shooter's TargetLayers at launch plus the volley's own); required and not empty.
-    public PNTargetLayers TargetLayers { get; }
+    public PNTargetLayers TargetLayers { get; private set; }
     // Launch-time factors from the projectile_* modifiers (1 = unchanged).
     public double SpeedFactor { get; private set; }
     public double ScaleFactor { get; private set; }
@@ -80,6 +80,12 @@ public sealed class PNProjectileLaunch
     // VI: Launch của bản hình (đồng bộ vật thể): hệ số do authority tính, không có nguồn, sát thương hay OnHit.
     public static PNProjectileLaunch Replica(EveId projectileId, JToken input, EveEntityId owner, double speedFactor, double scaleFactor, double lifetimeFactor)
         => new PNProjectileLaunch(projectileId, input, owner, speedFactor, scaleFactor, lifetimeFactor);
+    // A copy that knows which layers the real object targets (the Spawn record's mask): only its own player's hit is decided here (plan 4.4c); it still deals nothing.
+    public PNProjectileLaunch WithReplicaTargets(int mask)
+    {
+        if (!IsReplica) throw new InvalidOperationException("Only a copy takes the record's targets.");
+        var copy = (PNProjectileLaunch)MemberwiseClone(); copy.TargetLayers = PNTargetLayers.FromMask(mask); return copy;
+    }
     // Reads the four projectile_* modifiers from the source snapshot (Scale route over a base of 1: +20% = 1.2).
     public static PNProjectileLaunch FromSource(EveId projectileId, JToken input, PNCombatSource source, PNTargetLayers targetLayers, PNPreparedDamage damage = null, PNSkillHitSnapshot hitPlan = null,
         PNTargetRule targetRule = default)

@@ -83,18 +83,20 @@ public sealed class PNObjectRecord
     public double Stamp { get; private set; }
     public float Age { get; private set; }
     public float LifeHint { get; private set; }
+    // Layer mask the real object targets (plan 4.4c): a copy that decides its own player's hits needs to know whether the object can hurt that player. 0 = unknown / none.
+    public int TargetMask { get; private set; }
     public byte Reason { get; private set; }
 
     private PNObjectRecord() { }
 
     public static PNObjectRecord Spawn(PNObjectKind kind, long id, PNObjectWorld world, EveId definition, string input, PNObjectVector position, PNObjectVector direction, long target,
-        long owner, long follow, string castKey, int castIndex, double speed, double scale, double lifetime, double stamp, float age, float lifeHint)
+        long owner, long follow, string castKey, int castIndex, double speed, double scale, double lifetime, double stamp, float age, float lifeHint, int targetMask = 0)
     {
         var record = new PNObjectRecord
         {
             Type = PNObjectRecordType.Spawn, Kind = kind, Id = id, World = world, DefinitionId = definition, Input = string.IsNullOrEmpty(input) ? null : input, Position = position, Direction = direction,
             Target = target, Owner = owner, Follow = follow, CastKey = string.IsNullOrEmpty(castKey) ? null : castKey, CastIndex = castIndex, Speed = speed, Scale = scale, Lifetime = lifetime,
-            Stamp = stamp, Age = age, LifeHint = lifeHint
+            Stamp = stamp, Age = age, LifeHint = lifeHint, TargetMask = targetMask
         };
         record.Require(); return record;
     }
@@ -118,7 +120,7 @@ public sealed class PNObjectRecord
     }
 
     // Rough size on a compact wire, for the packet budget and the measurements of O6.
-    public int EstimatedBytes => Type == PNObjectRecordType.Spawn ? 96 + (Input?.Length ?? 0) + (CastKey?.Length ?? 0) + DefinitionId.ToString().Length
+    public int EstimatedBytes => Type == PNObjectRecordType.Spawn ? 100 + (Input?.Length ?? 0) + (CastKey?.Length ?? 0) + DefinitionId.ToString().Length
         : Type == PNObjectRecordType.Retarget ? 56 : 52;
 
     public bool TryValidate(out string error)
@@ -145,6 +147,7 @@ public sealed class PNObjectRecord
         foreach (var factor in new[] { Speed, Scale, Lifetime })
             if (double.IsNaN(factor) || double.IsInfinity(factor) || factor < 0d || factor > PNObjectSyncLimits.MaxFactor) throw new FormatException("Object factors must be finite and within 0.." + PNObjectSyncLimits.MaxFactor + ".");
         Finite(Stamp, "stamp");
+        if (TargetMask < 0) throw new FormatException("Target mask must not be negative.");
         if (float.IsNaN(Age) || float.IsInfinity(Age) || Age < 0f || Age > PNObjectSyncLimits.MaxReplicaSeconds) throw new FormatException("Object age must be within 0.." + PNObjectSyncLimits.MaxReplicaSeconds + " seconds.");
         if (float.IsNaN(LifeHint) || float.IsInfinity(LifeHint) || LifeHint < 0f || LifeHint > PNObjectSyncLimits.MaxReplicaSeconds) throw new FormatException("Life hint must be within 0.." + PNObjectSyncLimits.MaxReplicaSeconds + " seconds.");
     }

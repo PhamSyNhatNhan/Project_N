@@ -112,6 +112,8 @@ public abstract class PNAreaInstance : MonoBehaviour, EveIPoolable, IPNTimeTarge
     public bool IsReplica => created != null && created.IsReplica;
     // Seconds of its own life the area has lived (what a late observer's copy is brought to); 0 when the implementation does not say.
     public virtual float ProgressSeconds => 0f;
+    // A claim of presence from the machine of a player (plan 4.4c V3): the implementation that applies something to what stands inside takes it and answers whether it was valid; the default takes nothing.
+    public virtual bool TakeClaimedPresence(PNStat target, bool inside, float tolerance) => false;
     public bool IsRunning { get; private set; }
     public EveWorldContext World { get; private set; }
     public PNAreaEndReason? EndReason { get; private set; }
@@ -338,6 +340,23 @@ public sealed class PNAreaManager : MonoBehaviour
         }
     }
     private ObjectBridge bridge;
+    // ---- hit claims (plan 4.4c V3, way B): who stands inside a field is decided by the machine of a player on another machine than the authority ----
+    private PNHurtClaimBook claimBook = new PNHurtClaimBook();
+    public PNHurtClaimBook ClaimBook { get => claimBook; set => claimBook = value ?? new PNHurtClaimBook(); }
+    // The sync id of an area of this manager (a copy's or the authority's); 0 when it has none.
+    public long ObjectIdOf(PNAreaInstance instance) => instance != null && objectIds.TryGetValue(instance.Handle.InstanceId, out var id) ? id : 0L;
+    // EN: A claim from the machine of `target`: "I am inside / outside this area" (`inside`). Taken when the policy says his machine decides and the real area runs; the area keeps his presence until it is withdrawn or the policy gives him back.
+    // VI: Lenh bao tu may cua `target`: "toi dang o trong / ngoai vung nay". Nhan khi chinh sach cho may do quyet va vung that dang chay; vung giu trang thai cho toi khi rut lai hoac chinh sach tra nguoi choi ve.
+    public bool AcceptHurtClaim(long objectId, PNStat target, float tolerance, bool inside)
+    {
+        if (objectId <= 0 || target == null || Session == null || !Session.HasAuthority) return false;
+        var policy = claimBook.Policy;
+        if (policy == null || !policy.ClaimsDecide(target)) return claimBook.Refuse("policy");
+        long entryId = 0; foreach (var pair in objectIds) if (pair.Value == objectId) { entryId = pair.Key; break; }
+        if (entryId == 0 || !entries.TryGetValue(entryId, out var entry) || entry.Replica || entry.Instance == null || !entry.Instance.IsRunning) return claimBook.Refuse("gone");
+        if (!entry.Instance.TakeClaimedPresence(target, inside, tolerance)) return claimBook.Refuse("rule");
+        claimBook.NoteAccepted(); return true;
+    }
     private readonly Dictionary<long, long> objectEntries = new Dictionary<long, long>();
     // ---- the shooter's guess (plan O5 step 4): the player's own machine draws the area when it casts, named by (cast key, index); the authority's Spawn record with that name takes it over instead of making a second one ----
     // A guess nobody takes over within OrphanSeconds (the authority refused the cast) is removed. A guess draws only: no Buff, no clock effect.

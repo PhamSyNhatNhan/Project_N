@@ -27,6 +27,8 @@ public sealed class PNProjectileManager : MonoBehaviour
         internal EveWorldContext World; internal IDisposable Lease; internal bool Removed;
         // Spawned-object sync: the id of this object in the records (0 = not synced) and whether it is a view-only copy.
         internal long ObjectId; internal bool Replica; internal string HitPrefix;
+        // Players whose machine already claimed a hit by this (real) object: one claim per player per object (plan 4.4c).
+        internal HashSet<long> Claimed;
         // The shooter's guess (plan 4.4a): whether the authority's record has taken it over (Adopted), the heading it was made with and when (unscaled seconds).
         internal bool Predicted, Adopted; internal Vector3 SpawnHeading; internal double CreatedAt;
         // The state the last record gave a copy (position, heading, speed, the object's age and the host clock then): the authority's audit predicts the copy from it.
@@ -36,6 +38,11 @@ public sealed class PNProjectileManager : MonoBehaviour
     //     from the straight line the last record implies; any other copy is corrected as soon as FollowSeconds passed and it is more than FollowDistance away. A correction is a Retarget record.
     // VI: Cach authority kiem ban hinh (plan 4.3a): vat khai SyncDeterministic kiem moi AuditSeconds, sua khi lech quá AuditDistance so voi duong thang suy ra tu ban ghi cuoi; vat khac sua thuong xuyen.
     public const double AuditSeconds = .5d, FollowSeconds = .1d;
+    // Evidence of the authority's audit (plan O6): audits made, corrections sent, the largest and the summed copy error (meters) seen at an audit.
+    public int AuditChecks { get; private set; }
+    public int AuditCorrections { get; private set; }
+    public float AuditMaxError { get; private set; }
+    public double AuditErrorSum { get; private set; }
     public const float AuditDistance = 1f, FollowDistance = .05f;
     // EN: Prediction (plan 4.4a). A hit report names the projectile by the cast key plus ReportStepBase + its index in the volley (steps below it belong to Actions). A guess that no record has taken over
     //     after OrphanSeconds is removed (the authority made fewer projectiles than the guess); an ended guess is remembered for EndedPredictionSeconds so its record, arriving late, is swallowed instead of showing a second one.
@@ -234,7 +241,7 @@ public sealed class PNProjectileManager : MonoBehaviour
             var json = launch.Input; string input = json == null || json.Type == JTokenType.Null ? null : json.ToString(Formatting.None);
             if (input != null && input.Length > PNObjectSyncLimits.InputChars) { objectSync.NoteRefused(); return; }
             var record = PNObjectRecord.Spawn(PNObjectKind.Projectile, id, PNObjectWorld.Of(entry.World), entry.DefinitionId, input, Vec(spawn.Position), Vec(spawn.Direction),
-                spawn.Target != null ? spawn.Target.EntityId.Value : 0L, launch.SourceId.Value, 0L, launch.CastKey != 0 ? launch.CastKey.ToString(System.Globalization.CultureInfo.InvariantCulture) : null, spawn.CastIndex, launch.SpeedFactor, launch.ScaleFactor, launch.LifetimeFactor, objectSync.Now, 0f, entry.Instance.LifeHint);
+                spawn.Target != null ? spawn.Target.EntityId.Value : 0L, launch.SourceId.Value, 0L, launch.CastKey != 0 ? launch.CastKey.ToString(System.Globalization.CultureInfo.InvariantCulture) : null, spawn.CastIndex, launch.SpeedFactor, launch.ScaleFactor, launch.LifetimeFactor, objectSync.Now, 0f, entry.Instance.LifeHint, launch.TargetLayers.Mask);
             entry.ObjectId = id; objectEntries[id] = entry.Id; MarkSent(entry);
             if (!objectSync.RecordSpawn(record)) { entry.ObjectId = 0; objectEntries.Remove(id); }
         }
@@ -254,7 +261,11 @@ public sealed class PNProjectileManager : MonoBehaviour
         bool declared = instance.SyncDeterministic; double now = objectSync.Now;
         if (now - entry.SentAt < (declared ? AuditSeconds : FollowSeconds)) return;
         var expected = entry.SentPosition + entry.SentHeading * (entry.SentSpeed * Mathf.Max(0f, instance.Age - entry.SentAge));
-        if ((instance.Position - expected).magnitude <= (declared ? AuditDistance : FollowDistance)) { entry.SentAt = now; return; }
+        float error = (instance.Position - expected).magnitude;
+        // Evidence (plan O6): how far the copy, flying on from the last record, would be from the real object at each audit.
+        AuditChecks++; AuditErrorSum += error; if (error > AuditMaxError) AuditMaxError = error;
+        if (error <= (declared ? AuditDistance : FollowDistance)) { entry.SentAt = now; return; }
+        AuditCorrections++;
         MarkSent(entry);
         try { objectSync.RecordRetarget(PNObjectRecord.Retarget(PNObjectKind.Projectile, entry.ObjectId, PNObjectWorld.Of(entry.World), instance.TargetEntityValue, Vec(instance.Position), Vec(instance.Forward), now)); }
         catch (FormatException) { objectSync.NoteRefused(); }
@@ -302,6 +313,7 @@ public sealed class PNProjectileManager : MonoBehaviour
             if (castKey != 0 && TryAdopt(record, castKey, target)) { receipt.Status = PNProjectileStatus.Created; return; }
             var launch = PNProjectileLaunch.Replica(record.DefinitionId, input, record.Owner != 0 ? new EveEntityId(record.Owner) : default, record.Speed, record.Scale, record.Lifetime);
             if (castKey != 0) launch = launch.WithCast(castKey, false);
+            if (record.TargetMask != 0) launch = launch.WithReplicaTargets(record.TargetMask);
             var spawn = new PNProjectileSpawn(world.PhysicsOwner, new Vector3(record.Position.X, record.Position.Y, record.Position.Z), new Vector3(record.Direction.X, record.Direction.Y, record.Direction.Z), target, record.CastIndex);
             CreateNow(launch, spawn, receipt, record.Id);
             // `elapsed` is the record's age plus the delay since its stamp; the record's position is where the object was at the stamp, so only the delay is flown.
@@ -356,6 +368,38 @@ public sealed class PNProjectileManager : MonoBehaviour
             return instance.TakeReportedHit(target, tolerance);
         }
         return false;
+    }
+    // ---- hit claims (plan 4.4c, way B) ----
+    // EN: On the authority: who decides the hits on a player of another machine. Null (the default, and offline) = the authority tests every target itself.
+    private PNHurtClaimBook claimBook = new PNHurtClaimBook();
+    public PNHurtClaimBook ClaimBook { get => claimBook; set => claimBook = value ?? new PNHurtClaimBook(); }
+    public IPNHurtClaimPolicy HurtClaimPolicy { get => claimBook.Policy; set => claimBook.Policy = value; }
+    // Evidence: claims the authority took (a hit applied), refused, and claims this machine sent.
+    public int ClaimsAccepted => claimBook.Accepted;
+    public int ClaimsRefused => claimBook.Refused;
+    public int ClaimsSent => claimBook.Sent;
+    // On a client: the components that can send a claim for their own player (one per player entity this machine shows; only the owner's answers `Claimant`).
+    public void RegisterClaimSink(IPNHurtClaimSink sink) => claimBook.Register(sink);
+    public void UnregisterClaimSink(IPNHurtClaimSink sink) => claimBook.Unregister(sink);
+    internal IPNHurtClaimSink ClaimSinkFor(out PNStat claimant) => claimBook.SinkFor(out claimant);
+    internal long SyncIdOf(PNProjectileInstance instance) => instance != null && entries.TryGetValue(instance.Handle.InstanceId, out var entry) ? entry.ObjectId : 0L;
+    internal void NoteClaimSent() => claimBook.NoteSent();
+    public Dictionary<string, int> ClaimRefusals => claimBook.Refusals;
+    private bool Refuse(string reason) => claimBook.Refuse(reason);
+    // EN: A claim from the machine of `target`: the real object named by `objectId` takes the hit when the policy says that machine decides, this player has not claimed this object yet, the object runs and the player
+    //     is near it (the object's own contact rule then applies: hit limit, Finish). False when nothing was applied.
+    // VI: Lenh bao tu may cua `target`: vat that theo id nhan cu trung khi chinh sach cho may do quyet, nguoi choi chua bao vat nay, vat dang chay va nguoi choi o gan.
+    public bool AcceptHurtClaim(long objectId, PNStat target, float tolerance)
+    {
+        if (objectId <= 0 || target == null || Session == null || !Session.HasAuthority) return false;
+        var policy = HurtClaimPolicy;
+        if (policy == null || !policy.ClaimsDecide(target)) return Refuse("policy");
+        if (!objectEntries.TryGetValue(objectId, out var entryId) || !entries.TryGetValue(entryId, out var entry) || entry.Replica || entry.Predicted || entry.Instance == null) return Refuse("gone");
+        if (entry.Claimed == null) entry.Claimed = new HashSet<long>();
+        if (!entry.Claimed.Add(target.EntityId.Value)) return Refuse("again");
+        bool applied = entry.Instance.TakeClaimedHit(target, tolerance);
+        if (applied) claimBook.NoteAccepted(); else Refuse("rule");
+        return applied;
     }
     // The sink and the source the service talks to: copies on a client, live state for the baseline on the authority.
     private sealed class ObjectBridge : IPNObjectSyncSink, IPNObjectSyncSource
