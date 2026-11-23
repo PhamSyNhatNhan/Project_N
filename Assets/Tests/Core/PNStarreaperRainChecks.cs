@@ -39,7 +39,7 @@ public static partial class PNVisualEditorChecks
             var actor=body.Actor;actor.ShowStrings();actor.Play("idle",true);actor.Tick(.5f);
             var facing=actor.GetComponent<PNCameraFacingTarget>();facing.ViewCamera=stage.Camera;facing.Align();
             var fx=source.GetComponent<PNStarreaperPresentation>();fx.Tick(0);PNVisualStringSystem.CameraOverride=stage.Camera;
-            var skill=source.GetComponent<PNStarreaperSkill>();action=skill.CreateAction(PNStarreaperCombatContent.Rain,out var context,null,Vector3.right,Vector3.zero);action.Start(context);
+            var skill=source.GetComponent<PNStarreaperSkill>();bool Adv(PNSkillAction act,PNSkillActionContext ctx,float d){bool done=false;using(var fr=skill.BeginActionExecutionFrame(d)){if(d<=0f)fr.Hold(ctx);else fr.Advance(ctx,d,1,s=>{done=act.AdvanceAuxiliary(s);});}return done;}action=skill.CreateAction(PNStarreaperCombatContent.Rain,out var context,null,Vector3.right,Vector3.zero);action.Start(context);Adv(action,context,0f);
             var bow=source.transform.Find("Starreaper violet bow");var batch=bow.Find("Xuyen Tinh charge light").GetComponent<MeshFilter>().sharedMesh;
             var ink=bow.Find("Xuyen Tinh charge ink").GetComponent<MeshFilter>().sharedMesh;
             Check(actor.Animator.BaseState=="rain_charge","real rain Action selects its own phase charge pose");
@@ -49,7 +49,7 @@ public static partial class PNVisualEditorChecks
             for(int frame=0;frame<frames;frame++)
             {
                 float t=frame/30f;
-                if(frame<60)action.AdvanceAuxiliary(1f/30*.9999f);
+                if(frame<60)Adv(action,context,1f/30*.9999f);
                 if(frame==60)
                 {
                     Check(fx.Drawing&&actor.Animator.BaseState=="rain_charge","charge still held immediately before registered 2 seconds");

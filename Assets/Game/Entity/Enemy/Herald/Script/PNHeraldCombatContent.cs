@@ -12,13 +12,17 @@ public static class PNHeraldCombatContent
     public static readonly EveId SidusAction = EveId.Parse("project_n:herald_sidus_action");
     public static void Register(EveRegistryHub hub)
     {
-        hub.Actions().Register(new PNSkillActionDefinition(SidusAction, typeof(PNHeraldSidusAction), (a, h) => Validate(a, h), PNSkillContextRequirements.Direction,
+        var sidus = new PNSkillActionDefinition(SidusAction, typeof(PNHeraldSidusAction), (a, h) => Validate(a, h), PNSkillContextRequirements.Direction,
             (data, references) =>
             {
                 references.Require<PNSkillOperationDefinition>(new JValue("base:lock_movement"), "movementLock");
                 references.Require<PNBuffDefinition>(data["buffId"], "sidusBuff");
                 references.Require<PNBuffDefinition>(data["guard"]["buffId"], "guardBuff");
-            }));
+            });
+#if UNITY_5_3_OR_NEWER
+        sidus.WithView(PNHeraldSidusView.Create);                 // PV6: the picture is a view placed by the run's age on every machine
+#endif
+        hub.Actions().Register(sidus);
     }
     private static void Positive(JObject p, string key, double maximum)
     { double n = PNBuffContentBatch.Number(p, key); if (double.IsNaN(n) || double.IsInfinity(n) || n <= 0 || n > maximum) throw new FormatException("Invalid Herald number: " + key); }

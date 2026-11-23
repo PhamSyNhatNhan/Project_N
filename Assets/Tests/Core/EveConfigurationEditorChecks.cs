@@ -66,7 +66,8 @@ public static class EveConfigurationEditorChecks
                 "Burst cost/stacks/duration did not use JSON.");
             Check(stats.Evaluate(PNContentIds.AttackPower) == 85 && stats.Evaluate(PNContentIds.AttackSpeed) == 125, "Burst bonuses were hardcoded.");
             manager.Advance(9); Check(!skill.IsInBurst && skill.BurstGauge.Current == 140, "Burst refund did not use JSON.");
-            Check(skill.TryAttack(Vector3.right) && skill.AttackVisual.Radius == 2.4f, "Attack geometry did not use its own JSON profile.");
+            bool attacked = skill.TryAttack(Vector3.right); skill.TickAttack(0f);   // the engine builds the sweep's view on the first step of the run
+            Check(attacked && skill.AttackVisual.Radius == 2.4f, "Attack geometry did not use its own JSON profile.");
             skill.TickAttack(.34f); Check(skill.IsAttacking, "Attack duration was overridden by Inspector/default.");
             skill.TickAttack(.17f); Check(!skill.IsAttacking, "Custom duration did not complete.");
             var data = skill.GetData(EveId.Parse("base:eve_attack_right"));

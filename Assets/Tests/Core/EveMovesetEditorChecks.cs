@@ -56,6 +56,7 @@ public static class EveMovesetEditorChecks
             var low = Entity<DummyStat>("Lowest absolute HP", new Vector3(0, .4f, 3), "project_n:dummy"); low.SetCurrent(PNContentIds.Health, 10000);
             Physics.SyncTransforms();
             Check(skill.TryAttack(), "Normal attack failed.");
+            skill.TickAttack(0f);   // the engine builds the sweep's view on the first step of the run (a held frame is one)
             Check(Vector3.Dot(skill.AttackVisual.AttackRoot.right, Vector3.right) > .99f, "Attack did not select nearest target.");
             skill.TickAttack(.22f);
             Check(skill.BurstGauge.Current == 2 && near.GetCurrent(PNContentIds.Health) < 200000000,
@@ -63,7 +64,7 @@ public static class EveMovesetEditorChecks
             skill.TickAttack(.3f); Check(skill.BurstGauge.Current == 2, "Same slash awarded points twice.");
             skill.TryAttack(); skill.TickAttack(.22f);
             Check(skill.BurstGauge.Current == 4, "Left attack did not award its separate hit."); skill.TickAttack(.3f);
-            skill.TryAttack();
+            skill.TryAttack(); skill.TickAttack(0f);
             Check(skill.AttackVisual.Radius > .6f, "Third horizontal attack did not grow its geometry.");
             skill.TickAttack(.4f);
             skill.UltimateRecovery.TryConsume(); double remaining = skill.UltimateRecovery.CooldownRemaining;

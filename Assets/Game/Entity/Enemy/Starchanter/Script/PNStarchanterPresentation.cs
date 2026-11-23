@@ -58,7 +58,7 @@ public sealed class PNStarchanterPresentation : MonoBehaviour, IPNCameraFacing, 
         healingZone.Channel(now, zone);
         channel = now; Align();
     }
-    public void TeleportArrived() {teleport?.Arrive(transform.position);}
+    public void TeleportArrived(Vector3? at = null) {teleport?.Arrive(at ?? transform.position);}
     public void Boost(float age, float windup, float zone)
     { Ensure(); cast = 2; castAge = age; outTime = windup; radius = zone; tail = 0; boostVisual.Prepare(age,windup,zone); Align(); }
     public void HealRecipient(Vector3 position, bool final)

@@ -36,11 +36,20 @@ public static class PNStarreaperCombatContent
         instances.Register(new PNProjectileDefinition(EchoArrow,typeof(PNStarreaperProjectile),echoArrowData,PNDirectionalSettings.ValidateDefinition,ValidateArrowInput));
         instances.Register(new PNBlastDefinition(RainBlast, typeof(PNStarreaperRainBlast), new JObject(), (token, registry) => PNBuffContentBatch.Fields(PNBuffContentBatch.Object(token)), ValidateRainBlastInput));
         hub.Operations().Register(new PNSkillOperationDefinition(RainOperation, typeof(PNStarreaperRainOperation), (token, registry) => { ValidateRainInput(token); ValidateDamage(PNBuffContentBatch.Object(token), registry); }, PNSkillContextRequirements.Position));
-        hub.Actions().Register(new PNSkillActionDefinition(PierceAction, typeof(PNStarreaperPierceAction), (a, h) => ValidatePierce(a, h), PNSkillContextRequirements.Direction | PNSkillContextRequirements.Position));
-        hub.Actions().Register(new PNSkillActionDefinition(AfterimageAction, typeof(PNStarreaperAfterimageAction), (a, h) => ValidateAfterimage(a, h),
+        var pierceAction = new PNSkillActionDefinition(PierceAction, typeof(PNStarreaperPierceAction), (a, h) => ValidatePierce(a, h), PNSkillContextRequirements.Direction | PNSkillContextRequirements.Position);
+        var afterimageAction = new PNSkillActionDefinition(AfterimageAction, typeof(PNStarreaperAfterimageAction), (a, h) => ValidateAfterimage(a, h),
             PNSkillContextRequirements.Direction | PNSkillContextRequirements.Position,
-            (data, references) => references.Require<PNSkillOperationDefinition>(new JValue("base:lock_movement"), "movementLock")));
-        hub.Actions().Register(new PNSkillActionDefinition(RainAction, typeof(PNStarreaperRainAction), (a, h) => ValidateRain(a, h), PNSkillContextRequirements.Direction | PNSkillContextRequirements.Position));
+            (data, references) => references.Require<PNSkillOperationDefinition>(new JValue("base:lock_movement"), "movementLock"));
+        var rainAction = new PNSkillActionDefinition(RainAction, typeof(PNStarreaperRainAction), (a, h) => ValidateRain(a, h), PNSkillContextRequirements.Direction | PNSkillContextRequirements.Position);
+#if UNITY_5_3_OR_NEWER
+        // PV6: the picture of each run is a view placed by the run's age on every machine; the Actions draw nothing.
+        pierceAction.WithView(PNStarreaperDrawView.CreatePierce);
+        afterimageAction.WithView(PNStarreaperAfterimageView.Create);
+        rainAction.WithView(PNStarreaperDrawView.CreateRain);
+#endif
+        hub.Actions().Register(pierceAction);
+        hub.Actions().Register(afterimageAction);
+        hub.Actions().Register(rainAction);
         var skills = hub.GetOrCreate<EveSkillDefinition>();
         skills.Register(Skill(Pierce, "base:attack", true, 8, PierceAction, JObject.Parse(@"{
           'windup':1.5,'recovery':0.4,'range':3.0,'shot':" + ArrowShot + @",'tags':['base:magic']}")));

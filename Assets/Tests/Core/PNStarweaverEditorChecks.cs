@@ -110,18 +110,18 @@ public static class PNStarweaverEditorChecks
             go=UnityEngine.Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Game/Entity/Enemy/Starweaver/Prefab/Starweaver.prefab"));go.SetActive(false);SceneManager.MoveGameObjectToScene(go,scene);
             go.GetComponent<EveEntityIdentity>().Assign(new EveEntityId(978111),EveId.Parse("project_n:starweaver"),0);go.GetComponent<EveEntityLoader>().Load(hub);go.SetActive(true);
             PNVisualPacks.Set("project_n",Application.streamingAssetsPath+"/BaseContent");go.GetComponent<PNVisualBody>().Begin(hub.Characters.Get(EveId.Parse("project_n:starweaver")),hub);
-            var skill=go.GetComponent<PNStarweaverSkill>();var weapon=go.GetComponent<PNStarweaverPresentation>();var direction=Vector3.right;
+            var skill=go.GetComponent<PNStarweaverSkill>();var weapon=go.GetComponent<PNStarweaverPresentation>();var direction=Vector3.right;bool Adv(PNSkillAction act,PNSkillActionContext ctx,float d){bool done=false;using(var fr=skill.BeginActionExecutionFrame(d)){if(d<=0f)fr.Hold(ctx);else fr.Advance(ctx,d,1,s2=>{done=act.AdvanceAuxiliary(s2);});}return done;}
             var action=skill.CreateAction(PNStarweaverCombatContent.Weave,out var context,Array.Empty<PNStat>(),direction,new Vector3(9,9,9));
             try
             {
-                action.Start(context);action.AdvanceAuxiliary(.38f);weapon.TickWeapon(0);var rear=weapon.TipPosition;
+                action.Start(context);Adv(action,context,.38f);Adv(action,context,0f);weapon.TickWeapon(0);var rear=weapon.TipPosition;
                 if(manager.ActiveCount!=0)throw new Exception("Weave fired before registered windup");
-                action.AdvanceAuxiliary(.12f);var muzzle=weapon.TipPosition;
+                Adv(action,context,.12f);Adv(action,context,0f);var muzzle=weapon.TipPosition;      // the view takes the step before the Action, so it catches up on the hold
                 if(Vector3.Dot(muzzle-rear,direction)<.12f)throw new Exception("Needle did not thrust after drawing back");
                 var shots=manager.Snapshot();if(shots.Count!=3)throw new Exception("Muzzle volley did not contain three shots");
                 for(int i=0;i<3;i++)
                 {
-                    if(Vector3.Distance(shots[i].Position,muzzle)>.00001f)throw new Exception("Projectile did not originate at live needle tip");
+                    if(Vector3.Distance(shots[i].Position,muzzle)>.00001f)throw new Exception("Projectile did not originate at the needle tip ("+Vector3.Distance(shots[i].Position,muzzle).ToString("F4")+")");
                     if(Mathf.Abs(Vector3.Angle(shots[i].Forward,direction)-(i==1?0:18))>.01f)throw new Exception("Muzzle changed existing fan spread");
                     manager.End(shots[i].Handle,PNProjectileEndReason.Requested);
                 }
@@ -129,7 +129,7 @@ public static class PNStarweaverEditorChecks
             }
             finally{action.Dispose();}
             var cancelled=skill.CreateAction(PNStarweaverCombatContent.Weave,out var cc,Array.Empty<PNStat>(),direction,Vector3.zero);
-            try{cancelled.Start(cc);cancelled.AdvanceAuxiliary(.25f);cancelled.Cancel(cc);if(manager.ActiveCount!=0)throw new Exception("Cancelled windup emitted projectiles");}finally{cancelled.Dispose();}
+            try{cancelled.Start(cc);Adv(cancelled,cc,.25f);cancelled.Cancel(cc);if(manager.ActiveCount!=0)throw new Exception("Cancelled windup emitted projectiles");}finally{cancelled.Dispose();}
             string report="PASS registered volley at live needle tip, no shot before .5s, backward/thrust travel, three unchanged fan headings, cancel before release";
             Directory.CreateDirectory(Application.dataPath+"/../.utmp/StarweaverMuzzleV2");File.WriteAllText(Application.dataPath+"/../.utmp/StarweaverMuzzleV2/muzzle-native.txt",report);return report;
         }

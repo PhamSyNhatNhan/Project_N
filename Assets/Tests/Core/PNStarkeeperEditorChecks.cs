@@ -86,14 +86,17 @@ public static class PNStarkeeperEditorChecks
             float h0 = Health(targetA), b0 = Health(targetB);
             string sweepDamage = ""; var caster = go.GetComponent<PNStat>();
             int Markers() => scene.GetRootGameObjects().Count(o => o.name.StartsWith("Starkeeper sweep") || o.name.StartsWith("Starkeeper star point"));
+            // The pictures are views now (PV6): the engine's execution frame builds and drives them from the Action's age, so every step goes through it (0 = a hold, which builds the view).
+            void Adv(PNSkillAction act, PNSkillActionContext ctx, float d) { using (var frame = skill.BeginActionExecutionFrame(d)) { if (d <= 0f) frame.Hold(ctx); else frame.Advance(ctx, d, 1, step => act.AdvanceAuxiliary(step)); } }
             // --- Quet sao ---
             var sweep = skill.CreateAction(PNStarkeeperCombatContent.StarSweep, out var sc, new[] { targetA }, Vector3.right, null);
             try
             {
                 if (sweep is IPNSkillMotionAction motion) motion.BindMovementOwner(() => { });
                 var origin = go.transform.position;
-                sweep.Start(sc); Check(Markers() == 1, "the sweep sector marker exists during the windup");
-                sweep.AdvanceAuxiliary(.39f); Check(Health(targetA) == h0, "no hit before the registered windup (0.4 s)");
+                sweep.Start(sc); Adv(sweep, sc, 0f); Check(Markers() == 1, "the sweep sector marker exists during the windup");
+                Adv(sweep, sc, .39f); Check(Health(targetA) == h0, "no hit before the registered windup (0.4 s)");
+                Adv(sweep, sc, 0f);
                 var firstMarker=scene.GetRootGameObjects().Single(o=>o.name=="Starkeeper sweep");
                 Check(Vector3.Distance(firstMarker.transform.position,go.transform.position+Vector3.up*.025f)<.001f,"warning follows first-step damage origin");
                 Check(firstMarker.transform.Find("Sector fill")==null && firstMarker.transform.Find("Constellation boundary")!=null,"constellation boundary replaces filled sector");
@@ -102,23 +105,23 @@ public static class PNStarkeeperEditorChecks
                 var bandTint=band.GetComponent<MeshRenderer>().sharedMaterial.GetColor("_Tint");
                 Check(bandTint.r>bandTint.b && bandTint.g>bandTint.b,"warning constellation is gold");
                 float step1 = Vector3.Distance(origin, go.transform.position); Check(step1 > .3f && step1 <= .5f + 1e-3f && go.transform.position.x > origin.x, "the first sweep carries the Starkeeper toward the target by at most 0.5 m (" + step1.ToString("F2") + " m)");
-                sweep.AdvanceAuxiliary(.02f); float afterFirst = Health(targetA); Check(afterFirst < h0, "the first sweep hits the target in front");
+                Adv(sweep, sc, .02f); float afterFirst = Health(targetA); Check(afterFirst < h0, "the first sweep hits the target in front");
                 Check(Health(targetB) == b0, "the target 2.6 m away is outside the 1.4 m sector");
                 targetA.transform.position = new Vector3(.9f, 0, .75f);                        // dodged to the side: ~40 degrees off the first sweep, inside the 70 degree re-aim
                 var beforeSecond = go.transform.position;
-                sweep.AdvanceAuxiliary(.2f);
+                Adv(sweep, sc, .2f);
                 var marker=scene.GetRootGameObjects().Single(o=>o.name=="Starkeeper sweep");
                 Check(marker.GetComponentsInChildren<MeshRenderer>().All(r=>r.sharedMaterial.GetFloat("_Opacity")==0), "no warning reappears before sweep two");
-                sweep.AdvanceAuxiliary(.14f);                      // up to the second sweep at 0.4 + 0.35 s
+                Adv(sweep, sc, .14f);                      // up to the second sweep at 0.4 + 0.35 s
                 float step2 = Vector3.Distance(beforeSecond, go.transform.position); Check(step2 > .02f && step2 <= .5f + 1e-3f, "the second sweep also steps toward the target, at most 0.5 m (" + step2.ToString("F2") + " m)");
                 float afterSecond = Health(targetA); Check(afterSecond < afterFirst, "the second sweep re-aims and catches the target that moved"); sweepDamage = "sweep damage " + (h0 - afterFirst).ToString("F1") + " + " + (afterFirst - afterSecond).ToString("F1") + " (attack " + caster.Evaluate(PNContentIds.AttackPower) + ")";
                 Check(Health(targetB) == b0, "the far target is still untouched");
-                sweep.AdvanceAuxiliary(.7f); sweep.Exit(sc); Check(Markers() == 0, "the marker is gone after the cast");
+                Adv(sweep, sc, .7f); sweep.Exit(sc); Check(Markers() == 0, "the marker is gone after the cast");
             }
             finally { sweep.Dispose(); }
             targetA.transform.position = new Vector3(1f, 0, 0); float h1 = Health(targetA);
             var cancelled = skill.CreateAction(PNStarkeeperCombatContent.StarSweep, out var cc, new[] { targetA }, Vector3.right, null);
-            try { cancelled.Start(cc); cancelled.AdvanceAuxiliary(.3f); cancelled.Cancel(cc); } finally { cancelled.Dispose(); }
+            try { cancelled.Start(cc); Adv(cancelled, cc, 0f); Adv(cancelled, cc, .3f); cancelled.Cancel(cc); } finally { cancelled.Dispose(); }
             Check(Health(targetA) == h1 && Markers() == 0, "a sweep cancelled in the windup hurts nobody and leaves no marker");
             // --- melee_scale: captured when the telegraph first shows ---
             go.transform.position = Vector3.zero; go.GetComponent<Rigidbody>().position = Vector3.zero; Physics.SyncTransforms();
@@ -128,14 +131,14 @@ public static class PNStarkeeperEditorChecks
             try
             {
                 if (scaled is IPNSkillMotionAction motion2) motion2.BindMovementOwner(() => { });
-                scaled.Start(scc);
+                scaled.Start(scc); Adv(scaled, scc, 0f);
                 caster.SetSource(EveId.Parse("test:melee_scale"), Array.Empty<EveStatModifier>());     // a Buff lost during the windup does not shrink an attack already shown
                 var scaledMarker = scene.GetRootGameObjects().Single(o => o.name == "Starkeeper sweep").transform.Find("Constellation boundary");
                 Check(scaledMarker.GetComponent<MeshFilter>().sharedMesh.vertices.Max(v => v.magnitude) > 2.6f, "melee_scale +100% doubles the telegraph radius (1.4 m -> 2.8 m)");
-                scaled.AdvanceAuxiliary(.41f);
+                Adv(scaled, scc, .41f);
                 Check(Health(targetB) < scaleB0, "the target 2.6 m away is inside the doubled sector");
             }
-            finally { scaled.Dispose(); }
+            finally { scaled.Cancel(scc); scaled.Dispose(); }       // the run's end ends its picture (a view is not owned by the Action)
             Check(Markers() == 0, "the scaled sweep leaves no marker"); b0 = Health(targetB); h1 = Health(targetA);
             // --- Diem sao ---
             var anchor = new Vector3(3f, 0, 0); var start = go.transform.position;
@@ -143,8 +146,8 @@ public static class PNStarkeeperEditorChecks
             try
             {
                 if (star is PNAgentTrajectoryAction trajectory) trajectory.BindMovementOwner(() => { });
-                star.Start(pc); Check(Markers() == 1, "the star point marker exists during the windup");
-                star.AdvanceAuxiliary(1.99f); Check((go.transform.position - start).sqrMagnitude < 1e-6f && Health(targetB) == b0, "the Starkeeper stands still and hurts nobody for the whole 2 s windup");
+                star.Start(pc); Adv(star, pc, 0f); Check(Markers() == 1, "the star point marker exists during the windup");
+                Adv(star, pc, 1.99f); Check((go.transform.position - start).sqrMagnitude < 1e-6f && Health(targetB) == b0, "the Starkeeper stands still and hurts nobody for the whole 2 s windup");
                 star.Cancel(pc); Check(Markers() == 0, "cancelling in the windup removes the marker");
             }
             finally { star.Dispose(); }
@@ -158,14 +161,14 @@ public static class PNStarkeeperEditorChecks
             var full=skill.CreateAction(PNStarkeeperCombatContent.StarPoint,out var fullContext,new[]{targetA},Vector3.right,new Vector3(2,0,0));
             try
             {
-                ((PNAgentTrajectoryAction)full).BindMovementOwner(()=>{});full.Start(fullContext);full.Perform(fullContext);
-                full.AdvanceAuxiliary(1.99f);Check(go.transform.position.sqrMagnitude<.00001f,"point charge holds position on real floor");
-                for(int i=0;i<28;i++)full.AdvanceAuxiliary(.01f);
+                ((PNAgentTrajectoryAction)full).BindMovementOwner(()=>{});full.Start(fullContext);Adv(full,fullContext,0f);full.Perform(fullContext);
+                Adv(full, fullContext, 1.99f);Check(go.transform.position.sqrMagnitude<.00001f,"point charge holds position on real floor");
+                for(int i=0;i<28;i++)Adv(full, fullContext, .01f);
                 Check(((PNAgentTrajectoryAction)full).Outcome==PNMotionOutcome.Completed && go.transform.position.x>1.9f,"point lunge completes at star");
                 Check(Health(targetA)<pathHealth,"point still damages target along path");
                 var pointVisual=scene.GetRootGameObjects().Single(o=>o.name=="Starkeeper star point").GetComponent<PNStarkeeperPointVisual>();
                 Check(pointVisual.Reached,"completed motion triggers reached-star presentation");
-                for(int i=0;i<28;i++)full.AdvanceAuxiliary(.05f);
+                for(int i=0;i<28;i++)Adv(full, fullContext, .05f);
                 Check(Health(targetB)==offPathHealth,"star burst adds no endpoint AOE damage to off-path target");
                 full.Exit(fullContext);Check(Markers()==0,"completed point removes owned VFX");
             }
@@ -176,8 +179,8 @@ public static class PNStarkeeperEditorChecks
             var blocked=skill.CreateAction(PNStarkeeperCombatContent.StarPoint,out var blockedContext,new[]{targetA},Vector3.right,new Vector3(2,0,0));
             try
             {
-                ((PNAgentTrajectoryAction)blocked).BindMovementOwner(()=>{});blocked.Start(blockedContext);blocked.Perform(blockedContext);
-                blocked.AdvanceAuxiliary(1.99f);for(int i=0;i<28;i++)blocked.AdvanceAuxiliary(.01f);
+                ((PNAgentTrajectoryAction)blocked).BindMovementOwner(()=>{});blocked.Start(blockedContext);Adv(blocked,blockedContext,0f);blocked.Perform(blockedContext);
+                Adv(blocked, blockedContext, 1.99f);for(int i=0;i<28;i++)Adv(blocked, blockedContext, .01f);
                 Check(((PNAgentTrajectoryAction)blocked).Outcome==PNMotionOutcome.Blocked,"wall blocks actual point lunge");
                 var pointVisual=scene.GetRootGameObjects().Single(o=>o.name=="Starkeeper star point").GetComponent<PNStarkeeperPointVisual>();
                 Check(!pointVisual.Reached && Health(targetA)==behindWall,"blocked motion neither shatters star nor hurts target behind wall");

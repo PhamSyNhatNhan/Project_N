@@ -51,12 +51,12 @@ public static partial class PNVisualEditorChecks
                 go.GetComponent<EveEntityIdentity>().Assign(new EveEntityId(997710+slot),EveId.Parse("project_n:starforger_star"),0);go.GetComponent<EveEntityLoader>().Load(hub);
                 go.GetComponent<PNSummon>().Begin(PNCombatSource.Capture(source.GetComponent<PNStat>()),source.GetComponent<PNStat>().EntityId,PNStarforgerCombatContent.SlotGroup(slot),slot+1,1d);go.SetActive(true);return go.GetComponent<PNStarforgerStarSummon>();
             }
-            var skill=source.GetComponent<PNStarforgerSkill>();var liveStars=new List<PNStarforgerStarSummon>();PNEntityHosts.Set(EveRegistrySession.Context,new PNRefusingHost());
+            var skill=source.GetComponent<PNStarforgerSkill>();bool Adv(PNSkillAction act,PNSkillActionContext ctx,float d){bool done=false;using(var fr=skill.BeginActionExecutionFrame(d)){if(d<=0f)fr.Hold(ctx);else fr.Advance(ctx,d,1,s=>{done=act.AdvanceAuxiliary(s);});}return done;}var liveStars=new List<PNStarforgerStarSummon>();PNEntityHosts.Set(EveRegistrySession.Context,new PNRefusingHost());
             action=skill.CreateAction(PNStarforgerCombatContent.Star,out context,new[]{stat},Vector3.right,Vector3.zero);action.Start(context);
             for(int frame=0;frame<frames;frame++)
             {
                 float t=frame/30f;
-                try{if(!ended&&action.AdvanceAuxiliary(1f/30)){action.Exit(context);ended=true;}}catch(NullReferenceException){/* the fixture owner has no world, so create_summon throws inside Make; the cast goes on next frame and the star is placed by hand */}
+                try{if(!ended&&Adv(action,context,1f/30)){action.Exit(context);ended=true;}}catch(NullReferenceException){/* the fixture owner has no world, so create_summon throws inside Make; the cast goes on next frame and the star is placed by hand */}
                 if(frame==24)liveStars.Add(MakeStar(0));foreach(var starTick in liveStars)starTick.GetComponent<PNBehaviorSkill>().Advance(1f/30);
                 actor.Tick(1f/30);facing.Align();fx.Tick(1f/30);fx.RenderFlight(stage.Camera);
                 areas.Advance(1f/30);projectiles.Advance(1f/30);
@@ -104,7 +104,7 @@ public static partial class PNVisualEditorChecks
             fx.EndPose();actor.SetFacingLeft(false);
             // Cancellation owns the forge only, not any star or projectile already created.
             var cancel=skill.CreateAction(PNStarforgerCombatContent.Star,out var cc,new[]{stat},Vector3.right,Vector3.zero);
-            try{cancel.Start(cc);cancel.AdvanceAuxiliary(.3f);fx.Tick(0);cancel.Cancel(cc);Check(source.GetComponentsInChildren<MeshFilter>(true).Single(x=>x.name=="Starforger forge light").sharedMesh.vertexCount==0,"cancel clears gathering/strike presentation");}finally{cancel.Dispose();}
+            try{cancel.Start(cc);Adv(cancel,cc,.3f);fx.Tick(0);cancel.Cancel(cc);Check(source.GetComponentsInChildren<MeshFilter>(true).Single(x=>x.name=="Starforger forge light").sharedMesh.vertexCount==0,"cancel clears gathering/strike presentation");}finally{cancel.Dispose();}
         }
         finally
         {

@@ -5,11 +5,12 @@ using EveEngine;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
 
+// The picture (cast pose and weaving light) is `PNStarweaverCastView`, placed by the run's age on every machine; this Action keeps the projectiles / the triangle blast and reads the weapon muzzle at the release.
 public sealed class PNStarweaverCastAction : PNSkillAction
 {
     private PNSkillActionContext context; private float age,windup,recovery; private bool fired,ended;
     private PNStarweaverPresentation presentation;
-    private PNSkillOperation operation; private PNVisualBody body; private PNStarweaverCastVisual castVisual;
+    private PNSkillOperation operation;
     public override bool HasAuxiliaryTimeline=>true;
     public override void Start(PNSkillActionContext c)
     {
@@ -18,9 +19,6 @@ public sealed class PNStarweaverCastAction : PNSkillAction
         context=c;var p=c.Data.Action.Perform;windup=p["windup"].Value<float>();recovery=p["recovery"].Value<float>();
         presentation=c.Skill.GetComponent<PNStarweaverPresentation>();
         c.BeginAction();
-        // the puppet's cast motion (cast_weave / cast_constellation) lasts the whole cast; the body releases it at the end or on a Lorica break
-        body=c.Skill.GetComponent<PNVisualBody>(); body?.PlayAction(c.SkillId==PNStarweaverCombatContent.Triangle?"cast_constellation":"cast_weave",windup+recovery);
-        castVisual=PNStarweaverCastVisual.Create(c.Skill.transform,c.Skill.GetComponent<PNStarweaverPresentation>(),body!=null?body.Actor:null,c.SkillId==PNStarweaverCombatContent.Triangle,windup,c.Direction.Value);
         if(c.SkillId==PNStarweaverCombatContent.Triangle)
         {
             if(!c.Position.HasValue)throw new InvalidOperationException("Triangle center required");
@@ -32,12 +30,11 @@ public sealed class PNStarweaverCastAction : PNSkillAction
     public override bool AdvanceAuxiliary(float dt)
     {
         if(ended)return true;age+=dt;
-        castVisual?.SetTime(age);
         if(!fired&&age>=windup)
         {
             fired=true;var p=context.Data.Action.Perform;
             // Evaluate the same release pose that the caster flash and the context muzzle read.
-            presentation?.TickWeapon(0);castVisual?.Align();
+            presentation?.TickWeapon(0);
             operation=CreateOperation(context,EveId.Parse(p["operationId"].Value<string>()));
             operation.Execute(context,p["data"]);
 
@@ -48,7 +45,7 @@ public sealed class PNStarweaverCastAction : PNSkillAction
     public override void Cancel(PNSkillActionContext c){try{c.CancelEffects();EndBlast();operation?.Cancel();}finally{Dispose();}}
     // Only a cancelled cast ends its blast; a finished one lets the blast run out its own tail.
     private void EndBlast(){var handle=(operation as PNCreateBlastOperation)?.Result?.Handle;if(handle.HasValue&&handle.Value.IsAlive)handle.Value.End();}
-    public override void Dispose(){if(ended)return;ended=true;castVisual?.Dispose();castVisual=null;body?.EndAction();body=null;operation?.Dispose();operation=null;context=null;}
+    public override void Dispose(){if(ended)return;ended=true;operation?.Dispose();operation=null;context=null;}
 }
 
 public sealed class PNStarweaverProjectile:PNDirectionalProjectile

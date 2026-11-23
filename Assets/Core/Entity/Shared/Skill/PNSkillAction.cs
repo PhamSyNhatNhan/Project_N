@@ -133,6 +133,8 @@ public class PNSkillActionContext
     // A one-shot fact for this run's view (`key` and up to a few numbers): the Action says WHAT it decided, never where it runs. The engine hands it to the view at the run's current age; an
     // Action without a view (or on a machine that shows none) simply has no one to tell, so this never changes by role.
     public void Present(string key, params double[] values) => Skill?.PresentActionFact(this, key, values);
+    // Who this run helped (a heal, a Buff): a `recipient` fact at the age the Action decided. The view finds the entity with `PNSkill.TryFindEntity`.
+    public void PresentRecipient(PNStat target) => Skill?.PresentActionRecipient(this, target);
     internal int PresentedFacts;
     public void CompleteAction() { if (completed) return; completed = true; try { Fire("OnComplete"); } finally { Skill?.EndActionView(this, false); Skill?.EndActionRun(this, false); AnnounceEnd(); } }
     public void CancelEffects() { if (completed) return; completed = true; try { Fire("OnCancel"); } finally { Skill?.EndActionView(this, true); Skill?.EndActionRun(this, true); AnnounceEnd(); } }

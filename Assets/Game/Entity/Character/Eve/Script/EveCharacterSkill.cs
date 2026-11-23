@@ -16,7 +16,7 @@ public partial class EveCharacterSkill : PNPlayerSkill
     [SerializeField] private Vector3 attackDirection = new Vector3(1f, 0f, 0f);
     public virtual bool IsAttacking => attack != null;
 #if UNITY_5_3_OR_NEWER
-    public EveSweepVisual AttackVisual => attack?.Visual;
+    public EveSweepVisual AttackVisual => EveSweepVisual.Current(this);
 #endif
     // EN: Fallback aim for owners without movement; explicit casts may supply any direction.
     // VI: Huong du phong khi khong co movement; lan chem tuong minh co the truyen huong rieng.

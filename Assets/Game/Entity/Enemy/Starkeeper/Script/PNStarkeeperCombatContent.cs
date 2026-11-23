@@ -10,10 +10,17 @@ public static class PNStarkeeperCombatContent
         SweepAction = EveId.Parse("project_n:starkeeper_sweep_action"), StarPointAction = EveId.Parse("project_n:starkeeper_star_point_action");
     public static void Register(EveRegistryHub hub)
     {
-        hub.Actions().Register(new PNSkillActionDefinition(SweepAction, typeof(PNStarkeeperSweepAction), (a, h) => ValidateSweep(a, h), PNSkillContextRequirements.Direction));
-        hub.Actions().Register(new PNSkillActionDefinition(StarPointAction, typeof(PNStarkeeperStarPointAction), (a, h) => ValidateStarPoint(a, h),
+        var sweepAction = new PNSkillActionDefinition(SweepAction, typeof(PNStarkeeperSweepAction), (a, h) => ValidateSweep(a, h), PNSkillContextRequirements.Direction);
+        var pointAction = new PNSkillActionDefinition(StarPointAction, typeof(PNStarkeeperStarPointAction), (a, h) => ValidateStarPoint(a, h),
             PNSkillContextRequirements.Direction | PNSkillContextRequirements.Position,
-            (data, references) => references.Require<PNSkillOperationDefinition>(new JValue("base:lock_movement"), "movementLock")));
+            (data, references) => references.Require<PNSkillOperationDefinition>(new JValue("base:lock_movement"), "movementLock"));
+#if UNITY_5_3_OR_NEWER
+        // PV6: the picture of each run is a view placed by the run's age on every machine (the sweep's is sized by melee_scale like its hitbox); the Actions draw nothing.
+        sweepAction.WithView(PNStarkeeperSweepView.Create, PNContentIds.MeleeScale);
+        pointAction.WithView(PNStarkeeperPointView.Create);
+#endif
+        hub.Actions().Register(sweepAction);
+        hub.Actions().Register(pointAction);
         var skills = hub.GetOrCreate<EveSkillDefinition>();
         skills.Register(Skill(StarSweep, "base:attack", true, 3, SweepAction, JObject.Parse(@"{
           'windup':0.4,'gap':0.35,'reaimAt':0.2,'recovery':0.6,'maxReaimDegrees':70,'radius':1.4,'angle':100,'thickness':0.6,

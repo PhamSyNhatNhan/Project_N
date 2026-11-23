@@ -130,6 +130,9 @@ public sealed class PNStarforgerTelegraph : IDisposable
     }
     private void OnView(){Render(PNViewCamera.Current);}
     public void SetTime(float seconds){if(disposed)return;age=seconds;OnView();}
+    public float Age=>age;
+    public float Radius=>radius;
+    public void SetVisible(bool visible){if(!disposed&&root!=null)root.SetActive(visible);}
     public void Impact()
     {
         if(disposed||impacted)return;impacted=true;impactAt=age;

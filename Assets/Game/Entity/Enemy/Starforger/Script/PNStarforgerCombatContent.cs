@@ -21,9 +21,16 @@ public static class PNStarforgerCombatContent
             JObject.Parse(@"{'speed':4,'acceleration':0,'speedMin':0,'speedMax':4,'life':{'mode':'Time','value':3},'volume':{'size':[0.2,0.3,0.3]},'environmentMask':['Wall'],'hitLimit':1}"),
             PNDirectionalSettings.ValidateDefinition, PNDirectionalSettings.ValidateInput));
         hub.Operations().Register(new PNSkillOperationDefinition(SlamHit, typeof(PNStarforgerSlamHitOperation), ValidateSlamHit, PNSkillContextRequirements.Position));
-        hub.Actions().Register(new PNSkillActionDefinition(SlamAction, typeof(PNStarforgerSlamAction), (a, h) => ValidateSlam(a, h), PNSkillContextRequirements.Direction | PNSkillContextRequirements.Position,
-            (data, references) => references.Require<PNSkillOperationDefinition>(new JValue("base:lock_movement"), "movementLock")));
-        hub.Actions().Register(new PNSkillActionDefinition(StarAction, typeof(PNStarforgerStarAction), (a, h) => ValidateStar(a, h), PNSkillContextRequirements.Direction));
+        var slamAction = new PNSkillActionDefinition(SlamAction, typeof(PNStarforgerSlamAction), (a, h) => ValidateSlam(a, h), PNSkillContextRequirements.Direction | PNSkillContextRequirements.Position,
+            (data, references) => references.Require<PNSkillOperationDefinition>(new JValue("base:lock_movement"), "movementLock"));
+        var starAction = new PNSkillActionDefinition(StarAction, typeof(PNStarforgerStarAction), (a, h) => ValidateStar(a, h), PNSkillContextRequirements.Direction);
+#if UNITY_5_3_OR_NEWER
+        // PV6: the picture of each run is a view placed by the run's age on every machine (the slam's ring is sized by melee_scale like its hit); the Actions draw nothing.
+        slamAction.WithView(PNStarforgerSlamView.Create, PNContentIds.MeleeScale);
+        starAction.WithView(PNStarforgerStarView.Create);
+#endif
+        hub.Actions().Register(slamAction);
+        hub.Actions().Register(starAction);
         var skills = hub.GetOrCreate<EveSkillDefinition>();
         skills.Register(Skill(Slam, "base:skill", false, 10, SlamAction, JObject.Parse(@"{
           'range':3.5,'crouch':0.5,'recovery':0.8,

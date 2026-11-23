@@ -7,7 +7,8 @@ using Newtonsoft.Json.Linq;
 using UnityEngine;
 
 // Quet sao: two sweeps of one sector in front of the Starkeeper, the second a beat late and re-aimed at the target's current place (within maxReaimDegrees of the first)
-// so a player who dodged early is caught. Every number is the registered payload; the Action only runs the timeline.
+// so a player who dodged early is caught. Every number is the registered payload; the Action only runs the timeline. The picture (sector, strokes, spear, body) is `PNStarkeeperSweepView`, placed by the run's
+// age on every machine; this Action presents the re-aim (`aim` fact) and draws nothing.
 public sealed class PNStarkeeperSweepAction : PNSkillAction, IPNSkillMotionAction
 {
     // each sweep carries the Starkeeper forward toward the target: during the `step.duration` seconds that END at the hit it moves up to `step.distance` (never closer than `stopDistance`)
@@ -18,8 +19,7 @@ public sealed class PNStarkeeperSweepAction : PNSkillAction, IPNSkillMotionActio
     // One melee hitbox per sweep (hit index 0 and 1): each takes its own damage capture when the Action starts, so Buffs gained during the windup change neither sweep.
     private readonly PNSkillMeleeHitbox[] boxes = new PNSkillMeleeHitbox[2];
     private PNStat caster; private bool canCrit, reaimed, ended; private readonly bool[] swept = new bool[2];
-    private Vector3 first, second; private PNStarkeeperPresentation presentation; private PNVisualBody body; private PNStarkeeperTelegraph telegraph;
-    private PNStarkeeperSweepVisual visual;
+    private Vector3 first, second;
     public override bool HasAuxiliaryTimeline => true;
     public override void Start(PNSkillActionContext c)
     {
@@ -42,10 +42,6 @@ public sealed class PNStarkeeperSweepAction : PNSkillAction, IPNSkillMotionActio
             for (int i = 0; i < 2; i++)
                 boxes[i] = new PNSkillMeleeHitbox(c, caster, PNSkillValues.Parse(p["hits"][i]["value"]), PNDamage.ParseIFrameDuration((JObject)p["hits"][i]), canCrit, i);
             radius = boxes[0].ScaleLength(radius); thickness = boxes[0].ScaleLength(thickness);
-            body = c.Skill.GetComponent<PNVisualBody>(); body?.PlayAction("star_sweep", windup + gap + recovery);
-            presentation = c.Skill.GetComponent<PNStarkeeperPresentation>(); presentation?.BeginSweep(windup, gap, first);
-            telegraph = PNStarkeeperTelegraph.Sector(c.Skill.transform.position, first, radius, angle, c.Skill.gameObject.scene);
-            visual = PNStarkeeperSweepVisual.Create(c.Skill.transform, presentation, windup, gap, radius, angle, first);
         }
         catch { Dispose(); throw; }
     }
@@ -54,10 +50,9 @@ public sealed class PNStarkeeperSweepAction : PNSkillAction, IPNSkillMotionActio
     private void Sweep(int index, Vector3 direction)
     {
         swept[index] = true;
-        visual?.Emit(index, context.Skill.transform.position, direction);
         var origin = context.Skill.transform.position + Vector3.up * .3f;
         // The hitbox service samples and applies in Authority, reports in Predicted and does nothing in Observed. The extra rule keeps the enemy's live target checks (same world, able to act).
-        boxes[index].Open(EveHitboxShape.Sector(radius, thickness, angle), origin, radius, 0, (point, outcome) => visual?.Hit(point),
+        boxes[index].Open(EveHitboxShape.Sector(radius, thickness, angle), origin, radius, 0, (point, outcome) => { },
             target => !target.IsDead && PNWorldGameplay.CanTarget(context.Skill, target));
         boxes[index].Sample(EveHitboxPose.Planar(origin, direction), age);
     }
@@ -104,18 +99,14 @@ public sealed class PNStarkeeperSweepAction : PNSkillAction, IPNSkillMotionActio
     {
         if (ended) return true;
         age += dt;
-        visual?.SetTime(age);
-        telegraph?.SetPhase(Mathf.Clamp01(age / windup)); presentation?.SetAge(age);
-        if (!swept[0]) { Step(0, windup); telegraph?.SetOrigin(context.Skill.transform.position); }
-        if (!swept[0] && age >= windup) { Sweep(0, first); telegraph?.Hide(); }
+        if (!swept[0]) Step(0, windup);
+        if (!swept[0] && age >= windup) Sweep(0, first);
         if (!reaimed && age >= windup + reaimAt)
         {
-            reaimed = true; second = Reaim(); presentation?.SetAim(second);
-            var actor = body != null ? body.Actor : null; var camera = PNViewCamera.Current;
-            if (actor != null) actor.SetFacingLeft(Vector3.Dot(second, camera != null ? camera.transform.right : Vector3.right) < 0);
+            reaimed = true; second = Reaim(); context.Present(PNStarkeeperSweepView.AimFact, second.x, second.z);     // the one decision the picture needs
         }
         if (!swept[1] && reaimed) Step(1, windup + gap);
-        if (!swept[1] && age >= windup + gap) { Sweep(1, second); telegraph?.Hide(); }
+        if (!swept[1] && age >= windup + gap) Sweep(1, second);
         return age >= windup + gap + recovery;
     }
     public override void Exit(PNSkillActionContext c) { try { c.CompleteAction(); } finally { Dispose(); } }
@@ -125,8 +116,7 @@ public sealed class PNStarkeeperSweepAction : PNSkillAction, IPNSkillMotionActio
         if (ended) return; ended = true;
         foreach (var box in boxes) box?.Dispose();
         motor?.Dispose(); motor = null;
-        visual?.Dispose(); visual = null;
-        telegraph?.Dispose(); telegraph = null; presentation?.EndPose(); presentation = null; body?.EndAction(); body = null; context = null;
+        context = null;
     }
 }
 #else

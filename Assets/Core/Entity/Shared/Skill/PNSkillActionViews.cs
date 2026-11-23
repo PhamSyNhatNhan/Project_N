@@ -33,10 +33,15 @@ public partial class PNSkill
     public int ObservedPresentationsStarted => ActionViewsStarted;
     public int ActionViewsRunning => localViews.Count + observedViews.Count;
     public int ActionViewSeeks { get; private set; }
+    public int ActionViewResults { get; private set; }     // hits the engine handed to a run's view (PV4)
     public double ActionViewMaxLag { get; private set; }
     public int ActionViewFactsDropped { get; private set; }
     public int ActionViewFailures { get; private set; }
     public long ActionViewTicks { get; private set; }
+    // Measurement for the Player fixtures (PV6): the runs of other machines this one DREW by a view, per skill and by key ("cast:ordinal:skill", at most 256), the counterpart of the legacy replay tallies.
+    public readonly Dictionary<string, int> ViewedBySkill = new Dictionary<string, int>();
+    public readonly List<string> ViewedKeys = new List<string>();
+    public int ObservedViewCount => observedViews.Count;
 
     public void SetObservedActionPresentation(bool enabled)
     {
@@ -58,7 +63,7 @@ public partial class PNSkill
             var look = lookDefinition.Create(new PNLookBuild(this, lookId, data, direction, position, scale));
             if (look != null) view = new PNLookRunView(look);
         }
-        if (view != null) ActionViewsStarted++;
+        if (view != null) { ActionViewsStarted++; RouteImpactsToViews(); }
         return view;
     }
 
@@ -121,6 +126,55 @@ public partial class PNSkill
         SafeView(item, () => item.View.Result(result));
     }
 
+    // ---- PV4: where a hit landed, and who was helped, reach the view of the run ----
+    // A hit is told ONCE on every machine that shows the cast (`PNSkill.ActionImpact`: Real on the authority, Guess on the shooter, Copy on the others); the engine hands it to the view of the run that
+    // made it (the cast key and the Action's ordinal name the run on every machine), so a view draws its spark the same way in every role.
+    private bool viewImpactsRouted;
+    private void RouteImpactsToViews()
+    {
+        if (viewImpactsRouted) return;
+        viewImpactsRouted = true; ActionImpact += RouteImpactToView;
+    }
+    private void StopRoutingImpacts()
+    {
+        if (!viewImpactsRouted) return;
+        viewImpactsRouted = false; ActionImpact -= RouteImpactToView;
+    }
+    private void RouteImpactToView(PNActionImpact impact)
+    {
+        ViewItem item = null;
+        foreach (var pair in localViews)
+        {
+            var context = pair.Key;
+            if (context.Invocation == null || context.Invocation.CastKey != impact.CastKey || context.ActionOrdinal != impact.ActionOrdinal) continue;
+            item = pair.Value; break;
+        }
+        if (item == null && impact.CastKey != 0 && impact.ActionOrdinal >= 1) observedViews.TryGetValue(new PNActionRunKey(impact.CastKey, impact.ActionOrdinal), out item);
+        if (item == null || item.Dead) return;
+        if (item.View == null && item.Context != null && !EnsureLocalView(item)) return;
+        if (item.View == null) return;
+        var result = new PNActionViewResult("hit", impact.Point, impact.TargetId, item.Age);
+        ActionViewResults++;
+        SafeView(item, () => item.View.Result(result));
+    }
+
+    // The entity an id names on this machine (a view finds the person a run helped by the id of the `recipient` fact); false when it is not loaded here.
+    public bool TryFindEntity(long entityId, out PNStat stat)
+    {
+        stat = null;
+        if (entityId == 0 || !EveRegistrySession.IsReady || !EveRegistrySession.Context.Entities.TryGet(new EveEntityId(entityId), out var loader) || loader == null) return false;
+        stat = loader.GetComponent<PNStat>(); return stat != null;
+    }
+
+    // `context.PresentRecipient(target)`: the Action says who it helped, at the age it decided. An id outside the fact bound is dropped and counted (a picture, not state).
+    internal void PresentActionRecipient(PNSkillActionContext context, PNStat target)
+    {
+        if (context == null || target == null || !target.EntityId.IsValid) return;
+        double id = target.EntityId.Value;
+        if (!PNActionFact.ValidValue(id)) { ActionFactsOverBound++; return; }
+        PresentActionFact(context, PNActionFact.RecipientKey, new[] { id });
+    }
+
     internal void EndActionView(PNSkillActionContext context, bool cancelled)
     {
         if (!localViews.TryGetValue(context, out var item)) return;
@@ -163,6 +217,7 @@ public partial class PNSkill
             {
                 var data = GetData(EveId.Parse(dataId));
                 item.View = BuildView(data, registry.Actions().Get(data.Action.Id), direction, position, scale);
+                if (item.View != null) { ViewedBySkill.TryGetValue(dataId, out int viewed); ViewedBySkill[dataId] = viewed + 1; if (ViewedKeys.Count < 256) ViewedKeys.Add(key.Cast + ":" + key.Ordinal + ":" + dataId); }
             }
             catch (Exception error) { ActionViewFailures++; Debug.LogException(error, this); }
         }
@@ -238,6 +293,7 @@ public partial class PNSkill
         try
         {
             view.End(kind);
+            for (int i = viewTails.Count - 1; i >= 0; i--) if (!viewTails[i].HasTail) viewTails.RemoveAt(i);
             if (view.HasTail) viewTails.Add(view);
         }
         catch (Exception error) { Debug.LogException(error, this); ActionViewFailures++; }
@@ -284,6 +340,7 @@ public partial class PNSkill
     // The runs this machine runs itself stop with the cast, the entity or the session.
     private void ClearLocalActionViews()
     {
+        StopRoutingImpacts();
         foreach (var item in localViews.Values) FinishView(item, PNActionViewEnd.Cancelled);
         localViews.Clear();
         ClearViewTails();

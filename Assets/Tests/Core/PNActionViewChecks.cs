@@ -59,12 +59,12 @@ public static class PNActionViewChecks
         public static readonly List<ProbeView> All = new List<ProbeView>();
         public readonly List<string> Log = new List<string>();
         public double Age, Rate; public bool LastSeek, Leads = true, Hidden; public PNActionViewEnd? Ended; public double Scale;
-        public bool Tail;
+        public bool Tail; public double[] LastFact;
         public ProbeView(PNActionViewBuild build) { Scale = build.Scale; All.Add(this); }
         public bool HasTail => Tail;
         public bool Lead { set { Leads = value; } }
         public void Advance(double age, double rate, bool seeking) { Age = age; Rate = rate; LastSeek = seeking; Hidden = false; Log.Add("advance"); }
-        public void Fact(string key, double[] values, double age) => Log.Add("fact:" + key);
+        public void Fact(string key, double[] values, double age) { Log.Add("fact:" + key); LastFact = values; }
         public void Result(in PNActionViewResult result) => Log.Add("result:" + result.Kind);
         public void Hide() { Hidden = true; Log.Add("hide"); }
         public void End(PNActionViewEnd kind) { Ended = kind; Log.Add("end:" + kind); }
@@ -203,6 +203,18 @@ public static class PNActionViewChecks
             Check(ProbeView.All.Count == 1 && ProbeView.All[0].Ended == PNActionViewEnd.Cancelled && skill.ActionViewsRunning == 0, "teardown ends a view that still runs");
             Check(skill.ActionViewFailures == 0, "no view code failed");
 
+            // ---- PV4: the one the Action helped travels as a `recipient` fact, found again by id ----
+            var self = skill.GetComponent<PNStat>();
+            ProbeView.All.Clear();
+            var helpContext = new PNSkillActionContext(skill, hub.Skills.ResolveIdentity(ProbeSkill), data, hub, null, Vector3.right) { Mode = PNSkillMode.Authority };
+            helpContext.BeginAction();
+            using (var frame = skill.BeginActionExecutionFrame(.02f)) frame.Advance(helpContext, .02f, 1, null);
+            helpContext.PresentRecipient(self);
+            var helpView = ProbeView.All[0];
+            Check(helpView.Log.Contains("fact:recipient") && helpView.LastFact != null && helpView.LastFact.Length == 1 && Near(helpView.LastFact[0], self.EntityId.Value), "PresentRecipient reaches the view as a recipient fact carrying the entity id");
+            Check(skill.TryFindEntity((long)helpView.LastFact[0], out var found) && found == self && !skill.TryFindEntity(987654321L, out _), "the view finds the entity by that id, and an unknown id is not found");
+            helpContext.CancelEffects();
+
             // ---- PV3: a look attached to a run (skill data names it), built by the engine's generic view ----
             var lookData = skill.GetData(LookSkill);
             ProbeLook.All.Clear();
@@ -304,6 +316,22 @@ public static class PNActionViewChecks
             var last = ProbeView.All[ProbeView.All.Count - 1];
             skill.EndObservedActions();
             Check(last.Ended == PNActionViewEnd.Cancelled && skill.ActionViewsRunning == 0, "teardown ends a watched view too");
+
+            // ---- PV4 on an observer: a hit of the run (the cast key and the Action's ordinal name it) is handed to its view once ----
+            ProbeView.All.Clear();
+            var hitRun = new PNActionRunKey(50, 2);
+            skill.PresentObservedAction(hitRun, dataId, Vector3.right, 0, true, 1, dt);
+            var hitView = ProbeView.All[0];
+            var raise = typeof(PNSkill).GetMethod("RaiseActionImpact", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            int resultsBefore = skill.ActionViewResults;
+            raise.Invoke(skill, new object[] { PNActionImpactOrigin.Copy, 50L, 2L, 0, 7L, null, new Vector3(1, 0, 2) });
+            Check(hitView.Log.Contains("result:hit") && skill.ActionViewResults == resultsBefore + 1, "a hit of the run reaches its view through the engine");
+            raise.Invoke(skill, new object[] { PNActionImpactOrigin.Copy, 50L, 3L, 0, 7L, null, Vector3.zero });
+            raise.Invoke(skill, new object[] { PNActionImpactOrigin.Copy, 51L, 2L, 0, 7L, null, Vector3.zero });
+            Check(hitView.Log.Count(x => x == "result:hit") == 1 && skill.ActionViewResults == resultsBefore + 1, "a hit of another Action or another cast is not given to it");
+            skill.ReconcileObservedActionPresentation(true, _ => null); skill.ReconcileObservedActionPresentation(true, key => PNActionRunEnd.Completed);
+            raise.Invoke(skill, new object[] { PNActionImpactOrigin.Copy, 50L, 2L, 0, 7L, null, Vector3.zero });
+            Check(hitView.Log.Count(x => x == "result:hit") == 1, "a hit that comes after the run ended draws nothing");
 
             // ---- PV3 on an observer: the picture draws the look; a run whose data names a look is drawn without a hand-written view ----
             ProbeLook.All.Clear();

@@ -14,18 +14,25 @@ public static class PNStarchanterCombatContent
         HealAction = EveId.Parse("project_n:starchanter_heal_action"), BoostAction = EveId.Parse("project_n:starchanter_boost_action");
     public static void Register(EveRegistryHub hub)
     {
-        hub.Actions().Register(new PNSkillActionDefinition(HealAction, typeof(PNStarchanterHealAction), (a, h) => ValidateHeal(a, h), PNSkillContextRequirements.Direction | PNSkillContextRequirements.Position,
+        var healAction = new PNSkillActionDefinition(HealAction, typeof(PNStarchanterHealAction), (a, h) => ValidateHeal(a, h), PNSkillContextRequirements.Direction | PNSkillContextRequirements.Position,
             (data, references) =>
             {
                 references.Require<PNSkillOperationDefinition>(new JValue("base:lock_movement"), "movementLock");
                 references.Require<PNBuffDefinition>(data["guard"]["buffId"], "guardBuff");
-            }));
-        hub.Actions().Register(new PNSkillActionDefinition(BoostAction, typeof(PNStarchanterBoostAction), (a, h) => ValidateBoost(a, h), PNSkillContextRequirements.Direction,
+            });
+        var boostAction = new PNSkillActionDefinition(BoostAction, typeof(PNStarchanterBoostAction), (a, h) => ValidateBoost(a, h), PNSkillContextRequirements.Direction,
             (data, references) =>
             {
                 references.Require<PNSkillOperationDefinition>(new JValue("base:lock_movement"), "movementLock");
                 references.Require<PNBuffDefinition>(data["buffId"], "boostBuff");
-            }));
+            });
+#if UNITY_5_3_OR_NEWER
+        // PV6: the picture of each run is a view placed by the run's age on every machine; the Actions draw nothing.
+        healAction.WithView(PNStarchanterHealView.Create);
+        boostAction.WithView(PNStarchanterBoostView.Create);
+#endif
+        hub.Actions().Register(healAction);
+        hub.Actions().Register(boostAction);
         var skills = hub.GetOrCreate<EveSkillDefinition>();
         skills.Register(Skill(Heal, 16, HealAction, JObject.Parse(@"{
           'teleportOut':0.6,'teleportIn':0.7,'duration':5,'interval':1.5,'tickPercent':0.05,'finalPercent':0.10,'radius':2,'landingDistance':0.8,'recovery':0.4,

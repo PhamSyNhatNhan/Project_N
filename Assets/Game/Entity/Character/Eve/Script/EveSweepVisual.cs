@@ -28,6 +28,11 @@ public sealed class EveSweepVisual : MonoBehaviour, IPNActionView
     private bool hasTail;
     private EveTimeScale clock;
     private PNStat caster;
+    private PNSkill skill;
+    // The sweep of a skill that is still running (its view is built by the engine on every machine; this is how Eve's code and its checks reach it).
+    private static readonly Dictionary<PNSkill,EveSweepVisual> running=new Dictionary<PNSkill,EveSweepVisual>();
+    public static EveSweepVisual Current(PNSkill owner)
+        => owner!=null&&running.TryGetValue(owner,out var visual)&&visual!=null&&!visual.released?visual:null;
     public Transform AttackRoot => transform;
     public float Progress { get; private set; }
     public float Radius => settings.Radius;
@@ -35,6 +40,7 @@ public sealed class EveSweepVisual : MonoBehaviour, IPNActionView
     public int LiveParticles => sparks.particleCount;
     public int BladeSamples => samples.Count;
     public bool HasTail => this!=null&&hasTail;
+    // A sweep built by hand (the VFX checks); in play the engine builds it from the run (`CreateView`).
     public static EveSweepVisual Create(Transform owner,EveHitboxPose pose,EveSweepSettings config)
         => Create(owner,pose,config,true);
     private static EveSweepVisual Create(Transform owner, EveHitboxPose pose, EveSweepSettings config, bool renderStart)
@@ -45,7 +51,7 @@ public sealed class EveSweepVisual : MonoBehaviour, IPNActionView
         SceneManager.MoveGameObjectToScene(root,owner.gameObject.scene); root.transform.SetParent(owner,false);
         root.transform.SetPositionAndRotation(pose.Position,pose.Rotation);
         var v=root.AddComponent<EveSweepVisual>(); v.settings=config; v.pose=pose; v.weapon=weapon;v.clock=owner.GetComponent<EveTimeScale>();v.caster=owner.GetComponent<PNStat>();
-        try { v.Initialize(); if(renderStart)v.Render(0,0); return v; }
+        try { v.Initialize(); if(renderStart)v.Render(0,0,true,true); return v; }
         catch { EveVfxUtility.DestroyResource(root); throw; }
     }
     public static IPNActionView CreateView(PNActionViewBuild build)
@@ -55,7 +61,9 @@ public sealed class EveSweepVisual : MonoBehaviour, IPNActionView
         var pose=EveHitboxPose.Planar(skill.transform.position+rig.HandOffset(direction),direction);
         var settings=EveSweepSettings.Parse(build.Data.Action.Perform);
         settings.ApplyScale(build.Scale);
-        return Create(skill.transform,pose,settings,false);
+        var visual=Create(skill.transform,pose,settings,false);
+        visual.skill=skill; running[skill]=visual;
+        return visual;
     }
     private bool lead=true,shown;
     public bool Lead { set { lead=value; } }
@@ -65,7 +73,12 @@ public sealed class EveSweepVisual : MonoBehaviour, IPNActionView
         shown=true;
     }
     public void Fact(string key,double[] values,double age) { }
-    public void Result(in PNActionViewResult result) { }
+    // A hit of this run (the engine tells it once, on every machine that shows the run): a burst of sparks where it landed.
+    public void Result(in PNActionViewResult result)
+    {
+        if(this==null||result.Kind!="hit"||!(skill is EveCharacterSkill eve))return;
+        Impact(result.Point,eve.Moveset.Energy.ImpactParticles);
+    }
     private void Show(double progress,bool driveWeapon,bool seek)
     {
         if(this==null)return;
@@ -246,7 +259,7 @@ public sealed class EveSweepVisual : MonoBehaviour, IPNActionView
         if(releasedAge>=Mathf.Max(settings.Afterglow,settings.ParticleLifetime))Destroy(gameObject);
     }
     private void OnDestroy()
-    { if(weapon!=null)weapon.EndStrike(this);EveVfxUtility.DestroyResource(mesh);EveVfxUtility.DestroyResource(ribbonMaterial);EveVfxUtility.DestroyResource(particleMaterial); }
+    { if(skill!=null&&running.TryGetValue(skill,out var current)&&current==this)running.Remove(skill);if(weapon!=null)weapon.EndStrike(this);EveVfxUtility.DestroyResource(mesh);EveVfxUtility.DestroyResource(ribbonMaterial);EveVfxUtility.DestroyResource(particleMaterial); }
 }
 public static class EveVfxUtility
 {

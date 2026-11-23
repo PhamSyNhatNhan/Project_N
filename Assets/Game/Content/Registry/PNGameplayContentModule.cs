@@ -171,7 +171,7 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
 #endif
         var sweep = new PNSkillActionDefinition(SweepAction, typeof(EveSweepAction), ValidateEffectAction, PNSkillContextRequirements.Direction).WithDriverProgress();
 #if UNITY_5_3_OR_NEWER
-        sweep.WithView(EveSweepVisual.CreateView,PNContentIds.MeleeScale,onRunningMachines:false); // PV5: Eve's sweep stops drawing itself, then this becomes true
+        sweep.WithView(EveSweepVisual.CreateView,PNContentIds.MeleeScale); // PV5: one view for Authority, Predicted and Observed
 #endif
         hub.Actions().Register(sweep);
         // Looks (Docs/ObservedViewPlan.md PV3): pictures that logic only names; the engine draws them on every machine.

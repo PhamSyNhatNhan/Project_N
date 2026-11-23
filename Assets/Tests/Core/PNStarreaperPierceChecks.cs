@@ -60,12 +60,12 @@ public static partial class PNVisualEditorChecks
             var a=Dummy(.42f,987602);var bTarget=Dummy(.95f,987603);double hpA=a.GetCurrent(PNContentIds.Health),hpB=bTarget.GetCurrent(PNContentIds.Health);Physics.SyncTransforms();
             var shader=Resources.Load<Shader>("PNStarreaperPierce");Check(shader!=null&&shader.passCount==2&&!ShaderUtil.ShaderHasError(shader),"pierce shader compiles");
             Check(hub.Get<PNShaderWarmupDefinition>().Get(EveId.Parse("base:shader_starreaperpierce")).ShaderName==shader.name,"pierce shader warm-up alias");
-            var skill=source.GetComponent<PNStarreaperSkill>();action=skill.CreateAction(PNStarreaperCombatContent.Pierce,out context,new[]{a},Vector3.right,new Vector3(99,99,99));action.Start(context);
+            var skill=source.GetComponent<PNStarreaperSkill>();bool Adv(PNSkillAction act,PNSkillActionContext ctx,float d){bool done=false;using(var fr=skill.BeginActionExecutionFrame(d)){if(d<=0f)fr.Hold(ctx);else fr.Advance(ctx,d,1,s=>{done=act.AdvanceAuxiliary(s);});}return done;}action=skill.CreateAction(PNStarreaperCombatContent.Pierce,out context,new[]{a},Vector3.right,new Vector3(99,99,99));action.Start(context);
             float firstShot=-1;bool exit=false;PNStarreaperProjectile arrow=null;Vector3[] earlyBeam=null;float lateTailReach=-1;
             for(int frame=0;frame<frames;frame++)
             {
                 float t=frame/30f;
-                if(!exit&&action.AdvanceAuxiliary(1f/30)){action.Exit(context);exit=true;}
+                if(!exit&&Adv(action,context,1f/30)){action.Exit(context);exit=true;}
                 var launchMuzzle=fx.ProjectilePosition;
                 actor.Tick(1f/30);facing.Align();fx.Tick(1f/30);
                 var shots=manager.Snapshot();
@@ -123,14 +123,14 @@ public static partial class PNVisualEditorChecks
             manager.End(arrow.Handle,PNProjectileEndReason.Requested);Check(visual.GetComponentsInChildren<MeshFilter>().All(m=>m.sharedMesh.vertexCount==0),"pooled end clears both visual batches");
             if(!exit)action.Cancel(context);action.Dispose();action=null;
             var cancelled=skill.CreateAction(PNStarreaperCombatContent.Pierce,out var cc,new[]{a},Vector3.right,Vector3.zero);
-            try{cancelled.Start(cc);cancelled.AdvanceAuxiliary(.8f);fx.Tick(.1f);cancelled.Cancel(cc);fx.Tick(0);Check(manager.ActiveCount==0&&source.transform.Find("Starreaper violet bow/Xuyen Tinh charge light").GetComponent<MeshFilter>().sharedMesh.vertexCount==0,"cancel removes charge without release or projectile");}finally{cancelled.Dispose();}
+            try{cancelled.Start(cc);Adv(cancelled,cc,.8f);fx.Tick(.1f);cancelled.Cancel(cc);fx.Tick(0);Check(manager.ActiveCount==0&&source.transform.Find("Starreaper violet bow/Xuyen Tinh charge light").GetComponent<MeshFilter>().sharedMesh.vertexCount==0,"cancel removes charge without release or projectile");}finally{cancelled.Dispose();}
             // A high target must now be missed; lowering it into the short volume
             // still proves the retained sideways width on this same shot.
             double edgeHp=bTarget.GetCurrent(PNContentIds.Health);
             var reuse=skill.CreateAction(PNStarreaperCombatContent.Pierce,out var reuseContext,new[]{a},Vector3.right,Vector3.zero);
             try
             {
-                reuse.Start(reuseContext);reuse.AdvanceAuxiliary(1.5f);fx.Tick(0);
+                reuse.Start(reuseContext);Adv(reuse,reuseContext,1.5f);fx.Tick(0);
                 var reused=Resources.FindObjectsOfTypeAll<PNStarreaperProjectile>().Single(x=>x.IsRunning&&x.gameObject.scene==stage.Scene);
                 Check(ReferenceEquals(reused,arrow)&&reused.HitCount==0&&reused.Age==0,"pool reuse starts with a fresh clock and hit state");
                 Check(reused.transform.Find("Starreaper arrow visual/Faceted starlance head")==null,"pooled shot is a light stream without a solid arrow head");

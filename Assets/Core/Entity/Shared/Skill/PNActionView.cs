@@ -83,6 +83,8 @@ public static class PNActionViewPolicy
 public sealed class PNActionFact
 {
     public const int MaxPerRun = 8, MaxKey = 32, MaxValues = 4;
+    // The fact an Action presents for the one it helped (`context.PresentRecipient`): one number, the entity id.
+    public const string RecipientKey = "recipient";
     public const double MaxMagnitude = 1e9;
     public readonly double Age;
     public readonly string Key;

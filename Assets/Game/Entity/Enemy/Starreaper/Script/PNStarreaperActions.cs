@@ -26,6 +26,12 @@ internal static class PNStarreaperCast
         var actor = body != null ? body.Actor : null;
         if (actor != null) { var camera = PNViewCamera.Current; actor.SetFacingLeft(Vector3.Dot(direction, camera != null ? camera.transform.right : Vector3.right) < 0); }
     }
+    // The bow's picture follows the aim (PNStarreaperViews.cs): present it as the `aim` fact whenever it has turned more than ~12 degrees from the last one shown (at most 6 times per run).
+    public static void PresentAim(PNSkillActionContext c, Vector3 aim, ref Vector3 shown, ref int count)
+    {
+        if (count >= 6 || aim.sqrMagnitude < 1e-8f || Vector3.Angle(shown, aim) < 12f) return;
+        shown = aim; count++; c.Present(PNStarreaperViewShared.AimFact, aim.x, aim.z);
+    }
     // The tags a damage made by this cast carries: the cast's own (category and perform tags) plus the area's registered ones, once each.
     public static JArray Tags(PNSkillActionContext c, JToken registered) =>
         new JArray(c.EffectiveTags().Concat(PNSkillEffect.Ids(registered)).Select(x => x.ToString()).Distinct());
@@ -35,8 +41,8 @@ internal static class PNStarreaperCast
 // re-aims at the best target at that moment, so the arrow goes where the target is at the shot, not where it was when the aim began.
 public sealed class PNStarreaperPierceAction : PNSkillAction
 {
-    private PNSkillActionContext context; private float age, windup, recovery; private bool fired, ended;
-    private PNStarreaperPresentation presentation; private PNVisualBody body; private PNSkillOperation operation; private PNStat target;
+    private PNSkillActionContext context; private float age, windup, recovery; private bool fired, ended; private Vector3 shownAim; private int aimCount;
+    private PNSkillOperation operation; private PNStat target;
     public override bool HasAuxiliaryTimeline => true;
     public override void Start(PNSkillActionContext c)
     {
@@ -44,9 +50,8 @@ public sealed class PNStarreaperPierceAction : PNSkillAction
         PNStarreaperCombatContent.ValidatePierce(c.Data.Action, c.Registry);
         context = c; var p = c.Data.Action.Perform; windup = p["windup"].Value<float>(); recovery = p["recovery"].Value<float>();
         c.BeginAction();
-        presentation = c.Skill.GetComponent<PNStarreaperPresentation>(); body = c.Skill.GetComponent<PNVisualBody>();
-        target = PNStarreaperCast.Target(c); var aim = PNStarreaperCast.Aim(c, target);
-        body?.PlayAction("pierce_charge", windup + recovery); body?.Actor?.SetPhase(0); PNStarreaperCast.Face(c, body, aim); presentation?.BeginDraw(windup, aim, true);
+        target = PNStarreaperCast.Target(c); var aim = PNStarreaperCast.Aim(c, target); shownAim = PNStarreaperCast.Planar(c.Direction ?? Vector3.forward);
+        PNStarreaperCast.Face(c, null, aim);
     }
     public override void Perform(PNSkillActionContext c) { }
     public override bool AdvanceAuxiliary(float dt)
@@ -56,16 +61,14 @@ public sealed class PNStarreaperPierceAction : PNSkillAction
         if (!fired)
         {
             if (target != null && (!target.IsReady || target.IsDead)) target = null;
-            var aim = PNStarreaperCast.Aim(context, target); PNStarreaperCast.Face(context, body, aim);
-            presentation?.SetAim(aim); presentation?.SetAge(age); body?.Actor?.SetPhase(Mathf.Clamp01(age/windup));
+            var aim = PNStarreaperCast.Aim(context, target); PNStarreaperCast.Face(context, null, aim);
+            PNStarreaperCast.PresentAim(context, aim, ref shownAim, ref aimCount);
             if (age >= windup)
             {
-                fired = true; presentation?.Tick(0); presentation?.Release(); body?.PlayAction("pierce_release", recovery); body?.Actor?.SetPhase(0);
+                fired = true;
                 operation = CreateOperation(context, PNStarreaperCast.CreateProjectile); operation.Execute(context, context.Data.Action.Perform["shot"]);
-                presentation?.EndPose();
             }
         }
-        if(fired)body?.Actor?.SetPhase(Mathf.Clamp01((age-windup)/recovery));
         return age >= windup + recovery;
     }
     public override void Exit(PNSkillActionContext c) { try { c.CompleteAction(); } finally { Dispose(); } }
@@ -73,7 +76,7 @@ public sealed class PNStarreaperPierceAction : PNSkillAction
     public override void Dispose()
     {
         if (ended) return; ended = true;
-        presentation?.EndPose(); presentation = null; body?.EndAction(); body = null; operation?.Dispose(); operation = null; target = null; context = null;
+        operation?.Dispose(); operation = null; target = null; context = null;
     }
 }
 
@@ -81,8 +84,8 @@ public sealed class PNStarreaperPierceAction : PNSkillAction
 // Once the blasts exist the cast no longer matters: stunning the owner afterwards does not stop the rain; the owner's death does (the blasts depend on their owner).
 public sealed class PNStarreaperRainAction : PNSkillAction
 {
-    private PNSkillActionContext context; private float age, windup, recovery; private bool fired, ended;
-    private PNStarreaperPresentation presentation; private PNVisualBody body; private PNSkillOperation operation; private PNStat target;
+    private PNSkillActionContext context; private float age, windup, recovery; private bool fired, ended; private Vector3 shownAim; private int aimCount;
+    private PNSkillOperation operation; private PNStat target;
     public override bool HasAuxiliaryTimeline => true;
     public override void Start(PNSkillActionContext c)
     {
@@ -91,10 +94,8 @@ public sealed class PNStarreaperRainAction : PNSkillAction
         if (!c.Position.HasValue) throw new InvalidOperationException("Rain position required");
         context = c; var p = c.Data.Action.Perform; windup = p["windup"].Value<float>(); recovery = p["recovery"].Value<float>();
         c.BeginAction();
-        presentation = c.Skill.GetComponent<PNStarreaperPresentation>(); body = c.Skill.GetComponent<PNVisualBody>();
-        target = PNStarreaperCast.Target(c); var aim = PNStarreaperCast.Aim(c, target);
-        body?.PlayAction("rain_charge", windup + recovery); body?.Actor?.SetPhase(0); PNStarreaperCast.Face(c, body, aim);
-        presentation?.BeginDraw(windup, Vector3.up * .99f + aim * .14f, true, true);
+        target = PNStarreaperCast.Target(c); var aim = PNStarreaperCast.Aim(c, target); shownAim = PNStarreaperCast.Planar(c.Direction ?? Vector3.forward);
+        PNStarreaperCast.Face(c, null, aim);
     }
     public override void Perform(PNSkillActionContext c) { }
     public override bool AdvanceAuxiliary(float dt)
@@ -104,19 +105,16 @@ public sealed class PNStarreaperRainAction : PNSkillAction
         if (!fired)
         {
             if (target != null && (!target.IsReady || target.IsDead)) target = null;
-            var aim = PNStarreaperCast.Aim(context, target); PNStarreaperCast.Face(context, body, aim);
-            presentation?.SetAim(Vector3.up * .99f + aim * .14f); presentation?.SetAge(age); body?.Actor?.SetPhase(Mathf.Clamp01(age / windup));
+            var aim = PNStarreaperCast.Aim(context, target); PNStarreaperCast.Face(context, null, aim);
+            PNStarreaperCast.PresentAim(context, aim, ref shownAim, ref aimCount);
             if (age >= windup)
             {
-                fired = true; presentation?.Tick(0); presentation?.Release();
-                body?.PlayAction("rain_release", recovery); body?.Actor?.SetPhase(0);
+                fired = true;
                 var input = (JObject)context.Data.Action.Perform["rain"].DeepClone();
                 input["tags"] = PNStarreaperCast.Tags(context, input["tags"]);
                 operation = CreateOperation(context, PNStarreaperCast.CreateRain); operation.Execute(context, input);
-                presentation?.EndPose();
             }
         }
-        if (fired) body?.Actor?.SetPhase(Mathf.Clamp01((age - windup) / recovery));
         return age >= windup + recovery;
     }
     public override void Exit(PNSkillActionContext c) { try { c.CompleteAction(); } finally { Dispose(); } }
@@ -124,7 +122,7 @@ public sealed class PNStarreaperRainAction : PNSkillAction
     public override void Dispose()
     {
         if (ended) return; ended = true;
-        presentation?.EndPose(); presentation = null; body?.EndAction(); body = null; operation?.Dispose(); operation = null; target = null; context = null;
+        operation?.Dispose(); operation = null; target = null; context = null;
     }
 }
 
@@ -133,7 +131,7 @@ public sealed class PNStarreaperRainAction : PNSkillAction
 public sealed class PNStarreaperAfterimageAction : PNAgentTrajectoryAction
 {
     private PNSkillActionContext cast; private float recovery, recoverAge, retreat; private bool shot, ended;
-    private PNStarreaperPresentation presentation; private PNVisualBody body; private PNSkillOperation operation; private PNStat target;
+    private PNSkillOperation operation; private PNStat target;
     protected override JToken MotionPayload(PNSkillActionContext value) => value.Data.Action.Perform["motion"];
     public override void Start(PNSkillActionContext c)
     {
@@ -141,14 +139,12 @@ public sealed class PNStarreaperAfterimageAction : PNAgentTrajectoryAction
         PNStarreaperCombatContent.ValidateAfterimage(c.Data.Action, c.Registry);
         base.Start(c);                                           // reads the motion schema, locks movement, checks the floor along the retreat
         cast = c; var p = c.Data.Action.Perform; recovery = p["recovery"].Value<float>(); retreat = p["motion"]["duration"].Value<float>();
-        presentation = c.Skill.GetComponent<PNStarreaperPresentation>(); body = c.Skill.GetComponent<PNVisualBody>();
-        target = PNStarreaperCast.Target(c); PNStarreaperCast.Face(c, body, PNStarreaperCast.Aim(c, target));    // it keeps facing the target while stepping back
-        body?.PlayAction("dash", retreat + .1f);
+        target = PNStarreaperCast.Target(c); PNStarreaperCast.Face(c, null, PNStarreaperCast.Aim(c, target));    // it keeps facing the target while stepping back
     }
     public override void Perform(PNSkillActionContext c)
     {
         base.Perform(c);
-        if (Outcome == PNMotionOutcome.Running) { presentation?.BeginRetreat(retreat); CreateShadow(c); }
+        if (Outcome == PNMotionOutcome.Running) CreateShadow(c);
     }
     private void CreateShadow(PNSkillActionContext c)
     {
@@ -165,17 +161,17 @@ public sealed class PNStarreaperAfterimageAction : PNAgentTrajectoryAction
             if (Outcome == PNMotionOutcome.InvalidLanding || Outcome == PNMotionOutcome.BudgetExceeded || Outcome == PNMotionOutcome.Cancelled) return true;
             shot = true;
             if (target != null && (!target.IsReady || target.IsDead)) target = null;
-            var aim = PNStarreaperCast.Aim(cast, target); PNStarreaperCast.Face(cast, body, aim);
-            body?.PlayAction("shoot", recovery); presentation?.BeginDraw(recovery, aim); presentation?.Release();
+            var aim = PNStarreaperCast.Aim(cast, target); PNStarreaperCast.Face(cast, null, aim);
+            cast.Present(PNStarreaperAfterimageView.FinishFact, 1d, aim.x, aim.z);
             operation = CreateOperation(cast, PNStarreaperCast.CreateProjectile); operation.Execute(cast, cast.Data.Action.Perform["shot"]);
             return recovery <= 0f;
         }
-        recoverAge += dt; presentation?.SetAge(recoverAge);
+        recoverAge += dt;
         return recoverAge >= recovery;
     }
     public override void Dispose()
     {
-        if (!ended) { ended = true; presentation?.EndPose(); presentation = null; body?.EndAction(); body = null; operation?.Dispose(); operation = null; target = null; cast = null; }
+        if (!ended) { ended = true; operation?.Dispose(); operation = null; target = null; cast = null; }
         base.Dispose();
     }
 }

@@ -23,7 +23,6 @@ public class EveSweepAction : PNSkillAction
 #if UNITY_5_3_OR_NEWER
     private PNSkillMeleeHitbox hitbox;
     private EveHitboxPose root;
-    public EveSweepVisual Visual { get; private set; }
 #endif
     public override void Start(PNSkillActionContext value)
     {
@@ -46,7 +45,6 @@ public class EveSweepAction : PNSkillAction
         settings.ApplyScale(hitbox.Scale);
         var rig=((EveCharacterSkill)context.Skill).WeaponRig;
         root = EveHitboxPose.Planar(context.Skill.transform.position+rig.HandOffset(context.Direction.Value), context.Direction.Value);
-        Visual = EveSweepVisual.Create(context.Skill.transform, root, settings);
         hitbox.Open(EveHitboxShape.Sector(settings.Radius, settings.HitThickness, 4, settings.InnerRadius),
             root.Position, settings.Radius, settings.TargetLayers.Mask, OnContact);
         Damage = hitbox.Damage;
@@ -77,14 +75,12 @@ public class EveSweepAction : PNSkillAction
                 hitbox.Sample(new EveHitboxPose(root.Position + Vector3.up * settings.Height, rotation), time);
             }
         }
-        if (!disposed) Visual?.Render(elapsed / settings.Duration, delta);
 #endif
     }
 #if UNITY_5_3_OR_NEWER
     private void OnContact(Vector3 point, PNHitOutcome outcome)
     {
         if (outcome.Applied) results.Add(outcome.Result);
-        if (!disposed && Visual != null) Visual.Impact(point, ((EveCharacterSkill)context.Skill).Moveset.Energy.ImpactParticles);
     }
 #endif
     public override void Exit(PNSkillActionContext value) { value.CompleteAction(); Cleanup(false); }
@@ -95,7 +91,6 @@ public class EveSweepAction : PNSkillAction
         if (disposed) return; disposed = true;
 #if UNITY_5_3_OR_NEWER
         hitbox?.Dispose(); hitbox = null;
-        if (Visual != null) { Visual.Release(cancelled); Visual = null; }
 #endif
         movementLock?.Dispose(); movementLock = null;
     }

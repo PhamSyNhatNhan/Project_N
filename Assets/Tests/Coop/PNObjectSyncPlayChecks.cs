@@ -757,7 +757,7 @@ namespace ProjectN.Coop.Tests
                 if (keeper != null)
                 {
                     var clock = keeper.GetComponent<EveEngine.EveTimeScale>(); float scale = clock != null ? clock.Scale : -1f; if (host) hostScale = scale;
-                    bool action = keeper.ObservedActionCount > 0, stream = keeper.ReplayedRunCount > 0;
+                    bool action = keeper.ObservedActionCount > 0 || keeper.ObservedViewCount > 0, stream = keeper.ReplayedRunCount > 0;
                     if (!host)
                     {
                         if (action && !actionOpen) { actionOpen = true; actionStart = t; slowAtStart = Has("slow-on"); scaleAtStart = scale; }
@@ -822,9 +822,10 @@ namespace ProjectN.Coop.Tests
                     life[1] = nowT;
                     instances[id] = skill.name.Replace("(Clone)", "") + "@" + nowT.ToString("0") + "s";
                     if (host && skill.name.Contains("tarchanter") && hurt.Add(id)) { var stat = skill.GetComponent<PNStat>(); if (stat != null) stat.SetCurrent(PNContentIds.Health, stat.GetMax(PNContentIds.Health) * .5d); }
-                    if (!host) foreach (var pair in skill.ReplayedBySkill) { shotSeen.TryGetValue((id, pair.Key), out int before); if (pair.Value > before) { shotSeen[(id, pair.Key)] = pair.Value; shotDue.Add((Time.realtimeSinceStartupAsDouble + .2d, skill, pair.Key)); } }
+                    if (!host) foreach (var pair in skill.ReplayedBySkill.Concat(skill.ViewedBySkill)) { shotSeen.TryGetValue((id, pair.Key), out int before); if (pair.Value > before) { shotSeen[(id, pair.Key)] = pair.Value; shotDue.Add((Time.realtimeSinceStartupAsDouble + .2d, skill, pair.Key)); } }
                     foreach (var pair in skill.PublishedBySkill) published[(id, pair.Key)] = pair.Value;
                     foreach (var pair in skill.ReplayedBySkill) replayed[(id, pair.Key)] = pair.Value;
+                    foreach (var pair in skill.ViewedBySkill) { skill.ReplayedBySkill.TryGetValue(pair.Key, out int legacy); replayed[(id, pair.Key)] = legacy + pair.Value; }     // PV6: a run drawn by its view counts as seen
                     foreach (var pair in skill.DroppedBySkill) dropped[(id, pair.Key)] = pair.Value;
                 }
                 firstFrameDone = true;
@@ -835,7 +836,7 @@ namespace ProjectN.Coop.Tests
             string Show(Dictionary<string, int> table) => string.Join(",", table.OrderBy(x => x.Key).Select(x => x.Key.Replace("project_n:", "") + "=" + x.Value));
             var hostTable = Sum(published);
             var publishedKeys = new List<string>(); var replayedKeys = new List<string>();
-            foreach (var skill in UnityEngine.Object.FindObjectsByType<PNSkill>()) { if (skill == null || skill.gameObject.layer != PNLayers.Enemy) continue; publishedKeys.AddRange(skill.PublishedKeys); replayedKeys.AddRange(skill.ReplayedKeys); }
+            foreach (var skill in UnityEngine.Object.FindObjectsByType<PNSkill>()) { if (skill == null || skill.gameObject.layer != PNLayers.Enemy) continue; publishedKeys.AddRange(skill.PublishedKeys); replayedKeys.AddRange(skill.ReplayedKeys); replayedKeys.AddRange(skill.ViewedKeys); }
             if (host)
             {
                 var byData = new SortedDictionary<string, long>(); var rowsByData = new SortedDictionary<string, int>();

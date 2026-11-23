@@ -43,12 +43,12 @@ public sealed class PNStarkeeperPointVisual : MonoBehaviour,IPNCameraFacing,IDis
     private Material energyMaterial,groundMaterial,flashMaterial;private Mesh particles;
     private Camera preview;private Vector3 anchor,direction,throwOrigin,plantPosition,recallOrigin;private Quaternion throwRotation,plantRotation,recallRotation;
     private float age,windup,throwSeconds,anchorDiameter,finishAge=-1;private bool flying,reached,disposed,cancelFading;
-    public bool Reached=>reached;public float VisualAge=>age;public int TrailSampleCount=>dashHistory.Count;
-    public static PNStarkeeperPointVisual Create(Transform source,PNStarkeeperPresentation presentation,Vector3 anchor,float markRadius,float windup,Camera preview=null)
+    public bool IsFading=>cancelFading&&!disposed;public bool Reached=>reached;public float VisualAge=>age;public int TrailSampleCount=>dashHistory.Count;
+    public static PNStarkeeperPointVisual Create(Transform source,PNStarkeeperPresentation presentation,Vector3 anchor,float markRadius,float windup,Camera preview=null,Vector3? facing=null)
     {
         var root=new GameObject("Starkeeper star point");SceneManager.MoveGameObjectToScene(root,source.gameObject.scene);root.layer=source.gameObject.layer;
         var v=root.AddComponent<PNStarkeeperPointVisual>();v.source=source;v.ownerBody=source.GetComponent<PNVisualBody>();v.presentation=presentation;v.spear=source.Find("Star spear");v.anchor=anchor;v.windup=windup;v.throwSeconds=windup*.16f;v.anchorDiameter=markRadius*1.15f;v.preview=preview;
-        var aim=anchor-source.position;aim.y=0;v.direction=aim.sqrMagnitude>.00001f?aim.normalized:Vector3.forward;
+        var aim=facing??(anchor-source.position);aim.y=0;v.direction=aim.sqrMagnitude>.00001f?aim.normalized:Vector3.forward;
         try
         {
             if(v.spear==null)throw new InvalidOperationException("Starkeeper spear required.");

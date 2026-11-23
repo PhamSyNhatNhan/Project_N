@@ -35,10 +35,11 @@ internal static class PNStarforgerCast
 
 // Tạo sao: the owner stands still for `cast` seconds, then makes one star (a dependent summon, see PNStarforgerStarSummon) in the first free slot around it. A stun cancels the cast before the star exists;
 // a star that already exists is not touched. With every slot taken nothing is made (the behavior does not cast then).
+// The pictures of both Actions are views placed by the run's age (PNStarforgerViews.cs); these Actions draw nothing and keep only the physical result (Slam presents `land`).
 public sealed class PNStarforgerStarAction : PNSkillAction
 {
     private PNSkillActionContext context; private float age, cast, recovery; private bool made, ended;
-    private PNStarforgerPresentation presentation; private PNVisualBody body; private PNStat target;
+    private PNStat target;
     public override bool HasAuxiliaryTimeline => true;
     public override void Start(PNSkillActionContext c)
     {
@@ -46,15 +47,13 @@ public sealed class PNStarforgerStarAction : PNSkillAction
         PNStarforgerCombatContent.ValidateStar(c.Data.Action, c.Registry);
         context = c; var p = c.Data.Action.Perform; cast = p["cast"].Value<float>(); recovery = p["recovery"].Value<float>();
         c.BeginAction();
-        presentation = c.Skill.GetComponent<PNStarforgerPresentation>(); body = c.Skill.GetComponent<PNVisualBody>();
-        target = PNStarforgerCast.Target(c); PNStarforgerCast.Face(c, body, PNStarforgerCast.Aim(c, target));
-        body?.PlayAction("cast_star", cast + recovery);body?.Actor?.SetPhase(0); presentation?.BeginStar(cast,recovery);
+        target = PNStarforgerCast.Target(c); PNStarforgerCast.Face(c, null, PNStarforgerCast.Aim(c, target));
     }
     public override void Perform(PNSkillActionContext c) { }
     public override bool AdvanceAuxiliary(float dt)
     {
         if (ended) return true;
-        age += dt; presentation?.SetAge(age);body?.Actor?.SetPhase(Mathf.Clamp01(age/(cast+recovery)));
+        age += dt;
         if (!made && age >= cast) { made = true; Make(); }
         return age >= cast + recovery;
     }
@@ -79,7 +78,7 @@ public sealed class PNStarforgerStarAction : PNSkillAction
     public override void Dispose()
     {
         if (ended) return; ended = true;
-        presentation?.EndPose(); presentation = null; body?.EndAction(); body = null; target = null; context = null;
+        target = null; context = null;
     }
 }
 
@@ -88,8 +87,8 @@ public sealed class PNStarforgerStarAction : PNSkillAction
 // take-off, and on landing the registered slam Operation hits everything of the owner's target layers in the radius. Then it rests `recovery`. Every way out releases the invulnerability and the lease.
 public sealed class PNStarforgerSlamAction : PNAgentTrajectoryAction
 {
-    private PNSkillActionContext cast; private PNStat caster; private PNStarforgerSkill skill; private PNStarforgerPresentation presentation; private PNVisualBody body;
-    private PNStarforgerTelegraph telegraph; private PNSkillOperation hitOperation;
+    private PNSkillActionContext cast; private PNStat caster; private PNStarforgerSkill skill;
+    private PNSkillOperation hitOperation;
     private PNSkillMeleeHitbox hitbox; private float hitRadius, hitHeight;
     private float crouch, recovery, hopSeconds, age, recoverAge; private bool flying, landed, ended; private Vector3 landing;
     private Action<PNDamageGate> block; private PNBuffImmunityLease lease;
@@ -104,15 +103,12 @@ public sealed class PNStarforgerSlamAction : PNAgentTrajectoryAction
         cast = c; landing = c.Position.Value; var p = c.Data.Action.Perform;
         crouch = p["crouch"].Value<float>(); recovery = p["recovery"].Value<float>(); hopSeconds = p["hop"]["duration"].Value<float>();
         caster = c.Skill.GetComponent<PNStat>(); skill = c.Skill.GetComponent<PNStarforgerSkill>();
-        presentation = c.Skill.GetComponent<PNStarforgerPresentation>(); body = c.Skill.GetComponent<PNVisualBody>();
-        PNStarforgerCast.Face(c, body, PNStarforgerCast.Planar(c.Direction.Value));
-        body?.PlayAction("crouch", crouch);body?.Actor?.SetPhase(0); presentation?.BeginSlam(crouch, hopSeconds, recovery);
-        // The telegraph is the first committed shape: scale and damage are captured now (melee_scale), and the hit at the landing uses the same numbers.
+        PNStarforgerCast.Face(c, null, PNStarforgerCast.Planar(c.Direction.Value));
+        // The warning ring is the view's (sized by melee_scale like this hit). The hitbox is the first committed shape: scale and damage are captured now (melee_scale), and the hit at the landing uses the same numbers.
         // The damage service decides by mode whether real damage exists; this Action never checks authority.
         var hit = p["hit"];
         hitbox = new PNSkillMeleeHitbox(c, caster, PNSkillValues.Parse(hit["value"]), 0d, hit["canCrit"].Value<bool>(), 0, PNSkillEffect.Ids(hit["tags"]));
         hitRadius = hitbox.ScaleLength(hit["radius"].Value<float>()); hitHeight = hitbox.ScaleLength(hit["height"].Value<float>());
-        telegraph = PNStarforgerTelegraph.Create(caster.gameObject.scene, landing, hitRadius, crouch + hopSeconds);
     }
     public override bool AdvanceAuxiliary(float dt)
     {
@@ -120,15 +116,14 @@ public sealed class PNStarforgerSlamAction : PNAgentTrajectoryAction
         if (!landed)
         {
             if (Outcome != PNMotionOutcome.Running && !flying) return true;          // the floor check failed at Start: no jump, the cast ends
-            age += dt; presentation?.SetAge(age); telegraph?.SetTime(age);
-            if (age < crouch) { body?.Actor?.SetPhase(Mathf.Clamp01(age/crouch));return false; }
+            age += dt;
+            if (age < crouch) return false;
             if (!flying) BeginFlight();
-            body?.Actor?.SetPhase(Mathf.Clamp01((age-crouch)/hopSeconds));
             if (!base.AdvanceAuxiliary(dt)) return false;
             Land();
             return recovery <= 0f;
         }
-        recoverAge += dt; presentation?.SetAge(age + recoverAge); telegraph?.SetTime(age+recoverAge);body?.Actor?.SetPhase(Mathf.Clamp01(recoverAge/recovery));
+        recoverAge += dt;
         return recoverAge >= recovery;
     }
     private void BeginFlight()
@@ -137,7 +132,6 @@ public sealed class PNStarforgerSlamAction : PNAgentTrajectoryAction
         block = gate => gate.Block(); if (caster != null) caster.BeforeDamage += block;
         { var ids = PNStarforgerCast.ControlBuffIds(cast.Registry); if (ids.Length > 0) lease = cast.GrantImmunity(ids); }
         skill?.FireStarsToward(landing);
-        body?.PlayAction("air", hopSeconds + .1f);body?.Actor?.SetPhase(0);
     }
     private void EndFlight()
     {
@@ -147,10 +141,10 @@ public sealed class PNStarforgerSlamAction : PNAgentTrajectoryAction
     private void Land()
     {
         landed = true; EndFlight();
-        presentation?.Slam(); telegraph?.Impact();
-        if (Outcome == PNMotionOutcome.Completed || Outcome == PNMotionOutcome.Blocked)
+        bool slammed = Outcome == PNMotionOutcome.Completed || Outcome == PNMotionOutcome.Blocked;
+        cast.Present(PNStarforgerSlamView.LandFact, slammed ? 1d : 0d);
+        if (slammed)
         {
-            body?.PlayAction("slam", recovery);body?.Actor?.SetPhase(0);
             hitOperation = CreateOperation(cast, PNStarforgerCombatContent.SlamHit); if (hitOperation is PNStarforgerSlamHitOperation slam) slam.Bind(hitbox, hitRadius, hitHeight); hitOperation.Execute(cast, cast.Data.Action.Perform["hit"]);
         }
     }
@@ -159,7 +153,7 @@ public sealed class PNStarforgerSlamAction : PNAgentTrajectoryAction
         if (!ended)
         {
             ended = true; EndFlight();
-            telegraph?.Dispose(); telegraph = null; presentation?.EndPose(); presentation = null; body?.EndAction(); body = null; hitOperation?.Dispose(); hitOperation = null; hitbox?.Dispose(); hitbox = null; cast = null; caster = null; skill = null;
+            hitOperation?.Dispose(); hitOperation = null; hitbox?.Dispose(); hitbox = null; cast = null; caster = null; skill = null;
         }
         base.Dispose();
     }

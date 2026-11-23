@@ -8,9 +8,10 @@ using UnityEngine;
 
 // Herald Sidus: locks movement for windup + release + recovery (the `cast` motion, a phase clock) and, when the windup ends, gives the registered Buff to the targets chosen at the cast start. Each target is
 // checked again at that moment (H13): one that died, is no longer an ally or left `radius` is skipped, and the cooldown stays spent. Buffs go through `context.ApplyBuff` (the authority applies; the Buff replicates by its own adapter).
+// The picture (cast pose, gathering light, pulse ring, a burst on each recipient) is `PNHeraldSidusView`, placed by the run's age on every machine; this Action keeps the guard, the Buffs and presents a `recipients` fact (up to 4 ids each, as many facts as the targets need) for the allies that got the Buff.
 public sealed class PNHeraldSidusAction : PNSkillAction
 {
-    private PNSkillActionContext context; private PNStat caster; private PNVisualBody body; private PNSkillOperation movementLock; private PNHeraldPresentation presentation;
+    private PNSkillActionContext context; private PNStat caster; private PNSkillOperation movementLock;
     private float windup, release, recovery, radius, age; private EveId buffId; private bool performed, applied, disposed;
     private List<PNStat> targets; private PNBuffManager buffs; private PNBuffHandle guard; private bool hasGuard;
     public override bool HasAuxiliaryTimeline => true;
@@ -20,7 +21,7 @@ public sealed class PNHeraldSidusAction : PNSkillAction
         PNHeraldCombatContent.Validate(c.Data.Action, c.Registry);
         var p = c.Data.Action.Perform; windup = p["windup"].Value<float>(); release = p["release"].Value<float>(); recovery = p["recovery"].Value<float>(); radius = p["radius"].Value<float>();
         buffId = EveId.Parse(p["buffId"].Value<string>());
-        context = c; context.BeginAction(); caster = c.Skill.GetComponent<PNStat>(); body = c.Skill.GetComponent<PNVisualBody>(); presentation = c.Skill.GetComponent<PNHeraldPresentation>();
+        context = c; context.BeginAction(); caster = c.Skill.GetComponent<PNStat>();
         targets = c.Targets != null ? c.Targets.Where(t => t != null).ToList() : new List<PNStat>();
         buffs = c.Skill.GetComponent<PNBuffManager>();
         movementLock = CreateOperation(context, EveId.Parse("base:lock_movement")); movementLock.Execute(context, null);
@@ -39,19 +40,18 @@ public sealed class PNHeraldSidusAction : PNSkillAction
     {
         if (!ReferenceEquals(context, c) || performed || disposed) throw new InvalidOperationException("Invalid Sidus Perform.");
         performed = true; try { ApplyGuard(); } catch (Exception error) { Debug.LogException(error, caster); }      // the guard is a bonus: without it (or once broken) the cast goes on
-        body?.PlayAction("cast", windup + release + recovery); presentation?.Cast(0, windup, release);
     }
     public override bool AdvanceAuxiliary(float dt)
     {
         if (disposed) return true;
         if (!performed) return false;
-        age += dt; presentation?.Cast(age, windup, release);
+        age += dt;
         if (!applied && age >= windup) { applied = true; Apply(); }
         return applied && age >= windup + release + recovery;
     }
     private void Apply()
     {
-        presentation?.Pulse(radius);
+        var given = new List<double>();
         foreach (var target in targets)
         {
             if (target == null || ReferenceEquals(target, caster) || !PNStarchanterSupport.IsAlly(caster, target)) continue;
@@ -60,10 +60,17 @@ public sealed class PNHeraldSidusAction : PNSkillAction
             try
             {
                 // The Buff context service gives the Buff on the authority and skips it elsewhere; the Buff reaches other machines by its own replication.
-                if (context.ApplyBuff(manager, buffId, caster).Succeeded) presentation?.Recipient(target.transform.position);
+                if (context.ApplyBuff(manager, buffId, caster).Succeeded) given.Add(target.EntityId.Value);
             }
             catch (Exception error) { Debug.LogException(error, target); }
         }
+        if (given.Count > 0) PresentRecipients(given);
+    }
+    // One fact carries up to PNHeraldSidusView.IdsPerFact ids, so a crowd does not run into the 8-facts-per-run bound (16 targets = 4 facts).
+    private void PresentRecipients(List<double> ids)
+    {
+        for (int i = 0; i < ids.Count; i += PNHeraldSidusView.IdsPerFact)
+            context.Present(PNHeraldSidusView.RecipientsFact, ids.GetRange(i, Math.Min(PNHeraldSidusView.IdsPerFact, ids.Count - i)).ToArray());
     }
     private void RemoveGuard()
     { try { if (hasGuard && buffs != null && buffs.IsReady && buffs.Buffs.Contains(guard)) buffs.Buffs.Remove(guard, PNBuffEndReason.Dispelled, true); } catch (Exception error) { Debug.LogException(error, buffs); } hasGuard = false; buffs = null; }
@@ -72,7 +79,7 @@ public sealed class PNHeraldSidusAction : PNSkillAction
     public override void Dispose()
     {
         if (disposed) return; disposed = true;
-        try { movementLock?.Dispose(); } finally { movementLock = null; RemoveGuard(); presentation?.EndCast(); presentation = null; body?.EndAction(); body = null; targets = null; }
+        try { movementLock?.Dispose(); } finally { movementLock = null; RemoveGuard(); targets = null; }
     }
 }
 
