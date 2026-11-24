@@ -69,10 +69,10 @@ public sealed class PNSharedWorldStateProvider : IPNWorldStateProvider
     public static readonly EveId Id = EveId.Parse("project_n:shared_world_state");
     public const int Schema = 1;
 
-    public static IReadOnlyList<EveId> WorldProviders(EveRegistryHub hub, PNWorldPolicy policy)
+    public static IReadOnlyList<EveId> WorldProviders(EveSessionContext session, PNWorldPolicy policy)
     {
         var declared = policy.WorldStateProviders;
-        if (declared.Contains(Id) || !hub.SharedValues().Snapshot().Values.Any(x => x.Scope == PNSharedScope.World && x.Persist)) return declared;
+        if (declared.Contains(Id) || PNSharedValues.Find(session) == null || !session.Registry.SharedValues().Snapshot().Values.Any(x => x.Scope == PNSharedScope.World && x.Persist)) return declared;
         return declared.Concat(new[] { Id }).ToArray();
     }
 

@@ -299,6 +299,7 @@ public sealed class PNRunFlowPlayReview : MonoBehaviour
 
         yield return ClearRoom(runs.Room);
         if (failed) yield break;
+        var sharedGold = EveId.Parse("project_n:sample_gold"); Check(Game.Shared != null && Game.Shared.Session.Set(sharedGold, new Newtonsoft.Json.Linq.JValue(7)) == PNSharedWrite.Applied, "a persistent session shared value is written in the first room");
         var stat = Player.GetComponent<PNStat>(); var source = PNCombatSource.Capture(stat);
         stat.ReceiveDamage(source.Snapshot.CreateDamage(stat.GetMax(PNContentIds.Health) / 2, false, 0, PNContentIds.True));
         double ratio = stat.GetCurrent(PNContentIds.Health) / stat.GetMax(PNContentIds.Health);
@@ -310,6 +311,7 @@ public sealed class PNRunFlowPlayReview : MonoBehaviour
         var second = PNRunSaveService.Peek().Save;
         Check(second != null && second.RunId == first.Save.RunId && second.Floor == 1 && second.Room == chosen && second.Options.Count == 0 && second.Shards == 30 && second.Kills == 3 && second.Cleared[PNRoomKind.Combat] == 1,
             "entering the second room saved it: the same run, one floor on, the room behind the gate, the wallet and stats of the first room, no gates drawn yet");
+        Check(second != null && second.Shared.Count == 1 && (double)second.Shared["project_n:sample_gold"] == 7, "and the persistent shared value (a key that is not changed is not in the save)");
         Check(Math.Abs(second.Seats[0].Health - ratio) < .02, "and the health ratio the person carried (" + ratio.ToString("0.00") + ")");
         var exits = runs.Room.Definition.HasCombat ? null : runs.Exits().ToArray();
         Check(exits != null, "this seed puts a room without combat behind the first gate (its gates are drawn at once)");
@@ -331,6 +333,7 @@ public sealed class PNRunFlowPlayReview : MonoBehaviour
         if (failed) yield break;
         runs = Game.Runs; yield return Seconds(.6f);
         Check(runs.State.RunId == first.Save.RunId && runs.Room.Definition.Id == chosen && runs.State.Floor == 1, "the continued run is the same run, in the room it was saved at");
+        Check(Game.Shared.Session.Number(sharedGold) == 7, "the continued run has the persistent shared value back");
         Check(runs.State.Shards == shardsHeld && runs.State.Stats.Kills == killsHeld && runs.State.Stats.RoomsClearedTotal == roomsHeld && roomsHeld == 2 && runs.State.Stats.RoomsCleared(PNRoomKind.Combat) == combatHeld && otherHeld == 1, "with the wallet and stats the run held (30 shards, 3 kills, the combat room and this room, each counted once)");
         var back = Player.GetComponent<PNStat>();
         Check(Math.Abs(back.GetCurrent(PNContentIds.Health) / back.GetMax(PNContentIds.Health) - ratio) < .02 && back.CharacterDefinitionId == "project_n:eve", "the player has the saved health ratio, not the full health of the lobby body");

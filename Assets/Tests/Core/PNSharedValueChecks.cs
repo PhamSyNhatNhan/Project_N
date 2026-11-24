@@ -79,7 +79,7 @@ public static class PNSharedValueChecks
             var restored = life.Restore(instance); Pump(() => restored.IsTerminal); if (restored.Error != null) throw new Exception(restored.Error);
             Check(restored.World.Incarnation > keep.Incarnation && found.Read(wave, restored.World).Value<double>() == 7, "the persistent world key survives unload and restore under a new incarnation");
             Check(!found.Read(gate, restored.World).Value<bool>() && found.Read(wave, two).Value<double>() == 5, "a key that does not persist starts again, and the other world is untouched");
-            var provided = PNSharedWorldStateProvider.WorldProviders(hub, new PNWorldPolicy());
+            var provided = PNSharedWorldStateProvider.WorldProviders(session, new PNWorldPolicy());
             Check(provided.Contains(PNSharedWorldStateProvider.Id), "a world policy that names no provider still gets the shared one when a persistent world key exists");
 
             var probe = worlds.Create(EveId.Parse("fixture:shared_reserved_slot")); Pump(() => probe.CanExecute);

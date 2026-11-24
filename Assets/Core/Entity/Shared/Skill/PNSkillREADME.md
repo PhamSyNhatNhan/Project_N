@@ -610,7 +610,7 @@ ordinary per-target baseline). `AddSlot` refuses a content slot id that starts w
 Saving: a run save (schema 3) carries `shared`: the session keys that persist and differ from initial; an older
 schema file is obsolete and deleted as before (D3). A world's persistent keys travel in its checkpoint through the
 engine provider `project_n:shared_world_state`, which `PNSharedWorldStateProvider.WorldProviders` adds to the world's
-provider list when content declares any persistent world key, so a world policy does not have to name it. A restore
+provider list when content declares any persistent world key and the session has the shared value service (a fixture session without the service gets nothing added), so a world policy does not have to name it. A restore
 is all or nothing and refuses a save that names an undeclared key, a key that does not persist, a key of the other
 scope or a value outside its declaration.
 

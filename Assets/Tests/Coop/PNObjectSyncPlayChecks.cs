@@ -981,11 +981,11 @@ namespace ProjectN.Coop.Tests
                 yield return Wait(() => dest.CanExecute, "the second world loads", 90);
                 string slotId = game.Worlds.Get(dest).Slots.First(x => x.Roots.Any(r => r != null && r.GetComponentsInChildren<PNPlayerSpawnPoint>(true).Any(p => p.SpawnEntry == "player"))).Id;
                 if (values.WorldStore(dest) == null || ((double)values.Read(wave, dest)) != 0 || ((bool)values.Read(gate, dest))) throw new Exception("the second world did not start from the initial values: " + Describe(dest));
+                if (values.Write(wave, new Newtonsoft.Json.Linq.JValue(5), dest) != PNSharedWrite.Applied) throw new Exception("the host's write in the second world was refused");
                 var transfer = game.Transfers.Request(new PNWorldTransferRequest(Guid.NewGuid(), new[] { e1.GetComponent<EveEntityLoader>() }, dest, slotId, "player", PNRunDirector.PlayerRole,
                     characters: new System.Collections.Generic.Dictionary<long, string> { { owner, "project_n:eve" } }));
                 yield return Wait(() => transfer.IsTerminal && !transfer.CleanupPending, "client1's transfer ends", 60);
                 if (transfer.State != PNWorldTransferState.Completed) throw new Exception("the transfer did not complete (" + transfer.State + ": " + transfer.Error + ")");
-                if (values.Write(wave, new Newtonsoft.Json.Linq.JValue(5), dest) != PNSharedWrite.Applied) throw new Exception("the host's write in the second world was refused");
                 if (!Seen(room, 40, "two", 3, true)) throw new Exception("the room's values changed when the host wrote in the second world: " + Describe(room));
                 Mark(folder, "shared-dest-written");
                 yield return Wait(() => Has("client1-shared-moved") && Has("client2-shared-still"), "client1 reads the second world and client2 keeps the room", 60);
