@@ -103,6 +103,7 @@ public sealed partial class PNHurtClaimBook
         var d = target.transform.position - ticket.Center; float slack = System.Math.Max(0f, tolerance) + ticket.Slack;
         if (System.Math.Sqrt(d.x * d.x + d.z * d.z) > ticket.Radius + slack || ticket.Height >= 0f && System.Math.Abs(d.y) > ticket.Height + slack + 1f) return Refuse("rule");
         if (!ticket.Apply(target)) return Refuse("rule");
+        PNReportOvershoot.Note(key.Kind == 1 ? "taken/blast" : "taken/melee", (float)System.Math.Sqrt(d.x * d.x + d.z * d.z) - ticket.Radius, target.EntityId.Value);
         NoteAccepted(); return true;
     }
 }

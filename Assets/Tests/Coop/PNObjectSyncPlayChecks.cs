@@ -13,7 +13,7 @@ namespace ProjectN.Coop.Tests
     // Client2 (and client1) must see the host's projectiles as copies through the object channel, and see the pet at the same size and near its owner (PNMove + summon_scale).
     public static class PNObjectSyncPlayChecks
     {
-        public static bool Enabled => Environment.GetCommandLineArgs().Contains("--pn-object-sync") || O4 || Refuse || NoGuess || O6 || Enemy || Melee || Quiet || O5 || O5b || Load || Hits || Dodge || DodgeBlast || DodgeMelee || DodgeSlam || DodgePoint || MeleeMany || Strike || StrikeAll || Slow;
+        public static bool Enabled => Environment.GetCommandLineArgs().Contains("--pn-object-sync") || O4 || Refuse || NoGuess || O6 || Enemy || Melee || Quiet || O5 || O5b || Load || Hits || Dodge || DodgeBlast || DodgeMelee || DodgeSlam || DodgePoint || DodgeDash || MeleeMany || Strike || StrikeAll || Slow;
         private static bool Dodge => Environment.GetCommandLineArgs().Contains("--pn-object-sync-dodge");
         // V2 variant of the dodge fixture: the host drops a cylinder blast where it sees the player (plan 4.4c); the machine of the player decides whether it hurt him.
         // O7 (--pn-object-sync-strike): the host spawns a Starkeeper next to the players and its AI sweeps them; every other machine must replay the sweep from the enemy's `skill_cast` block.
@@ -26,6 +26,7 @@ namespace ProjectN.Coop.Tests
         private static bool DodgeMelee => Environment.GetCommandLineArgs().Contains("--pn-object-sync-dodgemelee");
         private static bool DodgeSlam => Environment.GetCommandLineArgs().Contains("--pn-object-sync-dodgeslam");
         private static bool DodgePoint => Environment.GetCommandLineArgs().Contains("--pn-object-sync-dodgepoint");
+        private static bool DodgeDash => Environment.GetCommandLineArgs().Contains("--pn-object-sync-dodgedash");
         // --pn-object-sync-late: the melee fixture with 30 slashes; the host tallies the Dealt reports no receiver took because the hitbox had already ended (late) against those a live hitbox refused (plan 4.4d, "late Dealt").
         private static bool MeleeMany => Environment.GetCommandLineArgs().Contains("--pn-object-sync-late");
         private static bool Load => Environment.GetCommandLineArgs().Contains("--pn-object-sync-load");
@@ -52,6 +53,7 @@ namespace ProjectN.Coop.Tests
 
         public static IEnumerator Run(string folder, string name, PNPlayerMove e1)
         {
+            PNReportOvershoot.Enabled = true; PNReportOvershoot.Clear();
             Exception failure = null; var log = new System.Text.StringBuilder();
             var stack = new System.Collections.Generic.Stack<IEnumerator>(); stack.Push(Body(folder, name, e1, log));
             while (stack.Count > 0)
@@ -88,6 +90,7 @@ namespace ProjectN.Coop.Tests
             if (DodgeMelee) { yield return DodgeMeleeBody(folder, name, e1, log, "project_n:starkeeper", "tarkeeper"); yield break; }
             if (DodgeSlam) { yield return DodgeMeleeBody(folder, name, e1, log, "project_n:starforger", "tarforger"); yield break; }
             if (DodgePoint) { yield return DodgeMeleeBody(folder, name, e1, log, "project_n:starkeeper", "tarkeeper", true); yield break; }
+            if (DodgeDash) { yield return DodgeMeleeBody(folder, name, e1, log, "project_n:starkeeper", "tarkeeper", true, true); yield break; }
             if (Strike) { yield return StrikeBody(folder, name, e1, log); yield break; }
             if (Slow) { yield return SlowBody(folder, name, e1, log); yield break; }
             if (StrikeAll) { yield return StrikeAllBody(folder, name, e1, log); yield break; }
@@ -501,6 +504,33 @@ namespace ProjectN.Coop.Tests
         // bytes, records and packets per second on the host, the audit's copy error and corrections, overflows, and how many copies each client held at its peak. (Measurement; the checks are only "nothing was lost": no overflow, the clients saw nearly all.)
         // What the datagram fault transport (--pn-sim-kcp) dropped on this machine, so a loss run can show the loss was real.
         private static string FaultText() { var fault = UnityEngine.Object.FindFirstObjectByType<ProjectN.Composition.PNKcpFaultTransport>(); return fault == null ? " fault=off" : " dropped=" + fault.DroppedDatagrams + "/" + fault.AttemptedDatagrams + " datagrams"; }
+        // Step 1 of the V4 tolerance work: on the host, every damage event a player whose OWN machine decides his hits took must be one claim the host applied for him (PNSkillRemoteInput.ClaimsApplied), and the other way round.
+        // A difference means the host swept (or hurt) a player it had handed to his machine. Returns the per-player rows for the log; throws on a mismatch or when no decided player was hurt at all.
+        // The claims each player's machine got applied, read the moment the damage observer is detached (a claim that lands later has no event counted, so reading late would show a false gap).
+        private static System.Collections.Generic.List<(long id, int claims, bool decided)> SnapshotClaims()
+        {
+            var list = new System.Collections.Generic.List<(long, int, bool)>(); var policy = PNHurtClaimBooks.Find(EveRegistrySession.Context)?.Policy;
+            foreach (var input in UnityEngine.Object.FindObjectsByType<PNSkillRemoteInput>())
+            {
+                var stat = input.GetComponent<PNStat>(); var identity = input.GetComponent<EveEntityIdentity>(); if (stat == null || identity == null) continue;
+                list.Add((identity.Id.Value, input.ClaimsApplied, policy != null && policy.ClaimsDecide(stat)));
+            }
+            return list;
+        }
+        private static string ReconcileClaims(System.Collections.Generic.Dictionary<long, int> damage, System.Collections.Generic.List<(long id, int claims, bool decided)> claims, System.Text.StringBuilder log)
+        {
+            var rows = new System.Text.StringBuilder(); int decidedHurt = 0;
+            foreach (var (id, applied, decided) in claims)
+            {
+                damage.TryGetValue(id, out int hurt);
+                rows.Append(" p" + id + (decided ? "*" : "") + "(damage/claims)=" + hurt + "/" + applied);
+                if (!decided) continue;
+                if (hurt > 0) decidedHurt++;
+                if (hurt != applied) throw new Exception("the host hurt player " + id + " " + hurt + " times but applied " + applied + " of his claims (a decided player was swept by the host, or a claim hurt twice)" + rows + " " + log);
+            }
+            if (decidedHurt < 1) throw new Exception("no player whose own machine decides was hurt, so the reconciliation proves nothing" + rows + " " + log);
+            return " reconcile{" + rows.ToString().Trim() + "}";
+        }
 
         private static IEnumerator LoadBody(string folder, string name, PNPlayerMove e1, System.Text.StringBuilder log)
         {
@@ -625,8 +655,9 @@ namespace ProjectN.Coop.Tests
             long playerId = e1.GetComponent<EveEntityIdentity>().Id.Value;
             var body = e1.GetComponentInChildren<Collider>(); if (body == null) throw new Exception("the player has no collider");
             int current = -1; var hostHit = new bool[shots]; var toldHit = new bool[shots]; var sawOverlap = new bool[shots]; var closest = new float[shots]; for (int i = 0; i < shots; i++) closest[i] = float.MaxValue;
+            var damageBy = new System.Collections.Generic.Dictionary<long, int>();
             var kinds = new System.Collections.Generic.SortedDictionary<string, int>(); int target0 = projectiles.ImpactsOfKind(PNImpactKind.Target), wall0 = projectiles.ImpactsOfKind(PNImpactKind.Wall), expired0 = projectiles.ImpactsOfKind(PNImpactKind.Expired);
-            Action<PNCombatEvent, bool> onEvent = (combatEvent, matched) => { { string layer = "?"; if (EveRegistrySession.Context.Entities.TryGet(new EveEntityId(combatEvent.TargetId), out var loader) && loader != null) layer = LayerMask.LayerToName(loader.gameObject.layer); var k = (combatEvent.TargetId == playerId ? "self/" : "other/") + layer + "/" + combatEvent.Kind + (combatEvent.Applied > 0 ? ">0" : "=0"); kinds[k] = (kinds.TryGetValue(k, out var n) ? n : 0) + 1; } if (combatEvent.Kind == PNCombatEventKind.Damage && combatEvent.TargetId == playerId && current >= 0) { if (host) hostHit[current] = true; toldHit[current] = true; } };
+            Action<PNCombatEvent, bool> onEvent = (combatEvent, matched) => { if (combatEvent.Kind == PNCombatEventKind.Damage || combatEvent.Kind == PNCombatEventKind.Blocked) damageBy[combatEvent.TargetId] = (damageBy.TryGetValue(combatEvent.TargetId, out var dn) ? dn : 0) + 1; { string layer = "?"; if (EveRegistrySession.Context.Entities.TryGet(new EveEntityId(combatEvent.TargetId), out var loader) && loader != null) layer = LayerMask.LayerToName(loader.gameObject.layer); var k = (combatEvent.TargetId == playerId ? "self/" : "other/") + layer + "/" + combatEvent.Kind + (combatEvent.Applied > 0 ? ">0" : "=0"); kinds[k] = (kinds.TryGetValue(k, out var n) ? n : 0) + 1; } if (combatEvent.Kind == PNCombatEventKind.Damage && combatEvent.TargetId == playerId && current >= 0) { if (host) hostHit[current] = true; toldHit[current] = true; } };
             PNCombatEvents.Observed += onEvent;
             UnityEngine.InputSystem.Keyboard keyboard = null; Vector3 start = e1.transform.position, low = start, high = start;
             PNStat shooter = null;
@@ -683,6 +714,7 @@ namespace ProjectN.Coop.Tests
                 if (keyboard != null) UnityEngine.InputSystem.InputSystem.QueueStateEvent(keyboard, new UnityEngine.InputSystem.LowLevel.KeyboardState());
             }
             finally { PNCombatEvents.Observed -= onEvent; if (keyboard != null) UnityEngine.InputSystem.InputSystem.RemoveDevice(keyboard); }
+            var claimsAtEnd = SnapshotClaims();
             string Bits(bool[] values) => new string(values.Select(x => x ? '1' : '0').ToArray());
             if (host) { File.WriteAllText(Path.Combine(folder, "host.dodge"), Bits(hostHit)); Mark(folder, "host-observed"); }
             yield return Wait(() => Has("host-observed"), "host observed");
@@ -699,24 +731,28 @@ namespace ProjectN.Coop.Tests
             if (host && !Has("shot-" + (shots - 1))) throw new Exception("the host did not fire every shot " + log);
             if (name == "client1" && (high - low).magnitude < .5f) throw new Exception("client1 did not move " + log);
             if (!host && told != hits) throw new Exception("this machine was told " + told + " hits but the host applied " + hits + " " + log);
+            if (host && !DodgeBlast) log.Append(ReconcileClaims(damageBy, claimsAtEnd, log) + "; ");
+            if (host) log.Append(PNReportOvershoot.Summary() + "; ");
         }
 
 
         // V4b/V4c melee dodge (--pn-object-sync-dodgemelee: Starkeeper sweeps, --pn-object-sync-dodgeslam: Starforger slam): the host spawns the monster next to the players and its AI attacks them while client1's player keeps walking a square.
         // The machine of a player decides his melee hits (door + ticket). Evidence: every machine is told the same hits the host applied, the host took melee claims (counted apart from projectile claims: the Starforger's stars also shoot),
         // and the melee claims the host judged never exceed what the clients sent. All machines start together (the host spawns once every client is ready), so none misses a hit by joining late.
-        private static IEnumerator DodgeMeleeBody(string folder, string name, PNPlayerMove e1, System.Text.StringBuilder log, string character, string hint, bool needContact = false)
+        private static IEnumerator DodgeMeleeBody(string folder, string name, PNPlayerMove e1, System.Text.StringBuilder log, string character, string hint, bool needContact = false, bool dash = false)
         {
             bool Has(string value) => File.Exists(Path.Combine(folder, value));
             bool host = name == "host"; double seconds = needContact ? 70 : 40;
             long playerId = e1.GetComponent<EveEntityIdentity>().Id.Value;
-            int told = 0; float toldAmount = 0f;
-            Action<PNCombatEvent, bool> onEvent = (combatEvent, matched) => { if (combatEvent.Kind == PNCombatEventKind.Damage && combatEvent.TargetId == playerId && combatEvent.Applied > 0) { told++; toldAmount += (float)combatEvent.Applied; } };
+            var walkSpeeds = new System.Collections.Generic.List<float>(); var dashSpeeds = new System.Collections.Generic.List<float>(); int dashesPressed = 0, dashesStarted = 0;
+            int told = 0; float toldAmount = 0f; var damageBy = new System.Collections.Generic.Dictionary<long, int>(); var trace = new System.Text.StringBuilder(); var appliedBy = new System.Collections.Generic.Dictionary<long, int>(); var hitStamps = new System.Collections.Generic.List<double>();
+            Action<PNCombatEvent, bool> onEvent = (combatEvent, matched) => { if (combatEvent.Kind == PNCombatEventKind.Damage && combatEvent.Applied > 0) appliedBy[combatEvent.TargetId] = (appliedBy.TryGetValue(combatEvent.TargetId, out var an) ? an : 0) + 1; if (combatEvent.Kind == PNCombatEventKind.Damage || combatEvent.Kind == PNCombatEventKind.Blocked) trace.Append(" ").Append(DateTime.UtcNow.ToString("ss.fff")).Append(combatEvent.Kind == PNCombatEventKind.Damage ? "D" : "B").Append(combatEvent.TargetId).Append("a").Append(combatEvent.Applied.ToString("F0")); if (combatEvent.Kind == PNCombatEventKind.Damage || combatEvent.Kind == PNCombatEventKind.Blocked) damageBy[combatEvent.TargetId] = (damageBy.TryGetValue(combatEvent.TargetId, out var dn) ? dn : 0) + 1; if (combatEvent.Kind == PNCombatEventKind.Damage && combatEvent.TargetId == playerId && combatEvent.Applied > 0) { told++; toldAmount += (float)combatEvent.Applied; hitStamps.Add((DateTime.UtcNow - DateTime.UnixEpoch).TotalSeconds); } };
             PNCombatEvents.Observed += onEvent;
             int sent0 = PNMeleeDoorClaims.SentTotal, contact0 = PNMeleeDoorClaims.ContactSentTotal;
             UnityEngine.InputSystem.Keyboard keyboard = null; Vector3 start = e1.transform.position, low = start, high = start;
             try
             {
+                if (name == "client1") File.WriteAllText(Path.Combine(folder, "client1.id"), playerId.ToString());
                 if (!host) Mark(folder, name + "-melee-ready");
                 if (host)
                 {
@@ -730,30 +766,57 @@ namespace ProjectN.Coop.Tests
                 yield return Wait(() => UnityEngine.Object.FindObjectsByType<PNSkill>().Any(x => x.gameObject.layer == PNLayers.Enemy && x.IsReady && x.name.ToLowerInvariant().Contains(hint)), "the monster exists");
                 if (name == "client1") keyboard = UnityEngine.InputSystem.InputSystem.AddDevice<UnityEngine.InputSystem.Keyboard>();
                 var keys = new[] { UnityEngine.InputSystem.Key.D, UnityEngine.InputSystem.Key.None, UnityEngine.InputSystem.Key.W, UnityEngine.InputSystem.Key.None, UnityEngine.InputSystem.Key.A, UnityEngine.InputSystem.Key.None, UnityEngine.InputSystem.Key.S, UnityEngine.InputSystem.Key.None };
-                double until = Time.realtimeSinceStartupAsDouble + seconds, nextKey = 0; int keyIndex = 0;
+                PNSkill monster = dash ? UnityEngine.Object.FindObjectsByType<PNSkill>().FirstOrDefault(x => x.gameObject.layer == PNLayers.Enemy && x.IsReady && x.name.ToLowerInvariant().Contains(hint)) : null;
+                UnityEngine.InputSystem.Key Pursue() { var d = monster.transform.position - e1.transform.position; d.y = 0; if (d.magnitude < 1.8f) d = -d; return Mathf.Abs(d.x) >= Mathf.Abs(d.z) ? (d.x > 0 ? UnityEngine.InputSystem.Key.D : UnityEngine.InputSystem.Key.A) : (d.z > 0 ? UnityEngine.InputSystem.Key.W : UnityEngine.InputSystem.Key.S); }
+                double until = Time.realtimeSinceStartupAsDouble + seconds, nextKey = 0; int keyIndex = 0; double nextDash = until - seconds + 4, dashOff = 0, lastT = Time.realtimeSinceStartupAsDouble; Vector3 lastPos = e1.transform.position; int dashes = 0, dashesDone = 0; bool wasDashing = false; var lastKey = UnityEngine.InputSystem.Key.None; var dashSkill = e1.GetComponent<PNPlayerSkill>();
                 while (Time.realtimeSinceStartupAsDouble < until)
                 {
                     double now = Time.realtimeSinceStartupAsDouble; var position = e1.transform.position; low = Vector3.Min(low, position); high = Vector3.Max(high, position);
-                    if (name == "client1" && now >= nextKey) { UnityEngine.InputSystem.InputSystem.QueueStateEvent(keyboard, new UnityEngine.InputSystem.LowLevel.KeyboardState(keys[keyIndex++ % keys.Length])); nextKey = now + .6; }
+                    if (dash) { bool dashingNow = dashSkill != null && dashSkill.IsDashing; if (dashingNow && !wasDashing) dashesDone++; wasDashing = dashingNow; }
+                    if (dash && now - lastT >= .25) { var step = e1.transform.position - lastPos; step.y = 0; float speed = (float)(step.magnitude / (now - lastT)); (now < until - seconds + 4 ? walkSpeeds : dashSpeeds).Add(speed); lastPos = e1.transform.position; lastT = now; }
+                    if (name == "client1" && now >= nextKey) { UnityEngine.InputSystem.InputSystem.QueueStateEvent(keyboard, new UnityEngine.InputSystem.LowLevel.KeyboardState(lastKey = monster != null ? Pursue() : keys[keyIndex++ % keys.Length])); nextKey = now + .6; }
+                    if (dash && name == "client1" && dashOff > 0 && now >= dashOff) { UnityEngine.InputSystem.InputSystem.QueueStateEvent(keyboard, new UnityEngine.InputSystem.LowLevel.KeyboardState(lastKey)); dashOff = 0; }
+                    if (dash && name == "client1" && now >= nextDash) { UnityEngine.InputSystem.InputSystem.QueueStateEvent(keyboard, new UnityEngine.InputSystem.LowLevel.KeyboardState(lastKey, UnityEngine.InputSystem.Key.K)); dashOff = now + .1; nextDash = now + 1.2; dashes++; }
                     yield return null;
                 }
+                dashesPressed = dashes; dashesStarted = dashesDone;
                 if (keyboard != null) UnityEngine.InputSystem.InputSystem.QueueStateEvent(keyboard, new UnityEngine.InputSystem.LowLevel.KeyboardState());
             }
             finally { PNCombatEvents.Observed -= onEvent; if (keyboard != null) UnityEngine.InputSystem.InputSystem.RemoveDevice(keyboard); }
+            var claimsAtEnd = SnapshotClaims();
+            string endStamp = DateTime.UtcNow.ToString("ss.fff");
+            double endAt = (DateTime.UtcNow - DateTime.UnixEpoch).TotalSeconds;
             yield return new WaitForSecondsRealtime(2f);
             int sent = PNMeleeDoorClaims.SentTotal - sent0, contactSent = PNMeleeDoorClaims.ContactSentTotal - contact0; int applied = 0, rejected = 0;
             foreach (var input in UnityEngine.Object.FindObjectsByType<PNSkillRemoteInput>()) { applied += input.MeleeClaimsApplied; rejected += input.MeleeClaimsRejected; }
+            File.WriteAllText(Path.Combine(folder, name + ".stamps"), endAt.ToString("R") + ";" + string.Join(",", hitStamps.Select(x => x.ToString("R"))));
             File.WriteAllText(Path.Combine(folder, name + ".melee"), told + "," + sent + "," + applied + "," + rejected + "," + contactSent); Mark(folder, name + "-melee-done");
             yield return Wait(() => Has("host-melee-done") && Has("client1-melee-done") && Has("client2-melee-done"), "every machine finished");
             int[] Read(string who) => File.ReadAllText(Path.Combine(folder, who + ".melee")).Split(',').Select(int.Parse).ToArray();
             var h = Read("host"); var c1 = Read("client1"); var c2 = Read("client2");
             int hostTold = h[0], clientSent = c1[1] + c2[1], hostApplied = h[2], hostRejected = h[3], contactClaims = c1[4] + c2[4];
             log.Append(name + ": hostHit=" + hostTold + " toldHere=" + told + " toldAmount=" + toldAmount.ToString("F1") + " meleeClaims(sent c1/c2)=" + c1[1] + "/" + c2[1] + " host(applied/rejected)=" + hostApplied + "/" + hostRejected + " contactLungeClaims=" + contactClaims + " walked=" + (high - low).ToString("F1") + FaultText() + "; ");
-            if (hostTold < 1) throw new Exception("the monster never hurt the player in " + seconds + " s " + log);
+            float walkMedian = walkSpeeds.Count == 0 ? 0f : walkSpeeds.OrderBy(x => x).ElementAt(walkSpeeds.Count / 2), dashP90 = dashSpeeds.Count == 0 ? 0f : dashSpeeds.OrderBy(x => x).ElementAt((int)(dashSpeeds.Count * .9));
+            if (dash) log.Append(" dash(pressed/started)=" + dashesPressed + "/" + dashesStarted + ";");
+            log.Append(" trace[" + trace + " end=" + endStamp + "] ");
+            if (dash && name == "client1" && (dashesPressed < 5 || dashesStarted < 3)) throw new Exception("client1 did not really dash " + log);
+            if (hostTold < 1 && !dash) throw new Exception("the monster never hurt the player in " + seconds + " s " + log);
             if (hostApplied < 1) throw new Exception("the host took no melee claim " + log);
             if (needContact && contactClaims < 1) throw new Exception("no player claimed a lunge (contact door) in " + seconds + " s " + log);
             if (hostApplied + hostRejected > clientSent) throw new Exception("the host judged more melee claims than the clients sent " + log);
-            if (told != hostTold) throw new Exception("this machine was told " + told + " hits but the host applied " + hostTold + " " + log);
+            // `e1` is client1's player on EVERY machine (PNSkillPlayChecks hands each machine the same two entities), so all three count the hits on that one player. The machines stop watching at slightly different moments
+            // and an event needs a trip to arrive, so the comparison uses time stamps (one PC, one clock): every hit the host made on him up to 1 s before the earliest stop must have been heard here by that stop, and this
+            // machine has heard of no hit the host did not make.
+            double[] Stamps(string who, out double end) { var parts = File.ReadAllText(Path.Combine(folder, who + ".stamps")).Split(';'); end = double.Parse(parts[0]); return parts[1].Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries).Select(double.Parse).ToArray(); }
+            var hostStamps = Stamps("host", out var hostEnd); Stamps("client1", out var end1); Stamps("client2", out var end2); var mine = Stamps(name, out _);
+            double stop = Math.Min(hostEnd, Math.Min(end1, end2)), cut = stop - 1.0;
+            int hostMade = hostStamps.Count(x => x <= cut), heardHere = mine.Count(x => x <= stop), hostByStop = hostStamps.Count(x => x <= stop);
+            log.Append(" hits(host made by cut/heard here by stop/host by stop)=" + hostMade + "/" + heardHere + "/" + hostByStop + "; ");
+            if (heardHere < hostMade) throw new Exception("this machine heard of " + heardHere + " hits but the host had made " + hostMade + " by the time every machine was still watching " + log);
+            if (heardHere > hostByStop) throw new Exception("this machine heard of " + heardHere + " hits but the host made only " + hostByStop + " " + log);
+            if (host) log.Append(ReconcileClaims(damageBy, claimsAtEnd, log) + "; ");
+            if (host) log.Append(PNReportOvershoot.Summary() + "; ");
+            if (host && dash) log.Append(" dasher" + PNReportOvershoot.Summary(long.Parse(File.ReadAllText(Path.Combine(folder, "client1.id")))) + "; ");
             if (name == "client1" && (high - low).magnitude < .5f) throw new Exception("client1 did not move " + log);
         }
 

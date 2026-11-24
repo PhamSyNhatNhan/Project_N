@@ -324,7 +324,7 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable, IPNTim
         int before = HitCount; contacts.Clear(); claimTarget = target.EntityId.Value;
         contacts.targets.Add(new PNProjectileContact(target, target.transform.position, -heading, 0f));
         try { OnContacts(contacts); } finally { contacts.Clear(); claimTarget = 0; }
-        return HitCount > before;
+        bool taken = HitCount > before; if (taken) PNReportOvershoot.Note("taken/projectile", (target.transform.position - position).magnitude - HalfExtents.magnitude, target.EntityId.Value); return taken;
     }
 
     // True while this projectile's box at `at` overlaps its shooter's box (false when the shooter is no candidate: dead, unloaded, no box).
@@ -407,7 +407,7 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable, IPNTim
         int before = HitCount; contacts.Clear();
         contacts.targets.Add(new PNProjectileContact(target, target.transform.position, -heading, 0f));
         try { OnContacts(contacts); } finally { contacts.Clear(); }
-        return HitCount > before;
+        bool taken = HitCount > before; if (taken) PNReportOvershoot.Note("dealt/projectile", (target.transform.position - position).magnitude - HalfExtents.magnitude, target.EntityId.Value); return taken;
     }
 
     // ---- pooling (the pool calls these) -----------------------------------------------------------------------------------

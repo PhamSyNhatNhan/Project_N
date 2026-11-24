@@ -149,6 +149,7 @@ internal sealed class PNSkillMeleeHitbox : IPNHitReportReceiver, IDisposable
         offset.y = 0;
         if (offset.magnitude > reportRadius + tolerance || !cast.TryCommitReported(target, ReportTime))
             return false;
+        PNReportOvershoot.Note("dealt/melee", offset.magnitude - reportRadius, target.EntityId.Value);
         Contact(target, NextIndex(target));
         return true;
     }
