@@ -101,7 +101,7 @@ public sealed class PNWorldBuildContext
     public void Own(Action cleanup) => World.RegisterCleanup(cleanup);
     public void AddSlot(string id,Scene source,IEnumerable<GameObject> roots,bool owned=true)
     {
-        if(!IsCurrent||string.IsNullOrWhiteSpace(id)||id.Length>128||slots.Any(x=>x.Id==id))throw new InvalidOperationException("Invalid/duplicate content slot or stale load.");
+        if(!IsCurrent||string.IsNullOrWhiteSpace(id)||id.Length>128||id[0]==(char)36||slots.Any(x=>x.Id==id))throw new InvalidOperationException("Invalid/duplicate content slot or stale load (a slot id cannot start with a dollar sign: the engine reserves those, for example the shared value store).");
         var copy=roots.ToArray();
         if(Environment==null)Environment=PNWorldEnvironment.Capture(source);
         if(copy.Any(x=>x==null||x.transform.parent!=null||x.scene!=source)||slots.Any(x=>x.Roots.Intersect(copy).Any()))throw new InvalidOperationException("Content slots require distinct roots and provenance.");

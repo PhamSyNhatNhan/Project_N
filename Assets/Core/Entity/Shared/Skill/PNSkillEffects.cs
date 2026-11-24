@@ -234,7 +234,8 @@ public sealed class PNSkillEffectState : IDisposable
     public event Action<PNSkillInvocation, string> Triggered;
     internal PNSkill Skill => skill;
     internal PNSkillEffectState(PNSkill skill, EveRegistryHub hub) { this.skill = skill; this.hub = hub; source = skill.GetComponent<PNStat>(); if (source != null) source.Died += SourceDied; }
-    private void SourceDied(PNDamageResult result) => CancelExecutions();
+    // G9b: the one death path. Whatever the skill runs when its owner dies ends with the reason `died` (the cast, its tracked Actions, the effect executions); a character's own death handler only resets its own state.
+    private void SourceDied(PNDamageResult result) => CancelExecutions(PNCastEnd.Died);
     private void RequireAuthority()
     { if (IsDisposed || !skill.IsReady || !EveRegistrySession.IsReady || !EveRegistrySession.Context.HasAuthority || !ReferenceEquals(hub, EveRegistrySession.Current)) throw new InvalidOperationException("Skill effects require loaded authoritative session."); }
     public PNSkillContributionLease Contribute(string owner, PNSkillContribution contribution)
@@ -390,9 +391,9 @@ public sealed class PNSkillEffectState : IDisposable
     internal void CancelAuxiliaries(PNSkillInvocation invocation)
     { foreach (var auxiliary in auxiliaries.Where(x => x.Parent == invocation).ToArray()) try { Retire(auxiliary, true); } catch (Exception error) { Report(error); } }
     internal bool HasPredictedAuxiliaries => auxiliaries.Any(x => x.Parent != null && x.Parent.Mode == PNSkillMode.Predicted);
-    internal void CancelExecutions()
+    internal void CancelExecutions(string reason = PNCastEnd.Executions)
     {
-        foreach (var invocation in invocations.ToArray()) try { CancelInvocation(invocation, PNCastEnd.Executions); } catch (Exception error) { Report(error); }
+        foreach (var invocation in invocations.ToArray()) try { CancelInvocation(invocation, reason); } catch (Exception error) { Report(error); }
         foreach (var auxiliary in auxiliaries.ToArray()) try { Retire(auxiliary, true); } catch (Exception error) { Report(error); }
     }
     public void Dispose()

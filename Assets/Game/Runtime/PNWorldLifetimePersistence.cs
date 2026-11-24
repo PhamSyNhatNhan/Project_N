@@ -49,7 +49,7 @@ public sealed partial class PNWorldLifetimeController
     {
         if(!session.IsActive||!session.HasAuthority||checkpoint==null||checkpoint.DescriptorJson==null)throw new InvalidOperationException("Portable authority checkpoint required.");
         var policy=session.Registry.Get<PNWorldDefinition>().Get(checkpoint.Definition).Policy;
-        var ids=policy.ActorStateProviders.Concat(policy.WorldStateProviders).Distinct();
+        var ids=policy.ActorStateProviders.Concat(PNSharedWorldStateProvider.WorldProviders(session.Registry,policy)).Distinct();
         var schemas=new JObject();foreach(var id in ids)schemas[id.ToString()]=session.Registry.Get<PNWorldStateDefinition>().Get(id).Schema;
         return PNWorldSaveEnvelope.Create(checkpoint.SaveWorldId,checkpoint.Definition.ToString(),checkpoint.ContentHash,session.Compatibility,
             JObject.Parse(checkpoint.DescriptorJson),schemas,JToken.Parse(checkpoint.Data.Json));
@@ -63,7 +63,7 @@ public sealed partial class PNWorldLifetimeController
         var data=envelope.Document;var schemas=(JObject)data["providers"];
         foreach(var actor in (JArray)data["state"][0]["actors"])
         {session.Registry.Get<EveCharacterDefinition>().Get(EveId.Parse((string)actor["character"]));string template=(string)actor["template"];if(!string.IsNullOrEmpty(template))session.Registry.Instances().GetEffectiveKind<PNEntityDefinition>(EveId.Parse(template));}
-        var expected=definition.Policy.ActorStateProviders.Concat(definition.Policy.WorldStateProviders).Distinct().ToArray();
+        var expected=definition.Policy.ActorStateProviders.Concat(PNSharedWorldStateProvider.WorldProviders(session.Registry,definition.Policy)).Distinct().ToArray();
         if(schemas.Count!=expected.Length||expected.Any(id=>(int?)schemas[id.ToString()]!=session.Registry.Get<PNWorldStateDefinition>().Get(id).Schema))throw new FormatException("Saved required provider selection/schema differs.");
         worlds.ValidateLoadDescriptor(definition.Id,data["descriptor"]);
         if(TrackedBytes+envelope.Bytes>128L*1024*1024)throw new InvalidOperationException("Checkpoint import exceeds shared budget.");

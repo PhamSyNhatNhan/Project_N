@@ -28,7 +28,7 @@ public sealed class PNRunSaveSeat
 
 public sealed class PNRunSave
 {
-    public const int SchemaVersion = 2, MaxBytes = 64 * 1024, MaxSeats = 4, MaxLoadout = 64, MaxText = 128, MaxOptions = 3;
+    public const int SchemaVersion = 3, MaxBytes = 64 * 1024, MaxSeats = 4, MaxLoadout = 64, MaxText = 128, MaxOptions = 3;
     private const string TimeFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'";
 
     public string RulesVersion { get; private set; }
@@ -49,12 +49,14 @@ public sealed class PNRunSave
     public int ShardsEarned { get; private set; }
     public IReadOnlyDictionary<PNRoomKind, int> Cleared { get; private set; }
     public IReadOnlyList<PNRunSaveSeat> Seats { get; private set; }
+    // The session's persistent shared values (G5, schema 3): an object id -> value, only the keys that declare `persist`. Checked against the declarations when the save is played (PNRunSaveService.Check).
+    public JObject Shared { get; private set; }
 
     private PNRunSave() { }
 
     // ---- capture ----
     // EN: Take the state of a running run. `rulesVersion` and `content` say what the run was played with (see the compatibility check); `mode` is the play mode id.
-    public static PNRunSave Capture(PNRunState state, string rulesVersion, string content, string mode, DateTime utcNow)
+    public static PNRunSave Capture(PNRunState state, string rulesVersion, string content, string mode, DateTime utcNow, JObject shared = null)
     {
         if (state == null) throw new ArgumentNullException(nameof(state));
         if (!state.IsRunning) throw new InvalidOperationException("Only a running run is saved.");
@@ -68,7 +70,7 @@ public sealed class PNRunSave
             RulesVersion = Text(rulesVersion, "rulesVersion"), Content = Text(content, "content"), Mode = Text(mode, "mode"), SavedAtUtc = Truncate(utcNow),
             RunId = state.RunId, Definition = state.Definition, Seed = state.Random.Seed, Streams = state.Random.Streams(),
             Floor = state.Floor, Room = state.Room, Options = state.Options.ToList(), Shards = state.Shards, Loadout = state.Loadout.ToList(),
-            Seconds = state.Stats.Seconds, Kills = state.Stats.Kills, ShardsEarned = state.Stats.ShardsEarned, Cleared = cleared, Seats = seats
+            Seconds = state.Stats.Seconds, Kills = state.Stats.Kills, ShardsEarned = state.Stats.ShardsEarned, Cleared = cleared, Seats = seats, Shared = shared == null ? new JObject() : (JObject)shared.DeepClone()
         };
         save.Validate();
         return save;
@@ -97,6 +99,9 @@ public sealed class PNRunSave
         if (Kills < 0 || ShardsEarned < 0 || Cleared.Values.Any(x => x < 0)) throw new FormatException("stats cannot be negative.");
         if (Seats == null || Seats.Count < 1 || Seats.Count > MaxSeats) throw new FormatException("a run has 1-" + MaxSeats + " seats.");
         if (Seats.Select(x => x.PlayerId).Distinct().Count() != Seats.Count) throw new FormatException("two seats name the same person.");
+        if (Shared == null) throw new FormatException("shared values are required.");
+        PNSyncPayload.Measure(Shared, PNSharedLimits.BlockBytes, "shared values");
+        foreach (var property in Shared.Properties()) if (!EveId.TryParse(property.Name, out _) || property.Name.Length > PNSharedLimits.IdChars) throw new FormatException("shared values are named by namespaced ids.");
     }
 
     // ---- rebuild ----
@@ -136,7 +141,7 @@ public sealed class PNRunSave
         var root = new JObject
         {
             ["schemaVersion"] = SchemaVersion, ["rulesVersion"] = RulesVersion, ["content"] = Content, ["savedAt"] = SavedAtUtc.ToString(TimeFormat, CultureInfo.InvariantCulture),
-            ["mode"] = Mode, ["run"] = run, ["seats"] = seats
+            ["mode"] = Mode, ["run"] = run, ["seats"] = seats, ["shared"] = Shared.DeepClone()
         };
         return root.ToString(Newtonsoft.Json.Formatting.Indented);
     }
@@ -164,7 +169,7 @@ public sealed class PNRunSave
         if (version > SchemaVersion) { newer = true; return null; }
         if (version < 1) throw new FormatException("Run save schemaVersion is invalid.");
         if (version < SchemaVersion) { obsolete = true; return null; }
-        Fields(root, "run save", "schemaVersion", "rulesVersion", "content", "savedAt", "mode", "run", "seats");
+        Fields(root, "run save", "schemaVersion", "rulesVersion", "content", "savedAt", "mode", "run", "seats", "shared");
         var run = Object(root, "run");
         Fields(run, "run", "id", "definition", "seed", "random", "floor", "room", "options", "shards", "loadout", "stats");
         var stats = Object(run, "stats");
@@ -189,6 +194,7 @@ public sealed class PNRunSave
             seats.Add(new PNRunSaveSeat(Str(seat, "player"), Id(Str(seat, "character"), "seat character"), Number(seat, "health"), Bool(seat, "dead")));
         }
         save.Seats = seats;
+        save.Shared = Object(root, "shared");
         save.Validate();
         return save;
     }

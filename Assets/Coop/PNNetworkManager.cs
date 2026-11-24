@@ -479,6 +479,16 @@ namespace ProjectN.Coop
             peer.Grace.Interrupt(Time.realtimeSinceStartupAsDouble);
             peer.InputReady=false;
             foreach(var binding in bindings.Values.Where(x=>x.Metadata.Owner==peer.Owner))SetInput(binding,false);
+            CancelCasts(peer);
+        }
+        // G9a: an interrupted owner has no running cast: input is gated, and what it was casting ends now (on the host, the authority) instead of running on without it. Idempotent (every heartbeat of a paused peer comes here).
+        private void CancelCasts(PNPeer peer)
+        {
+            foreach(var binding in bindings.Values.Where(x=>x.Metadata.Owner==peer.Owner))
+            {
+                var loader=binding.Candidate?.Loader;if(loader==null||!NetworkServer.active)continue;
+                foreach(var skill in loader.GetComponents<PNSkill>())try{if(skill.IsReady)skill.CancelForGrace();}catch(Exception error){Debug.LogException(error,skill);}
+            }
         }
         private void SetInput(Binding binding,bool allowed)
         {

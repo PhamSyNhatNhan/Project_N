@@ -83,7 +83,7 @@ public partial class PNPlayerSkill
             var ownedMotion=created;
             created.BindMovementOwner(()=>{if(ReferenceEquals(playerDash,ownedMotion))CancelPlayerDash();});
             created.Start(context);created.Perform(context);
-            playerDash=created;playerDashContext=context;dashTrack=CurrentInvocation?.Track(_=>CancelPlayerDash());
+            playerDash=created;playerDashContext=context;dashTrack=CurrentInvocation?.Track(reason=>CancelPlayerDash(reason));
             if(!DashRecovery.TryConsume())throw new InvalidOperationException("Dash charges changed during activation.");
             CommitActivation(direction: direction);
             return true;
@@ -111,21 +111,25 @@ public partial class PNPlayerSkill
         try {playerDash.Advance(delta * ExecutionSpeed);if(playerDash.IsComplete)EndPlayerDash(false);}
         catch {CancelPlayerDash();throw;}
     }
-    protected void CancelPlayerDash(){if(IsDashing)EndPlayerDash(true);}
+    // `reason` is why the dash was stopped (PNCastEnd or an interrupt id); it reaches the skill's end hook as the cast's reason. Null: the default (interrupted).
+    protected void CancelPlayerDash(string reason=null){if(IsDashing)EndPlayerDash(true,reason);}
     public override bool TryInterrupt(EveId reason)
     {
         if (!reason.IsValid) throw new ArgumentException("Interruption reason required.");
         if (!IsReady || !IsDashing) return false;
-        CancelPlayerDash(); return true;
+        CancelPlayerDash(reason.ToString()); return true;
     }
-    private void EndPlayerDash(bool cancelled)
+    // While `OnPlayerDashEnded` runs: why the dash was cancelled (null when it finished or no reason was given), so a character that ends its own cast there keeps the reason.
+    protected string PlayerDashEndReason{get;private set;}
+    private void EndPlayerDash(bool cancelled,string reason=null)
     {
+        PlayerDashEndReason=cancelled?reason:null;
         var active=playerDash;var context=playerDashContext;bool guess=CurrentInvocation!=null&&CurrentInvocation.Mode==PNSkillMode.Predicted;playerDash=null;playerDashContext=null;dashTrack?.Release();dashTrack=null;
         try {if(cancelled)active.Cancel(context);else active.Exit(context);}
-        finally {try {active.Dispose();} finally {try {if(!guess)OnPlayerDashEnded(cancelled);} finally {EndActivation(cancelled);}}}
+        finally {try {active.Dispose();} finally {try {if(!guess)OnPlayerDashEnded(cancelled);} finally {EndActivation(cancelled,cancelled?reason:null);}}}
     }
     private void OnPlayerDashDeath(PNDamageResult result)
-    {CancelPlayerDash();if(DashRecovery!=null&&DashRecovery.IsAttached)DashRecovery.Reset();}
+    {CancelPlayerDash(PNCastEnd.Died);if(DashRecovery!=null&&DashRecovery.IsAttached)DashRecovery.Reset();}
     private void OnPlayerDashAbilityChange(PNAbilityChange change)
     {if(change.Reason==PNAbilityChangeReason.Reset && change.After?.Id==DashSettings?.RecoveryId)playerDashCdr=double.NaN;}
     private void UnloadPlayerDash()

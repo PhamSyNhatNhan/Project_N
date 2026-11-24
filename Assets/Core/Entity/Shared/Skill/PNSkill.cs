@@ -159,6 +159,10 @@ public partial class PNSkill : EveSkill, EveIEntityLoadPreparation, EveIEntityCo
         executingBehavior = null; executingSlot = default;
         FinishInvocation(value, true, reason); return true;
     }
+    // G9a: the owner's machine is in grace (paused, stalled or resuming): the authority ends the running cast through the same two doors a refused guess uses, the skill's own interrupt, else the plain cancel.
+    // Only the running cast ends; effects it handed over (a flying projectile, a Buff) keep running. Idempotent: nothing running, nothing to do.
+    public void CancelForGrace()
+    { if (!TryInterrupt(EveId.Parse("project_n:disconnected"))) CancelCast(PNCastEnd.Disconnected); }
     internal bool CancelInvocation(PNSkillInvocation invocation, string reason)
     {
         if (!ReferenceEquals(CurrentInvocation, invocation)) return false;

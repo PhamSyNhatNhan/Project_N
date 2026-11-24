@@ -133,7 +133,7 @@ public sealed partial class PNWorldLifetimeController : IDisposable
                 work.Records.Add(new JObject{["key"]=work.References.Single(x=>x.Value==actor).Key,["slot"]=identity.ContentSlot,["template"]=marker?.Template,["spawn"]=marker?.SpawnEntry,["scene"]=marker?.SceneKey??key?.SceneKey,["entity"]=marker!=null?"":key?.EntityKey,["character"]=actor.GetComponent<PNStat>().CharacterId.ToString(),["position"]=Vector(actor.transform.position),["rotation"]=new JArray(actor.transform.rotation.x,actor.transform.rotation.y,actor.transform.rotation.z,actor.transform.rotation.w),["velocity"]=Vector(body!=null?body.linearVelocity:Vector3.zero),["angular"]=Vector(body!=null?body.angularVelocity:Vector3.zero),["state"]=state.Read()});
                 EnsureBound(work);return false;
             }
-            var worldState=states.Capture(new PNWorldStateContext(world,null,work.References),policy.WorldStateProviders);
+            var worldState=states.Capture(new PNWorldStateContext(world,null,work.References),PNSharedWorldStateProvider.WorldProviders(session.Registry,policy));
             var data=new PNWorldStateRecord(new JArray(new JObject{["schema"]=1,["time"]=world.GameplayTime,["actors"]=work.Records,["world"]=worldState.Read()}).ToString(Formatting.None));
             work.StagingBytes=data.Bytes;
             if(TrackedBytes>128L*1024*1024)throw new InvalidOperationException("Checkpoint store/staging/IO exceeds 128 MiB.");
@@ -182,9 +182,9 @@ public sealed partial class PNWorldLifetimeController : IDisposable
             work.References=work.Candidates.ToDictionary(x=>(string)x.Record["key"],x=>x.Candidate.Loader);
             // Validate every custom state before invoking any restore callback.
             // Actor providers are validated/restored inside the loader module scope.
-            states.Validate(new PNWorldStateContext(world,null,work.References),Record(data["world"]),policy.WorldStateProviders);
+            states.Validate(new PNWorldStateContext(world,null,work.References),Record(data["world"]),PNSharedWorldStateProvider.WorldProviders(session.Registry,policy));
             if(work.Candidates.Count>0)scheduler.PublishPrepared(work.Candidates.Select(x=>x.Candidate).ToArray());
-            states.Restore(new PNWorldStateContext(world,null,work.References),Record(data["world"]),policy.WorldStateProviders);
+            states.Restore(new PNWorldStateContext(world,null,work.References),Record(data["world"]),PNSharedWorldStateProvider.WorldProviders(session.Registry,policy));
             foreach(var candidate in work.Candidates){RestoredActor?.Invoke(candidate.Candidate,candidate.Request);factory.Published(candidate.Candidate.Loader);}
             RequireResident(world,"publication");world.SetPaused(false);worlds.PublishStaged(world);work.Lease.Dispose();work.Lease=null;work.Receipt.State=PNWorldLifetimeState.Completed;Complete(work);return true;
         }

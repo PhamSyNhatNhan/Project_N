@@ -129,6 +129,7 @@
   "project_n:run.save.problem.position": "Vị trí trong bản lưu không còn hợp lệ.",
   "project_n:run.save.problem.character": "Nhân vật của bản lưu không còn dùng được.",
   "project_n:run.save.problem.person": "Bạn không có ghế trong bản lưu này.",
+  "project_n:run.save.problem.shared": "Các giá trị đã lưu của run này không khớp với nội dung đang nạp.",
   "project_n:rogue.rogue_orbit.name": "Quỹ đạo",
   "project_n:rogue.rogue_orbit.desc": "Những vì sao xoay quanh, khuếch đại sức tấn công và nhịp đánh.",
   "project_n:rogue.rogue_crystal.name": "Tinh thể",

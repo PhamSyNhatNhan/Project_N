@@ -44,6 +44,11 @@ public class PNSkillActionContext
         var buffs = Skill != null ? Skill.GetComponent<PNBuffManager>() : null;
         return buffs != null && buffs.IsReady ? buffs.Buffs.Immune(ids, tags, purge) : null;
     }
+    // G5 (Docs/SkillNetworkFrameworkPlan.md 4.7): the shared value store. Only an Authority cast writes; a prediction and a replay on another machine get Ignored (K12) and change nothing. Reading works in every mode and
+    // gives the same value on every machine. The scope is the key's declaration: a world key is the world of this skill's entity.
+    public PNSharedWrite SetShared(EveId id, JToken value) => PNSharedValues.Find(SharedSession)?.Write(id, value, World, Mode) ?? PNSharedWrite.Ignored;
+    public JToken GetShared(EveId id) => (PNSharedValues.Find(SharedSession) ?? throw new InvalidOperationException("There is no shared value store in this play.")).Read(id, World);
+    private EveSessionContext SharedSession => World?.Session ?? (EveRegistrySession.IsReady ? EveRegistrySession.Context : null);
     public void CommitPresentationScale(double scale)
     {
         PNTimeMath.Nonnegative(scale);

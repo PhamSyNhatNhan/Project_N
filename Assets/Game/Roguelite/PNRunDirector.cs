@@ -97,6 +97,8 @@ public sealed class PNRunDirector : IDisposable
             var ownerOf = new Dictionary<string, long>();
             foreach (var player in players) { long owner = player.LoadContext.Identity.OwnerId; string person = directory.PlayerIdOf(owner); if (!string.IsNullOrEmpty(person)) ownerOf[person] = owner; }
             State = save.ToState(person => ownerOf.TryGetValue(person, out var owner) ? owner : (long?)null);
+            // The values the session's shared store kept with the run (G5); Check already validated them against the declarations, so this applies all or nothing.
+            game.Shared?.Session.RestorePersisted(save.Shared);
             // The authority's own person must be in the run (owner 0): its body is in the lobby and is rebuilt as its seat.
             if (!State.TryGetPlayer(0, out _)) throw new InvalidOperationException("The host holds no seat of the saved run.");
             Room = null; Error = null; source = from; healthFromState = true; Rogue = NewRogue(hub);
@@ -123,7 +125,7 @@ public sealed class PNRunDirector : IDisposable
     // The run is saved on entering every room (never mid-room): a failure to write is only a warning, the run goes on.
     private void SaveOnEntry()
     {
-        try { PNRunSaveService.Write(State, PNGameBootstrap.Config.ModeId); }
+        try { PNRunSaveService.Write(State, PNGameBootstrap.Config.ModeId, game.Shared?.Session.CapturePersisted()); }
         catch (Exception e) when (e is IOException || e is InvalidOperationException || e is FormatException || e is UnauthorizedAccessException)
         { Debug.LogWarning("The run was not saved: " + e.Message); }
     }

@@ -140,20 +140,29 @@ public static class EveCastCancelChecks
                     cast.Setup?.Invoke(ctx); cast.Start(ctx); ctx.Run(cast.Frames); ctx.Release(); ctx.RunUntilIdle(200);
                     watched = null; Settle(); Clean("after finishing");
                     // 2. Stop it at every frame, both ways.
-                    for (int mode = 0; mode < 2; mode++)
+                    for (int mode = 0; mode < 3; mode++)
                         for (int frame = 0; frame <= cast.Frames; frame++)
                         {
                             cast.Setup?.Invoke(ctx); cast.Start(ctx); ctx.Run(frame);
                             bool running = skill.IsBusy || skill.IsDashing; watched = skill.CurrentInvocation; int endedBefore = skill.Ended, cancelledBefore = skill.EndedCancelled;
-                            if (mode == 0) skill.TryInterrupt(EveId.Parse("test:stun")); else skill.CancelCast(PNCastEnd.Rejected);
+                            if (mode == 0) skill.TryInterrupt(EveId.Parse("test:stun")); else if (mode == 1) skill.CancelCast(PNCastEnd.Rejected); else skill.CancelForGrace();
                             ctx.Release();
-                            Clean("cancelled at frame " + frame + (mode == 0 ? " by interrupt" : " by CancelCast"));
+                            Clean("cancelled at frame " + frame + (mode == 0 ? " by interrupt" : mode == 1 ? " by CancelCast" : " by grace"));
                             if (running) Check(skill.Ended == endedBefore + 1 && skill.EndedCancelled == cancelledBefore + 1, cast.Name + " frame " + frame + ": a cancelled cast ends once, as cancelled");
+                            if (running && mode == 2) Check(skill.LastReason != null && skill.LastReason.Contains("disconnected"), cast.Name + " frame " + frame + ": a grace cancel names its reason (" + skill.LastReason + ")");
                             Settle(); runs++;
                             Check(ctx.TapAccepted(Attack) && skill.IsBusy, cast.Name + " frame " + frame + ": the next cast starts");
                             watched = skill.CurrentInvocation; skill.TryInterrupt(EveId.Parse("test:settle")); Clean("next cast after frame " + frame);
                             Settle();
                         }
+                    // 3. G9b: the owner dies mid-cast: the framework ends the cast once, with the reason `died`, whichever death handler runs first.
+                    Settle(); cast.Setup?.Invoke(ctx); cast.Start(ctx); ctx.Run(Math.Min(10, cast.Frames));
+                    bool diedRunning = skill.IsBusy || skill.IsDashing; watched = skill.CurrentInvocation; int endedBeforeDeath = skill.Ended;
+                    caster.SetCurrent(PNContentModule.Health, 1f); var killed = near.SendDamage(caster, 1000000f, PNContentModule.True); ctx.Release();
+                    Check(caster.IsDead && killed.Killed, cast.Name + ": the caster died (killed " + killed.Killed + ")");
+                    Check(!skill.IsBusy && !skill.IsDashing && skill.CurrentInvocation == null && (watched == null || watched.IsEnded), cast.Name + ": nothing runs after the owner died");
+                    if (diedRunning) Check(skill.Ended == endedBeforeDeath + 1 && skill.LastReason == PNCastEnd.Died, cast.Name + ": the cast ended once with the reason died (ended " + (skill.Ended - endedBeforeDeath) + ", reason " + skill.LastReason + ")");
+                    Check(errors.Count == 0, cast.Name + " after death: errors logged: " + string.Join(" | ", errors));
                 }
                 finally
                 {
@@ -170,7 +179,7 @@ public static class EveCastCancelChecks
             finally { EditorSceneManager.ClosePreviewScene(preview); }
         }
         Check(original.isDirty == dirty, "the active scene stayed as it was");
-        return "PASS " + n + " cast cancel checks over " + runs + " cancelled casts (" + Casts.Length + " Eve casts stopped at every frame, by interrupt and by CancelCast; one end hook per activation; nothing left running)";
+        return "PASS " + n + " cast cancel checks over " + runs + " cancelled casts (" + Casts.Length + " Eve casts stopped at every frame, by interrupt, by CancelCast and by grace, and by the owner's death; one end hook per activation; nothing left running)";
     }
 }
 #endif

@@ -14,6 +14,8 @@ public static class PNCastEnd
     public const string Rejected = "rejected";
     public const string Replaced = "replaced";
     public const string Executions = "executions_cancelled";
+    // G9a: the owner's machine went into grace (paused, stalled, resuming): the authority ends the cast it was running.
+    public const string Disconnected = "disconnected";
 }
 
 // One typed object per cast: the skill picks the class (`Use<T>()`), the invocation owns it. A different type for the same cast is a bug and throws.

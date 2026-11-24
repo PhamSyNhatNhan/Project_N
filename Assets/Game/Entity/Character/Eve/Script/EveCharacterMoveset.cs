@@ -268,7 +268,7 @@ public partial class EveCharacterSkill
         castTarget=null;castDirection=direction;Face(direction);LockSequence();
     }
     protected override void OnPlayerDashEnded(bool cancelled)
-    {if(CurrentCast==EveCast.Dash)FinishSequence(cancelled);}
+    {if(CurrentCast==EveCast.Dash)FinishSequence(cancelled,PlayerDashEndReason);}
     public bool TryBurst()
     {
         if (!CanBegin() || !CanActivateSkill(PNControlIds.Burst, PNGameplayContentModule.EveBurstEntry) || IsInBurst || !burst.CanActivate || !gauge.CanConsume(moveset.BurstCost)) return false;
@@ -515,10 +515,10 @@ public partial class EveCharacterSkill
         if (OwnsAbilityWrites && repeatChain != null && repeatChain.IsAttached && repeatChain.IsActive) repeatChain.End();
     }
     // A cast is over (it finished, or `cancelled`): ends its invocation, whose `OnCastEnded` resets the state machine. With no invocation to end, reset directly.
-    private void FinishSequence(bool cancelled = false)
+    private void FinishSequence(bool cancelled = false, string reason = null)
     {
         var invocation = CurrentInvocation;
-        if (invocation != null && !invocation.IsEnded) EndActivation(cancelled, cancelled ? PNCastEnd.Interrupted : null);
+        if (invocation != null && !invocation.IsEnded) EndActivation(cancelled, cancelled ? reason ?? PNCastEnd.Interrupted : null);
         else ResetCast(cancelled);
     }
     // G3a: the one end hook (L6). Runs once per invocation, finished or cancelled, with the cast memory still readable; a cast that ran no sequence (Burst has no phases) has nothing to reset.
@@ -572,7 +572,7 @@ public partial class EveCharacterSkill
     private void CancelMoveset(string reason = PNCastEnd.Interrupted)
     {
         bool finishingBurst = burstFinisher; burstFinisher = false;
-        try { CancelPlayerDash(); }
+        try { CancelPlayerDash(reason); }
         finally
         {
             try
@@ -590,6 +590,8 @@ public partial class EveCharacterSkill
 #endif
         if (finishingBurst) EndBurst(PNAbilityChangeReason.Reset);
     }
+    // G9b: the framework already ends the running cast with the reason `died` when the owner dies (PNSkillEffectState.SourceDied), whichever handler runs first. What stays here is Eve's own state the cast does not
+    // own (a Dash guess, the held gesture, the energy visual) and her Abilities; the `CancelMoveset` call is then idempotent for the cast and does that cleanup.
     private void OnEveDied(PNDamageResult result)
     {
         if (deathHandled) return;

@@ -173,7 +173,16 @@ public static class PNMeleeDoorClaims
     }
 
     // The watch of a contact door, or null when the values are not a contact door.
-    internal static ContactWatch Watch(double[] values, double doorAge) => PNMeleeDoor.TryRead(values, out var door) && door.IsContact ? new ContactWatch(door, doorAge) : null;
+    internal static ContactWatch Watch(double[] values, double doorAge)
+    {
+        if (!PNMeleeDoor.TryRead(values, out var door) || !door.IsContact) return null;
+        ContactWatchesStarted++;
+        return new ContactWatch(door, doorAge);
+    }
+    // Contact doors this machine started to watch (evidence for the Player checks).
+    public static int ContactWatchesStarted;
+    // Contact doors this machine tried to open (a lunge started) and the ones opened (a deciding player was within reach).
+    public static int ContactDoorsTried, ContactDoorsOpened;
 
     // For the checks: a machine that starts a new play forgets what it sent.
     // The melee claims this machine sent since it started (evidence for the Player checks; Reset does not clear it).

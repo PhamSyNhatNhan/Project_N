@@ -11,7 +11,7 @@ using UnityEngine;
 //     run can still be played with the content that is loaded now. Menus and the run director ask this; none of them touches the file. `-pn-run-save-dir=<folder>` points a Player at
 //     another folder (a review never touches the real save); tests call Use.
 // VI: Bản lưu run duy nhất của máy: nơi đặt tệp, ghi khi vào phòng, xoá khi run kết thúc, và kiểm tra bản lưu còn chơi được với nội dung đang nạp không.
-public enum PNRunSaveProblem { None, Version, Content, Mode, Definition, Position, Character, Person }
+public enum PNRunSaveProblem { None, Version, Content, Mode, Definition, Position, Character, Person, Shared }
 
 public static class PNRunSaveService
 {
@@ -37,8 +37,9 @@ public static class PNRunSaveService
     public static PNRunSaveLoad Peek() => Store.Load();
     public static bool SaveRefused => Store.SaveRefused;
 
-    public static void Write(PNRunState state, string mode)
-        => Store.Save(PNRunSave.Capture(state, EveGameRuntime.CurrentRulesVersion, ContentHash(), mode, DateTime.UtcNow));
+    // `shared`: the persistent values of the session's shared value store (PNSharedStore.CapturePersisted), written with the run (G5).
+    public static void Write(PNRunState state, string mode, Newtonsoft.Json.Linq.JObject shared = null)
+        => Store.Save(PNRunSave.Capture(state, EveGameRuntime.CurrentRulesVersion, ContentHash(), mode, DateTime.UtcNow, shared));
 
     public static void Delete()
     {
@@ -91,6 +92,7 @@ public static class PNRunSaveService
             if (playable == null || !PNPlayerProfileService.CanPlay(seat.Character.ToString(), playable)) return PNRunSaveProblem.Character;
         }
         if (SeatOf(save, PNPlayerProfileService.PlayerId) == null) return PNRunSaveProblem.Person;
+        try { PNSharedStore.ValidatePersisted(registry, PNSharedScope.Session, save.Shared); } catch (FormatException) { return PNRunSaveProblem.Shared; }
         return PNRunSaveProblem.None;
     }
 }

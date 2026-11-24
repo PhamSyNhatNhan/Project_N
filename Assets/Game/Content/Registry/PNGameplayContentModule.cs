@@ -42,6 +42,8 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         // What a run keeps of a player between rooms (health ratio, dead flag); named by the run's transfer request, never by a world policy.
         stateProviders.Register(new PNWorldStateDefinition(PNRunActorStateProvider.Id,PNRunActorStateProvider.Schema,1024,typeof(PNRunActorStateProvider),()=>new PNRunActorStateProvider()));
         stateProviders.RegisterBase(EveId.Parse("base:run_actor_state"),PNRunActorStateProvider.Id,"project_n",compatible:(a,b)=>a.Schema==b.Schema);
+        // The persistent world keys of the shared value store (G5): never named by a world policy, added to every world that has such a key (PNSharedWorldStateProvider.WorldProviders).
+        stateProviders.Register(new PNWorldStateDefinition(PNSharedWorldStateProvider.Id,PNSharedWorldStateProvider.Schema,PNSharedLimits.BlockBytes,typeof(PNSharedWorldStateProvider),()=>new PNSharedWorldStateProvider()));
         // G13: the Hall and the Lobby are grid worlds (PNHallMaps); the scenes PNHall / PNLobby are only the shell (runtime, entry marker, camera).
         PNHallMaps.EnsureRegistered();
         var hallDescriptor=PNHallMaps.HallDescriptor();var lobbyDescriptor=PNHallMaps.LobbyDescriptor();
@@ -99,6 +101,9 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         screens.Register(new PNTransitionScreenDefinition(EveId.Parse("project_n:no_transition"),PNTransitionKind.None,PNTransitionPayload.Default,"none",payload=>null));
         screens.RegisterBase(PNTransitionSelector.NoScreen,EveId.Parse("project_n:no_transition"),"project_n",compatible:(a,b)=>true);
 #endif
+        // The shared value store (G5): one block for the session and one for each world instance (a WorldObject target with the reserved slot), each bounded by the sync block size.
+        hub.SyncStates().Register(new PNSyncStateDefinition(PNSharedStore.SessionState,1,PNSharedLimits.BlockBytes,PNSyncTargets.Session));
+        hub.SyncStates().Register(new PNSyncStateDefinition(PNSharedStore.WorldState,1,PNSharedLimits.BlockBytes,PNSyncTargets.WorldObject));
         PNGameSkillBindings.RegisterBehaviors(hub);
         PNRogueBuiltIn.Register(hub);
         PNBuffGameplayContent.Register(hub);

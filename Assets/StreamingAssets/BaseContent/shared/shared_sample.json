@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "extensions": {
+    "project_n": {
+      "sharedValues": [
+        { "id": "project_n:sample_gate", "scope": "world", "kind": "flag", "initial": false },
+        { "id": "project_n:sample_wave", "scope": "world", "kind": "number", "initial": 0, "min": 0, "max": 9, "persist": true },
+        { "id": "project_n:sample_gold", "scope": "session", "kind": "number", "initial": 0, "min": 0, "persist": true },
+        { "id": "project_n:sample_phase", "scope": "session", "kind": "text", "initial": "start" }
+      ]
+    }
+  }
+}

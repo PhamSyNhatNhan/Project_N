@@ -115,7 +115,9 @@ internal sealed class PNSkillMeleeHitbox : IPNHitReportReceiver, IDisposable
         reachCast ??= new PNHitboxCast(EveHitboxShape.Sphere(pathReach + PNSkillRemoteInput.HitTolerance), caster.gameObject.scene.GetPhysicsScene());
         reachCast.Query(EveHitboxPose.Planar(center, Vector3.right), 0d, reach, caster, filter: target => Allows(target) && Decided(target));
         bool anyone = reach.Count != 0; reach.Clear();
+        PNMeleeDoorClaims.ContactDoorsTried++;
         if (!anyone) return false;
+        PNMeleeDoorClaims.ContactDoorsOpened++;
         context.Present(PNMeleeDoor.Key, door.ToValues());
         long castKey = context.Invocation.CastKey; var ordinal = context.ActionOrdinal;
         for (int n = 0; n < door.Hits; n++)

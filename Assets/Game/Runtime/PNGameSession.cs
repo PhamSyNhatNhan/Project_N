@@ -11,6 +11,8 @@ public sealed class PNGameSession : MonoBehaviour
     public EveSessionContext Session {get;private set;}
     public PNWorldRuntime Worlds {get;private set;}
     public PNSyncService Sync {get;private set;}
+    // The shared value store of this play (G5): the session's values and those of each world that has world keys.
+    public PNSharedValueService Shared {get;private set;}
     // The spawned-object sync of a networked play (null offline): the records of projectiles, areas and blasts. The room manager carries them (Assets/Coop).
     public PNObjectSyncService ObjectSync {get;private set;}
     // 4.4c: who decides the hits on a player of another machine (the room manager gives it the transport's silence reading). Null offline.
@@ -52,6 +54,7 @@ public sealed class PNGameSession : MonoBehaviour
         service.Sync=new PNSyncService(session.Registry,session.HasAuthority,0,session);
         var syncWorlds=new PNSyncWorldBinder(service.Worlds,service.Sync);
         session.RegisterCleanup(()=>{syncWorlds.Dispose();service.Sync.Dispose();});
+        service.Shared=new PNSharedValueService(session,service.Worlds,service.Sync);session.RegisterCleanup(service.Shared.Dispose);
         service.Local=new PNLocalWorldContext(session);
         service.Presentation=runtime.GetComponent<PNWorldPresentation>()??runtime.gameObject.AddComponent<PNWorldPresentation>();service.Presentation.Bind(session,service.Worlds,service.Local);
         if(!PNCameraDirector.LegacyRequested)service.CameraDirector=PNCameraDirector.Attach(runtime.gameObject,session,service.Worlds,service.Local,service.Presentation);

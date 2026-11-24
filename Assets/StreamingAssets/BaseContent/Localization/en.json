@@ -129,6 +129,7 @@
   "project_n:run.save.problem.position": "The position in the save is no longer valid.",
   "project_n:run.save.problem.character": "A character of the save can no longer be played.",
   "project_n:run.save.problem.person": "You do not hold a seat of this save.",
+  "project_n:run.save.problem.shared": "The saved values of this run do not match the content loaded now.",
   "project_n:rogue.rogue_orbit.name": "Orbit",
   "project_n:rogue.rogue_orbit.desc": "Stars circling you, raising attack power and tempo.",
   "project_n:rogue.rogue_crystal.name": "Crystal",

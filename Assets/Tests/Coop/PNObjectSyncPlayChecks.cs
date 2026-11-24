@@ -13,7 +13,7 @@ namespace ProjectN.Coop.Tests
     // Client2 (and client1) must see the host's projectiles as copies through the object channel, and see the pet at the same size and near its owner (PNMove + summon_scale).
     public static class PNObjectSyncPlayChecks
     {
-        public static bool Enabled => Environment.GetCommandLineArgs().Contains("--pn-object-sync") || O4 || Refuse || NoGuess || O6 || Enemy || Melee || Quiet || O5 || O5b || Load || Hits || Dodge || DodgeBlast || DodgeMelee || DodgeSlam || DodgePoint || DodgeDash || MeleeMany || Strike || StrikeAll || Slow;
+        public static bool Enabled => Environment.GetCommandLineArgs().Contains("--pn-object-sync") || O4 || Refuse || NoGuess || O6 || SharedScenario || Enemy || Melee || Quiet || O5 || O5b || Load || Hits || Dodge || DodgeBlast || DodgeMelee || DodgeSlam || DodgePoint || DodgeDash || Grace || BindingChange || WorldChange || MeleeMany || Strike || StrikeAll || Slow;
         private static bool Dodge => Environment.GetCommandLineArgs().Contains("--pn-object-sync-dodge");
         // V2 variant of the dodge fixture: the host drops a cylinder blast where it sees the player (plan 4.4c); the machine of the player decides whether it hurt him.
         // O7 (--pn-object-sync-strike): the host spawns a Starkeeper next to the players and its AI sweeps them; every other machine must replay the sweep from the enemy's `skill_cast` block.
@@ -27,6 +27,11 @@ namespace ProjectN.Coop.Tests
         private static bool DodgeSlam => Environment.GetCommandLineArgs().Contains("--pn-object-sync-dodgeslam");
         private static bool DodgePoint => Environment.GetCommandLineArgs().Contains("--pn-object-sync-dodgepoint");
         private static bool DodgeDash => Environment.GetCommandLineArgs().Contains("--pn-object-sync-dodgedash");
+        private static bool Grace => Environment.GetCommandLineArgs().Contains("--pn-object-sync-grace");
+        // --pn-object-sync-binding / --pn-object-sync-world (G9c): the host changes client1's skill binding / moves client1 to another world while its Ultimate is running; the cast must end with the change.
+        private static bool BindingChange => Environment.GetCommandLineArgs().Contains("--pn-object-sync-binding");
+        private static bool SharedScenario => Environment.GetCommandLineArgs().Contains("--pn-object-sync-shared");
+        private static bool WorldChange => Environment.GetCommandLineArgs().Contains("--pn-object-sync-world");
         // --pn-object-sync-late: the melee fixture with 30 slashes; the host tallies the Dealt reports no receiver took because the hitbox had already ended (late) against those a live hitbox refused (plan 4.4d, "late Dealt").
         private static bool MeleeMany => Environment.GetCommandLineArgs().Contains("--pn-object-sync-late");
         private static bool Load => Environment.GetCommandLineArgs().Contains("--pn-object-sync-load");
@@ -91,6 +96,10 @@ namespace ProjectN.Coop.Tests
             if (DodgeSlam) { yield return DodgeMeleeBody(folder, name, e1, log, "project_n:starforger", "tarforger"); yield break; }
             if (DodgePoint) { yield return DodgeMeleeBody(folder, name, e1, log, "project_n:starkeeper", "tarkeeper", true); yield break; }
             if (DodgeDash) { yield return DodgeMeleeBody(folder, name, e1, log, "project_n:starkeeper", "tarkeeper", true, true); yield break; }
+            if (Grace) { yield return GraceBody(folder, name, e1, log); yield break; }
+            if (BindingChange) { yield return BindingBody(folder, name, e1, log); yield break; }
+            if (WorldChange) { yield return WorldBody(folder, name, e1, log); yield break; }
+            if (SharedScenario) { yield return SharedBody(folder, name, e1, log); yield break; }
             if (Strike) { yield return StrikeBody(folder, name, e1, log); yield break; }
             if (Slow) { yield return SlowBody(folder, name, e1, log); yield break; }
             if (StrikeAll) { yield return StrikeAllBody(folder, name, e1, log); yield break; }
@@ -736,6 +745,283 @@ namespace ProjectN.Coop.Tests
         }
 
 
+        // G9 review (--pn-object-sync-grace): what the host does with a cast that is RUNNING when its player's machine goes quiet. client1 starts an Ultimate (I) next to a dummy, then 0.6 s after its own guess of the cast began, then reports the app paused
+        // (`NotifyApplicationPause(true)`, which the host answers with `Interrupt(peer)`: the input gate closes and the grace window opens). The host watches client1's entity: when the cast started, when the gate closed,
+        // when the cast ended. Measurement: the log says whether the cast ended with the interruption (plan N12: "cancel the cast when grace starts") or ran on. G9a: the check requires the cast to end with the gate (within 0.25 s).
+        private static IEnumerator GraceBody(string folder, string name, PNPlayerMove e1, System.Text.StringBuilder log)
+        {
+            bool Has(string value) => File.Exists(Path.Combine(folder, value));
+            bool host = name == "host"; var manager = (PNNetworkManager)NetworkManager.singleton;
+            var skill = e1.GetComponent<PNSkill>(); var loader = e1.GetComponent<EveEntityLoader>();
+            if (!host) Mark(folder, name + "-grace-ready");
+            if (host)
+            {
+                yield return Wait(() => Has("client1-grace-ready") && Has("client2-grace-ready"), "the clients are ready");
+                var world = PNLocalWorldContext.Current.World;
+                var request = new PNEntityRequest { Entity = "project_n:enemy", Template = "project_n:enemy", Character = "project_n:dummy_lorica", World = world, WorldIncarnation = world.Incarnation, ContentSlot = PNGridWorldController.SlotId, SceneKey = "objectsync:grace", EntityKey = "", Position = e1.transform.position + new Vector3(3f, 0, 0) };
+                if (PNEntityHosts.For(EveRegistrySession.Context).TrySpawn(request, null, null, error => Debug.LogException(error)) == null) throw new Exception("the host refused the dummy");
+                // The Ultimate starts only with its recovery full: the host (the authority of client1's entity) fills it.
+                (skill as EveCharacterSkill)?.UltimateRecovery.ResetToFull();
+                Mark(folder, "grace-go");
+            }
+            yield return Wait(() => Has("grace-go"), "the dummy is spawned");
+            yield return new WaitForSecondsRealtime(3f);
+            // The press is guessed here only when this machine's own copy of the Ultimate recovery is full (the host filled it; the value travels to the owner).
+            var eveSkill = skill as EveCharacterSkill;
+            if (name == "client1" && eveSkill != null) yield return Wait(() => eveSkill.UltimateRecovery.Current >= 1 && !eveSkill.IsBusy, "the Ultimate is charged on client1");
+            UnityEngine.InputSystem.Keyboard keyboard = null;
+            double started = -1, gateAt = -1, endedAt = -1; string phase = "";
+            try
+            {
+                double t0 = Time.realtimeSinceStartupAsDouble, guessAt = -1; bool pressed = false, paused = false, resumed = false, down = false; double nextTap = 0; int taps = 0;
+                if (name == "client1") keyboard = UnityEngine.InputSystem.InputSystem.AddDevice<UnityEngine.InputSystem.Keyboard>();
+                while (Time.realtimeSinceStartupAsDouble - t0 < 14)
+                {
+                    double now = Time.realtimeSinceStartupAsDouble - t0;
+                    if (name == "client1")
+                    {
+                        // The Ultimate tap goes straight to the skill (as PNSkillPlayChecks does): a synthetic key press is sometimes lost, and this check is about what the host does with a running cast.
+                        if (!pressed && now > .2 && eveSkill != null) { var slot = PNSkillSlots.Ultimate; eveSkill.RequestSlot(slot, new PNSkillInputEvent(PNSkillInputPhase.Started, PNSkillInteraction.Tap)); eveSkill.RequestSlot(slot, new PNSkillInputEvent(PNSkillInputPhase.Performed, PNSkillInteraction.Tap)); eveSkill.RequestSlot(slot, new PNSkillInputEvent(PNSkillInputPhase.Canceled, PNSkillInteraction.Tap)); pressed = true; taps++; }
+                        // Pause as soon as this machine's own guess of the cast is running (so the host's copy has it too) or after 0.8 s at the latest.
+                        if (pressed && guessAt < 0 && skill.CurrentInvocation != null) guessAt = now;
+                        if (pressed && !paused && (guessAt >= 0 && now > guessAt + .6 || now > 4.0)) { manager.NotifyApplicationPause(true); paused = true; phase = "paused@" + now.ToString("F2") + (skill is EveCharacterSkill dx ? " [ult=" + dx.UltimateRecovery.Current.ToString("F2") + " busy=" + dx.IsBusy + " dash=" + dx.IsDashing + " voluntary=" + dx.Controls.IsAllowed(PNControlIds.VoluntaryMotion) + " decision=" + dx.LastControlDecision + " taps=" + taps + "]" : ""); }
+                        if (paused && !resumed && now > 8) { manager.NotifyApplicationPause(false); resumed = true; }
+                    }
+                    if (host)
+                    {
+                        bool running = skill.CurrentInvocation != null; bool blocked = e1.GetComponent<PNNetworkInputGate>()?.Blocked == true;
+                        if (running && started < 0) started = now;
+                        if (blocked && gateAt < 0) gateAt = now;
+                        if (started >= 0 && !running && endedAt < 0) endedAt = now;
+                    }
+                    yield return null;
+                }
+            }
+            finally { if (keyboard != null) UnityEngine.InputSystem.InputSystem.RemoveDevice(keyboard); if (name == "client1") manager.NotifyApplicationPause(false); }
+            if (host)
+            {
+                string text = "started=" + started.ToString("F2") + " gate=" + gateAt.ToString("F2") + " ended=" + endedAt.ToString("F2") + " gateToEnd=" + (endedAt >= 0 && gateAt >= 0 ? (endedAt - gateAt).ToString("F2") : "-") + " cancelAtGrace=" + (started >= 0 && gateAt >= 0 && endedAt >= 0 && endedAt - gateAt < .25 ? "yes" : "no");
+                File.WriteAllText(Path.Combine(folder, "host.grace"), text); Mark(folder, "host-grace-done");
+            }
+            yield return Wait(() => Has("host-grace-done"), "host finished");
+            log.Append(name + ": " + phase + " " + File.ReadAllText(Path.Combine(folder, "host.grace")) + "; ");
+            if (host && started < 0) throw new Exception("the host never saw client1's cast start (the Ultimate did not run) " + log);
+            // G9a: the host ends the running cast when the grace window opens (the gate closes), not seconds later.
+            if (host && !(gateAt >= 0 && endedAt >= 0 && endedAt - gateAt < .25)) throw new Exception("the cast was not cancelled when grace began (gate " + gateAt.ToString("F2") + ", ended " + endedAt.ToString("F2") + ") " + log);
+        }
+
+        // G9c, binding change (--pn-object-sync-binding): client1 starts an Ultimate; 0.4 s after the host sees it run, the host overrides client1's Ultimate slot with another profile and the transition CancelCurrent
+        // (what a Buff that rebinds a slot does). The running cast must end with the change (not seconds later), and the entity must cast again after the override is released.
+        private static IEnumerator BindingBody(string folder, string name, PNPlayerMove e1, System.Text.StringBuilder log)
+        {
+            bool Has(string value) => File.Exists(Path.Combine(folder, value));
+            bool host = name == "host"; var skill = e1.GetComponent<PNSkill>(); var eve = skill as EveCharacterSkill;
+            if (!host) Mark(folder, name + "-bind-ready");
+            if (host) { yield return Wait(() => Has("client1-bind-ready") && Has("client2-bind-ready"), "the clients are ready"); eve?.UltimateRecovery.ResetToFull(); Mark(folder, "bind-go"); }
+            yield return Wait(() => Has("bind-go"), "go");
+            yield return new WaitForSecondsRealtime(3f);
+            if (name == "client1" && eve != null) yield return Wait(() => eve.UltimateRecovery.Current >= 1 && !eve.IsBusy, "the Ultimate is charged on client1");
+            double started = -1, changedAt = -1, endedAt = -1, nextOkAt = -1; PNSkillBindingLease lease = null; bool tapped = false, tappedAttack = false;
+            double t0 = Time.realtimeSinceStartupAsDouble;
+            void Tap(EveId slot) { eve.RequestSlot(slot, new PNSkillInputEvent(PNSkillInputPhase.Started, PNSkillInteraction.Tap)); eve.RequestSlot(slot, new PNSkillInputEvent(PNSkillInputPhase.Performed, PNSkillInteraction.Tap)); eve.RequestSlot(slot, new PNSkillInputEvent(PNSkillInputPhase.Canceled, PNSkillInteraction.Tap)); }
+            double releasedAt = -1; PNSkillBindingReceipt receipt = null; string receiptAt = "";
+            try
+            {
+                while (Time.realtimeSinceStartupAsDouble - t0 < 14)
+                {
+                    double now = Time.realtimeSinceStartupAsDouble - t0;
+                    if (name == "client1" && eve != null)
+                    {
+                        if (!tapped && now > .2) { Tap(PNSkillSlots.Ultimate); tapped = true; }
+                        if (!tappedAttack && Has("bind-released")) { Tap(PNSkillSlots.Attack); tappedAttack = true; }
+                    }
+                    if (host)
+                    {
+                        bool running = skill.CurrentInvocation != null;
+                        if (running && started < 0) started = now;
+                        if (started >= 0 && changedAt < 0 && now > started + .4)
+                        {
+                            var request = new PNSkillOverrideRequest(new[] { new System.Collections.Generic.KeyValuePair<EveId, EveId>(PNSkillSlots.Ultimate, PNGameSkillBindings.EveProfile(PNSkillSlots.Dash)) }, 0, PNSkillTransition.CancelCurrent, PNSkillTransition.FinishCurrent);
+                            receipt = skill.Bindings.AcquireOverride("g9c", request); lease = receipt.Lease; changedAt = now;
+                        }
+                        if (receipt != null && receiptAt == "" && now > changedAt + .3) receiptAt = receipt.Status + (receipt.Error != null ? ":" + receipt.Error.Message : "") + " active=" + lease?.IsActive;
+                        if (changedAt >= 0 && endedAt < 0 && !running) endedAt = now;
+                        if (endedAt >= 0 && releasedAt < 0 && now > endedAt + .5) { lease?.Dispose(); lease = null; releasedAt = now; Mark(folder, "bind-released"); }
+                        if (releasedAt >= 0 && nextOkAt < 0 && skill.CurrentInvocation != null) nextOkAt = now;
+                        if (nextOkAt >= 0 && now > nextOkAt + .5) break;
+                    }
+                    if (!host && Has("host-bind-done")) break;
+                    yield return null;
+                }
+            }
+            finally { try { lease?.Dispose(); } catch (Exception) { } }
+            if (host)
+            {
+                string text = "started=" + started.ToString("F2") + " changed=" + changedAt.ToString("F2") + " ended=" + endedAt.ToString("F2") + " changeToEnd=" + (endedAt >= 0 && changedAt >= 0 ? (endedAt - changedAt).ToString("F2") : "-") + " castAgain=" + (nextOkAt >= 0 ? "yes" : "no") + " receipt=" + receiptAt;
+                File.WriteAllText(Path.Combine(folder, "host.bind"), text); Mark(folder, "host-bind-done");
+            }
+            yield return Wait(() => Has("host-bind-done"), "host finished");
+            log.Append(name + ": " + File.ReadAllText(Path.Combine(folder, "host.bind")) + "; ");
+            if (host && started < 0) throw new Exception("the host never saw client1's cast start " + log);
+            if (host && !(changedAt >= 0 && endedAt >= 0 && endedAt - changedAt < .25)) throw new Exception("the cast did not end with the binding change (changed " + changedAt.ToString("F2") + ", ended " + endedAt.ToString("F2") + ") " + log);
+            if (host && nextOkAt < 0) throw new Exception("client1 could not cast again after the override was released " + log);
+        }
+
+        // G9c, world change (--pn-object-sync-world): the host makes a second room world, then client1 starts an Ultimate; 0.4 s after the host sees it run, the host moves client1 there (the same transfer the run director uses for a room change,
+        // replacement actor). The running cast must end with the transfer, the transfer completes, and client1's new entity casts again.
+        private static IEnumerator WorldBody(string folder, string name, PNPlayerMove e1, System.Text.StringBuilder log)
+        {
+            bool Has(string value) => File.Exists(Path.Combine(folder, value));
+            bool host = name == "host"; var manager = (PNNetworkManager)NetworkManager.singleton;
+            var skill = e1.GetComponent<PNSkill>(); var eve = skill as EveCharacterSkill; long owner = e1.GetComponent<EveEntityIdentity>().OwnerId;
+            if (!host) Mark(folder, name + "-world-ready");
+            PNGameSession game = null; EveWorldContext dest = null; string slotId = null; PNWorldTransferReceipt transfer = null;
+            if (host)
+            {
+                yield return Wait(() => Has("client1-world-ready") && Has("client2-world-ready"), "the clients are ready");
+                game = PNGameBootstrap.Runtime.GetComponent<PNGameSession>(); var room = game.Runs.Room ?? throw new Exception("the run has no room");
+                dest = game.Worlds.Create(room.Definition.World, Guid.Empty, 1, PNRunFeatures.Of(game.Runs.Definition).Ids);
+                yield return Wait(() => dest.CanExecute, "the second room world loads", 90);
+                slotId = game.Worlds.Get(dest).Slots.First(x => x.Roots.Any(r => r != null && r.GetComponentsInChildren<PNPlayerSpawnPoint>(true).Any(p => p.SpawnEntry == "player"))).Id;
+                eve?.UltimateRecovery.ResetToFull(); Mark(folder, "world-go");
+            }
+            yield return Wait(() => Has("world-go"), "go");
+            yield return new WaitForSecondsRealtime(3f);
+            if (name == "client1" && eve != null) yield return Wait(() => eve.UltimateRecovery.Current >= 1 && !eve.IsBusy, "the Ultimate is charged on client1");
+            double started = -1, requestAt = -1, endedAt = -1, doneAt = -1, nextOkAt = -1; bool tapped = false; double lastAttackTap = -10; EveWorldContext movedTo = null;
+            double t0 = Time.realtimeSinceStartupAsDouble;
+            void Tap(EveCharacterSkill who, EveId slot) { who.RequestSlot(slot, new PNSkillInputEvent(PNSkillInputPhase.Started, PNSkillInteraction.Tap)); who.RequestSlot(slot, new PNSkillInputEvent(PNSkillInputPhase.Performed, PNSkillInteraction.Tap)); who.RequestSlot(slot, new PNSkillInputEvent(PNSkillInputPhase.Canceled, PNSkillInteraction.Tap)); }
+            PNPlayerMove Mine() => UnityEngine.Object.FindObjectsByType<PNPlayerMove>().FirstOrDefault(x => !ReferenceEquals(x, e1) && x.GetComponent<EveEntityIdentity>()?.OwnerId == owner && x.GetComponent<PNSkill>() != null && x.GetComponent<PNSkill>().IsReady);
+            PNPlayerMove hostMoved = null;
+            while (Time.realtimeSinceStartupAsDouble - t0 < 45)
+            {
+                double now = Time.realtimeSinceStartupAsDouble - t0;
+                if (name == "client1" && eve != null && !tapped && now > .2) { Tap(eve, PNSkillSlots.Ultimate); tapped = true; }
+                if (host)
+                {
+                    if (transfer == null)
+                    {
+                        bool running = skill.CurrentInvocation != null;
+                        if (running && started < 0) started = now;
+                        if (started >= 0 && now > started + .4)
+                        {
+                            transfer = game.Transfers.Request(new PNWorldTransferRequest(Guid.NewGuid(), new[] { e1.GetComponent<EveEntityLoader>() }, dest, slotId, "player", PNRunDirector.PlayerRole,
+                                characters: new System.Collections.Generic.Dictionary<long, string> { { owner, "project_n:eve" } }));
+                            requestAt = now;
+                        }
+                    }
+                    else
+                    {
+                        if (endedAt < 0 && skill.CurrentInvocation == null) endedAt = now;
+                        if (doneAt < 0 && transfer.IsTerminal && !transfer.CleanupPending) { doneAt = now; Mark(folder, "world-done"); }
+                        if (doneAt >= 0 && hostMoved == null) hostMoved = Mine();
+                        if (hostMoved != null && nextOkAt < 0 && Has("world-attack") && hostMoved.GetComponent<PNSkill>().CurrentInvocation != null) { nextOkAt = now; Mark(folder, "world-cast-ok"); }
+                        if (nextOkAt >= 0 || doneAt >= 0 && transfer.State != PNWorldTransferState.Completed) break;
+                    }
+                }
+                // The new entity: tap Attack every 1.5 s until the host has seen a cast on it (a tap right after the transfer can reach an entity that is not wired yet).
+                if (name == "client1" && Has("world-done") && !Has("world-cast-ok") && now > lastAttackTap + 1.5)
+                {
+                    var mine = Mine();
+                    if (mine != null && manager.ClientInputReady && mine.GetComponent<PNSkill>().InputForwarder != null && mine.GetComponent<EveCharacterSkill>() is EveCharacterSkill again) { Tap(again, PNSkillSlots.Attack); lastAttackTap = now; if (!Has("world-attack")) Mark(folder, "world-attack"); }
+                }
+                if (!host && Has("host-world-done")) break;
+                yield return null;
+            }
+            if (host)
+            {
+                movedTo = hostMoved?.GetComponent<EveEntityIdentity>()?.World;
+                string text = "started=" + started.ToString("F2") + " request=" + requestAt.ToString("F2") + " ended=" + endedAt.ToString("F2") + " requestToEnd=" + (endedAt >= 0 && requestAt >= 0 ? (endedAt - requestAt).ToString("F2") : "-") + " transfer=" + transfer?.State + " movedToDest=" + (movedTo != null && ReferenceEquals(movedTo, dest)) + " castAgain=" + (nextOkAt >= 0 ? "yes" : "no");
+                File.WriteAllText(Path.Combine(folder, "host.world"), text); Mark(folder, "host-world-done");
+            }
+            yield return Wait(() => Has("host-world-done"), "host finished");
+            log.Append(name + ": " + File.ReadAllText(Path.Combine(folder, "host.world")) + "; ");
+            if (!host) yield break;
+            if (started < 0) throw new Exception("the host never saw client1's cast start " + log);
+            if (transfer == null || transfer.State != PNWorldTransferState.Completed) throw new Exception("the transfer did not complete (" + transfer?.State + ": " + transfer?.Error + ") " + log);
+            if (!(requestAt >= 0 && endedAt >= 0 && endedAt - requestAt < 2.0 && endedAt - started < 4.5)) throw new Exception("the cast did not end with the world change (request " + requestAt.ToString("F2") + ", ended " + endedAt.ToString("F2") + ") " + log);
+            if (movedTo == null || !ReferenceEquals(movedTo, dest)) throw new Exception("client1's entity is not in the new world " + log);
+            if (nextOkAt < 0) throw new Exception("client1's new entity did not cast again " + log);
+        }
+
+        // G5, shared value store over the real wire (--pn-object-sync-shared, run with -LateClient): the host writes a session key and two keys of the room world; client1 must read all of them, then client2, which joins
+        // only after the values were written, must read them from the baseline it is sent on joining. Then the host moves client1 to a second world: client1 must read the session key still, but the world keys of the
+        // new world (not the room's 3/true), and client2, which stayed in the room, must not be touched by what the host writes in the second world.
+        private static IEnumerator SharedBody(string folder, string name, PNPlayerMove e1, System.Text.StringBuilder log)
+        {
+            bool Has(string value) => File.Exists(Path.Combine(folder, value));
+            bool host = name == "host"; long owner = e1.GetComponent<EveEntityIdentity>().OwnerId;
+            EveId gate = EveId.Parse("project_n:sample_gate"), wave = EveId.Parse("project_n:sample_wave"), gold = EveId.Parse("project_n:sample_gold"), phase = EveId.Parse("project_n:sample_phase");
+            EveWorldContext room = e1.GetComponent<EveEntityIdentity>().World;
+            bool Seen(EveWorldContext world, double goldValue, string phaseValue, double waveValue, bool gateValue)
+            {
+                var values = PNSharedValues.Find(EveRegistrySession.Context); if (values == null || world == null) return false;
+                try { return ((double)values.Read(gold, null)) == goldValue && ((string)values.Read(phase, null)) == phaseValue && ((double)values.Read(wave, world)) == waveValue && ((bool)values.Read(gate, world)) == gateValue; }
+                catch (Exception) { return false; }
+            }
+            string Describe(EveWorldContext world)
+            {
+                var values = PNSharedValues.Find(EveRegistrySession.Context); if (values == null || world == null) return "no store";
+                try { return "gold=" + values.Read(gold, null) + " phase=" + values.Read(phase, null) + " wave=" + values.Read(wave, world) + " gate=" + values.Read(gate, world); } catch (Exception error) { return "unreadable: " + error.Message; }
+            }
+            PNPlayerMove Mine() => UnityEngine.Object.FindObjectsByType<PNPlayerMove>().FirstOrDefault(x => !ReferenceEquals(x, e1) && x.GetComponent<EveEntityIdentity>()?.OwnerId == owner && x.GetComponent<PNSkill>() != null && x.GetComponent<PNSkill>().IsReady);
+            if (room == null) throw new Exception("the player is in no world");
+            if (host)
+            {
+                yield return Wait(() => Has("client1-shared-ready"), "client1 is ready");
+                var values = PNSharedValues.Find(EveRegistrySession.Context) ?? throw new Exception("the host has no shared value store");
+                if (values.Write(gold, new Newtonsoft.Json.Linq.JValue(40), null) != PNSharedWrite.Applied || values.Write(phase, new Newtonsoft.Json.Linq.JValue("two"), null) != PNSharedWrite.Applied
+                    || values.Write(wave, new Newtonsoft.Json.Linq.JValue(3), room) != PNSharedWrite.Applied || values.Write(gate, new Newtonsoft.Json.Linq.JValue(true), room) != PNSharedWrite.Applied) throw new Exception("the host's writes were refused");
+                Mark(folder, "shared-written");
+                yield return Wait(() => Has("client1-shared-ok"), "client1 reads the host's values");
+                Mark(folder, "late-go");
+                yield return Wait(() => Has("client2-shared-ok"), "client2 (joined late) reads the host's values", 90);
+                var game = PNGameBootstrap.Runtime.GetComponent<PNGameSession>(); var runRoom = game.Runs.Room ?? throw new Exception("the run has no room");
+                var dest = game.Worlds.Create(runRoom.Definition.World, Guid.Empty, 1, PNRunFeatures.Of(game.Runs.Definition).Ids);
+                yield return Wait(() => dest.CanExecute, "the second world loads", 90);
+                string slotId = game.Worlds.Get(dest).Slots.First(x => x.Roots.Any(r => r != null && r.GetComponentsInChildren<PNPlayerSpawnPoint>(true).Any(p => p.SpawnEntry == "player"))).Id;
+                if (values.WorldStore(dest) == null || ((double)values.Read(wave, dest)) != 0 || ((bool)values.Read(gate, dest))) throw new Exception("the second world did not start from the initial values: " + Describe(dest));
+                var transfer = game.Transfers.Request(new PNWorldTransferRequest(Guid.NewGuid(), new[] { e1.GetComponent<EveEntityLoader>() }, dest, slotId, "player", PNRunDirector.PlayerRole,
+                    characters: new System.Collections.Generic.Dictionary<long, string> { { owner, "project_n:eve" } }));
+                yield return Wait(() => transfer.IsTerminal && !transfer.CleanupPending, "client1's transfer ends", 60);
+                if (transfer.State != PNWorldTransferState.Completed) throw new Exception("the transfer did not complete (" + transfer.State + ": " + transfer.Error + ")");
+                if (values.Write(wave, new Newtonsoft.Json.Linq.JValue(5), dest) != PNSharedWrite.Applied) throw new Exception("the host's write in the second world was refused");
+                if (!Seen(room, 40, "two", 3, true)) throw new Exception("the room's values changed when the host wrote in the second world: " + Describe(room));
+                Mark(folder, "shared-dest-written");
+                yield return Wait(() => Has("client1-shared-moved") && Has("client2-shared-still"), "client1 reads the second world and client2 keeps the room", 60);
+                log.Append("host: room " + Describe(room) + ", second world " + Describe(dest) + "; ");
+                Mark(folder, "shared-done");
+            }
+            else if (name == "client1")
+            {
+                Mark(folder, "client1-shared-ready");
+                yield return Wait(() => Has("shared-written"), "the host wrote");
+                double t0 = Time.realtimeSinceStartupAsDouble;
+                yield return Wait(() => Seen(room, 40, "two", 3, true), "client1 sees the host's values", 20, () => Describe(room));
+                double readIn = Time.realtimeSinceStartupAsDouble - t0;
+                Mark(folder, "client1-shared-ok");
+                yield return Wait(() => Has("shared-dest-written"), "the host moved client1 and wrote", 90);
+                PNPlayerMove mine = null; yield return Wait(() => (mine = Mine()) != null, "client1's new entity exists", 30);
+                var moved = mine.GetComponent<EveEntityIdentity>().World; if (ReferenceEquals(moved, room)) throw new Exception("client1 is still in the room world");
+                yield return Wait(() => Seen(moved, 40, "two", 5, false), "client1 sees the second world's values (and not the room's)", 20, () => Describe(moved));
+                Mark(folder, "client1-shared-moved");
+                log.Append("client1: " + Describe(moved) + " (" + readIn.ToString("F2") + " s to read the first write); ");
+                yield return Wait(() => Has("shared-done"), "the host is done", 30);
+            }
+            else
+            {
+                Mark(folder, "client2-shared-ready");
+                yield return Wait(() => Seen(room, 40, "two", 3, true), "client2 (late) reads the values written before it joined", 30, () => Describe(room));
+                Mark(folder, "client2-shared-ok");
+                yield return Wait(() => Has("shared-dest-written"), "the host wrote in the second world", 90);
+                yield return new WaitForSecondsRealtime(2f);
+                if (!Seen(room, 40, "two", 3, true)) throw new Exception("client2's room changed after the host wrote in another world: " + Describe(room));
+                Mark(folder, "client2-shared-still");
+                log.Append("client2: " + Describe(room) + "; ");
+                yield return Wait(() => Has("shared-done"), "the host is done", 30);
+            }
+        }
+
         // V4b/V4c melee dodge (--pn-object-sync-dodgemelee: Starkeeper sweeps, --pn-object-sync-dodgeslam: Starforger slam): the host spawns the monster next to the players and its AI attacks them while client1's player keeps walking a square.
         // The machine of a player decides his melee hits (door + ticket). Evidence: every machine is told the same hits the host applied, the host took melee claims (counted apart from projectile claims: the Starforger's stars also shoot),
         // and the melee claims the host judged never exceed what the clients sent. All machines start together (the host spawns once every client is ready), so none misses a hit by joining late.
@@ -748,7 +1034,7 @@ namespace ProjectN.Coop.Tests
             int told = 0; float toldAmount = 0f; var damageBy = new System.Collections.Generic.Dictionary<long, int>(); var trace = new System.Text.StringBuilder(); var appliedBy = new System.Collections.Generic.Dictionary<long, int>(); var hitStamps = new System.Collections.Generic.List<double>();
             Action<PNCombatEvent, bool> onEvent = (combatEvent, matched) => { if (combatEvent.Kind == PNCombatEventKind.Damage && combatEvent.Applied > 0) appliedBy[combatEvent.TargetId] = (appliedBy.TryGetValue(combatEvent.TargetId, out var an) ? an : 0) + 1; if (combatEvent.Kind == PNCombatEventKind.Damage || combatEvent.Kind == PNCombatEventKind.Blocked) trace.Append(" ").Append(DateTime.UtcNow.ToString("ss.fff")).Append(combatEvent.Kind == PNCombatEventKind.Damage ? "D" : "B").Append(combatEvent.TargetId).Append("a").Append(combatEvent.Applied.ToString("F0")); if (combatEvent.Kind == PNCombatEventKind.Damage || combatEvent.Kind == PNCombatEventKind.Blocked) damageBy[combatEvent.TargetId] = (damageBy.TryGetValue(combatEvent.TargetId, out var dn) ? dn : 0) + 1; if (combatEvent.Kind == PNCombatEventKind.Damage && combatEvent.TargetId == playerId && combatEvent.Applied > 0) { told++; toldAmount += (float)combatEvent.Applied; hitStamps.Add((DateTime.UtcNow - DateTime.UnixEpoch).TotalSeconds); } };
             PNCombatEvents.Observed += onEvent;
-            int sent0 = PNMeleeDoorClaims.SentTotal, contact0 = PNMeleeDoorClaims.ContactSentTotal;
+            int sent0 = PNMeleeDoorClaims.SentTotal, contact0 = PNMeleeDoorClaims.ContactSentTotal; int tried0 = PNMeleeDoorClaims.ContactDoorsTried, opened0 = PNMeleeDoorClaims.ContactDoorsOpened, watched0 = PNMeleeDoorClaims.ContactWatchesStarted;
             UnityEngine.InputSystem.Keyboard keyboard = null; Vector3 start = e1.transform.position, low = start, high = start;
             try
             {
@@ -766,7 +1052,7 @@ namespace ProjectN.Coop.Tests
                 yield return Wait(() => UnityEngine.Object.FindObjectsByType<PNSkill>().Any(x => x.gameObject.layer == PNLayers.Enemy && x.IsReady && x.name.ToLowerInvariant().Contains(hint)), "the monster exists");
                 if (name == "client1") keyboard = UnityEngine.InputSystem.InputSystem.AddDevice<UnityEngine.InputSystem.Keyboard>();
                 var keys = new[] { UnityEngine.InputSystem.Key.D, UnityEngine.InputSystem.Key.None, UnityEngine.InputSystem.Key.W, UnityEngine.InputSystem.Key.None, UnityEngine.InputSystem.Key.A, UnityEngine.InputSystem.Key.None, UnityEngine.InputSystem.Key.S, UnityEngine.InputSystem.Key.None };
-                PNSkill monster = dash ? UnityEngine.Object.FindObjectsByType<PNSkill>().FirstOrDefault(x => x.gameObject.layer == PNLayers.Enemy && x.IsReady && x.name.ToLowerInvariant().Contains(hint)) : null;
+                PNSkill monster = dash || needContact ? UnityEngine.Object.FindObjectsByType<PNSkill>().FirstOrDefault(x => x.gameObject.layer == PNLayers.Enemy && x.IsReady && x.name.ToLowerInvariant().Contains(hint)) : null;
                 UnityEngine.InputSystem.Key Pursue() { var d = monster.transform.position - e1.transform.position; d.y = 0; if (d.magnitude < 1.8f) d = -d; return Mathf.Abs(d.x) >= Mathf.Abs(d.z) ? (d.x > 0 ? UnityEngine.InputSystem.Key.D : UnityEngine.InputSystem.Key.A) : (d.z > 0 ? UnityEngine.InputSystem.Key.W : UnityEngine.InputSystem.Key.S); }
                 double until = Time.realtimeSinceStartupAsDouble + seconds, nextKey = 0; int keyIndex = 0; double nextDash = until - seconds + 4, dashOff = 0, lastT = Time.realtimeSinceStartupAsDouble; Vector3 lastPos = e1.transform.position; int dashes = 0, dashesDone = 0; bool wasDashing = false; var lastKey = UnityEngine.InputSystem.Key.None; var dashSkill = e1.GetComponent<PNPlayerSkill>();
                 while (Time.realtimeSinceStartupAsDouble < until)
@@ -790,12 +1076,12 @@ namespace ProjectN.Coop.Tests
             int sent = PNMeleeDoorClaims.SentTotal - sent0, contactSent = PNMeleeDoorClaims.ContactSentTotal - contact0; int applied = 0, rejected = 0;
             foreach (var input in UnityEngine.Object.FindObjectsByType<PNSkillRemoteInput>()) { applied += input.MeleeClaimsApplied; rejected += input.MeleeClaimsRejected; }
             File.WriteAllText(Path.Combine(folder, name + ".stamps"), endAt.ToString("R") + ";" + string.Join(",", hitStamps.Select(x => x.ToString("R"))));
-            File.WriteAllText(Path.Combine(folder, name + ".melee"), told + "," + sent + "," + applied + "," + rejected + "," + contactSent); Mark(folder, name + "-melee-done");
+            File.WriteAllText(Path.Combine(folder, name + ".melee"), told + "," + sent + "," + applied + "," + rejected + "," + contactSent + "," + (PNMeleeDoorClaims.ContactDoorsTried - tried0) + "," + (PNMeleeDoorClaims.ContactDoorsOpened - opened0) + "," + (PNMeleeDoorClaims.ContactWatchesStarted - watched0)); Mark(folder, name + "-melee-done");
             yield return Wait(() => Has("host-melee-done") && Has("client1-melee-done") && Has("client2-melee-done"), "every machine finished");
             int[] Read(string who) => File.ReadAllText(Path.Combine(folder, who + ".melee")).Split(',').Select(int.Parse).ToArray();
             var h = Read("host"); var c1 = Read("client1"); var c2 = Read("client2");
             int hostTold = h[0], clientSent = c1[1] + c2[1], hostApplied = h[2], hostRejected = h[3], contactClaims = c1[4] + c2[4];
-            log.Append(name + ": hostHit=" + hostTold + " toldHere=" + told + " toldAmount=" + toldAmount.ToString("F1") + " meleeClaims(sent c1/c2)=" + c1[1] + "/" + c2[1] + " host(applied/rejected)=" + hostApplied + "/" + hostRejected + " contactLungeClaims=" + contactClaims + " walked=" + (high - low).ToString("F1") + FaultText() + "; ");
+            log.Append(name + ": hostHit=" + hostTold + " toldHere=" + told + " toldAmount=" + toldAmount.ToString("F1") + " meleeClaims(sent c1/c2)=" + c1[1] + "/" + c2[1] + " host(applied/rejected)=" + hostApplied + "/" + hostRejected + " contactLungeClaims=" + contactClaims + " lunge(host tried/opened; watched c1/c2)=" + h[5] + "/" + h[6] + "; " + c1[7] + "/" + c2[7] + " walked=" + (high - low).ToString("F1") + FaultText() + "; ");
             float walkMedian = walkSpeeds.Count == 0 ? 0f : walkSpeeds.OrderBy(x => x).ElementAt(walkSpeeds.Count / 2), dashP90 = dashSpeeds.Count == 0 ? 0f : dashSpeeds.OrderBy(x => x).ElementAt((int)(dashSpeeds.Count * .9));
             if (dash) log.Append(" dash(pressed/started)=" + dashesPressed + "/" + dashesStarted + ";");
             log.Append(" trace[" + trace + " end=" + endStamp + "] ");

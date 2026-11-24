@@ -537,3 +537,83 @@ Eve sweep prediction now reads this state. The Action run continues to
 carry the frozen scale captured by the authority. Launches continue to use
 authoritative snapshots. Network32 gates the new state and retirement of
 the former owner-image field `m`.
+
+## Cast lifecycle: how a cast ends (G3a, G9; 2026-11-25)
+
+One cast is one `PNSkillInvocation`. Whatever stops it, it ends through one place, `PNSkill.FinishInvocation`:
+what the cast registered (`invocation.Track`) is cancelled last-created-first, the activation trigger fires
+(`OnInvocationComplete` or `OnInvocationCancel`), then the skill's `OnCastEnded(invocation, cancelled, reason)` runs
+exactly once with the cast memory still readable, and the invocation is disposed. Put the reset of a state machine in
+`OnCastEnded` (rule L6); do not start another cast from it. `CancelCast(reason)` is the public way in;
+`EndActivation(cancelled, reason)` is the character's own way to end a cast it ran to the end.
+
+`reason` is a `PNCastEnd` constant (`Interrupted`, `Died`, `Disabled`, `Unloaded`, `Rejected`, `Replaced`,
+`Executions`, `Disconnected`) or, when the skill's own `TryInterrupt(id)` ended the cast (Eve), that interrupt id
+(`project_n:world_transfer`, `project_n:binding_changed`, `project_n:disconnected`). Do not branch on the exact string
+except to tell "finished" from "cancelled"; use `cancelled`.
+
+Who ends a running cast, and when (all on the machine with gameplay authority):
+
+| Event | Entry point | What ends | Reason |
+| --- | --- | --- | --- |
+| The owner dies | `PNSkillEffectState.SourceDied` | the cast and its effect executions (`CancelExecutions(PNCastEnd.Died)`) | `died` |
+| The owner's machine goes into grace (paused, stalled, resuming) | `PNNetworkManager.Interrupt(peer)` -> `PNSkill.CancelForGrace()` | the running cast only; what it handed over (a flying projectile, a Buff) keeps running | `project_n:disconnected` for Eve, else `disconnected` |
+| The owner moves to another world | `PNWorldGameplayTransferParticipant` -> `PNSkill.CancelWorldExecutions()` | the cast, binding inputs, effect executions | `project_n:world_transfer` for Eve |
+| A binding is changed with `CancelCurrent` | `PNSkillBindingRuntime.ApplyBindingChange` -> `CancelBindingExecution` | the cast that runs through that slot | `project_n:binding_changed` for Eve |
+| The skill is disabled or unloaded | `OnDisable`, `Unload` | the cast and its executions | `disabled`, `unloaded` |
+| The owner's machine guessed a cast the authority refused | `RollbackPredictedCast` | the guess and what it started | `project_n:prediction_refused` for Eve, else `interrupted` |
+
+A character does not write any of this: the death and grace paths need no code in the character. Eve's own death
+handler (`OnEveDied`) only resets state the cast does not own (a Dash guess, the held gesture, the energy visual, her
+Abilities); ending the cast was already done by the framework, with the same reason.
+
+Evidence: Edit Mode `EveCastCancelChecks` (every Eve cast stopped at every frame by interrupt, by `CancelCast`, by
+`CancelForGrace` and by the owner's death), `PNOwnerDeathCastChecks` (an enemy and a summon-like owner die mid-cast).
+Player (host + two clients, `runskill.ps1 -Scenario Room -Character project_n:eve`): `--pn-object-sync-grace`,
+`--pn-object-sync-binding`, `--pn-object-sync-world` (client1's Ultimate ends with the grace gate, the binding change
+and the world transfer, and the entity casts again afterwards); `--pn-late-join` for a client that joins under way.
+
+## Shared value store: world and session keys (G5, Rules176, Network45; 2026-11-25)
+
+State that is not one entity's lives in a keyed store, not in a field and not in Ability (Ability is per entity;
+declaring a key with `scope: "entity"` is refused with that message). Two scopes, both synced from the authority
+(Authority / Predicted / Observed as for everything else), declared once in content:
+
+```json
+"extensions": { "project_n": { "sharedValues": [
+  { "id": "pack:gate_open", "scope": "world",   "kind": "flag",   "initial": false },
+  { "id": "pack:wave",      "scope": "world",   "kind": "number", "initial": 0, "min": 0, "max": 9, "persist": true },
+  { "id": "pack:gold",      "scope": "session", "kind": "number", "initial": 0, "persist": true },
+  { "id": "pack:seen",      "scope": "session", "kind": "list",   "item": "text", "initial": [] } ] } }
+```
+
+`kind` is `number` (a double; `min`/`max` optional), `flag`, `text` (at most 128 characters) or `list` (at most 16
+entries, all of one `item` kind, never a list). A scope holds at most 64 keys and its changed values must fit one
+4096-byte sync block; the first is checked when content loads, the second on every write (`TooLarge`). `persist`
+defaults to false (K11): a key that does not persist is never written to a save or checkpoint.
+
+From a skill, Action or Operation (logic only, no network branch, rule L1): `SetShared(id, value)` and
+`GetShared(id)` on `PNSkillAction`. A write is applied only on the machine with gameplay authority and only for an
+`Authority` cast; a `Predicted` or `Observed` cast gets `Ignored` (K12), and every machine's `Changed` event fires for
+each value that changed, so reacting to a change is the same code everywhere. The write result is a
+`PNSharedWrite` (`Applied`, `Unchanged`, `Ignored`, `Unknown`, `WrongScope`, `Invalid`, `TooLarge`); nothing is
+written for any but `Applied`. Do not read a value back in the same frame to decide a hit (L2): read it on the next
+step or react to `Changed`.
+
+Where it lives: the session store is one block (`project_n:shared_session`, Session target); each world instance
+that has world keys gets its own block (`project_n:shared_world`, WorldObject target, reserved slot `$shared`, key
+`values`), made when the world is ready (or first used, because a checkpoint restore fills it before the world is
+announced) and dropped with the world. Two worlds alive at once, including two copies of one map, never share a
+value, and a client holds a world's store only while it has that world loaded (late join and world change use the
+ordinary per-target baseline). `AddSlot` refuses a content slot id that starts with `$`.
+
+Saving: a run save (schema 3) carries `shared`: the session keys that persist and differ from initial; an older
+schema file is obsolete and deleted as before (D3). A world's persistent keys travel in its checkpoint through the
+engine provider `project_n:shared_world_state`, which `PNSharedWorldStateProvider.WorldProviders` adds to the world's
+provider list when content declares any persistent world key, so a world policy does not have to name it. A restore
+is all or nothing and refuses a save that names an undeclared key, a key that does not persist, a key of the other
+scope or a value outside its declaration.
+
+Code: `Assets/Core/Sync/PNSharedValues.cs` (definition, store, facade), `PNSharedValueContent.cs` (JSON),
+`Assets/Game/Sync/PNSharedValueService.cs` (session and world glue, checkpoint provider). Sample keys:
+`BaseContent/shared/shared_sample.json` (used by the Player scenario).
