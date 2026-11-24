@@ -75,13 +75,13 @@ public static class EveCastViewChecks
             reportTarget.AddComponent<EveEntityLoader>().Load(hub);
             reportTarget.SetActive(true);
             var health = reportStat.GetCurrent(PNContentIds.Health);
-            Check(skill.HitReceiverCount == 1 && !skill.DeliverReportedHit(reportStat, 0, 0),
+            Check(skill.HitReceiverCount == 1 && !skill.DeliverHitReport(PNHitReport.DealtByCast(1, 0), reportStat, 0),
                 "live sweep refuses a report outside its captured radius");
             reportTarget.transform.position = hitOrigin + Vector3.right * 1.8f;
-            Check(skill.DeliverReportedHit(reportStat, 0, 0) && reportStat.GetCurrent(PNContentIds.Health) < health && !reportStat.IsDead,
+            Check(skill.DeliverHitReport(PNHitReport.DealtByCast(1, 0), reportStat, 0) && reportStat.GetCurrent(PNContentIds.Health) < health && !reportStat.IsDead,
                 "a report outside base reach applies authority damage at the captured scale");
             var afterReport = reportStat.GetCurrent(PNContentIds.Health);
-            Check(!skill.DeliverReportedHit(reportStat, 0, 0) && reportStat.GetCurrent(PNContentIds.Health) == afterReport,
+            Check(!skill.DeliverHitReport(PNHitReport.DealtByCast(1, 0), reportStat, 0) && reportStat.GetCurrent(PNContentIds.Health) == afterReport,
                 "the report cannot damage the same live target twice");
             var extra = new PNSkillActionContext(skill, EveId.Parse(runs[0].Data), skill.GetData(EveId.Parse(runs[0].Data)), hub, null, Vector3.right, skill.CurrentInvocation);
             extra.BeginAction(); Check(extra.ActionOrdinal == 2, "same cast same definition has separate eager ordinal");

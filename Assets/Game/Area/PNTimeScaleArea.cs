@@ -98,7 +98,7 @@ public class PNTimeScaleArea : PNAreaInstance
         var collider = me.GetComponent<Collider>(); bool now = selected && !PNTargetCandidates.IsDead(me) && collider != null && (collider.bounds.ClosestPoint(transform.position) - transform.position).magnitude <= radius;
         if (now == toldInside) return;
         long id = Manager.ObjectIdOf(this); if (id <= 0) return;
-        if (sink.SendClaim(PNObjectKind.Area, id, now ? 1 : 0)) { toldInside = now; Manager.ClaimBook.NoteSent(); }
+        if (sink.SendHitReport(PNHitReport.TakenFromObject(PNObjectKind.Area, id, now ? 1 : 0), null)) { toldInside = now; Manager.ClaimBook.NoteSent(); }
     }
     public override void ActorWorldChanging(PNStat actor)
     {

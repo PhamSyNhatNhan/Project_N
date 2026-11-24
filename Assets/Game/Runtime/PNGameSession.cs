@@ -67,10 +67,10 @@ public sealed class PNGameSession : MonoBehaviour
             objects.HostClock=()=>{try{var sample=PNTimeService.For(session).Sample();if(sample.Ready)return sample.Host;}catch(InvalidOperationException){}return Time.unscaledTimeAsDouble;};
             service.ObjectSync=objects;
             // One claim book for the three managers (plan 4.4c): the policy on the authority, the claim sinks of this machine's players on a client.
-            var claimBook=new PNHurtClaimBook();if(projectiles!=null)projectiles.ClaimBook=claimBook;if(blasts!=null)blasts.ClaimBook=claimBook;if(areas!=null)areas.ClaimBook=claimBook;
+            var claimBook=new PNHurtClaimBook();PNHurtClaimBooks.Set(session,claimBook);if(projectiles!=null)projectiles.ClaimBook=claimBook;if(blasts!=null)blasts.ClaimBook=claimBook;if(areas!=null)areas.ClaimBook=claimBook;
             if(session.HasAuthority&&(projectiles!=null||blasts!=null||areas!=null)){service.HurtClaims=new PNHurtClaimPolicy();claimBook.Policy=service.HurtClaims;}
             if(areas!=null)areas.ObjectSync=objects;if(blasts!=null)blasts.ObjectSync=objects;if(projectiles!=null)projectiles.ObjectSync=objects;
-            session.RegisterCleanup(()=>{if(areas!=null)areas.ObjectSync=null;if(blasts!=null)blasts.ObjectSync=null;if(projectiles!=null)projectiles.ObjectSync=null;claimBook.Policy=null;service.HurtClaims=null;objects.Dispose();if(ReferenceEquals(service.ObjectSync,objects))service.ObjectSync=null;});
+            session.RegisterCleanup(()=>{if(areas!=null)areas.ObjectSync=null;if(blasts!=null)blasts.ObjectSync=null;if(projectiles!=null)projectiles.ObjectSync=null;claimBook.Policy=null;claimBook.ClearTickets();PNHurtClaimBooks.Remove(session);service.HurtClaims=null;objects.Dispose();if(ReferenceEquals(service.ObjectSync,objects))service.ObjectSync=null;});
         }
         else service.ObjectSync=null;
         service.Factory=new PNEntityFactory(session,service.Worlds){Scheduler=service.Scheduler};

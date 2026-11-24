@@ -25,11 +25,13 @@ public static class PNProjectileImpactEditorChecks
         public readonly List<PNObjectRecord> All = new List<PNObjectRecord>(); public PNObjectSyncService Target;
         public void Send(PNObjectRecord record) { All.Add(record); Target?.Receive(record); }
     }
-    private sealed class Sink : IPNSkillReportSink
+    private sealed class Sink : IPNHitReportSink
     {
         public Action<long, PNStat, int> Relay;
-        public void ReportHit(long castKey, PNStat target, int step) => Relay?.Invoke(castKey, target, step);
-        public void ReportDecision(long castKey, string point, JToken value) { }
+        public PNStat Who; public PNStat Claimant => Who;
+        public bool SendHitReport(in PNHitReport report, IReadOnlyList<EveEntityId> victims) { foreach (var victim in victims) Relay?.Invoke(report.CastKey, Find(victim.Value), report.Step); return true; }
+        // The test entities live in a preview scene, which FindObjectsByType does not see: look in the shooter's scene.
+        private PNStat Find(long id) => Who == null ? null : Who.gameObject.scene.GetRootGameObjects().SelectMany(x => x.GetComponentsInChildren<PNStat>()).FirstOrDefault(x => x.EntityId.Value == id);
     }
     private sealed class ImpactModule : EveIContentModule
     {
@@ -82,7 +84,7 @@ public static class PNProjectileImpactEditorChecks
             var source = PNCombatSource.Capture(shooter); var layers = PNTargetLayers.Of(PNLayers.Enemy);
             var prepared = source.Snapshot.PrepareDamage(10, false, 0d, PNContentIds.True);
             PNProjectileLaunch Real(EveId id, long cast, bool shooterDecides = false) => new PNProjectileLaunch(id, null, source, layers, prepared).WithCast(cast, shooterDecides);
-            PNProjectileLaunch Guess(EveId id, long cast, Sink sink = null) => new PNProjectileLaunch(id, null, source, layers).AsPrediction(cast, sink);
+            PNProjectileLaunch Guess(EveId id, long cast, Sink sink = null) { if (sink != null) { sink.Who = shooter; client.RegisterClaimSink(sink); } return new PNProjectileLaunch(id, null, source, layers).AsPrediction(cast); }
             PNProjectileSpawn Spawn(Vector3 position, Vector3 direction) => new PNProjectileSpawn(scene, position, direction);
             void Advance(float seconds) { clock += seconds; client.Advance(seconds); host.Advance(seconds); }
             void Settle(int steps = 40) { for (int i = 0; i < steps; i++) Advance(.05f); }
@@ -128,13 +130,14 @@ public static class PNProjectileImpactEditorChecks
 
             // The shooter's guess: it tells its own hit at once (Guess), and the record that takes it over adds nothing.
             var sink = new Sink(); var shooterEnemy = Entity(new Vector3(3, 1, 20), PNLayers.Enemy, "Impact guess enemy"); Advance(.05f);
-            sink.Relay = (cast, target, step) => host.AcceptReportedHit(cast, step - PNProjectileManager.ReportStepBase, target, .5f);
+            sink.Relay = (cast, target, step) => host.AcceptHitReport(PNHitReport.DealtByCast(cast, step), target, .5f);
             client.Create(Guess(ImpactModule.Shot, 8007, sink), Spawn(new Vector3(0, 1, 20), Vector3.right));
             host.Create(Real(ImpactModule.Shot, 8007, true), Spawn(new Vector3(0, 1, 20), Vector3.right)); Settle();
             var guessHit = PNImpactProbeProjectile.Log.Where(x => x.Cast == 8007 && x.Impact.Origin == PNImpactOrigin.Guess).ToList();
             Check(guessHit.Count == 1 && guessHit[0].Impact.Kind == PNImpactKind.Target && guessHit[0].Impact.TargetId == shooterEnemy.EntityId.Value, "the guess is told its own hit once");
             Check(PNImpactProbeProjectile.Log.Count(x => x.Cast == 8007 && x.Impact.Origin == PNImpactOrigin.Copy) == 0, "(and the record that took it over adds no impact on that machine)");
 
+            client.UnregisterClaimSink(sink);     // the later guesses of this test report nothing
             // A guess that saw no hit but whose real projectile did: the End record tells it (once), from the host's account.
             var missEnemy = Entity(new Vector3(3, 1, 25), PNLayers.Enemy, "Impact missed enemy"); Advance(.05f);
             var offset = Guess(ImpactModule.Shot, 8008, null);

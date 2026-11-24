@@ -13,7 +13,7 @@ namespace ProjectN.Coop.Tests
     // Client2 (and client1) must see the host's projectiles as copies through the object channel, and see the pet at the same size and near its owner (PNMove + summon_scale).
     public static class PNObjectSyncPlayChecks
     {
-        public static bool Enabled => Environment.GetCommandLineArgs().Contains("--pn-object-sync") || O4 || Refuse || NoGuess || O6 || Enemy || Melee || Quiet || O5 || O5b || Load || Hits || Dodge || DodgeBlast || Strike || StrikeAll || Slow;
+        public static bool Enabled => Environment.GetCommandLineArgs().Contains("--pn-object-sync") || O4 || Refuse || NoGuess || O6 || Enemy || Melee || Quiet || O5 || O5b || Load || Hits || Dodge || DodgeBlast || DodgeMelee || DodgeSlam || DodgePoint || MeleeMany || Strike || StrikeAll || Slow;
         private static bool Dodge => Environment.GetCommandLineArgs().Contains("--pn-object-sync-dodge");
         // V2 variant of the dodge fixture: the host drops a cylinder blast where it sees the player (plan 4.4c); the machine of the player decides whether it hurt him.
         // O7 (--pn-object-sync-strike): the host spawns a Starkeeper next to the players and its AI sweeps them; every other machine must replay the sweep from the enemy's `skill_cast` block.
@@ -23,6 +23,11 @@ namespace ProjectN.Coop.Tests
         private static bool StrikeAll => Environment.GetCommandLineArgs().Contains("--pn-object-sync-strikeall");
         private static bool Strike => Environment.GetCommandLineArgs().Contains("--pn-object-sync-strike");
         private static bool DodgeBlast => Environment.GetCommandLineArgs().Contains("--pn-object-sync-dodgeblast");
+        private static bool DodgeMelee => Environment.GetCommandLineArgs().Contains("--pn-object-sync-dodgemelee");
+        private static bool DodgeSlam => Environment.GetCommandLineArgs().Contains("--pn-object-sync-dodgeslam");
+        private static bool DodgePoint => Environment.GetCommandLineArgs().Contains("--pn-object-sync-dodgepoint");
+        // --pn-object-sync-late: the melee fixture with 30 slashes; the host tallies the Dealt reports no receiver took because the hitbox had already ended (late) against those a live hitbox refused (plan 4.4d, "late Dealt").
+        private static bool MeleeMany => Environment.GetCommandLineArgs().Contains("--pn-object-sync-late");
         private static bool Load => Environment.GetCommandLineArgs().Contains("--pn-object-sync-load");
         private static bool Hits => Environment.GetCommandLineArgs().Contains("--pn-object-sync-hits");
         private static bool O5 => Environment.GetCommandLineArgs().Contains("--pn-object-sync-o5");
@@ -74,12 +79,15 @@ namespace ProjectN.Coop.Tests
             if (projectiles.Session == null) throw new Exception("no projectile manager");
             if (O4 || Refuse || NoGuess) { yield return O4Body(folder, name, e1, log); yield break; }
             if (Enemy) { yield return EnemyBody(folder, name, e1, log); yield break; }
-            if (Melee) { yield return MeleeBody(folder, name, e1, log); yield break; }
+            if (Melee || MeleeMany) { yield return MeleeBody(folder, name, e1, log); yield break; }
             if (O5) { yield return O5Body(folder, name, e1, log); yield break; }
             if (O5b) { yield return O5bBody(folder, name, e1, log); yield break; }
             if (Load) { yield return LoadBody(folder, name, e1, log); yield break; }
             if (Hits) { yield return HitsBody(folder, name, e1, log); yield break; }
             if (Dodge || DodgeBlast) { yield return DodgeBody(folder, name, e1, log); yield break; }
+            if (DodgeMelee) { yield return DodgeMeleeBody(folder, name, e1, log, "project_n:starkeeper", "tarkeeper"); yield break; }
+            if (DodgeSlam) { yield return DodgeMeleeBody(folder, name, e1, log, "project_n:starforger", "tarforger"); yield break; }
+            if (DodgePoint) { yield return DodgeMeleeBody(folder, name, e1, log, "project_n:starkeeper", "tarkeeper", true); yield break; }
             if (Strike) { yield return StrikeBody(folder, name, e1, log); yield break; }
             if (Slow) { yield return SlowBody(folder, name, e1, log); yield break; }
             if (StrikeAll) { yield return StrikeAllBody(folder, name, e1, log); yield break; }
@@ -352,7 +360,7 @@ namespace ProjectN.Coop.Tests
             {
                 yield return Wait(() => remote != null && remote.IsBound && !eve.IsBusy, "Eve ready");
                 yield return new WaitForSecondsRealtime(1f);
-                for (int i = 0; i < 3; i++)
+                for (int i = 0; i < (MeleeMany ? 30 : 3); i++)
                 {
                     eve.RequestSlot(PNSkillSlots.Attack, new PNSkillInputEvent(PNSkillInputPhase.Started, PNSkillInteraction.Tap));
                     eve.RequestSlot(PNSkillSlots.Attack, new PNSkillInputEvent(PNSkillInputPhase.Performed, PNSkillInteraction.Tap));
@@ -365,7 +373,8 @@ namespace ProjectN.Coop.Tests
             }
             yield return Wait(() => Has("client1-cast"), "client1 cast");
             yield return new WaitForSecondsRealtime(3f);
-            log.Append(name + ": real=" + real + " guess=" + guess + " copy=" + copy + " keys=" + keys.Count + "; ");
+            int dApplied = 0, dRejected = 0, dLate = 0, dRefused = 0; foreach (var input in UnityEngine.Object.FindObjectsByType<PNSkillRemoteInput>()) { dApplied += input.HitsApplied; dRejected += input.HitsRejected; dLate += input.DealtLate; dRefused += input.DealtRefused; }
+            log.Append(name + ": real=" + real + " guess=" + guess + " copy=" + copy + " keys=" + keys.Count + (host ? " dealt(applied/rejected/late/refusedAlive)=" + dApplied + "/" + dRejected + "/" + dLate + "/" + dRefused : "") + "; ");
             if (host)
             {
                 File.WriteAllText(Path.Combine(folder, "host.real"), keys.Count.ToString());
@@ -690,6 +699,62 @@ namespace ProjectN.Coop.Tests
             if (host && !Has("shot-" + (shots - 1))) throw new Exception("the host did not fire every shot " + log);
             if (name == "client1" && (high - low).magnitude < .5f) throw new Exception("client1 did not move " + log);
             if (!host && told != hits) throw new Exception("this machine was told " + told + " hits but the host applied " + hits + " " + log);
+        }
+
+
+        // V4b/V4c melee dodge (--pn-object-sync-dodgemelee: Starkeeper sweeps, --pn-object-sync-dodgeslam: Starforger slam): the host spawns the monster next to the players and its AI attacks them while client1's player keeps walking a square.
+        // The machine of a player decides his melee hits (door + ticket). Evidence: every machine is told the same hits the host applied, the host took melee claims (counted apart from projectile claims: the Starforger's stars also shoot),
+        // and the melee claims the host judged never exceed what the clients sent. All machines start together (the host spawns once every client is ready), so none misses a hit by joining late.
+        private static IEnumerator DodgeMeleeBody(string folder, string name, PNPlayerMove e1, System.Text.StringBuilder log, string character, string hint, bool needContact = false)
+        {
+            bool Has(string value) => File.Exists(Path.Combine(folder, value));
+            bool host = name == "host"; double seconds = needContact ? 70 : 40;
+            long playerId = e1.GetComponent<EveEntityIdentity>().Id.Value;
+            int told = 0; float toldAmount = 0f;
+            Action<PNCombatEvent, bool> onEvent = (combatEvent, matched) => { if (combatEvent.Kind == PNCombatEventKind.Damage && combatEvent.TargetId == playerId && combatEvent.Applied > 0) { told++; toldAmount += (float)combatEvent.Applied; } };
+            PNCombatEvents.Observed += onEvent;
+            int sent0 = PNMeleeDoorClaims.SentTotal, contact0 = PNMeleeDoorClaims.ContactSentTotal;
+            UnityEngine.InputSystem.Keyboard keyboard = null; Vector3 start = e1.transform.position, low = start, high = start;
+            try
+            {
+                if (!host) Mark(folder, name + "-melee-ready");
+                if (host)
+                {
+                    yield return Wait(() => Has("client1-melee-ready") && Has("client2-melee-ready"), "the clients are ready");
+                    var world = PNLocalWorldContext.Current.World;
+                    var request = new PNEntityRequest { Entity = "project_n:enemy", Template = "project_n:enemy", Character = character, World = world, WorldIncarnation = world.Incarnation, ContentSlot = PNGridWorldController.SlotId, SceneKey = "objectsync:dodgemelee", EntityKey = "", Position = e1.transform.position + new Vector3(4f, 0, 0) };
+                    if (PNEntityHosts.For(EveRegistrySession.Context).TrySpawn(request, null, null, error => Debug.LogException(error)) == null) throw new Exception("the host refused the monster");
+                    Mark(folder, "monster-spawned");
+                }
+                yield return Wait(() => Has("monster-spawned"), "the monster is spawned");
+                yield return Wait(() => UnityEngine.Object.FindObjectsByType<PNSkill>().Any(x => x.gameObject.layer == PNLayers.Enemy && x.IsReady && x.name.ToLowerInvariant().Contains(hint)), "the monster exists");
+                if (name == "client1") keyboard = UnityEngine.InputSystem.InputSystem.AddDevice<UnityEngine.InputSystem.Keyboard>();
+                var keys = new[] { UnityEngine.InputSystem.Key.D, UnityEngine.InputSystem.Key.None, UnityEngine.InputSystem.Key.W, UnityEngine.InputSystem.Key.None, UnityEngine.InputSystem.Key.A, UnityEngine.InputSystem.Key.None, UnityEngine.InputSystem.Key.S, UnityEngine.InputSystem.Key.None };
+                double until = Time.realtimeSinceStartupAsDouble + seconds, nextKey = 0; int keyIndex = 0;
+                while (Time.realtimeSinceStartupAsDouble < until)
+                {
+                    double now = Time.realtimeSinceStartupAsDouble; var position = e1.transform.position; low = Vector3.Min(low, position); high = Vector3.Max(high, position);
+                    if (name == "client1" && now >= nextKey) { UnityEngine.InputSystem.InputSystem.QueueStateEvent(keyboard, new UnityEngine.InputSystem.LowLevel.KeyboardState(keys[keyIndex++ % keys.Length])); nextKey = now + .6; }
+                    yield return null;
+                }
+                if (keyboard != null) UnityEngine.InputSystem.InputSystem.QueueStateEvent(keyboard, new UnityEngine.InputSystem.LowLevel.KeyboardState());
+            }
+            finally { PNCombatEvents.Observed -= onEvent; if (keyboard != null) UnityEngine.InputSystem.InputSystem.RemoveDevice(keyboard); }
+            yield return new WaitForSecondsRealtime(2f);
+            int sent = PNMeleeDoorClaims.SentTotal - sent0, contactSent = PNMeleeDoorClaims.ContactSentTotal - contact0; int applied = 0, rejected = 0;
+            foreach (var input in UnityEngine.Object.FindObjectsByType<PNSkillRemoteInput>()) { applied += input.MeleeClaimsApplied; rejected += input.MeleeClaimsRejected; }
+            File.WriteAllText(Path.Combine(folder, name + ".melee"), told + "," + sent + "," + applied + "," + rejected + "," + contactSent); Mark(folder, name + "-melee-done");
+            yield return Wait(() => Has("host-melee-done") && Has("client1-melee-done") && Has("client2-melee-done"), "every machine finished");
+            int[] Read(string who) => File.ReadAllText(Path.Combine(folder, who + ".melee")).Split(',').Select(int.Parse).ToArray();
+            var h = Read("host"); var c1 = Read("client1"); var c2 = Read("client2");
+            int hostTold = h[0], clientSent = c1[1] + c2[1], hostApplied = h[2], hostRejected = h[3], contactClaims = c1[4] + c2[4];
+            log.Append(name + ": hostHit=" + hostTold + " toldHere=" + told + " toldAmount=" + toldAmount.ToString("F1") + " meleeClaims(sent c1/c2)=" + c1[1] + "/" + c2[1] + " host(applied/rejected)=" + hostApplied + "/" + hostRejected + " contactLungeClaims=" + contactClaims + " walked=" + (high - low).ToString("F1") + FaultText() + "; ");
+            if (hostTold < 1) throw new Exception("the monster never hurt the player in " + seconds + " s " + log);
+            if (hostApplied < 1) throw new Exception("the host took no melee claim " + log);
+            if (needContact && contactClaims < 1) throw new Exception("no player claimed a lunge (contact door) in " + seconds + " s " + log);
+            if (hostApplied + hostRejected > clientSent) throw new Exception("the host judged more melee claims than the clients sent " + log);
+            if (told != hostTold) throw new Exception("this machine was told " + told + " hits but the host applied " + hostTold + " " + log);
+            if (name == "client1" && (high - low).magnitude < .5f) throw new Exception("client1 did not move " + log);
         }
 
         // O7: the enemy's own AI casts; the host counts the Actions it announced, each other machine counts the ones it replayed on ITS copy of that enemy (and the cast channel's bytes are logged for the budget).

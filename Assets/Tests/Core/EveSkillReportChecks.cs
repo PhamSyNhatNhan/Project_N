@@ -30,7 +30,7 @@ public static class EveSkillReportChecks
         var docs = new PNGameContentSource(Path.Combine(Application.streamingAssetsPath, "BaseContent"), Path.Combine(Application.persistentDataPath, "Mods"), Array.Empty<string>()).ReadDocuments().ToArray();
         var hub = new EveContentBootstrap().Build(new EveIContentModule[] { new PNContentModule(), new PNGameplayContentModule() }, docs);
         const long owner = 5, eveId = 995040; var target = PNSyncTarget.ForEntity(new EveEntityId(eveId), 1);
-        Check(hub.SyncCommands().Get(PNSkillRemoteInput.HitCommand) != null && hub.SyncCommands().Get(PNSkillRemoteInput.DecisionCommand) != null, "the hit and decision commands are registered");
+        Check(hub.SyncCommands().Get(PNSkillRemoteInput.HitReportCommand) != null && hub.SyncCommands().Get(PNSkillRemoteInput.DecisionCommand) != null, "the hit and decision commands are registered");
 
         GameObject Root(Scene preview, string name, long id, string character, Vector3 position, long ownerId)
         {
@@ -48,7 +48,7 @@ public static class EveSkillReportChecks
         }
         JObject Input(long key, EveId slot, PNSkillInputPhase phase, EveId profile)
             => new JObject { ["k"] = key, ["s"] = slot.ToString(), ["p"] = (int)phase, ["i"] = 0, ["f"] = profile.ToString() };
-        JObject Hits(long key, int step, params long[] ids) => new JObject { ["k"] = key, ["st"] = step, ["h"] = new JArray(ids.Select(x => (object)x)) };
+        JObject Hits(long key, int step, params long[] ids) => new JObject { ["w"] = 0, ["k"] = key, ["st"] = step, ["h"] = new JArray(ids.Select(x => (object)x)) };
         JObject Decision(long key, string point, JToken value) => new JObject { ["k"] = key, ["n"] = point, ["v"] = value };
 
         var hostScene = EditorSceneManager.NewPreviewScene();
@@ -77,37 +77,66 @@ public static class EveSkillReportChecks
             double behindHp = Hp(behind), frontHp = Hp(front);
 
             // ---- S4: hits ----
-            service.ReceiveCommand(owner, target, PNSkillRemoteInput.HitCommand, Hits(1, 0, behind.EntityId.Value));
+            service.ReceiveCommand(owner, target, PNSkillRemoteInput.HitReportCommand, Hits(1, 0, behind.EntityId.Value));
             Check(remote.HitsApplied == 0 && remote.HitsRejected == 1 && Hp(behind) == behindHp, "a hit report before any cast (key beyond what the authority received) changes nothing");
             service.ReceiveCommand(owner, target, PNSkillRemoteInput.Command, Input(1, PNSkillSlots.Attack, PNSkillInputPhase.Started, attackProfile));
             service.ReceiveCommand(owner, target, PNSkillRemoteInput.Command, Input(2, PNSkillSlots.Attack, PNSkillInputPhase.Performed, attackProfile));
             Check(skill.CurrentCast == EveCast.Attack && skill.HitReceiverCount == 1, "the owner's Attack press starts a sweep that listens for reported hits (cast " + skill.CurrentCast + ", receivers " + skill.HitReceiverCount + ")");
             // G6c: a hit travels under the cast's key (the input that began the cast, shifted), which the framework gave both the guess and this real cast
             long ck = skill.CurrentInvocation.CastKey; Check(ck == PNSkillCastKey.FromInput(2), "the host's cast carries the key of the input that began it (" + ck + ")");
-            service.ReceiveCommand(owner + 1, target, PNSkillRemoteInput.HitCommand, Hits(ck, 0, behind.EntityId.Value));
+            service.ReceiveCommand(owner + 1, target, PNSkillRemoteInput.HitReportCommand, Hits(ck, 0, behind.EntityId.Value));
             Check(remote.HitsApplied == 0 && Hp(behind) == behindHp, "a report from somebody who is not the owner is dropped as stale");
-            service.ReceiveCommand(owner, target, PNSkillRemoteInput.HitCommand, Hits(ck, 0, behind.EntityId.Value));
+            service.ReceiveCommand(owner, target, PNSkillRemoteInput.HitReportCommand, Hits(ck, 0, behind.EntityId.Value));
             Check(remote.HitsApplied == 1 && Hp(behind) < behindHp, "a legal reported hit is applied with the sweep's own damage (hp " + behindHp + " -> " + Hp(behind) + ")");
             double afterFirst = Hp(behind);
-            service.ReceiveCommand(owner, target, PNSkillRemoteInput.HitCommand, Hits(ck, 0, behind.EntityId.Value));
+            service.ReceiveCommand(owner, target, PNSkillRemoteInput.HitReportCommand, Hits(ck, 0, behind.EntityId.Value));
             Check(remote.HitsApplied == 1 && Hp(behind) == afterFirst, "the same target at the same step is not hit twice");
-            service.ReceiveCommand(owner, target, PNSkillRemoteInput.HitCommand, Hits(ck, 1, behind.EntityId.Value));
+            service.ReceiveCommand(owner, target, PNSkillRemoteInput.HitReportCommand, Hits(ck, 1, behind.EntityId.Value));
             Check(remote.HitsApplied == 1 && Hp(behind) == afterFirst, "another step does not hit it again either: the sweep hits each target once per cast");
             int rejected = remote.HitsRejected;
-            service.ReceiveCommand(owner, target, PNSkillRemoteInput.HitCommand, Hits(ck, 0, far.EntityId.Value, dead.EntityId.Value, 777000, 0, eveId));
+            service.ReceiveCommand(owner, target, PNSkillRemoteInput.HitReportCommand, Hits(ck, 0, far.EntityId.Value, dead.EntityId.Value, 777000, 0, eveId));
             Check(remote.HitsApplied == 1 && remote.HitsRejected == rejected + 5, "far, dead, unknown, zero and self targets are all refused (" + (remote.HitsRejected - rejected) + " of 5)");
-            service.ReceiveCommand(owner, target, PNSkillRemoteInput.HitCommand, Hits(PNSkillCastKey.FromInput(99), 0, front.EntityId.Value));
+            service.ReceiveCommand(owner, target, PNSkillRemoteInput.HitReportCommand, Hits(PNSkillCastKey.FromInput(99), 0, front.EntityId.Value));
             Check(remote.HitsApplied == 1 && Hp(front) == frontHp, "a key from the future is refused");
-            bool malformed = false; try { service.ReceiveCommand(owner, target, PNSkillRemoteInput.HitCommand, new JObject { ["k"] = 1, ["st"] = 0 }); } catch (FormatException) { malformed = true; }
+            bool malformed = false; try { service.ReceiveCommand(owner, target, PNSkillRemoteInput.HitReportCommand, new JObject { ["w"] = 0, ["k"] = 1, ["st"] = 0 }); } catch (FormatException) { malformed = true; }
             Check(malformed, "a report without targets is a protocol error");
-            malformed = false; try { service.ReceiveCommand(owner, target, PNSkillRemoteInput.HitCommand, Hits(1, 0, Enumerable.Range(1, 17).Select(x => (long)x).ToArray())); } catch (FormatException) { malformed = true; }
+            malformed = false; try { service.ReceiveCommand(owner, target, PNSkillRemoteInput.HitReportCommand, Hits(1, 0, Enumerable.Range(1, 17).Select(x => (long)x).ToArray())); } catch (FormatException) { malformed = true; }
             Check(malformed, "more than 16 targets in one report is a protocol error");
             service.ReceiveCommand(owner, target, PNSkillRemoteInput.Command, Input(3, PNSkillSlots.Attack, PNSkillInputPhase.Canceled, attackProfile));
             for (int i = 0; i < 400 && skill.IsBusy; i++) { skill.Tick(.01f); remote.Pump(.01); }
             Check(!skill.IsBusy && skill.HitReceiverCount == 0, "the sweep ended and stopped listening");
             double settled = Hp(behind); int applied = remote.HitsApplied;
-            service.ReceiveCommand(owner, target, PNSkillRemoteInput.HitCommand, Hits(ck, 2, behind.EntityId.Value));
+            service.ReceiveCommand(owner, target, PNSkillRemoteInput.HitReportCommand, Hits(ck, 2, behind.EntityId.Value));
             Check(remote.HitsApplied == applied && Hp(behind) == settled, "a report that arrives after the sweep ended changes nothing");
+
+            // ---- V4a: one command both ways. A Taken report is "this object hit my player" from the victim's machine; the same sender-is-owner rule and the same protocol checks apply ----
+            JObject Taken(int kind, long id, int detail) => new JObject { ["w"] = (int)PNHitReportRole.Taken, ["t"] = kind, ["o"] = id, ["n"] = detail };
+            int claimsOk = remote.ClaimsApplied, claimsNo = remote.ClaimsRejected, hitsOk = remote.HitsApplied, hitsNo = remote.HitsRejected;
+            service.ReceiveCommand(owner + 1, target, PNSkillRemoteInput.HitReportCommand, Taken((int)PNObjectKind.Area, 5, 1));
+            Check(remote.ClaimsApplied == claimsOk && remote.ClaimsRejected == claimsNo, "a Taken report from somebody who is not the owner of the victim is dropped as stale");
+            service.ReceiveCommand(owner, target, PNSkillRemoteInput.HitReportCommand, Taken((int)PNObjectKind.Area, 5, 1));
+            Check(remote.ClaimsApplied == claimsOk && remote.ClaimsRejected == claimsNo + 1 && remote.HitsApplied == hitsOk && remote.HitsRejected == hitsNo, "a Taken report from the owner reaches the area manager (its kind) and is refused there; it counts as a rejected claim, not as a rejected Dealt hit");
+            bool wrong = false; try { service.ReceiveCommand(owner, target, PNSkillRemoteInput.HitReportCommand, new JObject { ["w"] = 2, ["o"] = 5 }); } catch (FormatException) { wrong = true; }
+            Check(wrong, "an unknown role is a protocol error");
+            wrong = false; try { service.ReceiveCommand(owner, target, PNSkillRemoteInput.HitReportCommand, Taken(9, 5, 0)); } catch (FormatException) { wrong = true; }
+            Check(wrong, "a Taken report naming a kind of object nobody owns is a protocol error");
+            wrong = false; try { service.ReceiveCommand(owner, target, PNSkillRemoteInput.HitReportCommand, Taken((int)PNObjectKind.Area, 5, PNHurtClaimLimits.MaxHit + 1)); } catch (FormatException) { wrong = true; }
+            Check(wrong, "a Taken report with an impossible detail is a protocol error");
+            wrong = false; try { service.ReceiveCommand(owner, target, PNSkillRemoteInput.HitReportCommand, new JObject { ["w"] = (int)PNHitReportRole.Taken, ["k"] = ck, ["st"] = 0, ["h"] = new JArray(behind.EntityId.Value) }); } catch (FormatException) { wrong = true; }
+            Check(wrong && Hp(behind) == settled, "a report shaped as a Dealt hit but sent as Taken (the wrong direction) is a protocol error and hurts nobody");
+            wrong = false; try { service.ReceiveCommand(owner, target, PNSkillRemoteInput.HitReportCommand, new JObject { ["w"] = (int)PNHitReportRole.Dealt, ["t"] = (int)PNObjectKind.Projectile, ["o"] = 5L, ["n"] = 0 }); } catch (FormatException) { wrong = true; }
+            Check(wrong, "a report that names an object but claims the Dealt role (no cast) is a protocol error");
+            // V4b: Taken by cast: from the owner it reaches the ticket book and is refused there (no ticket, or no manager in this fixture); from anybody else it is dropped; a malformed one is a protocol error.
+            int byCastNo = remote.ClaimsRejected, byCastOk = remote.ClaimsApplied;
+            service.ReceiveCommand(owner + 1, target, PNSkillRemoteInput.HitReportCommand, new JObject { ["w"] = (int)PNHitReportRole.Taken, ["k"] = 31L, ["st"] = 2, ["n"] = 0 });
+            Check(remote.ClaimsRejected == byCastNo && remote.ClaimsApplied == byCastOk, "a Taken-by-cast report from somebody who is not the owner is dropped as stale");
+            service.ReceiveCommand(owner, target, PNSkillRemoteInput.HitReportCommand, new JObject { ["w"] = (int)PNHitReportRole.Taken, ["k"] = 31L, ["st"] = 2, ["n"] = 0 });
+            Check(remote.ClaimsApplied == byCastOk && remote.ClaimsRejected == byCastNo + 1 && remote.HitsRejected == hitsNo, "a Taken-by-cast report with no ticket is a rejected claim, never an applied one or a rejected Dealt hit");
+            foreach (var shape in new[] { new JObject { ["w"] = 1, ["k"] = 31L, ["st"] = 2 }, new JObject { ["w"] = 1, ["k"] = 31L, ["st"] = 999, ["n"] = 0 }, new JObject { ["w"] = 1, ["k"] = 31L, ["st"] = 2, ["n"] = PNHurtClaimLimits.MaxHit + 1 }, new JObject { ["w"] = 1, ["k"] = 31L, ["st"] = 2, ["n"] = 0, ["o"] = 5L, ["t"] = 1 }, new JObject { ["w"] = 1, ["k"] = 0L, ["st"] = 2, ["n"] = 0 } })
+            {
+                wrong = false; try { service.ReceiveCommand(owner, target, PNSkillRemoteInput.HitReportCommand, shape); } catch (FormatException) { wrong = true; }
+                Check(wrong || shape["o"] != null, "a malformed Taken-by-cast report is a protocol error: " + shape.ToString(Newtonsoft.Json.Formatting.None));
+            }
 
             // ---- S5: decisions ----
             service.ReceiveCommand(owner + 1, target, PNSkillRemoteInput.DecisionCommand, Decision(2, "ult_retarget", new JObject { ["t"] = front.EntityId.Value }));
@@ -163,10 +192,20 @@ public static class EveSkillReportChecks
             service.RegisterObject(target, skill); view.OnBound(service, target); remote.OnBound(service, target);
             var bindings = new JObject(); foreach (var slot in PNSkillSlots.Player) bindings[slot.ToString()] = "project_n:eve_" + slot.ToString().Substring(slot.ToString().IndexOf("slot_", StringComparison.Ordinal) + 5);
             service.ReceiveState(target, PNSkillOwnerView.State, 2, 1, PNAbilityOwnerFixture.Image(view, new JObject { ["a"] = new JArray(), ["b"] = bindings }));
-            Check(remote.SendHits(7, 0, new[] { new EveEntityId(995041), new EveEntityId(995042) }) && wire.Sent.Count == 1 && wire.Sent[0].Command == PNSkillRemoteInput.HitCommand.ToString() && (long)wire.Sent[0].Payload["k"] == 7 && ((JArray)wire.Sent[0].Payload["h"]).Count == 2, "the client sends the hits it saw");
+            Check(remote.SendHits(7, 0, new[] { new EveEntityId(995041), new EveEntityId(995042) }) && wire.Sent.Count == 1 && wire.Sent[0].Command == PNSkillRemoteInput.HitReportCommand.ToString() && (long)wire.Sent[0].Payload["k"] == 7 && ((JArray)wire.Sent[0].Payload["h"]).Count == 2, "the client sends the hits it saw");
             Check(!remote.SendHits(7, 0, new EveEntityId[0]) && !remote.SendHits(0, 0, new[] { new EveEntityId(995041) }) && !remote.SendHits(7, 0, Enumerable.Range(1, 17).Select(x => new EveEntityId(x)).ToArray()), "an empty, keyless or oversized report is not sent");
             Check(remote.SendDecision(7, "ult_retarget", new JObject { ["t"] = 995041 }) && wire.Sent.Count == 2 && wire.Sent[1].Command == PNSkillRemoteInput.DecisionCommand.ToString(), "the client sends its decision");
             Check(!remote.SendDecision(7, "Not A Point", new JObject()), "a badly named decision point is not sent");
+            // V4a: the same sender and the same command carry the other direction (an object that hit this machine's player).
+            Check(remote.SendHitReport(PNHitReport.TakenFromObject(PNObjectKind.Blast, 77, 0), null) && wire.Sent.Count == 3 && wire.Sent[2].Command == PNSkillRemoteInput.HitReportCommand.ToString()
+                && (int)wire.Sent[2].Payload["w"] == (int)PNHitReportRole.Taken && (int)wire.Sent[2].Payload["t"] == (int)PNObjectKind.Blast && (long)wire.Sent[2].Payload["o"] == 77 && wire.Sent[2].Payload["h"] == null, "the client sends an object that hit its player as a Taken report on the same command");
+            Check(!remote.SendHitReport(PNHitReport.TakenFromObject(PNObjectKind.Area, 77, PNHurtClaimLimits.MaxHit + 1), null) && !remote.SendHitReport(PNHitReport.TakenFromObject(PNObjectKind.Area, 0, 0), null)
+                && !remote.SendHitReport(PNHitReport.DealtByCast(7, 0), null) && !remote.SendHitReport(PNHitReport.FromWire(PNHitReportRole.Taken, 7, 0, (int)PNObjectKind.Area, 77, 0), null) && wire.Sent.Count == 3,
+                "a Taken report without an object or with an impossible detail, a Dealt report without victims, and a report that names a cast and an object at once are not sent");
+            // V4b: a melee hit of an authority Action is named by cast (`k`, the Action's ordinal `st`, the hit `n`).
+            Check(remote.SendHitReport(PNHitReport.TakenByCast(31, 2, 1), null) && wire.Sent.Count == 4 && (int)wire.Sent[3].Payload["w"] == (int)PNHitReportRole.Taken && (long)wire.Sent[3].Payload["k"] == 31 && (int)wire.Sent[3].Payload["st"] == 2 && (int)wire.Sent[3].Payload["n"] == 1
+                && wire.Sent[3].Payload["o"] == null && wire.Sent[3].Payload["t"] == null, "the client sends a melee hit that landed on its player as a Taken report named by cast");
+            Check(!remote.SendHitReport(PNHitReport.TakenByCast(31, 2, PNHurtClaimLimits.MaxHit + 1), null) && !remote.SendHitReport(PNHitReport.TakenByCast(31, (int)PNSkillCastKey.MaxStep + 1, 0), null) && wire.Sent.Count == 4, "a melee report with a hit or a step out of range is not sent");
             remote.OnUnbound(); view.OnUnbound(); service.Dispose();
         }
         finally { Cleanup(clientScene); }

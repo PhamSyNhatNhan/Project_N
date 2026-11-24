@@ -24,11 +24,11 @@ public static class PNHurtClaimEditorChecks
         public readonly HashSet<long> Ids = new HashSet<long>();
         public bool ClaimsDecide(PNStat target) => target != null && Ids.Contains(target.EntityId.Value);
     }
-    private sealed class Sink : IPNHurtClaimSink
+    private sealed class Sink : IPNHitReportSink
     {
         public PNStat Who; public readonly List<(PNObjectKind Kind, long Id, int Hit)> Sent = new List<(PNObjectKind, long, int)>(); public Action<long, int> Relay;
         public PNStat Claimant => Who;
-        public bool SendClaim(PNObjectKind kind, long objectId, int hit) { Sent.Add((kind, objectId, hit)); Relay?.Invoke(objectId, hit); return true; }
+        public bool SendHitReport(in PNHitReport report, System.Collections.Generic.IReadOnlyList<EveEntityId> victims) { Sent.Add((report.Kind, report.ObjectId, report.Detail)); Relay?.Invoke(report.ObjectId, report.Detail); return true; }
     }
     private sealed class ClaimModule : EveIContentModule
     {
@@ -114,7 +114,7 @@ public static class PNHurtClaimEditorChecks
             Check(copy.Launch.TargetLayers.Contains(PNLayers.Player) && wire.All.Last(x => x.Type == PNObjectRecordType.Spawn).TargetMask == PNLayers.Bit(PNLayers.Player), "the Spawn record carries the target layers and the copy takes them");
 
             // ---- the player's machine decides: the authority's bolt flies through him, his copy claims once, the authority applies it once ----
-            sink.Relay = (id, hit) => host.AcceptHurtClaim(id, victim, 1.5f);
+            sink.Relay = (id, hit) => host.AcceptHitReport(PNHitReport.TakenFromObject(PNObjectKind.Projectile, id), victim, 1.5f);
             Advance(.2f);
             Check(sink.Sent.Count == 0 && Hp(victim) == health, "before the bolt reaches him nothing is claimed or applied");
             Advance(.5f);
@@ -135,14 +135,14 @@ public static class PNHurtClaimEditorChecks
             Advance(5f);
 
             // ---- refusals ----
-            Check(!host.AcceptHurtClaim(987654, victim, 1.5f) && host.ClaimRefusals.ContainsKey("gone"), "a claim for an object that is not there is refused");
+            Check(!host.AcceptHitReport(PNHitReport.TakenFromObject(PNObjectKind.Projectile, 987654), victim, 1.5f) && host.ClaimRefusals.ContainsKey("gone"), "a claim for an object that is not there is refused");
             policy.Ids.Clear();
             var held = host.Create(Launch(), Spawn(new Vector3(-30, 0.8f, 0))); Advance(.05f);
             long heldId = wire.All.Last(x => x.Type == PNObjectRecordType.Spawn).Id; policy.Ids.Add(victim.EntityId.Value); policy.Ids.Remove(victim.EntityId.Value);
-            Check(!host.AcceptHurtClaim(heldId, victim, 1.5f) && host.ClaimRefusals.ContainsKey("policy"), "a claim for a player the policy does not hand over is refused (the authority decides him again, e.g. a silent machine)");
+            Check(!host.AcceptHitReport(PNHitReport.TakenFromObject(PNObjectKind.Projectile, heldId), victim, 1.5f) && host.ClaimRefusals.ContainsKey("policy"), "a claim for a player the policy does not hand over is refused (the authority decides him again, e.g. a silent machine)");
             policy.Ids.Add(victim.EntityId.Value);
-            Check(!host.AcceptHurtClaim(heldId, victim, 1.5f) && host.ClaimRefusals.ContainsKey("rule"), "a claim from far away (the object is 30 m off) is refused by the reach rule");
-            Check(!host.AcceptHurtClaim(heldId, victim, 1.5f) && host.ClaimRefusals.ContainsKey("again"), "the same player cannot claim the same object twice");
+            Check(!host.AcceptHitReport(PNHitReport.TakenFromObject(PNObjectKind.Projectile, heldId), victim, 1.5f) && host.ClaimRefusals.ContainsKey("rule"), "a claim from far away (the object is 30 m off) is refused by the reach rule");
+            Check(!host.AcceptHitReport(PNHitReport.TakenFromObject(PNObjectKind.Projectile, heldId), victim, 1.5f) && host.ClaimRefusals.ContainsKey("again"), "the same player cannot claim the same object twice");
             held.Handle.End(); Advance(.3f);
 
             // ---- the policy gives the player back (his machine fell silent): the authority tests him itself again ----

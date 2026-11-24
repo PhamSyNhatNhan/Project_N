@@ -82,7 +82,7 @@ public static class PNActionViewPolicy
 // `[a-z0-9_.:-]`, at most `MaxValues` finite numbers (|v| <= `MaxMagnitude`). Immutable once made, so the decoder and the view can share it.
 public sealed class PNActionFact
 {
-    public const int MaxPerRun = 8, MaxKey = 32, MaxValues = 4;
+    public const int MaxPerRun = 8, MaxKey = 32, MaxValues = 8;
     // The fact an Action presents for the one it helped (`context.PresentRecipient`): one number, the entity id.
     public const string RecipientKey = "recipient";
     public const double MaxMagnitude = 1e9;

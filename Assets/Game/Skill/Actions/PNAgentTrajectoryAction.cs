@@ -81,15 +81,13 @@ public class PNAgentTrajectoryAction : PNSkillAction, IPNSkillMotionAction, IPNS
     private Action cancelOwner;
     private Vector3 origin, direction, side, anchor;
     private float elapsed;
-    private bool performed, disposed, scanning;
+    private bool performed, disposed, scanning, doorTried;
     // G8c: on a machine that only shows the Action (Mode Observed) the body's place comes from Move: no motor, no movement lock, no contact; the duration still runs.
     private bool timelineOnly;
-    private PNHitboxCast cast;
+    // V4c: the contact sphere is the shared melee hitbox service (the one a swing uses): its damage is captured at Perform, and a player whose own machine decides his hits is handed a door and tickets instead.
+    private PNSkillMeleeHitbox hitbox;
     private PNStat caster;
-    private PNDamage damage;
-    private PNCombatSourceSnapshot source; private float hitRadius;
-    private double rawAmount;
-    private readonly List<PNStat> targets = new List<PNStat>();
+    private float hitRadius;
     private RaycastHit[] sweptHits = new RaycastHit[32];
     private static readonly IComparer<RaycastHit> SweepOrder = Comparer<RaycastHit>.Create((x, y) => x.distance.CompareTo(y.distance));
     protected virtual bool Contact => false;
@@ -147,12 +145,20 @@ public class PNAgentTrajectoryAction : PNSkillAction, IPNSkillMotionAction, IPNS
         if (timelineOnly) return;
         if (Contact)
         {
-            foreach (var component in settings.Values.Components) rawAmount += component.Evaluate(caster);
             // Captured once at Perform: melee_scale widens the contact radius (travel distance and sweep angle stay), melee_damage joins the tags.
-            source = caster.CaptureCombatSource(); var capture = PNHitCapture.Melee(source, value.Data.Action.PerformTags);
-            hitRadius = capture.Scale(settings.HitRadius); damage = capture.Damage(capture.Prepare(rawAmount, settings.CanCrit, null));
-            cast = new PNHitboxCast(EveHitboxShape.Sphere(hitRadius), value.Skill.gameObject.scene.GetPhysicsScene(), settings.RepeatInterval > 0 ? settings.RepeatInterval : (double?)null);
+            hitbox = new PNSkillMeleeHitbox(value, caster, settings.Values, null, settings.CanCrit);
+            hitRadius = hitbox.ScaleLength(settings.HitRadius);
+            double? repeat = settings.RepeatInterval > 0 ? settings.RepeatInterval : (double?)null;
+            hitbox.Open(EveHitboxShape.Sphere(hitRadius), origin, hitRadius, 0, null, target => caster.Targets(target), repeat);
         }
+    }
+    // The door of the contact (V4c): the dash's path bounds where the body can be, the window is the active part of the dash. Opened only when a player whose own machine decides his hits is within reach.
+    private void OpenDoor()
+    {
+        if (hitbox == null) return;
+        var first = Sample(0); var last = Sample(1); var center = (first + last) * .5f; float reach = 0f;
+        for (int i = 0; i <= 16; i++) reach = Mathf.Max(reach, Vector3.Distance(Sample(i / 16f), center));
+        hitbox.OpenContactDoor(first, center + Vector3.up * .7f, reach + hitRadius, settings.RepeatInterval, settings.ActiveStart * settings.Duration, settings.ActiveEnd * settings.Duration);
     }
     private Vector3 Sample(float t)
     {
@@ -178,6 +184,8 @@ public class PNAgentTrajectoryAction : PNSkillAction, IPNSkillMotionAction, IPNS
         }
         if (Outcome != PNMotionOutcome.Running || disposed) return true;
         if (!performed || delta == 0 || !PNWorldGameplay.CanExecute(context.Skill) || !motor.CanWrite) return false;
+        // The door opens when the motion really starts (a subclass may wait after Perform, as the Starkeeper's star point does through its windup): its window counts from here.
+        if (Contact && !doorTried) { doorTried = true; OpenDoor(); }
         float next = Mathf.Min(settings.Duration, elapsed + delta); float from = elapsed / settings.Duration, to = next / settings.Duration;
         float maximumStep = Contact ? Mathf.Min(settings.MaximumSegment, hitRadius * .5f) : settings.MaximumSegment;
         int steps = 1;
@@ -231,19 +239,13 @@ public class PNAgentTrajectoryAction : PNSkillAction, IPNSkillMotionAction, IPNS
     }
     private void Deliver(Vector3 position, double time)
     {
-        cast.Query(EveHitboxPose.Planar(position, direction), time, targets, caster, ~0, QueryTriggerInteraction.Ignore,
-            target => caster.Targets(target) && !target.IsDead);
-        foreach (var target in targets)
-        {
-            if (disposed) break;
-            context.ReceiveHit(target, position, damage, rawAmount, source);
-            if (!disposed && target.IsReady) cast.CommitHit(target, time);
-        }
+        if (!disposed) hitbox?.Sample(EveHitboxPose.Planar(position, direction), time);
     }
     public override void Exit(PNSkillActionContext value) { value.CompleteAction(); Dispose(); }
     public override void Cancel(PNSkillActionContext value) { try { value.CancelEffects(); if (Outcome == PNMotionOutcome.Running) Outcome = PNMotionOutcome.Cancelled; } finally { Dispose(); } }
-    public override void Dispose() { disposed = true; if (!scanning) Cleanup(); }
-    private void Cleanup() { cast?.Dispose(); cast = null; motor?.Dispose(); motor = null; movementLock?.Dispose(); movementLock = null; }
+    // The hitbox goes at once (also while a scan runs: it stops handing out hits); the motor and the lock wait for the scan to end.
+    public override void Dispose() { disposed = true; hitbox?.Dispose(); hitbox = null; if (!scanning) Cleanup(); }
+    private void Cleanup() { motor?.Dispose(); motor = null; movementLock?.Dispose(); movementLock = null; }
 }
 public class PNAgentContactMotionAction : PNAgentTrajectoryAction { protected override bool Contact => true; }
 #endif

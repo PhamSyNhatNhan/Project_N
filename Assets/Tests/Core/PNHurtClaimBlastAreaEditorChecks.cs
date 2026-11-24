@@ -24,11 +24,11 @@ public static class PNHurtClaimBlastAreaEditorChecks
         public readonly HashSet<long> Ids = new HashSet<long>();
         public bool ClaimsDecide(PNStat target) => target != null && Ids.Contains(target.EntityId.Value);
     }
-    private sealed class Sink : IPNHurtClaimSink
+    private sealed class Sink : IPNHitReportSink
     {
         public PNStat Who; public readonly List<(PNObjectKind Kind, long Id, int Hit)> Sent = new List<(PNObjectKind, long, int)>(); public Action<PNObjectKind, long, int> Relay;
         public PNStat Claimant => Who;
-        public bool SendClaim(PNObjectKind kind, long objectId, int hit) { Sent.Add((kind, objectId, hit)); Relay?.Invoke(kind, objectId, hit); return true; }
+        public bool SendHitReport(in PNHitReport report, System.Collections.Generic.IReadOnlyList<EveEntityId> victims) { Sent.Add((report.Kind, report.ObjectId, report.Detail)); Relay?.Invoke(report.Kind, report.ObjectId, report.Detail); return true; }
     }
 
     public static string Run()
@@ -104,7 +104,7 @@ public static class PNHurtClaimBlastAreaEditorChecks
             Advance(.1f);
             long blastId = SpawnId(PNObjectKind.Blast);
             Check(blastId > 0 && wire != null && clientBlasts.ReplicaCount == 1, "the copy of the blast is on the player's machine");
-            sink.Relay = (kind, id, hit) => { if (kind == PNObjectKind.Blast) hostBlasts.AcceptHurtClaim(id, victim, 1.5f); };
+            sink.Relay = (kind, id, hit) => { if (kind == PNObjectKind.Blast) hostBlasts.AcceptHitReport(PNHitReport.TakenFromObject(PNObjectKind.Blast, id), victim, 1.5f); };
             Advance(.6f);
             Check(sink.Sent.Count == 1 && sink.Sent[0].Kind == PNObjectKind.Blast && sink.Sent[0].Id == blastId, "his copy sent exactly one claim for the blast (" + sink.Sent.Count + ")");
             Check(book.Accepted == 1 && Health(victim) < health, "the authority applied the blast's damage on the claim (health " + health + " -> " + Health(victim) + ")");
@@ -112,12 +112,12 @@ public static class PNHurtClaimBlastAreaEditorChecks
             Check(earlyKeys.Contains(expected) && damageKeys.Contains(expected), "the claimed hit is named by its victim on both sides (" + expected + ")");
 
             // refusals
-            Check(!hostBlasts.AcceptHurtClaim(blastId, victim, 1.5f) && book.Refusals.ContainsKey("again"), "the same player cannot claim the same blast twice");
-            Check(!hostBlasts.AcceptHurtClaim(blastId, far, 1.5f) && book.Refusals.ContainsKey("rule"), "a player 30 m from the blast is refused by the reach rule");
-            Check(!hostBlasts.AcceptHurtClaim(987654, victim, 1.5f) && book.Refusals.ContainsKey("gone"), "a claim for a blast that is not there is refused");
+            Check(!hostBlasts.AcceptHitReport(PNHitReport.TakenFromObject(PNObjectKind.Blast, blastId), victim, 1.5f) && book.Refusals.ContainsKey("again"), "the same player cannot claim the same blast twice");
+            Check(!hostBlasts.AcceptHitReport(PNHitReport.TakenFromObject(PNObjectKind.Blast, blastId), far, 1.5f) && book.Refusals.ContainsKey("rule"), "a player 30 m from the blast is refused by the reach rule");
+            Check(!hostBlasts.AcceptHitReport(PNHitReport.TakenFromObject(PNObjectKind.Blast, 987654), victim, 1.5f) && book.Refusals.ContainsKey("gone"), "a claim for a blast that is not there is refused");
             Advance(1f);
             health = Health(victim);
-            Check(!hostBlasts.AcceptHurtClaim(blastId, victim, 1.5f) && Health(victim) == health, "a claim after the grace is refused and the player is unhurt");
+            Check(!hostBlasts.AcceptHitReport(PNHitReport.TakenFromObject(PNObjectKind.Blast, blastId), victim, 1.5f) && Health(victim) == health, "a claim after the grace is refused and the player is unhurt");
 
             // a claim that never comes: the player's machine decides, so the authority does not hurt him
             sink.Relay = null; sink.Sent.Clear(); health = Health(victim);
@@ -134,7 +134,7 @@ public static class PNHurtClaimBlastAreaEditorChecks
             policy.Ids.Clear(); health = Health(victim);
             hostBlasts.Create(new PNBlastCreateRequest(PNBlastGameplayContent.Cylinder, BlastInput(.3, .3), source, scene, Vector3.zero, owner, PNBlastDependency.Independent)); Advance(.6f);
             Check(Health(victim) < health, "once the policy hands the player back the blast hurts him itself");
-            Check(!hostBlasts.AcceptHurtClaim(blastId, victim, 1.5f) && book.Refusals.ContainsKey("policy"), "a claim for a player the policy does not hand over is refused");
+            Check(!hostBlasts.AcceptHitReport(PNHitReport.TakenFromObject(PNObjectKind.Blast, blastId), victim, 1.5f) && book.Refusals.ContainsKey("policy"), "a claim for a player the policy does not hand over is refused");
 
             // ================= V3: area =================
             policy.Ids.Add(victim.EntityId.Value); sink.Sent.Clear(); sink.Relay = null;
@@ -145,13 +145,13 @@ public static class PNHurtClaimBlastAreaEditorChecks
             Advance(1.5f);
             Check(sink.Sent.Count == 1 && sink.Sent[0].Kind == PNObjectKind.Area && sink.Sent[0].Hit == 1, "his copy told that he stands inside (" + string.Join(",", sink.Sent.Select(x => x.Kind + ":" + x.Hit)) + ")");
             Check(slow.ModifierCount == 0, "the authority did not put him in the field by its own test while his machine decides");
-            Check(hostAreas.AcceptHurtClaim(areaId, victim, 1.5f, true), "the authority takes his presence claim");
+            Check(hostAreas.AcceptHitReport(PNHitReport.TakenFromObject(PNObjectKind.Area, areaId, 1), victim, 1.5f), "the authority takes his presence claim");
             Advance(1.5f);
             Check(slow.ModifierCount > 0, "the field slows the player while his machine says he is inside");
-            Check(!hostAreas.AcceptHurtClaim(areaId, far, 1.5f, true), "a claim of presence from 30 m away is refused");
+            Check(!hostAreas.AcceptHitReport(PNHitReport.TakenFromObject(PNObjectKind.Area, areaId, 1), far, 1.5f), "a claim of presence from 30 m away is refused");
 
             // he leaves: his copy says so, the authority lets him go
-            sink.Relay = (kind, id, hit) => { if (kind == PNObjectKind.Area) hostAreas.AcceptHurtClaim(id, victim, 1.5f, hit != 0); };
+            sink.Relay = (kind, id, hit) => { if (kind == PNObjectKind.Area) hostAreas.AcceptHitReport(PNHitReport.TakenFromObject(PNObjectKind.Area, id, hit), victim, 1.5f); };
             victim.transform.position = new Vector3(10, 0, 0); Physics.SyncTransforms(); Advance(1.5f);
             Check(sink.Sent.Count >= 2 && sink.Sent[sink.Sent.Count - 1].Hit == 0, "his copy told that he left");
             Check(slow.ModifierCount == 0, "the field released him once his machine said he left");

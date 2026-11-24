@@ -133,10 +133,8 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         // The owner's skill input and its answer (S2): a command from the owner's client, the cast result back to the owner only.
         hub.SyncStates().Register(new PNSyncStateDefinition(PNSkillRemoteInput.ResultState,1,PNSkillRemoteInput.ResultBytes,PNSyncTargets.Entity,true));
         hub.SyncCommands().Register(new PNSyncCommandDefinition(PNSkillRemoteInput.Command,typeof(PNSkillInputCommandHandler),()=>new PNSkillInputCommandHandler(),PNSkillRemoteInput.CommandBytes,PNSyncTargets.Entity));
-        // The hits the owner's client saw and its choices at decision points (S4-S5): proposals the authority checks, never orders.
-        hub.SyncCommands().Register(new PNSyncCommandDefinition(PNSkillRemoteInput.HitCommand,typeof(PNSkillHitCommandHandler),()=>new PNSkillHitCommandHandler(),PNSkillRemoteInput.HitCommandBytes,PNSyncTargets.Entity));
-        // 4.4c: the machine of a player claims the hits on him (enemy attacks); the authority checks and applies.
-        hub.SyncCommands().Register(new PNSyncCommandDefinition(PNSkillRemoteInput.HurtClaimCommand,typeof(PNHurtClaimCommandHandler),()=>new PNHurtClaimCommandHandler(),PNSkillRemoteInput.HurtClaimCommandBytes,PNSyncTargets.Entity));
+        // The hits a player's machine decided (S4, 4.4c, one command both ways since V4a: Dealt = my cast hit these, Taken = this object hit me) and its choices at decision points (S5): proposals the authority checks, never orders.
+        hub.SyncCommands().Register(new PNSyncCommandDefinition(PNSkillRemoteInput.HitReportCommand,typeof(PNHitReportCommandHandler),()=>new PNHitReportCommandHandler(),PNSkillRemoteInput.HitReportCommandBytes,PNSyncTargets.Entity));
         hub.SyncCommands().Register(new PNSyncCommandDefinition(PNSkillRemoteInput.DecisionCommand,typeof(PNSkillDecisionCommandHandler),()=>new PNSkillDecisionCommandHandler(),PNSkillRemoteInput.DecisionCommandBytes,PNSyncTargets.Entity));
         hub.EntityModules().Register(new PNEntityModuleDefinition(EveId.Parse("project_n:skill_owner_player"),PNEntityModuleRoles.Player,null,new[]{PNRunFeatures.SkillSync},new[]{typeof(PNSyncEntity),typeof(PNSkillOwnerView),typeof(PNSkillRemoteInput),typeof(PNPresentationSync),typeof(PNSkillScaleState)}));
         // O7 (Docs/SpawnedObjectSyncPlan.md): the other machines see what an enemy casts, through the Action stream's views (PV8); the shared presentation clock and the scale block; no owner, input or hit channel.

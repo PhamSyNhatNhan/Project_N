@@ -15,8 +15,13 @@ public partial class PNSkill
         public PNSkillActionContext Context;     // a run this machine runs itself
         public double Age, Target, Rate;
         public bool Placed, Seen, Hidden = true, Dead, Lead = true;
+        public bool Observed;     // a run this machine only watches (its facts may carry a melee door)
+        public PNActionRunKey RunKey;
         public int FactsTaken;     // facts of the stream already queued (the stream's list only grows)
         public readonly List<PendingFact> Facts = new List<PendingFact>();
+#if UNITY_5_3_OR_NEWER
+        public PNMeleeDoorClaims.ContactWatch Watch;     // V4c: a contact door watched while the run's age is inside its window
+#endif
     }
     private struct PendingFact { public string Key; public double[] Values; public double Age; }
 
@@ -212,7 +217,7 @@ public partial class PNSkill
         if (!CanUseObservedActionPresentation) return;
         if (!observedViews.TryGetValue(key, out var item))
         {
-            item = new ViewItem();
+            item = new ViewItem { Observed = true, RunKey = key };
             observedViews.Add(key, item);
             try
             {
@@ -268,9 +273,20 @@ public partial class PNSkill
                 if (fact.Age > age + 1e-9) { i++; continue; }
                 item.Facts.RemoveAt(i);
                 if (PNActionViewPolicy.DropsFact(fact.Age, age, seeking)) { ActionViewFactsDropped++; continue; }
+                // A melee door is for the hitbox service of the machine being hit, not for the picture: it never reaches the view (V4b).
+#if UNITY_5_3_OR_NEWER
+                if (fact.Key == PNMeleeDoor.Key)
+                {
+                    if (item.Observed) { var watch = PNMeleeDoorClaims.Watch(fact.Values, fact.Age); if (watch != null) item.Watch = watch; else PNMeleeDoorClaims.Offer(this, item.RunKey, fact.Values); }
+                    continue;
+                }
+#endif
                 SafeView(item, () => item.View.Fact(fact.Key, fact.Values, fact.Age));
                 if (item.Dead) return;
             }
+#if UNITY_5_3_OR_NEWER
+            if (item.Watch != null) { item.Watch.Tick(this, item.RunKey, age); if (item.Watch.Done) item.Watch = null; }
+#endif
         }
         finally { ActionViewTicks += Stopwatch.GetTimestamp() - begin; }
     }

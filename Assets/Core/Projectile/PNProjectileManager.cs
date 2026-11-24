@@ -14,7 +14,7 @@ using UnityEngine.SceneManagement;
 // VI: Dịch vụ đạn độc lập (cùng khuôn PNAreaManager, không sửa nó): hàng đợi lệnh chống reentrancy, handle đánh số, world lease,
 //     pool theo (definition, scene) dưới một trần toàn cục, dọn khi scene/world/session kết thúc.
 [DisallowMultipleComponent]
-public sealed class PNProjectileManager : MonoBehaviour
+public sealed class PNProjectileManager : MonoBehaviour, IPNHitReportReceiver
 {
     private sealed class PoolEntry
     {
@@ -358,7 +358,17 @@ public sealed class PNProjectileManager : MonoBehaviour
     }
     // EN: A hit the shooter's machine reported (plan 4.4a): finds the authority's projectile named by the cast key and the index, and lets it take the hit. False when there is none (ended, stale, not this machine's).
     // VI: Cu trung may nguoi ban bao: tim vien that theo cast key + so thu tu va de no nhan. False khi khong co.
-    public bool AcceptReportedHit(long castKey, int index, PNStat target, float tolerance)
+    // EN: The one door for hit reports (PNHitReport): a Dealt report of a projectile's cast (step = ReportStepBase + index in the volley) or a Taken report naming a projectile object. Anything else is not this manager's: false.
+    // VI: Cua chung cho lenh bao trung: Dealt cua cast ban dan (step = ReportStepBase + so thu tu) hoac Taken goi ten mot vien dan. Cai khac khong phai cua manager nay: false.
+    public bool AcceptHitReport(in PNHitReport report, PNStat victim, float tolerance)
+    {
+        if (report.Role == PNHitReportRole.Dealt)
+            return report.ByCast && report.Step >= ReportStepBase && AcceptDealt(report.CastKey, report.Step - ReportStepBase, victim, tolerance);
+        // A melee hit named by cast (V4b) is the claim book's (PNHurtClaimBook tickets), not this manager's.
+        if (report.ByCast) return false;
+        return report.Kind == PNObjectKind.Projectile && AcceptTaken(report.ObjectId, victim, tolerance);
+    }
+    private bool AcceptDealt(long castKey, int index, PNStat target, float tolerance)
     {
         if (castKey == 0 || target == null || Session == null || !Session.HasAuthority) return false;
         foreach (var entry in entries.Values)
@@ -379,9 +389,9 @@ public sealed class PNProjectileManager : MonoBehaviour
     public int ClaimsRefused => claimBook.Refused;
     public int ClaimsSent => claimBook.Sent;
     // On a client: the components that can send a claim for their own player (one per player entity this machine shows; only the owner's answers `Claimant`).
-    public void RegisterClaimSink(IPNHurtClaimSink sink) => claimBook.Register(sink);
-    public void UnregisterClaimSink(IPNHurtClaimSink sink) => claimBook.Unregister(sink);
-    internal IPNHurtClaimSink ClaimSinkFor(out PNStat claimant) => claimBook.SinkFor(out claimant);
+    public void RegisterClaimSink(IPNHitReportSink sink) => claimBook.Register(sink);
+    public void UnregisterClaimSink(IPNHitReportSink sink) => claimBook.Unregister(sink);
+    internal IPNHitReportSink ClaimSinkFor(out PNStat claimant) => claimBook.SinkFor(out claimant);
     internal long SyncIdOf(PNProjectileInstance instance) => instance != null && entries.TryGetValue(instance.Handle.InstanceId, out var entry) ? entry.ObjectId : 0L;
     internal void NoteClaimSent() => claimBook.NoteSent();
     public Dictionary<string, int> ClaimRefusals => claimBook.Refusals;
@@ -389,7 +399,7 @@ public sealed class PNProjectileManager : MonoBehaviour
     // EN: A claim from the machine of `target`: the real object named by `objectId` takes the hit when the policy says that machine decides, this player has not claimed this object yet, the object runs and the player
     //     is near it (the object's own contact rule then applies: hit limit, Finish). False when nothing was applied.
     // VI: Lenh bao tu may cua `target`: vat that theo id nhan cu trung khi chinh sach cho may do quyet, nguoi choi chua bao vat nay, vat dang chay va nguoi choi o gan.
-    public bool AcceptHurtClaim(long objectId, PNStat target, float tolerance)
+    private bool AcceptTaken(long objectId, PNStat target, float tolerance)
     {
         if (objectId <= 0 || target == null || Session == null || !Session.HasAuthority) return false;
         var policy = HurtClaimPolicy;
@@ -513,6 +523,7 @@ public sealed class PNProjectileManager : MonoBehaviour
         if (Session == null || !Session.IsActive) { Shutdown(); return; }
         if (objectSync != null) { if (objectSync.IsAuthority) objectSync.Flush(); else objectSync.Tick(); }
         PNCombatEvents.Expire(PNCombatEvents.Clock());
+        claimBook.PruneTickets();     // the shared tickets (blast, melee) are dropped when their grace ends even if no new claim comes
         if (endedPredictions.Count != 0) { double now = PredictionNow; foreach (var key in endedPredictions.Where(x => x.Value < now).Select(x => x.Key).ToArray()) endedPredictions.Remove(key); }
         Submit(() =>
         {

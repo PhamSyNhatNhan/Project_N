@@ -171,7 +171,7 @@ public abstract class PNBlastInstance : MonoBehaviour, EveIPoolable, IPNTimeTarg
 }
 
 [DisallowMultipleComponent]
-public sealed class PNBlastManager : MonoBehaviour
+public sealed class PNBlastManager : MonoBehaviour, IPNHitReportReceiver
 {
     private sealed class PoolEntry
     {
@@ -321,7 +321,7 @@ public sealed class PNBlastManager : MonoBehaviour
         if (closing) return;
         if (Session == null || !Session.IsActive) { Shutdown(); return; }
         if (objectSync != null) { if (objectSync.IsAuthority) objectSync.Flush(); else objectSync.Tick(); }
-        if (tickets.Count != 0) { double now = PredictionNow; foreach (var pair in tickets.ToArray()) if (now > pair.Value.Expires) tickets.Remove(pair.Key); }
+        claimBook.PruneTickets();
         Submit(() => {
             foreach (var pair in entries.ToArray())
             {
@@ -360,8 +360,6 @@ public sealed class PNBlastManager : MonoBehaviour
     // ---- hit claims (plan 4.4c V2, way B) ----
     private PNHurtClaimBook claimBook = new PNHurtClaimBook();
     public PNHurtClaimBook ClaimBook { get => claimBook; set => claimBook = value ?? new PNHurtClaimBook(); }
-    private sealed class ClaimTicket { internal double Expires; internal Vector3 Center; internal float Radius, Height; internal Action<PNStat> Apply; internal readonly HashSet<long> Claimed = new HashSet<long>(); }
-    private readonly Dictionary<long, ClaimTicket> tickets = new Dictionary<long, ClaimTicket>();
     // The sync id of a blast of this manager (a copy's or the authority's); 0 when it has none.
     public long ObjectIdOf(PNBlastInstance instance) => instance != null && objectIds.TryGetValue(instance.Handle.InstanceId, out var id) ? id : 0L;
     // EN: The authority's blast has detonated: for PNHurtClaimLimits.ClaimGraceSeconds a player whose machine decides his own hits may claim it (the claim travels a trip after the copy's detonation). `apply` deals the blast's own prepared damage.
@@ -369,20 +367,15 @@ public sealed class PNBlastManager : MonoBehaviour
     public void OpenClaims(PNBlastInstance instance, Vector3 center, float radius, float height, Action<PNStat, string> apply)
     {
         long objectId = ObjectIdOf(instance); if (objectId <= 0 || claimBook.Policy == null) return;
-        tickets[objectId] = new ClaimTicket { Expires = PredictionNow + PNHurtClaimLimits.ClaimGraceSeconds, Center = center, Radius = radius, Height = height, Apply = stat => apply(stat, "o" + objectId.ToString(System.Globalization.CultureInfo.InvariantCulture) + ":" + PNHurtClaimLimits.ClaimKeyIndex(stat.EntityId.Value)) };
+        claimBook.OpenTicket(PNClaimTicketKey.Blast(objectId), center, radius, height, 1f, stat => { apply(stat, "o" + objectId.ToString(System.Globalization.CultureInfo.InvariantCulture) + ":" + PNHurtClaimLimits.ClaimKeyIndex(stat.EntityId.Value)); return true; }, () => PredictionNow);
     }
     // EN: A claim from the machine of `target`: the blast named by `objectId` hurts him once when the policy says his machine decides, the claim comes within the grace after the detonation and he is near the blast.
-    public bool AcceptHurtClaim(long objectId, PNStat target, float tolerance)
+    public bool AcceptHitReport(in PNHitReport report, PNStat victim, float tolerance)
+        => report.Role == PNHitReportRole.Taken && !report.ByCast && report.Kind == PNObjectKind.Blast && AcceptTaken(report.ObjectId, victim, tolerance);
+    private bool AcceptTaken(long objectId, PNStat target, float tolerance)
     {
         if (objectId <= 0 || target == null || Session == null || !Session.HasAuthority) return false;
-        var policy = claimBook.Policy;
-        if (policy == null || !policy.ClaimsDecide(target)) return claimBook.Refuse("policy");
-        if (!tickets.TryGetValue(objectId, out var ticket) || PredictionNow > ticket.Expires) return claimBook.Refuse("gone");
-        if (!ticket.Claimed.Add(target.EntityId.Value)) return claimBook.Refuse("again");
-        if (!target.IsReady || PNTargetCandidates.IsDead(target) || !PNWorldGameplay.CanExecute(target)) return claimBook.Refuse("rule");
-        var d = target.transform.position - ticket.Center; float slack = Mathf.Max(0f, tolerance) + 1f;
-        if (Mathf.Sqrt(d.x * d.x + d.z * d.z) > ticket.Radius + slack || Mathf.Abs(d.y) > ticket.Height + slack + 1f) return claimBook.Refuse("rule");
-        ticket.Apply(target); claimBook.NoteAccepted(); return true;
+        return claimBook.AcceptTicket(PNClaimTicketKey.Blast(objectId), target, tolerance);
     }
     private readonly Dictionary<long, long> objectEntries = new Dictionary<long, long>();
     // ---- the shooter's guess (plan O5, own book of the blast manager): the player's machine draws the blast at the cast, named by (cast key, index); the authority's Spawn record with that name takes it over ----
@@ -544,7 +537,7 @@ public sealed class PNBlastManager : MonoBehaviour
     }
     public void Shutdown()
     {
-        closing = true; SceneManager.sceneUnloaded -= SceneUnloaded; objectEntries.Clear(); objectIds.Clear(); predictions.Clear(); tickets.Clear();
+        closing = true; SceneManager.sceneUnloaded -= SceneUnloaded; objectEntries.Clear(); objectIds.Clear(); predictions.Clear();
         var errors = new List<Exception>();
         foreach (var pair in entries.ToArray())
         {

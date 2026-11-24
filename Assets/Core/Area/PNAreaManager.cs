@@ -155,7 +155,7 @@ public abstract class PNAreaInstance : MonoBehaviour, EveIPoolable, IPNTimeTarge
 }
 
 [DisallowMultipleComponent]
-public sealed class PNAreaManager : MonoBehaviour
+public sealed class PNAreaManager : MonoBehaviour, IPNHitReportReceiver
 {
     private sealed class PoolEntry
     {
@@ -347,7 +347,9 @@ public sealed class PNAreaManager : MonoBehaviour
     public long ObjectIdOf(PNAreaInstance instance) => instance != null && objectIds.TryGetValue(instance.Handle.InstanceId, out var id) ? id : 0L;
     // EN: A claim from the machine of `target`: "I am inside / outside this area" (`inside`). Taken when the policy says his machine decides and the real area runs; the area keeps his presence until it is withdrawn or the policy gives him back.
     // VI: Lenh bao tu may cua `target`: "toi dang o trong / ngoai vung nay". Nhan khi chinh sach cho may do quyet va vung that dang chay; vung giu trang thai cho toi khi rut lai hoac chinh sach tra nguoi choi ve.
-    public bool AcceptHurtClaim(long objectId, PNStat target, float tolerance, bool inside)
+    public bool AcceptHitReport(in PNHitReport report, PNStat victim, float tolerance)
+        => report.Role == PNHitReportRole.Taken && !report.ByCast && report.Kind == PNObjectKind.Area && AcceptTaken(report.ObjectId, victim, tolerance, report.Detail != 0);
+    private bool AcceptTaken(long objectId, PNStat target, float tolerance, bool inside)
     {
         if (objectId <= 0 || target == null || Session == null || !Session.HasAuthority) return false;
         var policy = claimBook.Policy;

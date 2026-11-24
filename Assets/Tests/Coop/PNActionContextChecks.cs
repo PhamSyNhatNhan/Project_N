@@ -111,7 +111,7 @@ namespace ProjectN.Coop.Tests
             Throws(() => new PNActionFact(0, "Bad", null), "fact key with capitals refused");
             Throws(() => new PNActionFact(0, new string('a', 33), null), "fact key over 32 refused");
             Throws(() => new PNActionFact(-1, "a", null), "negative fact age refused");
-            Throws(() => new PNActionFact(0, "a", new double[5]), "five numbers refused");
+            Throws(() => new PNActionFact(0, "a", new double[9]), "nine numbers refused (the bound is eight since V4b: a melee door)");
             Throws(() => new PNActionFact(0, "a", new[] { double.NaN }), "NaN number refused");
             Throws(() => new PNActionFact(0, "a", new[] { 2e9 }), "huge number refused");
             C(new PNActionFact(0.5, "burst.hit:1", new[] { -3.5, 2 }).Count == 2, "a valid fact keeps negative numbers");
@@ -170,13 +170,13 @@ namespace ProjectN.Coop.Tests
             Call("Fact", new JArray(.1, "burst", -1d, 2d)); checks++;
             Throws(() => Call("Fact", new JArray(.1, "Burst")), "validator: capital key refused");
             Throws(() => Call("Fact", new JArray(-.1, "a")), "validator: negative age refused");
-            Throws(() => Call("Fact", new JArray(.1, "a", 1d, 2d, 3d, 4d, 5d)), "validator: five numbers refused");
+            Throws(() => Call("Fact", new JArray(.1, "a", 1d, 2d, 3d, 4d, 5d, 6d, 7d, 8d, 9d)), "validator: nine numbers refused");
             Throws(() => Call("Fact", new JArray(.1, "a", "x")), "validator: a text number refused");
             Throws(() => Call("Fact", new JArray(.1)), "validator: a fact without key refused");
             Call("Record", new JArray(5L, 3L, new JArray(9L, 1L), 1.2d, new JArray(.1, "burst"))); checks++;
             Throws(() => Call("Record", new JArray(5L, 3L, new JArray(9L, 1L), new JArray(.1, "burst"))), "validator: a fact row without stamp refused");
             Throws(() => Call("Record", new JArray(6L, 3L, new JArray(9L, 1L), 1.2d, new JArray(.1, "burst"))), "validator: tag 6 refused");
-            C(ProjectN.Coop.PNNetworkAuthenticator.NetworkVersion == 41, "NetworkVersion is 41 (the skill_cast block is gone)");
+            C(ProjectN.Coop.PNNetworkAuthenticator.NetworkVersion == 44, "NetworkVersion is 44 (a melee door can be a contact door that follows the body; a hit report can name a melee hit by cast; a run fact carries up to 8 numbers)");
             return "[PASS " + checks + " Action context checks]";
         }
     }

@@ -19,11 +19,13 @@ public static class PNCombatEventEditorChecks
         public PNObjectSyncService Target;
         public void Send(PNObjectRecord record) { Target?.Receive(record); }
     }
-    private sealed class Sink : IPNSkillReportSink
+    private sealed class Sink : IPNHitReportSink
     {
         public Action<long, PNStat, int> Relay;
-        public void ReportHit(long castKey, PNStat target, int step) => Relay?.Invoke(castKey, target, step);
-        public void ReportDecision(long castKey, string point, JToken value) { }
+        public PNStat Who; public PNStat Claimant => Who;
+        public bool SendHitReport(in PNHitReport report, IReadOnlyList<EveEntityId> victims) { foreach (var victim in victims) Relay?.Invoke(report.CastKey, Find(victim.Value), report.Step); return true; }
+        // The test entities live in a preview scene, which FindObjectsByType does not see: look in the shooter's scene.
+        private PNStat Find(long id) => Who == null ? null : Who.gameObject.scene.GetRootGameObjects().SelectMany(x => x.GetComponentsInChildren<PNStat>()).FirstOrDefault(x => x.EntityId.Value == id);
     }
     private sealed class Module : EveIContentModule
     {
@@ -123,18 +125,19 @@ public static class PNCombatEventEditorChecks
             told.Clear(); hurts.Clear();
             var guessEnemy = Entity(new Vector3(3, 1, 30), PNLayers.Enemy, "Combat guess enemy"); Advance(.05f);
             var guessSignal = PNHurtSignal.For(guessEnemy); var guessHurts = new List<PNHurtInfo>(); guessSignal.Hurt += guessHurts.Add;
-            var sink = new Sink(); sink.Relay = (cast, target, step) => host.AcceptReportedHit(cast, step - PNProjectileManager.ReportStepBase, target, .5f);
-            client.Create(new PNProjectileLaunch(Module.Shot, null, source, layers).AsPrediction(9101, sink), new PNProjectileSpawn(scene, new Vector3(0, 1, 30), Vector3.right));
+            var sink = new Sink { Who = shooter }; sink.Relay = (cast, target, step) => host.AcceptHitReport(PNHitReport.DealtByCast(cast, step), target, .5f); client.RegisterClaimSink(sink);
+            client.Create(new PNProjectileLaunch(Module.Shot, null, source, layers).AsPrediction(9101), new PNProjectileSpawn(scene, new Vector3(0, 1, 30), Vector3.right));
             host.Create(new PNProjectileLaunch(Module.Shot, null, source, layers, prepared).WithCast(9101, true), new PNProjectileSpawn(scene, new Vector3(0, 1, 30), Vector3.right));
             for (int i = 0; i < 40; i++) Advance(.05f);
             Check(guessHurts.Count == 2 && guessHurts[0].Phase == PNHurtPhase.Early && guessHurts[0].Event == null && guessHurts[0].HitKey == "9101:0:0" && guessHurts[0].HasPoint, "the guess's hit is told early, with the key and the guess's point (" + string.Join(" ", guessHurts.Select(x => x.Phase + ":" + x.HitKey)) + "; early " + PNCombatEvents.EarlyTold + " told " + PNCombatEvents.Told + ")");
             Check(guessHurts[1].Phase == PNHurtPhase.Confirmed && guessHurts[1].MatchedEarly && guessHurts[1].HitKey == "9101:0:0" && guessHurts[1].Event.Applied > 0f, "the host's event comes with the same key and is matched to the early hit");
             Check(PNCombatEvents.EarlyMatched == 1 && PNCombatEvents.EarlyCancels == 0 && PNCombatEvents.PendingEarly == 0, "(one match, no cancel, nothing left waiting)");
 
+            client.UnregisterClaimSink(sink);     // from here the report never reaches the host
             // A guess nobody confirms (the report never reaches the host): the early hit is cancelled after the hold.
             var lonelyEnemy = Entity(new Vector3(3, 1, 40), PNLayers.Enemy, "Combat lonely enemy"); Advance(.05f);
             var lonelySignal = PNHurtSignal.For(lonelyEnemy); var lonely = new List<PNHurtInfo>(); lonelySignal.Hurt += lonely.Add;
-            client.Create(new PNProjectileLaunch(Module.Shot, null, source, layers).AsPrediction(9102, new Sink()), new PNProjectileSpawn(scene, new Vector3(0, 1, 40), Vector3.right));
+            client.Create(new PNProjectileLaunch(Module.Shot, null, source, layers).AsPrediction(9102), new PNProjectileSpawn(scene, new Vector3(0, 1, 40), Vector3.right));
             for (int i = 0; i < 12; i++) Advance(.05f);
             Check(lonely.Count == 1 && lonely[0].Phase == PNHurtPhase.Early && PNCombatEvents.PendingEarly == 1, "an unreported guess hit is told early and waits");
             now += PNCombatEvents.EarlyHoldSeconds + .5d; PNCombatEvents.Expire(now);

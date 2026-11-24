@@ -143,7 +143,7 @@ anchor cách thân đúng radius. Ground13 required; hop cần nav profile phù 
 ngầm cấp quyền vượt vực/tường. Curve/chord sweep có bounds; vượt budget trả failure.
 Những lần cast đã commit có thể thất bại vì terrain/blocking; không hoàn lại cost/hit đã giao.
 
-Contact sphere sweep/overlap theo displacement đã clip, hit-window và repeat interval.
+Contact sphere sweep/overlap theo displacement đã clip, hit-window và repeat interval. Từ V4c (NetworkVersion 44) hit đi qua hitbox cận chiến chung `PNSkillMeleeHitbox` (đánh lặp theo interval, hit đặt tên theo số lần chạm đích); người chơi do máy khác quyết (coop) được cấp cửa Contact + vé thay vì host tự quét. Damage chốt lúc Perform như cũ, nhưng hit qua `context.Hit` (có `OnHitConfirmed`).
 Damage snapshot/crit/effects theo Skill contract (không đổi sang projectile per-hit crit).
 Cancel trong callback hit chặn hit tiếp và giữ ownership đến scan safe point; lỗi cleanup
 còn được scope giữ để retry. Physics lease phối hợp với PNMove freeze/thaw, không ghi đè

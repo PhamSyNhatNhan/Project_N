@@ -126,6 +126,10 @@ public class PNSkillActionContext
     // Who this run helped (a heal, a Buff): a `recipient` fact at the age the Action decided. The view finds the entity with `PNSkill.TryFindEntity`.
     public void PresentRecipient(PNStat target) => Skill?.PresentActionRecipient(this, target);
     internal int PresentedFacts;
+    // Whether one more fact still fits this run (a fact past the bound is dropped; a door that would be dropped must not take the host's own sweep away).
+    public bool CanPresent => PresentedFacts < PNActionFact.MaxPerRun;
+    // Whether the machines that only watch this run will play it (the Action declares a view): a door is evaluated by the view driver there, so an Action with no view must keep the host's own sweep (V4c).
+    public bool ShownToOthers { get { try { return Data != null && Registry.Actions().Get(Data.Action.Id).HasViewFor(Data); } catch (Exception) { return false; } } }
     public void CompleteAction() { if (completed) return; completed = true; try { Fire("OnComplete"); } finally { Skill?.EndActionView(this, false); Skill?.EndActionRun(this, false); } }
     public void CancelEffects() { if (completed) return; completed = true; try { Fire("OnCancel"); } finally { Skill?.EndActionView(this, true); Skill?.EndActionRun(this, true); } }
     public void Fire(string trigger, PNStat hit = null, Vector3? point = null)
@@ -219,6 +223,17 @@ public class PNSkillActionContext
             default:
                 return PNHitOutcome.Skip(false);
         }
+    }
+    // A hit a claim ticket applies (V4b): the player's own machine decided it, the packet was prepared when the sweep ran. Used once the Action has ended (while it runs, `Hit` is the door): it names the hit the way
+    // `Hit` does and tells the impact listeners, but runs no OnHit effect and no `OnHitConfirmed`, because the Action that owned them is gone. Authority only.
+    public PNHitOutcome HitClaimed(PNStat target, Vector3? point, PNDamage packet, int hitIndex = 0)
+    {
+        if (Mode != PNSkillMode.Authority || target == null || packet == null) return PNHitOutcome.Skip(false);
+        long castKey = Invocation?.CastKey ?? 0; var at = point ?? target.transform.position;
+        if (castKey > 0) packet = packet.WithHit(PNActionImpact.Key(castKey, ActionOrdinal, hitIndex, target.EntityId.Value), at.x, at.y, at.z);
+        var result = target.ReceiveDamage(packet);
+        if (Skill != null && Skill.HasActionImpactListeners) Skill.RaiseActionImpact(PNActionImpactOrigin.Real, castKey, ActionOrdinal, hitIndex, target.EntityId.Value, target, at);
+        return PNHitOutcome.Hit(result);
     }
     // The door for a Buff an Action gives (to others or itself). Authority applies it; Predicted and Observed skip it (the Buff reaches them through its own replication). The Action never checks the mode.
     public PNBuffOutcome ApplyBuff(PNBuffManager manager, PNBuffApplyRequest request)

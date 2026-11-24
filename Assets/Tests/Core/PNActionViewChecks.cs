@@ -295,6 +295,11 @@ public static class PNActionViewChecks
             progress += dt; skill.PresentObservedRun(run, dataId, Vector3.right, null, progress, true, 1, dt, 1, streamFacts);
             progress += dt; skill.PresentObservedRun(run, dataId, Vector3.right, null, progress, true, 1, dt, 1, streamFacts);
             Check(view.Log.Count(x => x == "fact:wire") == 1, "a stream fact listed in two frames reaches the view once");
+            // V4b: a melee door in the stream is for the hitbox service of the machine being hit, never for the picture (a malformed one is dropped there)
+            var doorFacts = new List<PNActionFact> { new PNActionFact(progress, PNMeleeDoor.Key, new double[] { 0, 0, 0, 0, 0, 1.4, .6, 70 }) };
+            progress += dt; skill.PresentObservedRun(run, dataId, Vector3.right, null, progress, true, 1, dt, 1, doorFacts);
+            progress += dt; skill.PresentObservedRun(run, dataId, Vector3.right, null, progress, true, 1, dt, 1, doorFacts);
+            Check(!view.Log.Contains("fact:" + PNMeleeDoor.Key), "a door fact never reaches the view of the run");
             skill.PresentObservedResult(run, new PNActionViewResult("hit", Vector3.zero, 1, progress));
             Check(view.Log.Contains("result:hit"), "a gameplay result of the run reaches its view");
             // a second overlapping run takes the lead

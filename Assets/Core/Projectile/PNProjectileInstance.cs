@@ -312,7 +312,7 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable, IPNTim
         if (claimedHere == null) claimedHere = new System.Collections.Generic.HashSet<long>(); claimedHere.Add(me.EntityId.Value);
         int hit = Mathf.Min(claimedHere.Count - 1, PNHurtClaimLimits.MaxHit);
         var key = HitKey(PNHurtClaimLimits.ClaimKeyIndex(me.EntityId.Value)); if (key != null) PNCombatEvents.RaiseEarly(me.EntityId.Value, key, true, contact.Point.x, contact.Point.y, contact.Point.z);
-        if (sink.SendClaim(PNObjectKind.Projectile, id, hit)) manager.NoteClaimSent();
+        if (sink.SendHitReport(PNHitReport.TakenFromObject(PNObjectKind.Projectile, id, hit), null)) manager.NoteClaimSent();
     }
     // A claim the authority took from the machine of `target`: runs the implementation's own contact rule for it (hit limit, Finish). `tolerance` is the slack the claim's trip gets over the object's reach.
     internal bool TakeClaimedHit(PNStat target, float tolerance)
@@ -374,7 +374,8 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable, IPNTim
         {
             // The early phase first: the answer can only come after the report goes out.
             if (Launch.CastKey != 0) PNCombatEvents.RaiseEarly(target.EntityId.Value, HitKey(result.HitIndex), true, contact.Point.x, contact.Point.y, contact.Point.z);
-            Launch.ReportSink?.ReportHit(Launch.CastKey, target, PNProjectileManager.ReportStepBase + CastIndex);
+            // The report goes out through the hit-report sink of this machine's player (the same one every other report uses), named by the cast key and the projectile's place in the volley.
+            Manager.ClaimSinkFor(out _)?.SendHitReport(PNHitReport.DealtByCast(Launch.CastKey, PNProjectileManager.ReportStepBase + CastIndex), new[] { target.EntityId });
             RaiseImpact(PNImpactKind.Target, contact.Point, contact.Normal, target, target.EntityId.Value, result.HitIndex);
             return result;
         }

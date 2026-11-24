@@ -117,7 +117,7 @@ public abstract class PNTimedBlast : PNBlastInstance
         if (b.max.y < Center.y - Height || b.min.y > Center.y + Height || !Hits(b)) return;
         long id = Manager.ObjectIdOf(this); if (id <= 0) return;
         PNCombatEvents.RaiseEarly(me.EntityId.Value, "o" + id.ToString(System.Globalization.CultureInfo.InvariantCulture) + ":" + PNHurtClaimLimits.ClaimKeyIndex(me.EntityId.Value), true, b.center.x, b.center.y, b.center.z);
-        if (sink.SendClaim(PNObjectKind.Blast, id, 0)) Manager.ClaimBook.NoteSent();
+        if (sink.SendHitReport(PNHitReport.TakenFromObject(PNObjectKind.Blast, id), null)) Manager.ClaimBook.NoteSent();
     }
     private bool Valid(PNStat s) => s.IsReady && s.gameObject.activeInHierarchy && !PNTargetCandidates.IsDead(s) && PNWorldGameplay.CanExecute(s) && ReferenceEquals(s.GetComponent<EveEntityIdentity>()?.World, World);
     protected override void Cleanup() { try { OnEnded(); } finally { struck.Clear(); } }

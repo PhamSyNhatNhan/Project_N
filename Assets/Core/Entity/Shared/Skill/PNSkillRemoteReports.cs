@@ -9,16 +9,12 @@ using UnityEngine;
 //     validates (anything it refuses falls back to the skill's own choice).
 // VI: Điều skill chạy cho chủ nhân Ở XA được nhận từ máy chủ nhân: trúng mà client chủ thấy (N5) và lựa chọn tại điểm quyết định giữa cast (N9). Authority vẫn chạy cast thật; hit báo lên chỉ áp khi action đang
 //     chạy chấp nhận sau kiểm riêng của nó; quyết định chỉ là đề xuất, bị từ chối thì dùng lựa chọn của skill.
-public interface IPNSkillHitReceiver
-{
-    // True when the hit was applied. `tolerance` is the slack (metres) a reported hit gets over the action's own reach, for the time the report took to arrive.
-    bool AcceptReportedHit(PNStat target, int step, float tolerance);
-}
+// A running action takes the Dealt reports of its cast through `IPNHitReportReceiver` (PNHitReport.cs), registered on the skill while it runs.
 
 // Where a client's own run of a cast sends what the authority needs to know (hits it saw, choices it made).
 public interface IPNSkillReportSink
 {
-    // `castKey` is the key of the cast that made the hit / the choice (`PNSkillInvocation.CastKey`); `step` tells the action contexts of one cast apart.
+    // `castKey` is the key of the cast that made the hit / the choice (`PNSkillInvocation.CastKey`); `step` tells the action contexts of one cast apart. The hit goes out as a Dealt `PNHitReport`.
     void ReportHit(long castKey, PNStat target, int step);
     void ReportDecision(long castKey, string point, JToken value);
 }
@@ -33,30 +29,31 @@ public interface IPNSkillDecisionSource
 
 public partial class PNSkill
 {
-    private readonly List<IPNSkillHitReceiver> hitReceivers = new List<IPNSkillHitReceiver>();
+    private readonly List<IPNHitReportReceiver> hitReceivers = new List<IPNHitReportReceiver>();
     // Set on the authority by the component that receives the remote owner's decisions; null for an own or offline player.
     public IPNSkillDecisionSource DecisionSource { get; set; }
     // Set on the owner's client by the component that sends the reports.
     public IPNSkillReportSink ReportSink { get; set; }
     private sealed class HitLease : IDisposable
     {
-        private PNSkill owner; private IPNSkillHitReceiver receiver;
-        public HitLease(PNSkill owner, IPNSkillHitReceiver receiver) { this.owner = owner; this.receiver = receiver; }
+        private PNSkill owner; private IPNHitReportReceiver receiver;
+        public HitLease(PNSkill owner, IPNHitReportReceiver receiver) { this.owner = owner; this.receiver = receiver; }
         public void Dispose() { if (owner == null) return; owner.hitReceivers.Remove(receiver); owner = null; receiver = null; }
     }
 
     // A running action that can take reported hits registers while it runs and disposes the lease when it ends.
-    public IDisposable RegisterHitReceiver(IPNSkillHitReceiver receiver)
+    public IDisposable RegisterHitReceiver(IPNHitReportReceiver receiver)
     {
         if (receiver == null) throw new ArgumentNullException(nameof(receiver));
         hitReceivers.Add(receiver); return new HitLease(this, receiver);
     }
     public int HitReceiverCount => hitReceivers.Count;
 
-    public bool DeliverReportedHit(PNStat target, int step, float tolerance)
+    // A Dealt report of one of this skill's own casts: the first running action that accepts it applies it.
+    public bool DeliverHitReport(in PNHitReport report, PNStat victim, float tolerance)
     {
-        if (target == null || tolerance < 0 || float.IsNaN(tolerance)) return false;
-        foreach (var receiver in hitReceivers.ToArray()) if (receiver.AcceptReportedHit(target, step, tolerance)) return true;
+        if (victim == null || tolerance < 0 || float.IsNaN(tolerance) || report.Role != PNHitReportRole.Dealt) return false;
+        foreach (var receiver in hitReceivers.ToArray()) if (receiver.AcceptHitReport(report, victim, tolerance)) return true;
         return false;
     }
 }

@@ -19,11 +19,13 @@ public static class PNObjectSyncO4EditorChecks
         public readonly List<PNObjectRecord> All = new List<PNObjectRecord>(); public PNObjectSyncService Target;
         public void Send(PNObjectRecord record) { All.Add(record); Target?.Receive(record); }
     }
-    private sealed class Sink : IPNSkillReportSink
+    private sealed class Sink : IPNHitReportSink
     {
         public readonly List<(long Cast, long Target, int Step)> Hits = new List<(long, long, int)>(); public Action<long, PNStat, int> Relay;
-        public void ReportHit(long castKey, PNStat target, int step) { Hits.Add((castKey, target.EntityId.Value, step)); Relay?.Invoke(castKey, target, step); }
-        public void ReportDecision(long castKey, string point, JToken value) { }
+        public PNStat Who; public PNStat Claimant => Who;
+        public bool SendHitReport(in PNHitReport report, IReadOnlyList<EveEntityId> victims) { foreach (var victim in victims) { Hits.Add((report.CastKey, victim.Value, report.Step)); Relay?.Invoke(report.CastKey, Find(victim.Value), report.Step); } return true; }
+        // The test entities live in a preview scene, which FindObjectsByType does not see: look in the shooter's scene.
+        private PNStat Find(long id) => Who == null ? null : Who.gameObject.scene.GetRootGameObjects().SelectMany(x => x.GetComponentsInChildren<PNStat>()).FirstOrDefault(x => x.EntityId.Value == id);
     }
     private sealed class O4Module : EveIContentModule
     {
@@ -74,7 +76,7 @@ public static class PNObjectSyncO4EditorChecks
             var prepared = source.Snapshot.PrepareDamage(100, false, 0d, PNContentIds.True);
             double Hp(PNStat stat) => stat.GetCurrent(PNContentIds.Health);
             var shot = EveId.Parse("test:o4_shot");
-            PNProjectileLaunch Guess(long cast, Sink sink) => new PNProjectileLaunch(shot, null, source, layers).AsPrediction(cast, sink);
+            PNProjectileLaunch Guess(long cast, Sink sink) { if (sink != null) { sink.Who = shooter; client.RegisterClaimSink(sink); } return new PNProjectileLaunch(shot, null, source, layers).AsPrediction(cast); }
             PNProjectileLaunch Real(long cast, bool shooterDecides) => new PNProjectileLaunch(shot, null, source, layers, prepared).WithCast(cast, shooterDecides);
             PNProjectileSpawn Spawn(Vector3 position, Vector3 direction, int index = 0) => new PNProjectileSpawn(scene, position, direction, null, index);
             void Advance(float seconds) { clock += seconds; client.Advance(seconds); host.Advance(seconds); }
@@ -101,7 +103,7 @@ public static class PNObjectSyncO4EditorChecks
 
             // 4.4a 4: the real projectile of a shooter who guesses finds no target contacts itself; the guess sees the hit and reports it; the authority applies it once.
             var enemy = Entity(new Vector3(3, 1, 10), PNLayers.Enemy, "O4 enemy");
-            sink.Relay = (cast, target, step) => host.AcceptReportedHit(cast, step - PNProjectileManager.ReportStepBase, target, .5f);
+            sink.Relay = (cast, target, step) => host.AcceptHitReport(PNHitReport.DealtByCast(cast, step), target, .5f);
             Advance(.05f);
             double before = Hp(enemy);
             // Park the real projectile inside the enemy first, without the guess: it must deal nothing (the shooter decides).
@@ -112,15 +114,16 @@ public static class PNObjectSyncO4EditorChecks
             for (int i = 0; i < 12 && Hp(enemy) == before; i++) Advance(.05f);
             Check(sink.Hits.Count == 1 && sink.Hits[0].Cast == 7001 && sink.Hits[0].Step == PNProjectileManager.ReportStepBase && sink.Hits[0].Target == enemy.EntityId.Value, "the guess reported the hit under its cast key and step");
             Check(Math.Abs(before - Hp(enemy) - 100d) < 1e-6, "the authority applied the report once: the prepared damage (" + (before - Hp(enemy)) + ")");
+            client.UnregisterClaimSink(sink);     // the later guesses of this test report nothing
             Advance(.1f);
             Check(Instances().Count() == 0 && client.Snapshot().Count == 0 && host.Snapshot().Count == 0, "the hit ended the real projectile and the guess (limit 1)");
-            Check(!host.AcceptReportedHit(7001, 0, enemy, .5f) && Math.Abs(before - Hp(enemy) - 100d) < 1e-6, "a second report for the ended projectile is refused (no double damage)");
+            Check(!host.AcceptHitReport(PNHitReport.DealtByCast(7001, PNProjectileManager.ReportStepBase + 0), enemy, .5f) && Math.Abs(before - Hp(enemy) - 100d) < 1e-6, "a second report for the ended projectile is refused (no double damage)");
 
             // A report for a target far from the real projectile, or on a layer it does not target, is refused.
             var far = Entity(new Vector3(0, 1, 400), PNLayers.Enemy, "O4 far enemy"); var friend = Entity(new Vector3(0, 1, 20), PNLayers.Void, "O4 friend");
             Advance(.05f);
             var aimed = host.Create(Real(7010, true), Spawn(new Vector3(0, 1, 20), Vector3.right)); Advance(.05f);
-            Check(!host.AcceptReportedHit(7010, 0, far, .5f) && !host.AcceptReportedHit(7010, 0, friend, .5f) && !host.AcceptReportedHit(7010, 3, far, .5f) && aimed.Handle.IsAlive, "a report of a faraway target, an untargeted layer or another index is refused");
+            Check(!host.AcceptHitReport(PNHitReport.DealtByCast(7010, PNProjectileManager.ReportStepBase + 0), far, .5f) && !host.AcceptHitReport(PNHitReport.DealtByCast(7010, PNProjectileManager.ReportStepBase + 0), friend, .5f) && !host.AcceptHitReport(PNHitReport.DealtByCast(7010, PNProjectileManager.ReportStepBase + 3), far, .5f) && aimed.Handle.IsAlive, "a report of a faraway target, an untargeted layer or another index is refused");
             aimed.Handle.End(); Advance(.05f);
 
             // 4.4a 3: a refused cast takes its guess back; a guess no record takes over goes after its time.

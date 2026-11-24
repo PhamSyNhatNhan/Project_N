@@ -14,17 +14,14 @@ using UnityEngine;
 // VI: Input skill của người chơi qua mạng (S2, chưa dự đoán). Client chủ nhân không chạy skill: lệnh bấm ô thành lệnh `project_n:skill_input`; authority chạy như input của chính chủ, kiểm người gửi là chủ,
 //     ô còn đúng profile (N4), thử bấm; chưa bắt đầu được thì xếp một hàng ngắn tối đa 250 ms (N6), quá hạn thì từ chối. Kết quả về chủ qua khối owner-only `project_n:skill_cast_result`.
 [DisallowMultipleComponent]
-public sealed class PNSkillRemoteInput : MonoBehaviour, IPNSyncEntityListener, IPNSkillInputForwarder, IPNSkillDecisionSource, IPNSkillReportSink, IPNHurtClaimSink
+public sealed class PNSkillRemoteInput : MonoBehaviour, IPNSyncEntityListener, IPNSkillInputForwarder, IPNSkillDecisionSource, IPNSkillReportSink, IPNHitReportSink
 {
     public static readonly EveId Command = EveId.Parse("project_n:skill_input"), ResultState = EveId.Parse("project_n:skill_cast_result");
     public const int CommandBytes = 256, ResultBytes = 512, QueueLimit = 8, KeptRefusals = 4;
     public const double QueueSeconds = 0.25;
-    // S4-S5: the owner's client reports the hits it saw and the choices it made at decision points inside a cast.
-    public static readonly EveId HitCommand = EveId.Parse("project_n:skill_hit"), DecisionCommand = EveId.Parse("project_n:skill_decision");
-    public const int HitCommandBytes = 512, DecisionCommandBytes = 256, MaxTargetsPerReport = 16, MaxHitsPerCast = 64, MaxDecisionsPerPoint = 4, KeyWindow = 64;
-    // 4.4c: the machine of a player says which object hit him; the authority checks it (PNProjectileManager.AcceptHurtClaim) and applies the damage.
-    public static readonly EveId HurtClaimCommand = EveId.Parse("project_n:hurt_claim");
-    public const int HurtClaimCommandBytes = 128;
+    // S4-S5 and 4.4c-4.4d: the owner's machine reports the hits it decided (one command both ways, see PNHitReport: Dealt = my cast hit these, Taken = this object hit me) and the choices it made at decision points inside a cast.
+    public static readonly EveId HitReportCommand = EveId.Parse("project_n:hit_report"), DecisionCommand = EveId.Parse("project_n:skill_decision");
+    public const int HitReportCommandBytes = 512, DecisionCommandBytes = 256, MaxTargetsPerReport = 16, MaxHitsPerCast = 64, MaxDecisionsPerPoint = 4, KeyWindow = 64;
     public const float HitTolerance = 1.5f; public const double DecisionSeconds = 3;
     // G4: a skill names its decision points at the `Choose` call, so the host keeps no list; it only bounds how many answers wait (per point and in all) and for how long.
     public const int MaxDecisionsWaiting = 16;
@@ -137,7 +134,7 @@ public sealed class PNSkillRemoteInput : MonoBehaviour, IPNSyncEntityListener, I
         // Plan 4.4a (item 6): the authority learns that this machine guessed the cast, so its real projectiles leave target hits to this machine's reports; no "g" and the host sweeps for targets itself.
         if (guessedNow) payload["g"] = 1;
         bool sent = sync.Send(target, Command, payload);
-        if (sent) foreach (var held in heldHits) SendHits(held.Key, held.Step, new[] { held.Target });
+        if (sent) foreach (var held in heldHits) SendHitReport(PNHitReport.DealtByCast(held.Key, held.Step), new[] { held.Target });
         heldHits.Clear();
         return sent;
     }
@@ -206,16 +203,27 @@ public sealed class PNSkillRemoteInput : MonoBehaviour, IPNSyncEntityListener, I
     // ---- client: what the guessed cast reports ----
     // G6c: the framework names the cast (`PNSkillInvocation.CastKey`); the report travels under it.
     private bool holdingHits; private readonly List<(long Key, int Step, EveEntityId Target)> heldHits = new List<(long, int, EveEntityId)>();
-    public void ReportHit(long castKey, PNStat victim, int step) { if (victim == null) return; if (holdingHits) heldHits.Add((castKey, step, victim.EntityId)); else SendHits(castKey, step, new[] { victim.EntityId }); }
+    public void ReportHit(long castKey, PNStat victim, int step) { if (victim == null) return; SendHitReport(PNHitReport.DealtByCast(castKey, step), new[] { victim.EntityId }); }
     public void ReportDecision(long castKey, string point, JToken value) => SendDecision(castKey, point, value);
 
     // ---- client: report ----
-    // The owner's client says which entities its own copy of the cast hit at `step`. The authority applies them only through the running action (ReceiveHits).
-    public bool SendHits(long castKey, int step, IReadOnlyList<EveEntityId> targets)
+    // The owner's machine sends one hit report on its own player (the command `project_n:hit_report`, plan 4.4d). Dealt: which entities its own copy of the cast hit at the step (held while a guess is being made: the
+    // authority takes a hit only for a cast it has seen). Taken: which object hit this machine's player (`victims` is null: the victim is the sender's own player). False when it could not go out.
+    public bool SendHitReport(in PNHitReport report, IReadOnlyList<EveEntityId> victims)
     {
-        if (!IsActive || targets == null || targets.Count == 0 || targets.Count > MaxTargetsPerReport || castKey <= 0 || step < 0) return false;
-        return sync.Send(target, HitCommand, new JObject { ["k"] = castKey, ["st"] = step, ["h"] = new JArray(targets.Select(x => (object)x.Value)) });
+        if (!IsActive || !report.IsValid((int)PNSkillCastKey.MaxStep)) return false;
+        if (report.Role == PNHitReportRole.Dealt)
+        {
+            if (victims == null || victims.Count == 0 || victims.Count > MaxTargetsPerReport) return false;
+            if (holdingHits) { foreach (var victim in victims) heldHits.Add((report.CastKey, report.Step, victim)); return true; }
+            return sync.Send(target, HitReportCommand, new JObject { ["w"] = (int)PNHitReportRole.Dealt, ["k"] = report.CastKey, ["st"] = report.Step, ["h"] = new JArray(victims.Select(x => (object)x.Value)) });
+        }
+        // Taken by cast (V4b, a melee hit): the cast, the Action's ordinal in it (`st`) and the hit (`n`); Taken by object (V4a): the kind, the id and the detail.
+        if (report.ByCast) return sync.Send(target, HitReportCommand, new JObject { ["w"] = (int)PNHitReportRole.Taken, ["k"] = report.CastKey, ["st"] = report.Step, ["n"] = report.Detail });
+        return sync.Send(target, HitReportCommand, new JObject { ["w"] = (int)PNHitReportRole.Taken, ["t"] = (int)report.Kind, ["o"] = report.ObjectId, ["n"] = report.Detail });
     }
+    // The Dealt report of a cast's hits (a convenience of fixtures and the Player scenarios).
+    public bool SendHits(long castKey, int step, IReadOnlyList<EveEntityId> targets) => castKey > 0 && SendHitReport(PNHitReport.DealtByCast(castKey, step), targets);
     // The owner's client says what it chose at a decision point of the cast with this key.
     public bool SendDecision(long castKey, string point, JToken value)
     {
@@ -227,6 +235,12 @@ public sealed class PNSkillRemoteInput : MonoBehaviour, IPNSyncEntityListener, I
     private PNProjectileManager claimManager;
     public int ClaimsApplied { get; private set; }
     public int ClaimsRejected { get; private set; }
+    // The melee part of the two counters above (hit reports that name a cast, V4b/V4c): evidence for the Player checks.
+    public int MeleeClaimsApplied { get; private set; }
+    public int MeleeClaimsRejected { get; private set; }
+    // Of the Dealt reports no receiver took (plan 4.4d "late Dealt"): nothing of this cast was listening any more (its hitbox had ended: the report came too late) vs a hitbox was still listening and refused it (out of reach, already hit, not a legal target).
+    public int DealtLate { get; private set; }
+    public int DealtRefused { get; private set; }
     private void RegisterClaimSink()
     {
         try { claimManager = PNProjectileManager.Resolve(EveRegistrySession.Context, gameObject.scene); claimManager.RegisterClaimSink(this); }
@@ -235,39 +249,62 @@ public sealed class PNSkillRemoteInput : MonoBehaviour, IPNSyncEntityListener, I
     private void UnregisterClaimSink() { claimManager?.UnregisterClaimSink(this); claimManager = null; }
     // The player of this machine, only on the component of the entity this machine owns (the copies of other players answer null).
     public PNStat Claimant { get { var stat = GetComponent<PNStat>(); return IsActive && skill != null && skill.IsOwnerClient && stat != null && stat.IsReady && !stat.IsDead ? stat : null; } }
-    public bool SendClaim(PNObjectKind kind, long objectId, int hit)
-    {
-        if (!IsActive || objectId <= 0 || hit < 0 || hit > PNHurtClaimLimits.MaxHit) return false;
-        return sync.Send(target, HurtClaimCommand, new JObject { ["t"] = (int)kind, ["o"] = objectId, ["h"] = hit });
-    }
-    // The authority: a claim from the machine of this player. Only the owner's connection may send it; the manager does the rest.
-    public void ReceiveHurtClaim(long senderOwnerId, JObject payload)
+    // ---- authority: hit reports (one command, both ways) and decisions ----
+    // A hit report from the machine of this entity's owner. Only that connection may send it (the entity is the reporter's own player: the caster of a Dealt report, the victim of a Taken one); the report is then routed to
+    // whoever owns what it names: the running action's hitbox or the projectile manager (Dealt), the manager of the object's kind (Taken).
+    public void ReceiveHitReport(long senderOwnerId, JObject payload)
     {
         if (!IsBound || sync == null || !sync.IsAuthority) return;
         var loader = GetComponent<EveEntityLoader>();
         if (loader == null || loader.LoadContext == null || loader.LoadContext.Identity.OwnerId != senderOwnerId) return;
-        long objectId = (long)Required(payload, "o"); int kind = (int)Required(payload, "t"), hit = (int)Required(payload, "h");
-        if (objectId <= 0 || hit < 0 || hit > PNHurtClaimLimits.MaxHit || kind != (int)PNObjectKind.Projectile && kind != (int)PNObjectKind.Blast && kind != (int)PNObjectKind.Area) throw new FormatException("Hurt claim.");
+        int role = (int)Required(payload, "w");
+        if (role == (int)PNHitReportRole.Dealt) ReceiveDealt(payload);
+        else if (role == (int)PNHitReportRole.Taken) ReceiveTaken(payload);
+        else throw new FormatException("Hit report role.");
+    }
+
+    // Taken: the machine of this player says which object hit him. The kind says which manager owns the object: a projectile and a blast take one hit, an area takes "inside" (detail 1) or "outside" (detail 0).
+    private void ReceiveTaken(JObject payload)
+    {
+        PNHitReport report;
+        if (payload["k"] != null)
+        {
+            // By cast (V4b/V4c): a melee hit of an authority Action; the ticket its hitbox service left in the play's claim book decides.
+            report = PNHitReport.FromWire(PNHitReportRole.Taken, (long)Required(payload, "k"), (int)Required(payload, "st"), 0, 0L, (int)Required(payload, "n"));
+        }
+        else
+        {
+            long objectId = (long)Required(payload, "o"); int kind = (int)Required(payload, "t"), detail = (int)Required(payload, "n");
+            report = PNHitReport.FromWire(PNHitReportRole.Taken, 0L, 0, kind, objectId, detail);
+        }
+        if (!report.IsValid((int)PNSkillCastKey.MaxStep)) throw new FormatException("Hit report.");
         var stat = GetComponent<PNStat>(); if (stat == null || !stat.IsReady || stat.IsDead) { ClaimsRejected++; return; }
         bool applied = false;
         try
         {
             var scene = stat.gameObject.scene;
-            // One command, the kind says which manager owns the object (plan 4.4c): a projectile and a blast take one hit, an area takes "inside" (hit 1) or "outside" (hit 0).
-            if (kind == (int)PNObjectKind.Projectile) applied = PNProjectileManager.Resolve(EveRegistrySession.Context, scene).AcceptHurtClaim(objectId, stat, HitTolerance);
-            else if (kind == (int)PNObjectKind.Blast) applied = PNBlastManager.Resolve(EveRegistrySession.Context, scene).AcceptHurtClaim(objectId, stat, HitTolerance);
-            else applied = PNAreaManager.Resolve(EveRegistrySession.Context, scene).AcceptHurtClaim(objectId, stat, HitTolerance, hit != 0);
+            IPNHitReportReceiver receiver;
+            if (report.ByCast)
+            {
+                // A melee hit (V4b): the ticket the hitbox service left in the play's claim book decides (no book: no play to claim in).
+                var book = PNHurtClaimBooks.Find(EveRegistrySession.Context);
+                applied = book != null && book.AcceptTicket(PNClaimTicketKey.Melee(report.CastKey, report.Step, report.Detail), stat, HitTolerance);
+                if (applied) { ClaimsApplied++; MeleeClaimsApplied++; } else { ClaimsRejected++; MeleeClaimsRejected++; }
+                return;
+            }
+            if (report.Kind == PNObjectKind.Projectile) receiver = PNProjectileManager.Resolve(EveRegistrySession.Context, scene);
+            else if (report.Kind == PNObjectKind.Blast) receiver = PNBlastManager.Resolve(EveRegistrySession.Context, scene);
+            else receiver = PNAreaManager.Resolve(EveRegistrySession.Context, scene);
+            applied = receiver.AcceptHitReport(report, stat, HitTolerance);
         }
         catch (InvalidOperationException) { }
         if (applied) ClaimsApplied++; else ClaimsRejected++;
     }
 
-    // ---- authority: hits and decisions ----
-    public void ReceiveHits(long senderOwnerId, JObject payload)
+    // Dealt: the machine of this player says which entities its own copy of his cast hit.
+    private void ReceiveDealt(JObject payload)
     {
-        if (!IsBound || sync == null || !sync.IsAuthority || skill == null) return;
-        var loader = GetComponent<EveEntityLoader>();
-        if (loader == null || loader.LoadContext == null || loader.LoadContext.Identity.OwnerId != senderOwnerId) return;
+        if (skill == null) return;
         long key = (long)Required(payload, "k"); int step = (int)Required(payload, "st");
         if (!(payload["h"] is JArray list) || list.Count == 0 || list.Count > MaxTargetsPerReport || key <= 0 || step < 0 || step > PNSkillCastKey.MaxStep) throw new FormatException("Skill hit report.");
         var ids = new long[list.Count]; for (int i = 0; i < ids.Length; i++) { if (list[i].Type != JTokenType.Integer) throw new FormatException("Skill hit target."); ids[i] = (long)list[i]; }
@@ -282,14 +319,20 @@ public sealed class PNSkillRemoteInput : MonoBehaviour, IPNSyncEntityListener, I
             hitsPerCast[key] = count + 1;
             PNStat victim = EveRegistrySession.Context.Entities.TryGet(new EveEntityId(id), out var registered) && registered != null ? registered.GetComponent<PNStat>() : null;
             bool applied = false;
-            if (victim != null && step >= PNProjectileManager.ReportStepBase)
+            if (victim != null)
             {
-                // A projectile's hit: the step is the projectile's place in its volley; the real projectile outlives the cast, so the manager takes it by the cast key.
-                try { applied = PNProjectileManager.Resolve(EveRegistrySession.Context, ownStat.gameObject.scene).AcceptReportedHit(key, step - PNProjectileManager.ReportStepBase, victim, HitTolerance); }
-                catch (InvalidOperationException) { }
+                // Whoever owns what the step names takes it, each by its own rule: a running action's hitbox for an Action step; for a projectile's step (the place in its volley) the projectile manager, because the real
+                // projectile outlives the cast and is found by the cast key. Each answers false for a report that is not its own.
+                var report = PNHitReport.DealtByCast(key, step);
+                applied = skill.DeliverHitReport(report, victim, HitTolerance);
+                if (!applied)
+                {
+                    try { applied = PNProjectileManager.Resolve(EveRegistrySession.Context, ownStat.gameObject.scene).AcceptHitReport(report, victim, HitTolerance); }
+                    catch (InvalidOperationException) { }
+                }
             }
-            else applied = victim != null && skill.DeliverReportedHit(victim, step, HitTolerance);
-            if (applied) HitsApplied++; else HitsRejected++;
+            if (applied) HitsApplied++;
+            else { HitsRejected++; if (victim != null) { if (skill.HitReceiverCount == 0) DealtLate++; else DealtRefused++; } }
         }
         if (takenHits.Count > 1024) { takenHits.Clear(); hitsPerCast.Clear(); }
     }
@@ -462,23 +505,14 @@ public sealed class PNSkillRemoteInput : MonoBehaviour, IPNSyncEntityListener, I
     }
 }
 
-public sealed class PNSkillHitCommandHandler : IPNSyncCommandHandler
+// The authority side of `project_n:hit_report`: the sync layer hands over the authenticated sender; everything else is PNSkillRemoteInput.ReceiveHitReport.
+public sealed class PNHitReportCommandHandler : IPNSyncCommandHandler
 {
     public void Execute(PNSyncCommandContext context)
     {
         var entity = context.TargetObject as Component; var remote = entity != null ? entity.GetComponent<PNSkillRemoteInput>() : null;
         if (remote == null) return;
-        remote.ReceiveHits(context.SenderOwnerId, context.Payload as JObject ?? throw new FormatException("Skill hit payload."));
-    }
-}
-
-public sealed class PNHurtClaimCommandHandler : IPNSyncCommandHandler
-{
-    public void Execute(PNSyncCommandContext context)
-    {
-        var entity = context.TargetObject as Component; var remote = entity != null ? entity.GetComponent<PNSkillRemoteInput>() : null;
-        if (remote == null) return;
-        remote.ReceiveHurtClaim(context.SenderOwnerId, context.Payload as JObject ?? throw new FormatException("Hurt claim payload."));
+        remote.ReceiveHitReport(context.SenderOwnerId, context.Payload as JObject ?? throw new FormatException("Hit report payload."));
     }
 }
 

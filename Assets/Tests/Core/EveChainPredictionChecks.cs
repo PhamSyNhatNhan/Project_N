@@ -69,7 +69,7 @@ public static class EveChainPredictionChecks
             for (int i = 0; i < 300 && skill.IsBusy; i++) skill.Tick(.01f);
             Check(!skill.IsBusy && !skill.IsPredictingCast, "the slash runs to its end on the client and the scope closes");
             Check(enemy.GetCurrent(PNContentIds.Health) == hp, "the client never damages: its sweep only reports");
-            var hits = wire.Sent.Where(x => x.Command == PNSkillRemoteInput.HitCommand.ToString()).ToList();
+            var hits = wire.Sent.Where(x => x.Command == PNSkillRemoteInput.HitReportCommand.ToString()).ToList();
             Check(hits.Count == 1 && (long)hits[0].Payload["k"] == PNSkillCastKey.FromInput(key + 1) && (long)hits[0].Payload["k"] == skill.LastCastKey && ((JArray)hits[0].Payload["h"]).Count == 1 && (long)((JArray)hits[0].Payload["h"])[0] == enemy.EntityId.Value, "the client reported the enemy its sweep hit, under the key of the cast (the input that began it, shifted) (reports " + hits.Count + ")");
 
             // ---- a refusal takes the whole guess back ----
