@@ -113,7 +113,10 @@ public static class EveMovesetEditorChecks
                 "Finisher leaked Burst modifiers.");
             near.gameObject.SetActive(false); low.gameObject.SetActive(false);
             move.SetMoveDirection(Vector2.left); skill.SkillRecovery.ResetToFull();
-            Vector3 before = caster.transform.position; Check(skill.TrySkill(), "No-target skill could not activate."); skill.TickAttack(.2f);
+            Vector3 before = caster.transform.position; Check(skill.TrySkill(), "No-target skill could not activate.");
+            Check(skill.LookEnergyIfAny != null && skill.LookEnergyIfAny.MotionTrailOn, "PV7: the skill's motion run starts its energy trail (a look the motion data names).");
+            skill.TickAttack(.2f);
+            Check(!skill.LookEnergyIfAny.MotionTrailOn, "PV7: the trail ends with the motion run.");
             Check(caster.transform.position.x < before.x && move.FacingDirection < 0,
                 "No-target skill did not use movement fallback and flip: before=" + before + "; after=" + caster.transform.position + "; facing=" + move.FacingDirection);
             skill.BurstGauge.Add(150); skill.TryBurst(); caster.SetCurrent(PNContentIds.Health, 0); skill.TickAttack(.1f);

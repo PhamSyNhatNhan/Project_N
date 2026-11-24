@@ -509,10 +509,10 @@ public sealed partial class PNEnemyMoveSkillPlayReview : MonoBehaviour
         {
             PNEnemyFollowupContent.Register(hub);
             var selectedDamage = EveId.Parse("enemy_review:damage_action");
-            hub.Actions().Register(new PNSkillActionDefinition(selectedDamage, typeof(PNEnemyReviewDamageAction), null, PNSkillContextRequirements.Targets));
+            hub.Actions().Register(new PNSkillActionDefinition(selectedDamage, typeof(PNEnemyReviewDamageAction), null, PNSkillContextRequirements.Targets).NoView());
             hub.Actions().RequestOverride(EveId.Parse("base:damage_action"), selectedDamage, "enemy_review", "1.0.0", new[] { "project_n" });
             hub.Actions().SelectOverride(EveId.Parse("base:damage_action"), "enemy_review");
-            hub.Actions().Register(new PNSkillActionDefinition(EveId.Parse("project_n:enemy_review_throw_action"), typeof(PNEnemyReviewThrowAction)));
+            hub.Actions().Register(new PNSkillActionDefinition(EveId.Parse("project_n:enemy_review_throw_action"), typeof(PNEnemyReviewThrowAction)).NoView());
             hub.Skills.Register(new EveSkillDefinition(EveId.Parse("project_n:enemy_review_start_failure"), Newtonsoft.Json.Linq.JObject.Parse(@"{
               'categoryIds':[],'affectedByAttackSpeed':false,
               'action':{'id':'project_n:enemy_review_throw_action','start':{},'perform':{},'exit':{},'cancel':{}}

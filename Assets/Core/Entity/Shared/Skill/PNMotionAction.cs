@@ -18,7 +18,7 @@ public sealed class PNMotionSettings
     public static PNMotionSettings Parse(JToken token)
     {
         if(!(token is JObject obj))throw new FormatException("Motion payload is required.");
-        foreach(var p in obj.Properties())if(p.Name!="distance"&&p.Name!="duration"&&p.Name!="ignoreEntities"&&p.Name!="tags"&&p.Name!="permissionId")throw new FormatException("Unknown motion setting: "+p.Name);
+        foreach(var p in obj.Properties())if(p.Name!="distance"&&p.Name!="duration"&&p.Name!="ignoreEntities"&&p.Name!="tags"&&p.Name!="permissionId"&&p.Name!="look")throw new FormatException("Unknown motion setting: "+p.Name);
         float Number(string key)
         {
             if(obj[key]==null || (obj[key].Type!=JTokenType.Integer&&obj[key].Type!=JTokenType.Float))throw new FormatException("Missing motion setting: "+key);

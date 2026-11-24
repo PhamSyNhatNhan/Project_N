@@ -41,17 +41,15 @@ public partial class PNSkill
     // Measurement for the Player fixtures (PV6): the runs of other machines this one DREW by a view, per skill and by key ("cast:ordinal:skill", at most 256), the counterpart of the legacy replay tallies.
     public readonly Dictionary<string, int> ViewedBySkill = new Dictionary<string, int>();
     public readonly List<string> ViewedKeys = new List<string>();
+    // Runs first drawn when already under way (a machine that joined late, or recovered): how many, and which. Measurement only.
+    public int ViewedLate { get; private set; }
+    public readonly List<string> ViewedLateKeys = new List<string>();
     public int ObservedViewCount => observedViews.Count;
 
     public void SetObservedActionPresentation(bool enabled)
     {
         if (enabled == useActionPresentation) return;
-        if (enabled)
-        {
-            for (int i = observedActions.Count - 1; i >= 0; i--)
-                if (observedActions[i].SupportsPresentation) FinishObserved(observedActions[i], false);
-        }
-        else ClearObservedActionPresentation();
+        if (!enabled) ClearObservedActionPresentation();
         useActionPresentation = enabled;
     }
 
@@ -74,7 +72,10 @@ public partial class PNSkill
         PNSkillActionDefinition definition;
         try { definition = context.Registry.Actions().Get(context.Data.Action.Id); } catch (Exception) { return; }
         if (!definition.HasViewFor(context.Data) || !definition.ViewOnRunningMachines) return;
-        localViews[context] = new ViewItem { Context = context };
+        var item = new ViewItem { Context = context };
+        localViews[context] = item;
+        // PV7: a run that has only a look (a dash trail) has no frame step to build it from (its Action may be advanced by its owner), and the look needs no age: it starts with the run.
+        if (!definition.HasView) EnsureLocalView(item);
     }
 
     private bool EnsureLocalView(ViewItem item)
@@ -217,7 +218,7 @@ public partial class PNSkill
             {
                 var data = GetData(EveId.Parse(dataId));
                 item.View = BuildView(data, registry.Actions().Get(data.Action.Id), direction, position, scale);
-                if (item.View != null) { ViewedBySkill.TryGetValue(dataId, out int viewed); ViewedBySkill[dataId] = viewed + 1; if (ViewedKeys.Count < 256) ViewedKeys.Add(key.Cast + ":" + key.Ordinal + ":" + dataId); }
+                if (item.View != null) { ViewedBySkill.TryGetValue(dataId, out int viewed); ViewedBySkill[dataId] = viewed + 1; if (progress > .1) { ViewedLate++; if (ViewedLateKeys.Count < 64) ViewedLateKeys.Add(key.Cast + ":" + key.Ordinal + "@" + progress.ToString("0.00")); } if (ViewedKeys.Count < 256) ViewedKeys.Add(key.Cast + ":" + key.Ordinal + ":" + dataId); }
             }
             catch (Exception error) { ActionViewFailures++; Debug.LogException(error, this); }
         }
@@ -320,7 +321,6 @@ public partial class PNSkill
         }
         foreach (var key in retiredViews) observedViews.Remove(key);
         retiredViews.Clear();
-        ReconcileReplayedRuns(covered, terminal);
     }
 
     public void ClearObservedActionPresentation()

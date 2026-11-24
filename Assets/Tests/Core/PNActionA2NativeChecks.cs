@@ -20,7 +20,7 @@ public sealed class PNActionA2Probe : PNSkillAction {
  public override void Cancel(PNSkillActionContext c) { c.CancelEffects(); }
 }
 public sealed class PNActionA2Module : PNGameplayContentModule {
- public override void Register(EveRegistryHub hub) { base.Register(hub); hub.Actions().Register(new PNSkillActionDefinition(EveId.Parse("test:a2_action"), typeof(PNActionA2Probe)).WithDriverProgress()); }
+ public override void Register(EveRegistryHub hub) { base.Register(hub); hub.Actions().Register(new PNSkillActionDefinition(EveId.Parse("test:a2_action"), typeof(PNActionA2Probe), null, PNSkillContextRequirements.Direction).WithView(_ => new PNActionA2ProbeView()).WithDriverProgress()); }
 }
 public static class PNActionA2NativeChecks {
  public static string Boundaries() {
@@ -175,5 +175,19 @@ public static class PNActionA2NativeChecks {
    finally{if(EveRegistrySession.State!=EveSessionState.Stopped)EveRegistrySession.End();EditorSceneManager.ClosePreviewScene(scene);}
   }
  }
+}
+#endif
+
+#if UNITY_EDITOR
+// The probe Action's run must be published, which an Action does only when it has a view: an empty one.
+public sealed class PNActionA2ProbeView : IPNActionView
+{
+    public bool HasTail => false;
+    public bool Lead { set { } }
+    public void Advance(double age, double rate, bool seeking) { }
+    public void Fact(string key, double[] values, double age) { }
+    public void Result(in PNActionViewResult result) { }
+    public void Hide() { }
+    public void End(PNActionViewEnd kind) { }
 }
 #endif

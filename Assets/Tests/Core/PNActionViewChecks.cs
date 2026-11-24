@@ -35,7 +35,7 @@ public static class PNActionViewChecks
         public void Register(EveRegistryHub hub)
         {
             hub.Actions().Register(new PNSkillActionDefinition(ProbeAction, typeof(ProbeActionImpl)).WithView(build => new ProbeView(build)));
-            hub.Actions().Register(new PNSkillActionDefinition(LookAction, typeof(ProbeActionImpl)));
+            hub.Actions().Register(new PNSkillActionDefinition(LookAction, typeof(ProbeActionImpl)).NoView());
             hub.GetOrCreate<PNLookDefinition>().Register(new PNLookDefinition(ProbeLookId, build => ProbeLook.Block ? null : new ProbeLook(build)));
             hub.GetOrCreate<EveSkillDefinition>().Register(new EveSkillDefinition(LookSkill, JObject.Parse(@"{
               'categoryIds':[],'affectedByAttackSpeed':false,
@@ -92,19 +92,19 @@ public static class PNActionViewChecks
 
         // ---- the declaration rule ----
         var probe = new PNSkillActionDefinition(EveId.Parse("test:declare"), typeof(ProbeActionImpl));
-        Check(!probe.ViewDeclared && probe.ObserverReplay && !probe.HasView, "an Action with neither declaration keeps the legacy replay");
+        Check(!probe.ViewDeclared && !probe.HasView, "an Action starts with neither declaration");
         PNActionViewPolicy.ValidateDeclaration(probe, false);
         bool threw = false; try { PNActionViewPolicy.ValidateDeclaration(probe, true); } catch (FormatException) { threw = true; }
         Check(threw, "once required, an Action with neither WithView nor NoView is rejected (mods included)");
         var none = new PNSkillActionDefinition(EveId.Parse("test:none"), typeof(ProbeActionImpl)).NoView();
-        Check(none.ViewDeclared && !none.HasView && !none.ObserverReplay, "NoView declares there is nothing to draw and the run is not published");
+        Check(none.ViewDeclared && !none.HasView && !none.PublishesRun(new PNSkillData(new JObject(), new PNSkillActionData(EveId.Parse("test:none"), perform: new JObject()))), "NoView declares there is nothing to draw and the run is not published");
         PNActionViewPolicy.ValidateDeclaration(none, true);
         var both = new PNSkillActionDefinition(EveId.Parse("test:both"), typeof(ProbeActionImpl)).WithView(build => new ProbeView(build));
         threw = false; try { both.NoView(); } catch (InvalidOperationException) { threw = true; }
-        Check(threw && both.ViewDeclared && both.HasView && both.ObserverReplay, "WithView and NoView cannot both be declared");
+        Check(threw && both.ViewDeclared && both.HasView, "WithView and NoView cannot both be declared");
         threw = false; try { new PNSkillActionDefinition(EveId.Parse("test:both2"), typeof(ProbeActionImpl)).NoView().WithView(build => new ProbeView(build)); } catch (InvalidOperationException) { threw = true; }
         Check(threw, "the other order is refused too");
-        Check(PNActionViewPolicy.DeclarationRequired == false, "until PV8 the declaration is not yet required");
+        Check(PNActionViewPolicy.DeclarationRequired, "since PV8 the declaration is required");
 
         // ---- looks: the registry entry ----
         threw = false; try { new PNLookDefinition(EveId.Parse("test:a.b"), b => null); } catch (ArgumentException) { threw = true; }
@@ -228,8 +228,12 @@ public static class PNActionViewChecks
             Check(ProbeLook.All[0].Ended == PNActionViewEnd.Cancelled && skill.ActionViewsRunning == 0, "cancelling the run ends its look as Cancelled");
             threw = false; try { PNLookData.Validate(new PNSkillActionData(LookAction, perform: JObject.Parse("{'look':'test:missing_look'}")), new PNSkillActionDefinition(EveId.Parse("test:v1"), typeof(ProbeActionImpl)), hub); } catch (Exception) { threw = true; }
             Check(threw, "a look the registry does not know fails validation");
-            threw = false; try { PNLookData.Validate(new PNSkillActionData(LookAction, perform: JObject.Parse("{'look':'test:probe_look'}")), new PNSkillActionDefinition(EveId.Parse("test:v2"), typeof(ProbeActionImpl)).NoView(), hub); } catch (FormatException) { threw = true; }
-            Check(threw, "an Action that declares NoView cannot name a look");
+            // PV7: NoView is "no view of its own"; the data may still name a look (a dash trail), and then the run is published for that look.
+            var noViewLook = new PNSkillActionDefinition(EveId.Parse("test:v2"), typeof(ProbeActionImpl)).NoView();
+            threw = false; try { PNLookData.Validate(new PNSkillActionData(LookAction, perform: JObject.Parse("{'look':'test:probe_look'}")), noViewLook, hub); } catch (Exception) { threw = true; }
+            Check(!threw, "an Action that declares NoView may name a registered look");
+            var noViewLookData = new PNSkillData(new JObject(), new PNSkillActionData(LookAction, perform: JObject.Parse("{'look':'test:probe_look'}")));
+            Check(noViewLook.PublishesRun(noViewLookData) && noViewLook.HasViewFor(noViewLookData), "a NoView Action whose data names a look publishes its run and has a view for it");
 
             // ---- PV3: a look sustained on the entity, published through the picture ----
             ProbeLook.All.Clear();

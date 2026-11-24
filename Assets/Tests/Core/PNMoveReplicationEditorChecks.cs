@@ -29,7 +29,7 @@ public sealed class PNMoveFaultModule : EveIContentModule
     public void Register(EveRegistryHub hub)
     {
         var id=EveId.Parse("test:move_fault_motion");
-        hub.Actions().Register(new PNSkillActionDefinition(id,typeof(PNMoveFaultMotion),(d,h)=>PNMotionSettings.Parse(d.Perform),PNSkillContextRequirements.Direction));
+        hub.Actions().Register(new PNSkillActionDefinition(id,typeof(PNMoveFaultMotion),(d,h)=>PNMotionSettings.Parse(d.Perform),PNSkillContextRequirements.Direction).NoView());
         hub.Actions().RequestOverride(EveId.Parse("base:motion_action"),id,"test","1.0.0",new[]{"project_n"});
     }
 }

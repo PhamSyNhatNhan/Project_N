@@ -63,6 +63,10 @@ public sealed class EveEnergyVisual : MonoBehaviour
     }
     public void SetMotion(bool active)
     {if(active&&!moving)wake.Clear();moving=active;wake.emitting=active;}
+    private int motionUsers;
+    public bool MotionTrailOn=>moving;
+    // A run's trail: several runs can overlap for a frame, so the trail is on while any of them is alive.
+    public void SetMotion(bool active,bool counted){if(!counted){SetMotion(active);return;}motionUsers=Mathf.Max(0,motionUsers+(active?1:-1));SetMotion(motionUsers>0);}
     public void Flash() {flash=.35f;EmitPulse(settings.ActivationParticles,true);}
     private void EmitPulse(int count,bool outward)
     {

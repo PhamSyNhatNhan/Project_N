@@ -23,9 +23,7 @@ public static class EveCastViewChecks
         var docs = new PNGameContentSource(Path.Combine(Application.streamingAssetsPath, "BaseContent"), Path.Combine(Application.persistentDataPath, "Mods"), Array.Empty<string>()).ReadDocuments().ToArray();
         var hub = new EveContentBootstrap().Build(new EveIContentModule[] { new PNContentModule(), new PNGameplayContentModule() }, docs);
         const long owner = 5, eveId = 995060; var target = PNSyncTarget.ForEntity(new EveEntityId(eveId), 1);
-        var def = hub.SyncStates().Get(PNSkillCastView.State);
-        Check(def != null && !def.OwnerOnly, "the cast block is registered and goes to every client");
-        Check(hub.EntityModules().Get(EveId.Parse("project_n:skill_owner_player")) != null, "the player module that carries it is registered");
+        Check(hub.EntityModules().Get(EveId.Parse("project_n:skill_owner_player")) != null && hub.EntityModules().Get(EveId.Parse("project_n:skill_sync_enemy")) != null, "the player and enemy skill sync modules are registered (the skill_cast block is gone)");
 
         GameObject Root(Scene preview, string name, long id, string character, Vector3 position, long ownerId)
         {
@@ -56,22 +54,17 @@ public static class EveCastViewChecks
             actor.AddComponent<PNPlayerMove>(); var skill = actor.AddComponent<EveClientRoleProbeSkill>(); skill.Prepare(); actor.AddComponent<EveEntityLoader>().Load(hub); actor.SetActive(true);
             Physics.SyncTransforms(); actor.GetComponent<PNAbilityManager>().Abilities.Advance(0);
             var service = new PNSyncService(hub, true, 0, EveRegistrySession.Context);
-            var ownerView = actor.AddComponent<PNSkillOwnerView>(); var remote = actor.AddComponent<PNSkillRemoteInput>(); var view = actor.AddComponent<PNSkillCastView>();
-            service.RegisterObject(target, skill); ownerView.OnBound(service, target); remote.OnBound(service, target); view.OnBound(service, target);
+            var ownerView = actor.AddComponent<PNSkillOwnerView>(); var remote = actor.AddComponent<PNSkillRemoteInput>();
+            service.RegisterObject(target, skill); ownerView.OnBound(service, target); remote.OnBound(service, target);
             var scaleModifier = EveId.Parse("test:o1_report_scale");
             var caster = actor.GetComponent<PNStat>();
             caster.SetSource(scaleModifier, new[] { new EveStatModifier(PNContentIds.MeleeScale, 1d, 1) });
             skill.Bindings.TryGet(PNSkillSlots.Attack, out var attackProfile);
-            Check(((JArray)view.Capture()["e"]).Count == 0, "before any cast the authority has nothing to show");
             service.ReceiveCommand(owner, target, PNSkillRemoteInput.Command, Input(1, PNSkillSlots.Attack, PNSkillInputPhase.Started, attackProfile));
             service.ReceiveCommand(owner, target, PNSkillRemoteInput.Command, Input(2, PNSkillSlots.Attack, PNSkillInputPhase.Performed, attackProfile));
             Check(skill.CurrentCast == EveCast.Attack, "the owner's press starts a slash on the authority");
-            Check(service.Flush() >= 1 && service.TryGetLatest(target, PNSkillCastView.State, out _, out hostBlock), "the authority publishes the cast block");
-            var events = PNSkillCastView.Parse(hostBlock, out long latest);
-            Check(events.Count == 1 && events[0].Event.Kind == PNSkill.ActionKind && events[0].Event.Detail.StartsWith("project_n:eve_attack_") && events[0].Event.X > .9f && latest == events[0].Serial,
-                "the block holds one Action start with its skill id and direction (" + string.Join(",", events.Select(e => e.Event.Kind + ":" + e.Event.Detail)) + ")");
-            Check(hostBlock.ToString(Newtonsoft.Json.Formatting.None).Length < PNSkillCastView.StateBytes, "the block fits its byte bound");
-            var runs = PNSkillCastView.ParseRuns(hostBlock, out var envelope);
+            List<PNActionRunRecord> Runs() { var sample = PNTimeService.For(EveRegistrySession.Context).Sample(); var world = actor.GetComponent<EveEntityLoader>()?.LoadContext?.Identity.World; return skill.CaptureActionRuns(sample.Epoch, world?.InstanceId ?? sample.Epoch, world?.Incarnation ?? 1, target.Generation, sample.Local).ToList(); }
+            var runs = Runs();
             Check(runs.Count == 1 && runs[0].Key.Ordinal == 1 && runs[0].Key.Cast == skill.CurrentInvocation.CastKey, "eager Action identity before any hit");
             var runKey = runs[0].Key;
             caster.RemoveSource(scaleModifier);
@@ -98,14 +91,13 @@ public static class EveCastViewChecks
             typeof(PNSkillInvocation).GetField("actionOrdinal", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).SetValue(skill.CurrentInvocation, long.MaxValue);
             var exhausted = new PNSkillActionContext(skill, EveId.Parse(runs[0].Data), skill.GetData(EveId.Parse(runs[0].Data)), hub, null, Vector3.right, skill.CurrentInvocation);
             exhausted.BeginAction(); exhausted.CancelEffects(); Check(exhausted.ActionOrdinal == 0 && skill.ActionIdentityRejected == 1, "ordinal exhaustion rejects only presentation");
-            view.OnUnbound(); view.OnBound(service, target);
-            Check(PNSkillCastView.ParseRuns(view.Capture(), out _).Single().Key.Equals(runKey), "same life rebind keeps producer key");
+
+            Check(Runs().Single().Key.Equals(runKey), "the run keeps its producer key");
 
             for (int i = 0; i < 300 && skill.IsBusy; i++) { now += .01; skill.Tick(.01f); }
             Check(skill.HitReceiverCount == 0, "completion releases the hit report receiver");
             service.ReceiveCommand(owner, target, PNSkillRemoteInput.Command, Input(3, PNSkillSlots.Attack, PNSkillInputPhase.Canceled, attackProfile));
-            Check(service.TryGetLatest(target, PNSkillCastView.State, out _, out hostBlock) && view.PlayedCount == 0, "the authority never plays its own pictures");
-            ownerView.OnUnbound(); remote.OnUnbound(); view.OnUnbound(); service.Dispose();
+            ownerView.OnUnbound(); remote.OnUnbound(); service.Dispose();
         }
         finally { Cleanup(hostScene); }
 
@@ -124,28 +116,9 @@ public static class EveCastViewChecks
             enemyObject.AddComponent<SphereCollider>().radius = .15f; enemyObject.AddComponent<EveEntityLoader>().Load(hub); enemyObject.SetActive(true); Physics.SyncTransforms();
             var abilities = actor.GetComponent<PNAbilityManager>().Abilities;
             var service = new PNSyncService(hub, false, owner, EveRegistrySession.Context);
-            var view = actor.AddComponent<PNSkillCastView>(); service.RegisterObject(target, skill); view.OnBound(service, target);
+            service.RegisterObject(target, skill);
             double hp = enemy.GetCurrent(PNContentIds.Health); string before = string.Join(";", abilities.CaptureReplica().Select(i => i.Id + ":" + i.Amount + ":" + i.Active));
-            ulong rev = 1; bool Send(JToken block) => service.ReceiveState(target, PNSkillCastView.State, 2, rev++, block.DeepClone());
-            JObject Block(long latest, params object[][] rows) { var block = (JObject)hostBlock.DeepClone(); block["n"] = latest; block["e"] = new JArray(rows.Select(r => (object)new JArray(r))); return block; }
             Check(!skill.IsOwnerClient, "an observed Eve is not on its owner's machine");
-            var stale = Block(100); stale["a"]["g"] = target.Generation + 1;
-            Check(Send(stale) && view.LastSerial == -1 && view.ReceivedRuns.Count == 0, "old generation payload cannot affect observer");
-            stale = Block(100); stale["a"]["e"] = Guid.NewGuid().ToString("N");
-            Check(Send(stale) && view.LastSerial == -1, "other epoch payload cannot affect observer");
-
-
-            Check(Send(Block(7)) && view.PlayedCount == 0 && view.LastSerial == 7, "the first block only sets the serial: a late joiner replays nothing");
-            Check(Send(Block(7, new object[] { 7L, "action", "base:eve_attack_right", 1f, 0f, 0f })) && view.PlayedCount == 0, "an event the first block already counted is not played");
-            Check(Send(hostBlock) && view.PlayedCount == 0, "the authority's own block, with a serial this client already passed, plays nothing");
-
-            Check(Send(Block(9, new object[] { 8L, "action", "base:eve_attack_right", 1f, 0f, 0f }, new object[] { 9L, "action", "base:eve_attack_left", 0f, 1f, 0f })) && view.PlayedCount == 2, "two new events are played in order (" + view.PlayedCount + ")");
-            Check(skill.ObservedActionCount == 2 && skill.ObservedActionsPlayed == 2, "both slashes run as the same Action on the observed Eve (running " + skill.ObservedActionCount + ", played " + skill.ObservedActionsPlayed + ")");
-            Check(Send(Block(9, new object[] { 8L, "action", "base:eve_attack_right", 1f, 0f, 0f }, new object[] { 9L, "action", "base:eve_attack_left", 0f, 1f, 0f })) && view.PlayedCount == 2, "the same block again plays nothing twice");
-            for (int i = 0; i < 300 && skill.ObservedActionCount > 0; i++) skill.AdvanceObservedActions(.01f);
-            Check(skill.ObservedActionCount == 0, "both end by themselves when their time is up");
-            Check(enemy.GetCurrent(PNContentIds.Health) == hp, "the observed slash hits nothing");
-            Check(!skill.IsBusy && skill.CurrentInvocation == null, "no cast runs on the observer");
 
             bool burstApplied = skill.Presentation.Apply(new System.Collections.Generic.Dictionary<string, string> { [EveCharacterSkill.BurstLook.Path] = EveCharacterSkill.BurstLook.Namespace });
             Check(burstApplied && skill.HasLook(EveCharacterSkill.BurstLook) && skill.WeaponRig.IsBurst, "Burst on is drawn from the picture (the registered look) applied=" + burstApplied + " has=" + skill.HasLook(EveCharacterSkill.BurstLook) + " rig=" + (skill.WeaponRig != null) + " burst=" + (skill.WeaponRig != null && skill.WeaponRig.IsBurst) + " ready=" + skill.IsReady + " fail=" + skill.LookFailures);
@@ -163,20 +136,12 @@ public static class EveCastViewChecks
             skill.SetLook(EveCharacterSkill.BurstLook, true);
             Check(skill.HasLook(EveCharacterSkill.BurstLook) && skill.WeaponRig.IsBurst, "and the next Burst is drawn again");
             skill.SetLook(EveCharacterSkill.BurstLook, false);
-            Check(Send(Block(12, new object[] { 12L, "action", "base:eve_no_such_profile", 1f, 0f, 0f })) && skill.ObservedActionCount == 0 && skill.ObservedActionsPlayed == 2, "an unknown Action is dropped without a sound");
-            Check(Send(Block(13, new object[] { 13L, "action", "base:eve_attack_right", 0f, 0f, 0f })) && skill.ObservedActionCount == 0 && skill.ObservedActionsPlayed == 2, "a slash without a direction draws nothing");
-            Check(Send(Block(14, new object[] { 14L, "action", "base:eve_attack_left", 0f, 1f, 0f })) && skill.ObservedActionCount == 1, "a new slash starts");
-            Check(Send(Block(15, new object[] { 15L, "action", "base:eve_attack_right", 1f, 0f, 0f })) && skill.ObservedActionCount == 2 && skill.ObservedActionsPlayed == 4, "a second slash runs beside the first");
-            Check(Send(Block(16, new object[] { 16L, "end", "base:eve_attack_right", 0f, 0f, 0f })) && skill.ObservedActionCount == 1, "the authority's end of an Action stops that one on the observer");
-            skill.AdvanceObservedActions(.01f);
             Check(string.Join(";", abilities.CaptureReplica().Select(i => i.Id + ":" + i.Amount + ":" + i.Active)) == before, "no Ability was written by anything the observer drew");
             Check(wireIsEmpty(skill), "nothing was sent or reported (no sink on an observer)");
             if (captureFolder != null)
             {
                 skill.SetObservedActionPresentation(true);
                 int legacyInvocations=EveSweepAction.Invocations;
-                Check(Send(Block(17,new object[]{17L,"action","base:eve_attack_right",1f,0f,0f}))&&
-                    skill.ObservedActionCount==0,"cutover suppresses the legacy sweep");
                 string dataId=hub.Skills.ResolveIdentity(EveId.Parse("base:eve_attack_right")).ToString();
                 string actionId=PNGameplayContentModule.SweepAction.ToString();
                 var settings=EveSweepSettings.Parse(skill.GetData(EveId.Parse(dataId)).Action.Perform);
@@ -270,18 +235,10 @@ public static class EveCastViewChecks
                 File.WriteAllText(Path.Combine(captureFolder,"presentation.json"),trace.ToString());
             }
 
-            foreach (var bad in new JToken[] {
-                new JObject { ["n"] = 1 }, new JObject { ["e"] = new JArray() }, Block(1, new object[] { 1L, "sweep", "x", 0f }), Block(2, new object[] { 2L, "sweep", "x", 1f, 0f, 1f }, new object[] { 1L, "sweep", "x", 1f, 0f, 1f }),
-                Block(1, new object[] { 1L, new string('a', 60), "x", 1f, 0f, 1f }), Block(1, new object[] { 1L, "sweep", "x", "a", 0f, 1f }),
-                new JObject { ["n"] = 1, ["e"] = new JArray(Enumerable.Range(1, 13).Select(i => (object)new JArray((long)i, "k", "d", 0f, 0f, 0f))) } })
-            {
-                bool refused = false; try { PNSkillCastView.Parse(bad, out _); } catch (FormatException) { refused = true; }
-                Check(refused, "a malformed block is refused: " + bad.ToString(Newtonsoft.Json.Formatting.None).Substring(0, Math.Min(60, bad.ToString(Newtonsoft.Json.Formatting.None).Length)));
-            }
-            view.OnUnbound(); service.Dispose();
+            service.Dispose();
         }
         finally { Cleanup(clientScene); }
-        return "PASS " + n + " cast view checks (authority pictures, block, observer replay, no replay twice, no damage / Ability, malformed refused)";
+        return "PASS " + n + " cast view checks (authority run identity and hit report, observer views, Burst looks, no damage / Ability)";
     }
 
     private static bool wireIsEmpty(EveCharacterSkill skill) => skill.ReportSink == null && skill.InputForwarder == null;

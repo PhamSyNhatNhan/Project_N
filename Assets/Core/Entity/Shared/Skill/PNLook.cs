@@ -81,8 +81,6 @@ public static class PNLookData
         if (perform["look"].Type != JTokenType.String) throw new FormatException("An Action's look is an ID string.");
         var id = EveId.Parse((string)perform["look"]);
         hub.Get<PNLookDefinition>().Get(id);
-        if (definition.ViewDeclared && !definition.HasView)
-            throw new FormatException("Action " + definition.Id + " declares NoView, so its data cannot name the look " + id + ".");
     }
 }
 
@@ -156,6 +154,7 @@ public partial class PNSkill
 
     private void LateUpdate()
     {
+        SealRunsThisFrame();
         if (pendingLooks.Count == 0 || !IsReady || registry == null) return;
         foreach (var id in new List<EveId>(pendingLooks)) { pendingLooks.Remove(id); StartLook(id); }
     }

@@ -20,7 +20,7 @@ public static class PNSummonGameplayContent
         hub.Operations().Register(new PNSkillOperationDefinition(CreateSummon, typeof(PNCreateSummonOperation), PNCreateSummonOperation.Validate, PNSkillContextRequirements.None,
             PNCreateSummonOperation.ValidateReferences));
         hub.Actions().Register(new PNSkillActionDefinition(SummonAction, typeof(PNSummonAction), (action, registry) => PNSummonAction.Validate(action.Perform, registry), PNSkillContextRequirements.None,
-            (data, context) => { var obj = PNBuffContentBatch.Object(data); context.Require<PNSkillOperationDefinition>(obj["operationId"], "operationId"); context.Registry.Operations().Get(context.Read(obj["operationId"], "operationId")).ValidateReferences(obj["data"], context); }));
+            (data, context) => { var obj = PNBuffContentBatch.Object(data); context.Require<PNSkillOperationDefinition>(obj["operationId"], "operationId"); context.Registry.Operations().Get(context.Read(obj["operationId"], "operationId")).ValidateReferences(obj["data"], context); }).NoView());
         // The pet's shot: a registered skill of the pet (the character `project_n:eve2_pet`), a plain projectile_action over create_projectile. When and where it shoots is the pet block
         // (interval, aim stop, search radius); the damage is a flat 10, scaled by the modifiers the pet inherited from its owner (magic, projectile_damage, summon_damage). Unity builds only.
 #if UNITY_5_3_OR_NEWER

@@ -18,8 +18,10 @@ public sealed class EveMotionTrailLook : PNLook
 {
     public static readonly EveId Id = EveId.Parse("project_n:eve_motion_trail");
     private readonly EveCharacterSkill eve;
-    private EveMotionTrailLook(EveCharacterSkill eve) { this.eve = eve; eve.LookEnergy().SetMotion(true); }
+    private bool ended;
+    // Runs can overlap by a frame (retreat then rush): the trail stays while any run that names it is alive.
+    private EveMotionTrailLook(EveCharacterSkill eve) { this.eve = eve; eve.LookEnergy().SetMotion(true, true); }
     public static PNLook Create(PNLookBuild build) => build.Skill is EveCharacterSkill eve ? new EveMotionTrailLook(eve) : null;
-    public override void End(PNActionViewEnd kind) => eve.LookEnergyIfAny?.SetMotion(false);
+    public override void End(PNActionViewEnd kind) { if (ended) return; ended = true; eve.LookEnergyIfAny?.SetMotion(false, true); }
 }
 #endif

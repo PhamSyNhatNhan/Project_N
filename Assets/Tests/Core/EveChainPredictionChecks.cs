@@ -146,14 +146,6 @@ public static class EveChainPredictionChecks
             Check(Tap(PNSkillSlots.Dash) > 0 && skill.IsPredictingDash, "Eve's Dash is guessed through the same binding path");
             skill.Tick(.01f); Check(skill.IsDashing && !skill.IsBusy, "Eve's tick leaves a predicted Dash alone (cast " + skill.CurrentCast + ")");
             skill.TryInterrupt(EveId.Parse("project_n:test")); Check(!skill.IsDashing && !skill.IsPredictingDash, "cancelling the guess ends it");
-            // ---- the owner's own client drew its casts itself: the cast block of S6 plays nothing there ----
-            var castView = actor.AddComponent<PNSkillCastView>(); castView.OnBound(service, target);
-            var castImage = (JObject)castView.Capture();
-            service.ReceiveState(target, PNSkillCastView.State, 2, 100, castImage.DeepClone());
-            castImage["n"] = 1; castImage["e"] = new JArray((object)new JArray(1, "sweep", "attack_right", 1f, 0f, .3f));
-            service.ReceiveState(target, PNSkillCastView.State, 2, 101, castImage);
-            Check(skill.IsOwnerClient && skill.ObservedActionCount == 0 && castView.PlayedCount == 0 && castView.LastSerial == 1, "the owner's client sees the serial but plays nothing (it drew the cast itself)");
-            castView.OnUnbound();
             remote.OnUnbound(); view.OnUnbound(); service.Dispose();
         }
         finally

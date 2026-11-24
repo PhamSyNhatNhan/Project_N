@@ -35,7 +35,7 @@ public static class PNProjectileGameplayContent
             (payload, context) => context.Require<PNProjectileDefinition>(payload["projectileId"], "projectileId")));
 #if UNITY_5_3_OR_NEWER
         hub.Actions().Register(new PNSkillActionDefinition(ProjectileAction, typeof(PNProjectileAction),
-            (action, registry) => PNProjectileAction.Validate(action.Perform, registry), PNSkillContextRequirements.Direction));
+            (action, registry) => PNProjectileAction.Validate(action.Perform, registry), PNSkillContextRequirements.Direction).NoView());
 #endif
     }
 }

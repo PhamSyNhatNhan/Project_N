@@ -108,16 +108,6 @@ public class PNSkillActionContext
             Direction = new Vector3((float)(value.x / length), (float)(value.y / length), (float)(value.z / length));
         }
     }
-    // G8b: where the authority begins an Action (every Action unless its definition says `NoReplayOnObservers`), the other machines are told and replay it. Since G8c the Action stream carries it (whole context); this `skill_cast` event is the fallback when the stream is off.
-    private bool announced;
-    private void Announce()
-    {
-        // G8c: with the Action stream on, the run reaches the other machines through it (whole context, one scheduler); the `skill_cast` event is the way for a machine without it.
-        if (Mode != PNSkillMode.Authority || Invocation == null || Skill == null || Data == null || announced || PNSkill.ActionPublicationEnabled) return;
-        try { if (!Registry.Actions().Get(Data.Action.Id).ObserverReplay) return; } catch (Exception) { return; }
-        announced = true; Skill.AnnounceObservedAction(SkillId, Direction);
-    }
-    private void AnnounceEnd() { if (announced) { announced = false; Skill.AnnounceObservedActionEnd(SkillId); } }
     public void BeginAction()
     {
         if (begun || completed) return; begun = true;
@@ -127,7 +117,7 @@ public class PNSkillActionContext
         if (Invocation != null) ContributionSnapshot = Invocation.State.Snapshot();
         if (Invocation != null && SkillId != Invocation.SkillId && Registry.Skills.GetEffective(SkillId).Data is JObject root && root["effects"] != null)
             AuthoredEffects = PNSkillMetadata.Parse(root, Registry).Effects;
-        Fire("OnActionStart"); Announce();
+        Fire("OnActionStart");
         if (Invocation?.IsEnded == true) throw new OperationCanceledException("Invocation cancelled during Action start.");
     }
     // A one-shot fact for this run's view (`key` and up to a few numbers): the Action says WHAT it decided, never where it runs. The engine hands it to the view at the run's current age; an
@@ -136,8 +126,8 @@ public class PNSkillActionContext
     // Who this run helped (a heal, a Buff): a `recipient` fact at the age the Action decided. The view finds the entity with `PNSkill.TryFindEntity`.
     public void PresentRecipient(PNStat target) => Skill?.PresentActionRecipient(this, target);
     internal int PresentedFacts;
-    public void CompleteAction() { if (completed) return; completed = true; try { Fire("OnComplete"); } finally { Skill?.EndActionView(this, false); Skill?.EndActionRun(this, false); AnnounceEnd(); } }
-    public void CancelEffects() { if (completed) return; completed = true; try { Fire("OnCancel"); } finally { Skill?.EndActionView(this, true); Skill?.EndActionRun(this, true); AnnounceEnd(); } }
+    public void CompleteAction() { if (completed) return; completed = true; try { Fire("OnComplete"); } finally { Skill?.EndActionView(this, false); Skill?.EndActionRun(this, false); } }
+    public void CancelEffects() { if (completed) return; completed = true; try { Fire("OnCancel"); } finally { Skill?.EndActionView(this, true); Skill?.EndActionRun(this, true); } }
     public void Fire(string trigger, PNStat hit = null, Vector3? point = null)
     { if (Invocation != null) Invocation.State.Fire(this, trigger, hit, point); }
     public IReadOnlyList<EveId> EffectiveTags()

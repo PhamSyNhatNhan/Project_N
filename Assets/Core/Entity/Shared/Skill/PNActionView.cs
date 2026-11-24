@@ -51,8 +51,8 @@ public static class PNActionViewPolicy
     public const double GradualWindow = 0.15;   // seconds: a lag up to this is caught up gradually, a bigger one is a seek
     public const double MaxCatchUpRate = 1.5;   // the view runs at most this much faster than the run while it catches up
     public const double OneShotWindow = 0.1;    // seconds: after a seek, a one-shot fact older than this behind the new age is dropped
-    // Flipped to true when every registered Action declares a view (PV8). Until then an Action with neither `WithView` nor `NoView` keeps the legacy replay (G8c).
-    public const bool DeclarationRequired = false;
+    // PV8: an Action with neither `WithView` nor `NoView` is a registration error (mods included); the legacy replay it used to fall back to is gone.
+    public const bool DeclarationRequired = true;
 
     // The age a view takes after one frame. `placed` is false for the first placement. `dt` <= 0 means "no clock": the view takes the target (a seek when it is far).
     public static double Follow(double age, double target, double dt, double rate, bool placed, out bool seeking)

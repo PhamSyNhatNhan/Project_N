@@ -38,8 +38,10 @@ public class PNSkillActionDefinition : PNSkillExecutionDefinition<PNSkillAction>
     public PNSkillContextRequirements RequiredContext { get; }
     // Observed View (Docs/ObservedViewPlan.md): an Action says once how it is drawn. `WithView` names the view the engine builds and drives on every machine that shows the run
     // (the Authority and the Predicted machine run the Action and its view; the others run only the view). `NoView` says there is nothing to draw (the run is then not published).
-    // An Action with neither keeps the legacy replay (G8c) until `PNActionViewPolicy.DeclarationRequired` turns the declaration into a registration error (mods included).
-    public bool ObserverReplay => !noView;
+    // Since PV8 every Action declares one of the two (`PNActionViewPolicy.DeclarationRequired`: a registration error otherwise, mods included).
+    // The run of this skill data is published (the other machines are told) only when there is something to draw: a view, or a look the data names.
+    // `NoView` says the Action has no view of its OWN; its data may still name a look (a dash trail), and then the run is published for that look.
+    public bool PublishesRun(PNSkillData data) => ViewFactory != null || PNLookData.Declares(data);
     public bool HasView => ViewFactory != null;
     // The run of THIS skill data has a view: the definition's, or the generic one that follows the look the data names (`perform.look`).
     public bool HasViewFor(PNSkillData data) => ViewFactory != null || PNLookData.Declares(data);

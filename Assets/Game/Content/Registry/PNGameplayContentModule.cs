@@ -129,7 +129,6 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         hub.SyncStates().Register(new PNSyncStateDefinition(PNSkillOwnerView.State,2,PNSkillOwnerView.StateBytes,PNSyncTargets.Entity,true));
         hub.SyncStates().Register(new PNSyncStateDefinition(PNSkillScaleState.State,1,PNSkillScaleState.StateBytes,PNSyncTargets.Entity));
         hub.SyncCommands().Register(new PNSyncCommandDefinition(PNSkillOwnerView.BaselineCommand,typeof(PNSkillOwnerBaselineHandler),()=>new PNSkillOwnerBaselineHandler(),32,PNSyncTargets.Entity));
-        hub.SyncStates().Register(new PNSyncStateDefinition(PNSkillCastView.State,2,PNSkillCastView.StateBytes,PNSyncTargets.Entity));
         hub.SyncStates().Register(new PNSyncStateDefinition(PNPresentationSync.State,1,PNPresentationSync.StateBytes,PNSyncTargets.Entity));
         // The owner's skill input and its answer (S2): a command from the owner's client, the cast result back to the owner only.
         hub.SyncStates().Register(new PNSyncStateDefinition(PNSkillRemoteInput.ResultState,1,PNSkillRemoteInput.ResultBytes,PNSyncTargets.Entity,true));
@@ -139,9 +138,9 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         // 4.4c: the machine of a player claims the hits on him (enemy attacks); the authority checks and applies.
         hub.SyncCommands().Register(new PNSyncCommandDefinition(PNSkillRemoteInput.HurtClaimCommand,typeof(PNHurtClaimCommandHandler),()=>new PNHurtClaimCommandHandler(),PNSkillRemoteInput.HurtClaimCommandBytes,PNSyncTargets.Entity));
         hub.SyncCommands().Register(new PNSyncCommandDefinition(PNSkillRemoteInput.DecisionCommand,typeof(PNSkillDecisionCommandHandler),()=>new PNSkillDecisionCommandHandler(),PNSkillRemoteInput.DecisionCommandBytes,PNSyncTargets.Entity));
-        hub.EntityModules().Register(new PNEntityModuleDefinition(EveId.Parse("project_n:skill_owner_player"),PNEntityModuleRoles.Player,null,new[]{PNRunFeatures.SkillSync},new[]{typeof(PNSyncEntity),typeof(PNSkillOwnerView),typeof(PNSkillRemoteInput),typeof(PNSkillCastView),typeof(PNPresentationSync),typeof(PNSkillScaleState)}));
-        // O7 (Docs/SpawnedObjectSyncPlan.md): the other machines see what an enemy casts. The same cast channel as a player's (the Actions that ask for observers are replayed), the shared presentation clock and the scale block; no owner, input or hit channel.
-        hub.EntityModules().Register(new PNEntityModuleDefinition(EveId.Parse("project_n:skill_cast_enemy"),PNEntityModuleRoles.None,new[]{PNEntityGameplayContent.Enemy},new[]{PNRunFeatures.SkillSync},new[]{typeof(PNSyncEntity),typeof(PNSkillCastView),typeof(PNPresentationSync),typeof(PNSkillScaleState)}));
+        hub.EntityModules().Register(new PNEntityModuleDefinition(EveId.Parse("project_n:skill_owner_player"),PNEntityModuleRoles.Player,null,new[]{PNRunFeatures.SkillSync},new[]{typeof(PNSyncEntity),typeof(PNSkillOwnerView),typeof(PNSkillRemoteInput),typeof(PNPresentationSync),typeof(PNSkillScaleState)}));
+        // O7 (Docs/SpawnedObjectSyncPlan.md): the other machines see what an enemy casts, through the Action stream's views (PV8); the shared presentation clock and the scale block; no owner, input or hit channel.
+        hub.EntityModules().Register(new PNEntityModuleDefinition(EveId.Parse("project_n:skill_sync_enemy"),PNEntityModuleRoles.None,new[]{PNEntityGameplayContent.Enemy},new[]{PNRunFeatures.SkillSync},new[]{typeof(PNSyncEntity),typeof(PNPresentationSync),typeof(PNSkillScaleState)}));
         // The two things an enemy owes a room (G6), answered by the world's features instead of flags on the role: the clear marker the room director counts and the loot source.
         hub.EntityModules().Register(new PNEntityModuleDefinition(EveId.Parse("project_n:room_clear_enemy"),PNEntityModuleRoles.None,new[]{PNEntityGameplayContent.Enemy},new[]{PNRunFeatures.RoomClear},new[]{typeof(PNRoomClearMarker)}));
         hub.EntityModules().Register(new PNEntityModuleDefinition(EveId.Parse("project_n:loot_enemy"),PNEntityModuleRoles.None,new[]{PNEntityGameplayContent.Enemy},new[]{PNRunFeatures.Loot},new[]{typeof(PNLootSource)}));
@@ -162,12 +161,12 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
             string category = entry == EveAttackEntry ? "attack" : entry == EveSkillEntry ? "skill" : entry == EveUltimateEntry ? "ultimate" : "burst";
             hub.GetOrCreate<EveSkillDefinition>().Register(new EveSkillDefinition(entry, new JObject { ["categoryIds"] = new JArray("base:" + category), ["affectedByAttackSpeed"] = entry == EveAttackEntry }));
         }
-        hub.Actions().Register(new PNSkillActionDefinition(DamageAction, typeof(PNDamageAction), ValidateEffectAction, PNSkillContextRequirements.Targets));
+        hub.Actions().Register(new PNSkillActionDefinition(DamageAction, typeof(PNDamageAction), ValidateEffectAction, PNSkillContextRequirements.Targets).NoView());
 #if UNITY_5_3_OR_NEWER
         // Work on placed things of a grid world (Docs/SandboxPlan.md): the registered way for a skill to bring things down. Not wired into any existing skill.
-        hub.Actions().Register(new PNSkillActionDefinition(WorkAction, typeof(PNWorkAction), ValidateEffectAction, PNSkillContextRequirements.Position));
+        hub.Actions().Register(new PNSkillActionDefinition(WorkAction, typeof(PNWorkAction), ValidateEffectAction, PNSkillContextRequirements.Position).NoView());
         // Puts a locomotion on the skill body for a while (Docs/SandboxPlan.md G12): the registered way for a skill to fly or cross a hole. Not wired into any existing skill.
-        hub.Actions().Register(new PNSkillActionDefinition(LocomotionAction, typeof(PNLocomotionAction), ValidateEffectAction, PNSkillContextRequirements.None));
+        hub.Actions().Register(new PNSkillActionDefinition(LocomotionAction, typeof(PNLocomotionAction), ValidateEffectAction, PNSkillContextRequirements.None).NoView());
 #endif
         var sweep = new PNSkillActionDefinition(SweepAction, typeof(EveSweepAction), ValidateEffectAction, PNSkillContextRequirements.Direction).WithDriverProgress();
 #if UNITY_5_3_OR_NEWER
@@ -183,9 +182,9 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         foreach (var look in looks.Snapshot().Values)
             if (look.Id.Namespace == "project_n")
                 looks.RegisterBase(new EveId("base", look.Id.Path), look.Id, "project_n", compatible: (original, replacement) => true);
-        hub.Actions().Register(new PNSkillActionDefinition(MotionAction,typeof(PNMotionAction), ValidateEffectAction, PNSkillContextRequirements.Direction));
+        hub.Actions().Register(new PNSkillActionDefinition(MotionAction,typeof(PNMotionAction), ValidateEffectAction, PNSkillContextRequirements.Direction).NoView());
         hub.Actions().Register(new PNSkillActionDefinition(EveId.Parse("project_n:buff_action"), typeof(PNBuffAction), ValidateEffectAction, PNSkillContextRequirements.None,
-            (data, context) => { var obj = PNBuffContentBatch.Object(data); context.Require<PNSkillOperationDefinition>(obj["operationId"], "operationId"); context.Registry.Operations().Get(context.Read(obj["operationId"], "operationId")).ValidateReferences(obj["data"], context); }));
+            (data, context) => { var obj = PNBuffContentBatch.Object(data); context.Require<PNSkillOperationDefinition>(obj["operationId"], "operationId"); context.Registry.Operations().Get(context.Read(obj["operationId"], "operationId")).ValidateReferences(obj["data"], context); }).NoView());
         hub.GetOrCreate<EveSkillDefinition>().Register(new EveSkillDefinition(PlayerDash,JObject.Parse(@"{
           'categoryIds':['base:dash'],'affectedByAttackSpeed':false,
           'skill': {'recoveryId':'project_n:player_dash_ready','applyCooldownReduction':true,
@@ -286,7 +285,10 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
 #endif
         foreach (var action in hub.Actions().Snapshot().Values)
         {
+#if UNITY_5_3_OR_NEWER
+            // A view is Unity-only code, so the declaration is required where views exist (the standalone smoke build has none to declare).
             PNActionViewPolicy.ValidateDeclaration(action, PNActionViewPolicy.DeclarationRequired);
+#endif
             if (action.PresentationScaleTag.HasValue) hub.Get<PNTagDefinition>().Get(action.PresentationScaleTag.Value);
         }
 #if UNITY_5_3_OR_NEWER

@@ -239,7 +239,7 @@ public partial class EveCharacterSkill
         attackTrack = CurrentInvocation?.Track(_ => FinishAttack(true));
         CurrentPhase = EveCastPhase.Slash; phaseRemaining = settings.Duration; rewardedHit = false;
 #if UNITY_5_3_OR_NEWER
-        MotionLook(false); energy?.Charge(0);
+        energy?.Charge(0);
 #endif
         attack.Start(attackContext); attack.Perform(attackContext);
     }
@@ -266,9 +266,6 @@ public partial class EveCharacterSkill
     {
         CancelMoveset();CurrentCast=EveCast.Dash;CurrentPhase=EveCastPhase.Motion;
         castTarget=null;castDirection=direction;Face(direction);LockSequence();
-#if UNITY_5_3_OR_NEWER
-        MotionLook(true);
-#endif
     }
     protected override void OnPlayerDashEnded(bool cancelled)
     {if(CurrentCast==EveCast.Dash)FinishSequence(cancelled);}
@@ -337,9 +334,6 @@ public partial class EveCharacterSkill
         var ownedMotion=motion;
         motion.BindMovementOwner(()=>{if(ReferenceEquals(motion,ownedMotion))CancelMoveset();});
         motion.Start(motionContext);motion.Perform(motionContext);
-#if UNITY_5_3_OR_NEWER
-        MotionLook(true);
-#endif
     }
     private void AdvanceMoveset(float delta)
     {
@@ -379,7 +373,6 @@ public partial class EveCharacterSkill
                 frame.Advance(attackContext, step, speed, attack != null ? (Action<float>)attack.Advance : null);
 #if UNITY_5_3_OR_NEWER
                 if (CurrentPhase == EveCastPhase.Charge) EnsureEnergy().Charge(1 - phaseRemaining / moveset.ChargeDuration);
-                else MotionLook(motion != null);
 #endif
                 if (!IsBusy) break;
                 if (phaseRemaining <= .000001f) CompletePhase(); else break;
@@ -489,7 +482,7 @@ public partial class EveCharacterSkill
             {
                 CurrentPhase = EveCastPhase.Charge; phaseRemaining = moveset.ChargeDuration;
 #if UNITY_5_3_OR_NEWER
-                MotionLook(false); EnsureEnergy().Charge(.001f);
+                EnsureEnergy().Charge(.001f);
 #endif
                 return;
             }
@@ -541,7 +534,7 @@ public partial class EveCharacterSkill
         DisposeLock(); CurrentCast = EveCast.None; CurrentPhase = EveCastPhase.None;
         castTarget = null; pendingAttackProfile = null; phaseRemaining = 0;
 #if UNITY_5_3_OR_NEWER
-        MotionLook(false); energy?.Charge(0);
+        energy?.Charge(0);
 #endif
     }
     // The motion of the running phase stopped for good (cancel path and fallback).

@@ -176,7 +176,7 @@ namespace ProjectN.Coop.Tests
             Call("Record", new JArray(5L, 3L, new JArray(9L, 1L), 1.2d, new JArray(.1, "burst"))); checks++;
             Throws(() => Call("Record", new JArray(5L, 3L, new JArray(9L, 1L), new JArray(.1, "burst"))), "validator: a fact row without stamp refused");
             Throws(() => Call("Record", new JArray(6L, 3L, new JArray(9L, 1L), 1.2d, new JArray(.1, "burst"))), "validator: tag 6 refused");
-            C(ProjectN.Coop.PNNetworkAuthenticator.NetworkVersion == 40, "NetworkVersion is 40 (facts on the wire)");
+            C(ProjectN.Coop.PNNetworkAuthenticator.NetworkVersion == 41, "NetworkVersion is 41 (the skill_cast block is gone)");
             return "[PASS " + checks + " Action context checks]";
         }
     }

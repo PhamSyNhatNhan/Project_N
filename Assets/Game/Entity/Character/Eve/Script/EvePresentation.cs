@@ -8,11 +8,11 @@ public partial class EveCharacterSkill
 {
     public static readonly EveId BurstLook = EveId.Parse("project_n:eve_burst"), MotionTrailLook = EveId.Parse("project_n:eve_motion_trail");
 
-    // The energy trail of a motion.
-    private void MotionLook(bool on) => SetLook(MotionTrailLook, on);
+    // The energy trail of a motion is a look its motion Actions name in their data (`perform.look`): it is a run look, started and ended by the run (PV7), not turned on here.
 #if UNITY_5_3_OR_NEWER
     // What the looks need from Eve's visuals.
     internal EveEnergyVisual LookEnergy() => EnsureEnergy();
     internal EveEnergyVisual LookEnergyIfAny => energy;
+    public bool MotionTrailActive => energy != null && energy.MotionTrailOn;
 #endif
 }

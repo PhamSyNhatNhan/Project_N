@@ -61,28 +61,8 @@ public partial class PNSkill
     }
 }
 
-// EN: What the AUTHORITY tells the other players' machines about a cast (G8b): an Action it began or ended (`Kind` "action" / "end", `Detail` the Action's skill id, `X`/`Z` the planar direction).
-//     The observers' copy of the skill replays the Action itself (`PNSkill.PlayObserved`): no Ability, no motion (the body's place comes from Move), no hit.
-// VI: Điều AUTHORITY báo cho máy người chơi khác về một cast: hình để vẽ, không phải trạng thái. Máy quan sát phát lại bằng `PlayCastEvent`, không đụng Ability / motion / hit.
-public readonly struct PNSkillCastEvent
-{
-    public readonly string Kind; public readonly string Detail; public readonly float X; public readonly float Z; public readonly float Duration;
-    public PNSkillCastEvent(string kind, string detail, float x, float z, float duration) { Kind = kind; Detail = detail; X = x; Z = z; Duration = duration; }
-}
-
 public partial class PNSkill
 {
-    // Raised on the authority only, for every Action it begins or ends that asks for observers (the `skill_cast` block sends it; see PNSkillCastView).
-    public event Action<PNSkillCastEvent> CastEvent;
-    public const string ActionKind = "action", ActionEndKind = "end";
-    internal void AnnounceObservedAction(EveId skillId, Vector3? direction)
-    {
-        if (CastEvent != null && HasGameplayAuthority) CastEvent(new PNSkillCastEvent(ActionKind, skillId.ToString(), direction?.x ?? 0f, direction?.z ?? 0f, 0f));
-    }
-    internal void AnnounceObservedActionEnd(EveId skillId)
-    {
-        if (CastEvent != null && HasGameplayAuthority) CastEvent(new PNSkillCastEvent(ActionEndKind, skillId.ToString(), 0f, 0f, 0f));
-    }
     // True on the machine of the entity's owner (its client forwards the owner's input): it drew the cast itself, so it ignores the events.
     public bool IsOwnerClient => CanForwardInput;
 }

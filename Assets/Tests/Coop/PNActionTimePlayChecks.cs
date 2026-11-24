@@ -120,7 +120,7 @@ namespace ProjectN.Coop.Tests
                         if(row.PresentationScale!=expectedScale||!Scaled(value))
                             throw new Exception("Observer sweep radius differs from captured scale");
                         double normalized=Math.Min(1,row.Progress/settings.Duration);
-                        if(Math.Abs(value.Progress-normalized)>.0001||skill.ObservedActionCount!=0||skill.CurrentInvocation!=null)
+                        if(Math.Abs(value.Progress-normalized)>.0001||skill.CurrentInvocation!=null)
                             throw new Exception("Rendered sweep disagrees with committed pose-time model");
                         key=drawnKey;visible=value;progress=value.Progress;hasComparison=true;
                         viewRows.Add(new {drawnKey.Cast,drawnKey.Ordinal,progress=value.Progress,absolute=row.Progress,
@@ -284,7 +284,11 @@ namespace ProjectN.Coop.Tests
             private int replaySource;
             public int Errors { get; private set; }
             public double ProgressFor(PNActionRunStore source, PNActionRunKey key, double stamp)
-                => shadows[sources[source] + ":" + key.Cast + ":" + key.Ordinal].Snapshot(stamp).Single().Progress;
+            {
+                string n = sources[source] + ":" + key.Cast + ":" + key.Ordinal;
+                if (!shadows.ContainsKey(n)) throw new Exception("A2 no shadow " + n + " have " + shadows.Count + " first " + string.Join(",", shadows.Keys.Take(6)) + " events " + events);
+                return shadows[n].Snapshot(stamp).Single().Progress;
+            }
             public A2Recorder(string path, bool omitFirstDriver = false, long byteLimit = 512L * 1024 * 1024) { this.byteLimit = byteLimit; this.omitFirstDriver = omitFirstDriver; writer = new StreamWriter(path) { AutoFlush = true }; PNActionRunStore.Measurement += Record; }
             private void Record(PNActionRunStore source, Newtonsoft.Json.Linq.JObject e)
             {
@@ -357,11 +361,10 @@ namespace ProjectN.Coop.Tests
             void Mark(string s)=>File.WriteAllText(P(s),"ok");
             var skill=subject.GetComponent<EveCharacterSkill>();
             using var c3=host&&PNActionC3Recorder.Enabled?new PNActionC3Recorder(skill,folder,peer):null;
-            var cast=subject.GetComponent<PNSkillCastView>();
             var remote=subject.GetComponent<PNSkillRemoteInput>();var session=EveRegistrySession.Context;
-            if(skill==null||cast==null)throw new Exception("PreT5 needs Eve sweep character");
+            if(skill==null)throw new Exception("PreT5 needs Eve sweep character");
             var clock=PNTimeService.For(session);IPNCameraHandle camera=null;
-            var stat=subject.GetComponent<PNStat>();var speedSource=EveId.Parse("test:pret5_speed");int captures=0;int lastPlayed=skill.ObservedActionsPlayed+skill.ObservedPresentationsStarted;int currentPulse=-1;
+            var stat=subject.GetComponent<PNStat>();var speedSource=EveId.Parse("test:pret5_speed");int captures=0;int lastPlayed=skill.ObservedPresentationsStarted;int currentPulse=-1;
             Exception producerFailure = null;
             float originalGlobalRate=Time.timeScale;
             var entityClock=subject.GetComponent<EveTimeScale>();long entityModifier=0,minReduction=0;
@@ -380,7 +383,8 @@ namespace ProjectN.Coop.Tests
                 probe.Tick=()=>{if(!session.IsActive)return;var actionManager=NetworkManager.singleton as PNNetworkManager;var s=clock.Sample();c3?.Tick(s.Local);var at=subject.transform.position;
                     if (Environment.GetCommandLineArgs().Contains("--pn-action-producer"))
                     {
-                        var records = host ? PNSkillCastView.ParseRuns(cast.Capture(), out _) : cast.ReceivedRuns;
+                        var loadContext = subject.GetComponent<EveEntityLoader>()?.LoadContext; var runWorld = loadContext?.Identity.World;
+                        IReadOnlyList<PNActionRunRecord> records = host && loadContext != null ? skill.CaptureActionRuns(s.Epoch, runWorld?.InstanceId ?? s.Epoch, runWorld?.Incarnation ?? 1, loadContext.Generation, s.Local) : Array.Empty<PNActionRunRecord>();
                         var running = typeof(EveCharacterSkill).GetField("attack", Flags)?.GetValue(skill);
                         var elapsed = running == null ? -1 : (float)running.GetType().GetField("elapsed", Flags).GetValue(running);
                         File.AppendAllText(P(peer+"-producer.jsonl"), JsonConvert.SerializeObject(new { frame=Time.frameCount, stamp=s.Local, pulse=currentPulse, elapsed, key=skill.CurrentInvocation?.CastKey??0, records, rejected=skill.ActionRuns?.Rejected??0 })+"\n");
@@ -389,10 +393,10 @@ namespace ProjectN.Coop.Tests
                     }
                     output.WriteLine(JsonConvert.SerializeObject(new{pulse=currentPulse,frame=Time.frameCount,local=s.Local,host=s.Host,presentation=s.Presentation,ready=s.Ready,uncertainty=s.Uncertainty,
                         actionSent=actionManager?.ActionPacketsSent??0,actionPeers=actionManager?.ActionPeerCount??0,actionPrepared=actionManager?.ActionPreparedBindings??0,actionSequence=actionManager?.ActionAppliedSequence??0,actionQueue=actionManager?.ActionQueuedBytes??0,actionReceive=actionManager?.ActionReceiveBytes??0,actionRecoveries=actionManager?.ActionRecoveries??0,actionVisibleSkipped=actionManager?.ActionKnownVisibleSkipped??0,actionUnknownResets=actionManager?.ActionUnknownCoverageResets??0,
-                        x=at.x,z=at.z,role=subject.NetworkRole.ToString(),observed=skill.ObservedActionCount,played=cast.PlayedCount,scheduled=skill.ObservedPresentationsStarted,serial=cast.LastSerial,busy=skill.IsBusy,
+                        x=at.x,z=at.z,role=subject.NetworkRole.ToString(),observed=0,played=0,scheduled=skill.ObservedPresentationsStarted,serial=-1,busy=skill.IsBusy,
                         pending=remote.PendingPredictions,ack=remote.AckedKey,castKey=skill.CurrentInvocation?.CastKey??0,
                         attackSpeed=host?stat.Evaluate(PNContentIds.AttackSpeed):0,globalRate=Time.timeScale,entityRate=entityClock!=null?entityClock.Scale:1}));
-                    int drawn=skill.ObservedActionsPlayed+skill.ObservedPresentationsStarted;
+                    int drawn=skill.ObservedPresentationsStarted;
                     if(peer=="client2"&&drawn!=lastPlayed&&skill.GetComponentInChildren<EveSweepVisual>()!=null&&captures<6)
                     {lastPlayed=drawn;typeof(PNTimeBaselineChecks).GetMethod("CaptureClockFrame",BindingFlags.Static|BindingFlags.NonPublic).Invoke(null,new object[]{P("observed-"+(captures++)+".png")});}
                 };
@@ -424,14 +428,6 @@ namespace ProjectN.Coop.Tests
                                 // Let this explicit authority-side fixture setup reach the owner
                                 // before blocking Sync; otherwise no input runs during the stall.
                                 yield return new WaitForSecondsRealtime(.6f);
-                            }
-                            if(faults&&pulse==6)
-                            {
-                                var rows=(Newtonsoft.Json.Linq.JArray)cast.Capture()["e"];
-                                string data=(string)rows.Last[2];
-                                for(int i=0;i<16;i++)typeof(PNSkillCastView).GetMethod("OnCastEvent",Flags).Invoke(cast,new object[]{new PNSkillCastEvent("action",data,1,0,.3f)});
-                                for(int i=0;i<16;i++)typeof(PNSkillCastView).GetMethod("OnCastEvent",Flags).Invoke(cast,new object[]{new PNSkillCastEvent("end",data,1,0,0)});
-                                Mark("synthetic-ring-pressure-16-start-end");
                             }
                             if(faults&&pulse>=2&&pulse<=4)File.WriteAllText(P("sync-stall-until"),(Time.realtimeSinceStartupAsDouble+new[]{.2,.5,2}[pulse-2]).ToString("R",System.Globalization.CultureInfo.InvariantCulture));
                             Mark("action-authorized-"+pulse);
@@ -494,7 +490,7 @@ namespace ProjectN.Coop.Tests
                         if(peer=="client2")
                         {
                             NetworkClient.Disconnect();
-                            yield return Wait(()=>skill==null||skill.ObservedActionCount==0,"disconnect observed cleanup");
+                            yield return Wait(()=>skill==null||skill.ActionViewsRunning==0,"disconnect observed cleanup");
                             Mark("client2-disconnect-cleanup-pass");
                         }
                         else yield return Wait(()=>File.Exists(P("client2-disconnect-cleanup-pass")),"observer disconnect checked");

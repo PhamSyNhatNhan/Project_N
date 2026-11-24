@@ -946,6 +946,7 @@
               "id": "base:motion_action",
               "start": {},
               "perform": {
+                "look": "project_n:eve_motion_trail",
                 "distance": 2,
                 "duration": 0.16,
                 "ignoreEntities": true,
@@ -990,6 +991,7 @@
               "id": "base:motion_action",
               "start": {},
               "perform": {
+                "look": "project_n:eve_motion_trail",
                 "distance": 3,
                 "duration": 0.16,
                 "ignoreEntities": false,
@@ -1012,6 +1014,7 @@
               "id": "base:motion_action",
               "start": {},
               "perform": {
+                "look": "project_n:eve_motion_trail",
                 "distance": 3,
                 "duration": 0.16,
                 "ignoreEntities": false,
@@ -1034,6 +1037,7 @@
               "id": "base:motion_action",
               "start": {},
               "perform": {
+                "look": "project_n:eve_motion_trail",
                 "distance": 8,
                 "duration": 0.16,
                 "ignoreEntities": false,
@@ -1056,6 +1060,7 @@
               "id": "base:motion_action",
               "start": {},
               "perform": {
+                "look": "project_n:eve_motion_trail",
                 "distance": 1.2,
                 "duration": 0.18,
                 "ignoreEntities": false,
@@ -1080,6 +1085,7 @@
             "action": {
               "id": "base:motion_action",
               "perform": {
+                "look": "project_n:eve_motion_trail",
                 "distance": 1.5,
                 "duration": 0.16,
                 "ignoreEntities": true,

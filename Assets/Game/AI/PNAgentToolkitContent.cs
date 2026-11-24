@@ -14,10 +14,10 @@ public static class PNAgentToolkitContent
     {
         hub.GetOrCreate<PNSkillActionDefinition>().Register(new PNSkillActionDefinition(EveId.Parse("project_n:trajectory_action"), typeof(PNAgentTrajectoryAction),
             (data, registry) => PNAgentTrajectoryAction.Validate(data, registry, false), PNSkillContextRequirements.Direction,
-            (data, references) => references.Require<PNSkillOperationDefinition>(new JValue("base:lock_movement"), "movementLock")));
+            (data, references) => references.Require<PNSkillOperationDefinition>(new JValue("base:lock_movement"), "movementLock")).NoView());
         hub.GetOrCreate<PNSkillActionDefinition>().Register(new PNSkillActionDefinition(EveId.Parse("project_n:contact_motion_action"), typeof(PNAgentContactMotionAction),
             (data, registry) => PNAgentTrajectoryAction.Validate(data, registry, true), PNSkillContextRequirements.Direction,
-            (data, references) => references.Require<PNSkillOperationDefinition>(new JValue("base:lock_movement"), "movementLock")));
+            (data, references) => references.Require<PNSkillOperationDefinition>(new JValue("base:lock_movement"), "movementLock")).NoView());
         void MotionSkill(EveId id, string perform, string action = "base:trajectory_action")
         {
             hub.GetOrCreate<EveSkillDefinition>().Register(new EveSkillDefinition(id, new JObject {
@@ -34,7 +34,7 @@ public static class PNAgentToolkitContent
         MotionSkill(EveId.Parse("project_n:agent_backstep"), "{'distance':1,'duration':0.2,'ignoreEntities':false,'permissionId':'base:motion_voluntary'}", "base:motion_action");
         hub.GetOrCreate<PNSkillActionDefinition>().Register(new PNSkillActionDefinition(EveId.Parse("project_n:agent_heal_action"), typeof(PNAgentHealAction),
             PNAgentHealAction.Validate, PNSkillContextRequirements.Targets,
-            (data, references) => references.Require<PNSkillOperationDefinition>(new JValue("base:heal"), "healOperation")));
+            (data, references) => references.Require<PNSkillOperationDefinition>(new JValue("base:heal"), "healOperation")).NoView());
         hub.GetOrCreate<EveSkillDefinition>().Register(new EveSkillDefinition(Support, JObject.Parse(@"{
           'categoryIds':['base:skill'],'affectedByAttackSpeed':false,
           'skill':{'abilities':[{'id':'project_n:agent_support_ready','kind':'Cooldown','showInUI':false,'iconPath':'','displayOrder':0,

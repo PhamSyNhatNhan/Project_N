@@ -85,9 +85,9 @@ namespace ProjectN.Coop.Tests
             while (!failed)
             {
                 string label = null;
-                if (slash < 14 && (seen.ObservedActionCount > 0 || seen.GetComponentInChildren<EveSweepVisual>() != null))
+                if (slash < 14 && (seen.ActionViewsRunning > 0 || seen.GetComponentInChildren<EveSweepVisual>() != null))
                     label = "slash_" + (++slash);
-                else if (seen.HasLook(EveCharacterSkill.MotionTrailLook) && motion < 10) label = "motion_" + (++motion);
+                else if (seen.MotionTrailActive && motion < 10) label = "motion_" + (++motion);
                 else if (seen.HasLook(EveCharacterSkill.BurstLook) && burst < 4 && Time.realtimeSinceStartup >= nextBurst) { label = "burst_" + (++burst); nextBurst = Time.realtimeSinceStartup + .6f; }
                 if (label != null)
                 {
@@ -112,6 +112,7 @@ namespace ProjectN.Coop.Tests
             try { PNGameBootstrap.OpenRoom(PNGameBootstrap.Config); } catch (Exception e) { Fail(e); yield break; }
             yield return Wait(() => NetworkClient.isConnected && NetworkClient.connection.isAuthenticated, "room connection"); if (failed) yield break;
             var manager = (PNNetworkManager)NetworkManager.singleton; Mark(name + "-lobby");
+            if (Environment.GetCommandLineArgs().Contains("--pn-late-join")) { yield return LateJoin(host, manager); yield break; }
             yield return Wait(() => host ? Has("client1-lobby") && Has("client2-lobby") : Has("host-lobby"), "lobby"); if (failed) yield break;
             if (host) { yield return Wait(() => manager.CanBeginPlay, "begin play"); if (failed) yield break; try { PNGameBootstrap.BeginPlay("roguelite"); } catch (Exception e) { Fail(e); yield break; } }
             yield return Wait(() => manager.IsPlaying && Players().Length == 3 && (host || manager.ClientInputReady), "three players in play"); if (failed) yield break;
@@ -300,9 +301,8 @@ namespace ProjectN.Coop.Tests
                 // ---- S6: the OTHER client sees client1's slashes drawn on its copy of Eve, and nothing is cast or hit there ----
                 if (name == "client2")
                 {
-                    var seenView = e1.GetComponent<PNSkillCastView>(); var seenEve = e1.GetComponent<EveCharacterSkill>();
-                    yield return Wait(() => seenEve.ObservedPresentationsStarted >= 1 ||
-                        seenView.PlayedCount >= 1 && seenEve.ObservedActionsPlayed >= 1, "client2 draws client1's slashes"); if (failed) yield break;
+                    var seenEve = e1.GetComponent<EveCharacterSkill>();
+                    yield return Wait(() => seenEve.ObservedPresentationsStarted >= 1, "client2 draws client1's slashes"); if (failed) yield break;
                     try { Check(!seenEve.IsPredictingCast && !seenEve.IsBusy && seenEve.CurrentInvocation == null, "the observed Eve runs no cast on client2 (busy " + seenEve.IsBusy + ")"); Mark("client2-saw"); } catch (Exception e) { Fail(e); yield break; }
                 }
                 yield return Wait(() => Has("client2-saw"), "client2 saw the slashes"); if (failed) yield break;
@@ -463,6 +463,87 @@ namespace ProjectN.Coop.Tests
             yield return Wait(() => Has("host-done") || host && Has("client1-done") && Has("client2-done"), "everyone done"); if (failed) yield break;
             if (host) { try { PNGameBootstrap.EndPlay(); } catch (Exception e) { Fail(e); yield break; } yield return new WaitForSecondsRealtime(1f); }
             File.WriteAllText(Path.Combine(folder, name + ".txt"), "PASS " + checks); Application.Quit();
+        }
+
+        // PV9: a real late joiner. The host and client1 play; enemies are already casting when client2 connects (`runskill.ps1 -LateClient -Extra --pn-late-join`).
+        // Client2 must draw what is under way from where it is (seek) and take no failure; the observers' view counters say how.
+        private IEnumerator LateJoin(bool host, PNNetworkManager manager)
+        {
+            var characters = new[] { "project_n:starkeeper", "project_n:starforger", "project_n:starreaper", "project_n:starweaver", "project_n:starchanter", "project_n:starherald" };
+            var shots = Path.Combine(folder, "shots"); Directory.CreateDirectory(shots);
+            if (host)
+            {
+                yield return Wait(() => Has("client1-lobby") && Has("client2-lobby"), "client lobbies"); if (failed) yield break;
+                yield return Wait(() => manager.CanBeginPlay, "begin play"); if (failed) yield break;
+                try { PNGameBootstrap.BeginPlay("roguelite"); } catch (Exception e) { Fail(e); yield break; }
+                yield return Wait(() => manager.IsPlaying && Players().Length >= 3, "three players in play"); if (failed) yield break;
+                yield return Wait(() => Has("client1-ready") && Has("client2-ready"), "clients ready"); if (failed) yield break;
+                try { var runs = PNGameBootstrap.Runtime.GetComponent<PNGameSession>().Runs; if (!runs.Begin(PNGameFlow.DefaultRun, PNLocalWorldContext.Current.World, 12345UL, out var why)) throw new Exception("run did not begin: " + why); }
+                catch (Exception e) { Fail(e); yield break; }
+                yield return Wait(() => PNGameBootstrap.Runtime.GetComponent<PNGameSession>().Runs.Phase == PNRunPhase.Playing, "the run to play"); if (failed) yield break;
+                var any = Players().First();
+                try
+                {
+                    var world = PNLocalWorldContext.Current.World;
+                    for (int i = 0; i < characters.Length; i++)
+                    {
+                        var request = new PNEntityRequest { Entity = "project_n:enemy", Template = "project_n:enemy", Character = characters[i], World = world, WorldIncarnation = world.Incarnation, ContentSlot = PNGridWorldController.SlotId, SceneKey = "late:" + i, EntityKey = "", Position = any.transform.position + new Vector3(3f + 1.5f * (i % 3), 0, (i / 3) * 3f) };
+                        if (PNEntityHosts.For(EveRegistrySession.Context).TrySpawn(request, null, null, error => Debug.LogException(error)) == null) throw new Exception("the host refused " + characters[i]);
+                    }
+                }
+                catch (Exception e) { Fail(e); yield break; }
+                yield return new WaitForSecondsRealtime(8f);                 // the enemies are mid-cast when client2 starts to draw
+                Mark("late-go");
+                yield return Wait(() => Has("client2-in"), "client2 joined"); if (failed) yield break;
+                yield return new WaitForSecondsRealtime(20f);
+                long published = 0;
+                foreach (var s in FindObjectsByType<PNSkill>()) if (s != null && s.gameObject.layer == PNLayers.Enemy) published += s.ActionRunsPublished;
+                Mark("host-observed");
+                yield return Wait(() => Has("client1-reported") && Has("client2-reported"), "clients reported"); if (failed) yield break;
+                try { PNGameBootstrap.EndPlay(); } catch (Exception e) { Fail(e); yield break; }
+                yield return new WaitForSecondsRealtime(1f);
+                File.WriteAllText(Path.Combine(folder, name + ".txt"), "PASS " + checks + " host published " + published + " enemy runs"); Application.Quit();
+                yield break;
+            }
+            yield return Wait(() => Has("host-lobby"), "host lobby"); if (failed) yield break;
+            bool late = name == "client2";
+            yield return Wait(() => manager.IsPlaying && manager.ClientInputReady && manager.Worlds.DefaultWorld != null && manager.ClientWorldReady(manager.Worlds.DefaultWorld.InstanceId), "client world ready", () => "playing=" + manager.IsPlaying + " input=" + manager.ClientInputReady + " world=" + (manager.Worlds.DefaultWorld != null) + " connected=" + NetworkClient.isConnected + " auth=" + (NetworkClient.connection != null && NetworkClient.connection.isAuthenticated) + " ready=" + NetworkClient.ready + " players=" + Players().Length); if (failed) yield break;
+            Mark(name + "-ready");
+            if (late)
+            {
+                // client2 draws nothing until the host says the enemies are mid-cast: what it then meets is a run already under way (seek), through the real stream.
+                while (!Has("late-go")) { foreach (var s in FindObjectsByType<PNSkill>()) if (s != null && s.gameObject.layer == PNLayers.Enemy) s.SetObservedActionPresentation(false); yield return null; }
+                foreach (var s in FindObjectsByType<PNSkill>()) if (s != null && s.gameObject.layer == PNLayers.Enemy) s.SetObservedActionPresentation(true);
+                Mark("client2-in");
+            }
+            double joined = Time.realtimeSinceStartupAsDouble, until = joined + 24; double firstDraw = -1; int shotsTaken = 0, failuresMax = 0;
+            while (Time.realtimeSinceStartupAsDouble < until && !Has("host-observed"))
+            {
+                int viewed = 0, failures = 0; PNSkill drawn = null;
+                foreach (var s in FindObjectsByType<PNSkill>()) if (s != null && s.gameObject.layer == PNLayers.Enemy) { viewed += s.ViewedBySkill.Values.Sum(); failures += (int)s.ActionViewFailures; if (drawn == null && s.ViewedBySkill.Count > 0) drawn = s; }
+                failuresMax = Math.Max(failuresMax, failures);
+                if (viewed > 0 && firstDraw < 0) firstDraw = Time.realtimeSinceStartupAsDouble - joined;
+                if (name == "client2" && drawn != null && shotsTaken < 2 && Time.realtimeSinceStartupAsDouble - joined > .3 + shotsTaken * 1.5)
+                {
+                    try { var mine = Players().FirstOrDefault(p => p.GetComponent<EveEntityIdentity>()?.OwnerId == manager.RoomOwner); var texture = RenderFrame(drawn.transform, mine != null ? mine.transform : drawn.transform); File.WriteAllBytes(Path.Combine(shots, "client2_late_" + shotsTaken + ".png"), texture.EncodeToPNG()); Destroy(texture); } catch (Exception e) { Debug.LogException(e); }
+                    shotsTaken++;
+                }
+                yield return null;
+            }
+            int totalViewed = 0, totalLate = 0; var lateKeys = new System.Collections.Generic.List<string>(); var viewedKeys = new System.Collections.Generic.HashSet<string>();
+            foreach (var s in FindObjectsByType<PNSkill>()) if (s != null && s.gameObject.layer == PNLayers.Enemy) { totalViewed += s.ViewedBySkill.Values.Sum(); totalLate += s.ViewedLate; lateKeys.AddRange(s.ViewedLateKeys); foreach (var k in s.ViewedKeys) viewedKeys.Add(k); }
+            try
+            {
+                Check(failuresMax == 0, "no view failed (" + failuresMax + ")");
+                Check(totalViewed >= 1, name + " drew the enemies' runs (" + totalViewed + ")");
+                if (name == "client2") Check(firstDraw >= 0 && firstDraw < 6, "client2 drew a run " + firstDraw.ToString("0.00") + " s after it was in play");
+            }
+            catch (Exception e) { Fail(e); yield break; }
+            File.WriteAllText(Path.Combine(folder, name + "-late.txt"), name + ": viewed=" + totalViewed + " distinct=" + viewedKeys.Count + " late=" + totalLate + " [" + string.Join(",", lateKeys.Take(12)) + "] firstDraw=" + firstDraw.ToString("0.00") + "s shots=" + shotsTaken + " failures=" + failuresMax);
+            Mark(name + "-reported");
+            yield return Wait(() => Has("host-observed"), "host done"); if (failed) yield break;
+            yield return new WaitForSecondsRealtime(2f);
+            File.WriteAllText(Path.Combine(folder, name + ".txt"), "PASS " + checks + " " + File.ReadAllText(Path.Combine(folder, name + "-late.txt"))); Application.Quit();
         }
     }
 }

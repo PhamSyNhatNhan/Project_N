@@ -52,6 +52,14 @@ public partial class PNSkill
         if (actionRuns != null && (epoch != actionEpoch || world != actionWorld || incarnation != actionIncarnation || generation != actionGeneration)) ReleaseActionRuns();
         return actionRuns?.Snapshot(stamp) ?? Array.Empty<PNActionRunRecord>();
     }
+    // PV8: the end of every frame closes the Action runs of a skill the authority runs (this used to hang on the removed `skill_cast` block).
+    private void SealRunsThisFrame()
+    {
+        if (actionRuns == null || !IsReady || !EveRegistrySession.IsReady) return;
+        var session = EveRegistrySession.Context;
+        if (!session.HasAuthority || !session.IsActive) return;
+        SealActionRuns(PNTimeService.For(session).Sample().Local);
+    }
     public void SealActionRuns(double stamp) { actionRuns?.CaptureHolds(stamp); publicationRecovery?.Seal(stamp); if(ActionPublicationEnabled && actionPublication!=null)Publish(()=>actionPublication.Seal(stamp)); }
     public long ActionIdentityRejected { get; private set; }
     public long ActionCapabilityRejected { get; private set; }
@@ -104,7 +112,7 @@ public partial class PNSkill
         if (context.ActionOrdinal == 0 || context.Invocation.CastKey < 0 || context.Invocation.Id <= 0) { ActionIdentityRejected++; return; }
         var definition = context.Registry.Actions().Get(context.Data.Action.Id);
         // G8c: the run carries what the Action's definition asks for (direction, position, target ids); an Action with no driver progress simply has no progress rows.
-        if (!definition.ObserverReplay) return;
+        if (!definition.PublishesRun(context.Data)) return;
         if (!PNActionRunContext.TryFrom(context, definition.RequiredContext, out var wire)) { ActionCapabilityRejected++; return; }
         if (definition.PresentationScaleTag.HasValue && !commitPresentation)
         {

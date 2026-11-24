@@ -62,7 +62,6 @@ namespace ProjectN.Coop
         readonly PNActionPresentationStats[] actionPresentationStats=new PNActionPresentationStats[3];
         readonly List<PNObservedAction> observedRuns=new List<PNObservedAction>();
         readonly List<PNObservedAction> supportedRuns=new List<PNObservedAction>();
-        readonly List<PNObservedAction> replayRuns=new List<PNObservedAction>();
         public PNActionPresentationStats ActionPresentationStats(PNActionPresentationPhase phase)
             =>actionPresentationStats[(int)phase];
 
@@ -133,12 +132,11 @@ namespace ProjectN.Coop
             }
             if(coverage==PNActionPresentationCoverage.Active)
             {
-                supportedRuns.Clear();replayRuns.Clear();
+                supportedRuns.Clear();
                 foreach(var run in observedRuns)
                 {
-                    // An Action with its own view (Eve sweep) is drawn by that view from the direction; any other Action runs itself in an Observed context from the whole frozen context (G8c).
+                    // Another machine only draws a run by its view (PV8); a run whose Action has none here (another mod set) is not drawn.
                     if(skill.CanPresentObservedAction(run.DataId,run.ActionId))supportedRuns.Add(run);
-                    else if(skill.CanReplayObservedRun(run.DataId,run.ActionId))replayRuns.Add(run);
                 }
                 int winner=0;
                 for(int i=1;i<supportedRuns.Count;i++)
@@ -156,10 +154,8 @@ namespace ProjectN.Coop
                     Vector3? position=ctx.HasPosition?new Vector3((float)ctx.Px,(float)ctx.Py,(float)ctx.Pz):(Vector3?)null;
                     skill.PresentObservedRun(run.Key,run.DataId,direction,position,run.Progress,i==winner,run.PresentationScale,Time.deltaTime,run.Rate,run.Facts);
                 }
-                foreach(var run in replayRuns)skill.ReplayObservedRun(run.Key,run.DataId,run.Context,run.Progress);
             }
             skill.ReconcileObservedActionPresentation(coverage!=PNActionPresentationCoverage.Unknown,binding.EndAtPose);
-            skill.AdvanceObservedActionsThisFrame(Time.deltaTime);
         }
         public long ActionRecoveries {get;private set;}
         public long ActionPacketsSent {get;private set;}

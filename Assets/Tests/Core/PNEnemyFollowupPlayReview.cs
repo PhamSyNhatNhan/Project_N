@@ -34,19 +34,19 @@ public static class PNEnemyFollowupContent
             typeof(PNEnemyDisconnectedProvider), () => new PNEnemyDisconnectedProvider()));
         var selected = EveId.Parse("review:trajectory_override");
         hub.Actions().Register(new PNSkillActionDefinition(selected, typeof(PNEnemyFollowupTrajectory),
-            (data, registry) => PNAgentTrajectoryAction.Validate(data, registry, false), PNSkillContextRequirements.Direction));
+            (data, registry) => PNAgentTrajectoryAction.Validate(data, registry, false), PNSkillContextRequirements.Direction).NoView());
         hub.Actions().RequestOverride(EveId.Parse("base:trajectory_action"), selected, "review", "1.0.0", new[] { "project_n" });
         hub.Actions().SelectOverride(EveId.Parse("base:trajectory_action"), "review");
         var contact = EveId.Parse("review:contact_override");
         hub.Actions().Register(new PNSkillActionDefinition(contact, typeof(PNEnemyFollowupContact),
-            (data, registry) => PNAgentTrajectoryAction.Validate(data, registry, true), PNSkillContextRequirements.Direction));
+            (data, registry) => PNAgentTrajectoryAction.Validate(data, registry, true), PNSkillContextRequirements.Direction).NoView());
         hub.Actions().RequestOverride(EveId.Parse("base:contact_motion_action"), contact, "review", "1.0.0", new[] { "project_n" });
         hub.Actions().SelectOverride(EveId.Parse("base:contact_motion_action"), "review");
         var heal = EveId.Parse("review:heal_override");
         hub.Operations().Register(new PNSkillOperationDefinition(heal, typeof(PNEnemyFollowupHeal), (data, content) => PNHealSettings.Parse(data).ValidateContent(content)));
         hub.Operations().RequestOverride(EveId.Parse("base:heal"), heal, "review", "1.0.0", new[] { "project_n" });
         hub.Operations().SelectOverride(EveId.Parse("base:heal"), "review");
-        hub.Actions().Register(new PNSkillActionDefinition(EveId.Parse("review:fault_action"), typeof(PNEnemyFollowupFaultAction)));
+        hub.Actions().Register(new PNSkillActionDefinition(EveId.Parse("review:fault_action"), typeof(PNEnemyFollowupFaultAction)).NoView());
         foreach (var phase in new[] { "start", "perform", "tick", "dispose", "none" })
             Add(Fault(phase), "review:fault_action", "{'phase':'" + phase + "'}");
         Add(Fast, "base:contact_motion_action", @"{'kind':'CurveXZ','distance':2,'lateralOffset':0,'duration':0.02,

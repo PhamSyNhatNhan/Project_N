@@ -18,7 +18,7 @@ public static class PNAreaGameplayContent
             PNCreateAreaOperation.Validate, PNSkillContextRequirements.Position));
 #if UNITY_5_3_OR_NEWER
         hub.Actions().Register(new PNSkillActionDefinition(EveId.Parse("project_n:area_action"), typeof(PNAreaAction),
-            (data, registry) => PNAreaAction.Validate(data.Perform, registry), PNSkillContextRequirements.Position));
+            (data, registry) => PNAreaAction.Validate(data.Perform, registry), PNSkillContextRequirements.Position).NoView());
 #endif
     }
 }
