@@ -59,7 +59,7 @@ public class PNHomingProjectile : PNDirectionalProjectile
         homing = Definition.Settings(payload => new PNHomingSettings(payload));
         return homing.Directional;
     }
-    protected override void Initialize(PNProjectileSpawn spawn) { base.Initialize(spawn); nextSearch = 0f; steeredTick = -1; haveCenter = false; }
+    protected override void OnStart(PNProjectileSpawn spawn) { base.OnStart(spawn); nextSearch = 0f; steeredTick = -1; haveCenter = false; }
     protected override void Move(float dt)
     {
         if (Age >= homing.HomeAfter) Steer(dt);

@@ -73,15 +73,15 @@ public abstract class PNBlastInstance : MonoBehaviour, EveIPoolable, IPNTimeTarg
 {
     // EN: Every blast carries a clock (PNBlastClock, minScale 0). A blast that is affected by time (the default) registers in the world's PNTimeTargets while it
     //     runs, so a time effect can slow or stop it; the manager then hands `Advance` the delta scaled by that clock. An implementation that must not be
-    //     affected (the time-scale blast itself, so two overlapping zones cannot lengthen each other) overrides this to false. Retirement uses real time.
-    // VI: Mỗi vùng có đồng hồ (PNBlastClock, minScale 0). Vùng chịu thời gian (mặc định) đăng ký vào PNTimeTargets của world khi chạy; manager đưa Advance
-    //     delta đã nhân theo đồng hồ đó. Implementation không muốn chịu (chính vùng thời gian) override false. Retirement dùng thời gian thật.
+    //     affected (the time-scale blast itself, so two overlapping zones cannot lengthen each other) overrides this to false. The Ending runs on the same clock.
+    // VI: Mỗi vùng có đồng hồ (PNBlastClock, minScale 0). Vùng chịu thời gian (mặc định) đăng ký vào PNTimeTargets của world khi chạy; manager đưa OnPerform
+    //     delta đã nhân theo đồng hồ đó. Implementation không muốn chịu (chính vùng thời gian) override false. Pha Ending chạy trên cùng đồng hồ.
     public virtual bool AffectedByTime => true;
     public PNBlastClock Clock { get; private set; }
     EveTimeScale IPNTimeTarget.TimeClock => Clock;
     int IPNTimeTarget.TimeLayer => PNLayers.Blast;
     Vector3 IPNTimeTarget.TimePosition => transform.position;
-    bool IPNTimeTarget.TimeActive => IsRunning && Clock != null;
+    bool IPNTimeTarget.TimeActive => (life.IsRunning || life.IsEnding) && Clock != null;
     private PNTimeTargets.Entry timeEntry;
     private PNBlastCreateRequest created; private double scaleFactor = double.NaN;
     // The creator's `blast_scale` (Scale route over a base of 1, read from the source snapshot at creation; 1 = unchanged). What it scales is the implementation's choice.
@@ -130,31 +130,125 @@ public abstract class PNBlastInstance : MonoBehaviour, EveIPoolable, IPNTimeTarg
             (attackTags ?? Array.Empty<EveId>()).Concat(new[] { PNContentIds.BlastDamage }));
     // The layers a copy may hurt (0 on the authority and for a guess); see PNBlastCreateRequest.ReplicaTargets.
     protected int ReplicaTargetMask => created != null ? created.ReplicaTargets : 0;
-    public bool IsRunning { get; private set; }
+    // EN: Running = alive; Ending = it really finished and only plays its own end (not running, handle not alive, not captured for a late joiner). `EndReason` is the first reason that took effect.
+    // VI: Running = con song; Ending = da ket thuc that, chi choi phan ket thuc cua no (khong chay, handle khong song, khong vao baseline).
+    public bool IsRunning => life.IsRunning;
+    public bool IsEnding => life.IsEnding;
+    internal bool IsDone => life.Phase == PNInstancePhase.Done;
     public EveWorldContext World { get; private set; }
-    public PNBlastEndReason? EndReason { get; private set; }
+    public PNBlastEndReason? EndReason => life.Reason.HasValue ? (PNBlastEndReason?)life.Reason.Value : null;
     internal bool CleanupFailed { get; set; }
     protected PNBlastManager Manager { get; private set; }
     protected PNBlastDefinition Definition { get; private set; }
-    public virtual float RetirementDuration => 0;
     public virtual void ActorWorldChanging(PNStat actor) { if (Dependency == PNBlastDependency.Owner && ReferenceEquals(created?.Owner, actor)) Finish(PNBlastEndReason.OwnerUnavailable); }
+    // Requested, Expired and OwnerUnavailable are END reasons (a real finish: `OnEnd`, then the Ending); Disabled, SceneUnloaded, SessionEnded and RuntimeError are CANCEL (forced: `OnCancel`, no Ending).
+    private static readonly PNInstanceReasonTable Reasons = new PNInstanceReasonTable(7, (int)PNBlastEndReason.Requested, (int)PNBlastEndReason.Expired, (int)PNBlastEndReason.OwnerUnavailable);
+    internal static bool IsEndReason(PNBlastEndReason reason) => Reasons.IsEnd((int)reason);
+    private readonly PNInstanceLifecycle life = new PNInstanceLifecycle(Reasons);
     internal void Bind(PNBlastManager manager, PNBlastHandle handle, PNBlastDefinition definition, PNBlastCreateRequest request)
-    { Manager = manager; World=PNWorldGameplay.ForScene(manager.Session,request.Scene);Handle = handle; Definition = definition; EndReason = null; CleanupFailed = false; IsRunning = true;
+    { Manager = manager; World=PNWorldGameplay.ForScene(manager.Session,request.Scene);Handle = handle; Definition = definition; CleanupFailed = false; life.Start();
+        strikes = 0; HitCount = 0; Seeking = false; struck.Clear();
         Clock = GetComponent<PNBlastClock>(); if (Clock != null) Clock.ClearModifiers(); created = request; scaleFactor = double.NaN; ownerId = request.Owner != null ? request.Owner.EntityId : default;
-        Initialize(request);
+        OnStart(request);
         if (AffectedByTime && Clock != null) timeEntry = PNTimeTargets.For(World).Register(this);
     }
-    protected abstract void Initialize(PNBlastCreateRequest request);
-    public abstract void Advance(float gameDelta);
-    public virtual void AdvanceRetirement(float gameDelta) { }
+
+    // ---- the hooks of a blast (Docs/InstanceLifecyclePlan.md 3.1): Start -> Perform -> End -> Ending -> Cleanup, or Cancel -> Cleanup ----
+    // Once when the blast is bound, on every machine (the real blast, a guess, a copy).
+    protected abstract void OnStart(PNBlastCreateRequest request);
+    // Every frame while Running, `gameDelta` already scaled by the blast's clock. The author decides when to `Strike`.
+    protected abstract void OnPerform(float gameDelta);
+    // Once, when the blast really finishes (an END reason). Read `EndingDuration` after it. A `Strike` here is allowed (an aftershock).
+    protected virtual void OnEnd(PNBlastEndReason reason) { }
+    // Seconds of its own clock the Ending lasts; read right after `OnEnd`. Zero or less: no Ending.
+    public virtual float EndingDuration => 0f;
+    // Every frame of the Ending, `delta` scaled by the blast's clock.
+    protected virtual void OnEnding(float delta) { }
+    // Once, when the blast is stopped by force (a CANCEL reason). `OnEnd` does not run for it, and a `Strike` after it does nothing.
+    protected virtual void OnCancel(PNBlastEndReason reason) { }
+    // Last, exactly once, after the End (and its Ending) or the Cancel: release what the blast holds.
     protected abstract void Cleanup();
     public bool Finish(PNBlastEndReason reason = PNBlastEndReason.Requested) => Manager != null && Manager.End(Handle, reason);
-    internal void Stop(PNBlastEndReason reason)
+
+    // ---- the Strike door (Docs/InstanceLifecyclePlan.md 3.5): the author decides when damage happens, any number of times; the engine does the rest by the role of the machine ----
+    private int strikes; private readonly HashSet<EveEntityId> struck = new HashSet<EveEntityId>();
+    // The strikes this blast has made so far; the same on every machine because the same logic runs on the same clock.
+    public int StrikeCount => strikes;
+    // How many targets the real blast hurt directly, over all its strikes (a target claimed by its own machine is not counted here).
+    public int HitCount { get; private set; }
+    // True while a copy built late is being brought to its age: the strikes that already passed are counted but not claimed.
+    internal bool Seeking { get; set; }
+    // EN: One strike. Authority: tests every living target of the creator's layers in this world against `Hits` and deals the prepared damage, and opens a claim ticket for the players whose own
+    //     machine decides. A copy: tests only the body of this machine's player and claims once. A guess: nothing (the author's own drawing still runs). A target is hit once per strike; strikes may hit it again.
+    // VI: Mot cu danh. Authority: xet moi muc tieu song thuoc layer cua nguoi tao trong world nay voi `Hits` roi gay sat thuong da chuan bi, va mo ve claim cho nguoi choi ma may cua ho tu quyet.
+    //     Ban sao: chi xet than nguoi choi cua may nay va bao mot lan. Ban doan: khong lam gi. Moi muc tieu trung mot lan moi cu; cu khac trung lai duoc.
+    protected void Strike(in PNBlastStrike strike)
     {
-        if (!IsRunning && !CleanupFailed) return;
-        IsRunning = false; EndReason = reason; CleanupFailed = true;
-        ReleaseTime();
+        if (!life.IsRunning && !life.IsEnding) return;
+        int index = strikes++;
+        if (IsReplica) { StrikeCopy(strike, index); return; }
+        StrikeReal(strike, index);
+    }
+    private void StrikeReal(in PNBlastStrike strike, int index)
+    {
+        if (strike.Capture == null || strike.Prepared == null || strike.Hits == null) throw new ArgumentException("A strike of a real blast needs its capture, prepared damage and shape.");
+        struck.Clear();
+        var claims = Manager.ClaimBook.Policy; int mask = created.Source.TargetLayers.Mask;
+        bool ticket = claims != null && index <= PNHurtClaimLimits.MaxHit;
+        if (ticket)
+        {
+            // The machine of a player decides his own hits (plan 4.4c): the blast does not test him here, it only keeps the damage ready for his claim.
+            var cap = strike.Capture; var ready = strike.Prepared; float x = strike.Center.x, y = strike.Center.y, z = strike.Center.z;
+            Manager.OpenClaims(this, index, strike.Center, strike.Radius, strike.Height, (stat, key) => stat.ReceiveDamage(cap.Damage(ready).WithHit(key, x, y, z)));
+        }
+        var entities = World != null ? Manager.Session.Entities.Snapshot(World) : Manager.Session.Entities.Snapshot();
+        foreach (var entity in entities)
+        {
+            var target = entity.GetComponent<PNStat>();
+            if (target == null || !ValidTarget(target) || !PNLayers.Contains(mask, target.gameObject.layer) || struck.Contains(target.EntityId)) continue;
+            if (ticket && target.gameObject.layer == PNLayers.Player && claims.ClaimsDecide(target)) continue;
+            var collider = target.GetComponent<Collider>(); if (collider == null) continue;
+            var b = collider.bounds;
+            if (b.max.y < strike.Center.y - strike.Height || b.min.y > strike.Center.y + strike.Height || !strike.Hits(b)) continue;
+            struck.Add(target.EntityId); HitCount++;
+            target.ReceiveDamage(strike.Capture.Damage(strike.Prepared));
+        }
+    }
+    // A copy on the machine of a player: tests only his body against the shape and claims once for this strike (the early phase first, so he reacts at once). Not while the copy is being brought to its age.
+    private void StrikeCopy(in PNBlastStrike strike, int index)
+    {
+        Manager.NoteReplicaDetonated();
+        int mask = ReplicaTargetMask;
+        if (Seeking || mask == 0 || strike.Hits == null || index > PNHurtClaimLimits.MaxHit) return;
+        var sink = Manager.ClaimBook.SinkFor(out var me); if (sink == null || me == null || !me.IsReady || PNTargetCandidates.IsDead(me) || !PNLayers.Contains(mask, me.gameObject.layer)) return;
+        var collider = me.GetComponent<Collider>(); if (collider == null) return;
+        var b = collider.bounds;
+        if (b.max.y < strike.Center.y - strike.Height || b.min.y > strike.Center.y + strike.Height || !strike.Hits(b)) return;
+        long id = Manager.ObjectIdOf(this); if (id <= 0) return;
+        PNCombatEvents.RaiseEarly(me.EntityId.Value, PNBlastManager.HitName(id, index, me.EntityId.Value), true, b.center.x, b.center.y, b.center.z);
+        if (sink.SendHitReport(PNHitReport.TakenFromObject(PNObjectKind.Blast, id, index), null)) Manager.ClaimBook.NoteSent();
+    }
+    private bool ValidTarget(PNStat s) => s.IsReady && s.gameObject.activeInHierarchy && !PNTargetCandidates.IsDead(s) && PNWorldGameplay.CanExecute(s) && ReferenceEquals(s.GetComponent<EveEntityIdentity>()?.World, World);
+
+    internal void Perform(float gameDelta) { if (life.IsRunning) OnPerform(gameDelta); }
+    internal PNInstanceBegin BeginStop(PNBlastEndReason reason) => life.Begin((int)reason);
+    internal void RunEnd(PNBlastEndReason reason) { OnEnd(reason); life.ArmEnding(EndingDuration); }
+    // A failing OnCancel is reported; the Cleanup that follows still runs and decides whether the blast is released.
+    internal void RunCancel(PNBlastEndReason reason) { try { OnCancel(reason); } catch (Exception error) { Debug.LogException(error, this); } }
+    // One step of the Ending; true when it is over and Cleanup is due.
+    internal bool StepEnding(float delta) { if (!life.IsEnding) return false; OnEnding(delta); return life.AdvanceEnding(delta); }
+    internal bool CleanupDue => life.CleanupPending;
+    internal void RunCleanup()
+    {
+        if (!life.TakeCleanup() && !CleanupFailed) return;
+        CleanupFailed = true; ReleaseTime();
         Cleanup(); CleanupFailed = false;
+    }
+    // A forced stop that finishes at once (shutdown): the Cancel hook if it is not over yet, then Cleanup (also a retry after a failed one).
+    internal void CancelNow(PNBlastEndReason reason)
+    {
+        if (BeginStop(reason) == PNInstanceBegin.RunCancel) RunCancel(reason);
+        RunCleanup();
     }
     public virtual void OnPoolCreated() { }
     public virtual void OnPoolGet(EveEasyPooling pool) { }
@@ -162,12 +256,21 @@ public abstract class PNBlastInstance : MonoBehaviour, EveIPoolable, IPNTimeTarg
     public virtual void DisposePooledResources() { }
     public virtual void OnPoolRelease()
     {
-        ReleaseTime(); created = null;
-        Manager = null;World=null; Definition = null; Handle = default; EndReason = null; IsRunning = false;
+        ReleaseTime(); created = null; struck.Clear();
+        Manager = null;World=null; Definition = null; Handle = default; life.Release();
         if (CleanupFailed) throw new InvalidOperationException("Faulted blast cleanup; existing pool must evict this instance.");
     }
-    protected virtual void OnDisable() { if (IsRunning) Finish(PNBlastEndReason.Disabled); }
-    protected virtual void OnDestroy() { if (IsRunning) Finish(PNBlastEndReason.Disabled); DisposePooledResources(); }
+    protected virtual void OnDisable() { if (life.IsRunning || life.IsEnding) Finish(PNBlastEndReason.Disabled); }
+    protected virtual void OnDestroy() { if (life.IsRunning || life.IsEnding) Finish(PNBlastEndReason.Disabled); DisposePooledResources(); }
+}
+
+// What one `Strike` needs from the author: where and how big (the claim reach of a player's own machine uses `Center`/`Radius`/`Height`; `Height` is the half extent up and down), the footprint test,
+// and the prepared damage taken from the capture (a copy has neither capture nor damage: pass null).
+public readonly struct PNBlastStrike
+{
+    public readonly Vector3 Center; public readonly float Radius, Height; public readonly Func<Bounds, bool> Hits; public readonly PNHitCapture Capture; public readonly PNPreparedDamage Prepared;
+    public PNBlastStrike(Vector3 center, float radius, float height, Func<Bounds, bool> hits, PNHitCapture capture, PNPreparedDamage prepared)
+    { Center = center; Radius = radius; Height = height; Hits = hits; Capture = capture; Prepared = prepared; }
 }
 
 [DisallowMultipleComponent]
@@ -178,7 +281,7 @@ public sealed class PNBlastManager : MonoBehaviour, IPNHitReportReceiver
         internal GameObject Template; internal EveEasyPooling Pool; internal Scene Scene;
         internal readonly Dictionary<GameObject, PNBlastInstance> Instances = new Dictionary<GameObject, PNBlastInstance>();
     }
-    private sealed class Entry { internal EveId Id, ProfileId; internal GameObject Root; internal PNBlastInstance Instance; internal PoolEntry Pool; internal Scene Scene; internal float Retirement;internal bool Replica;internal EveWorldContext World;internal IDisposable Lease; internal bool Guess, Adopted; internal double CreatedAt; internal (long, int) GuessKey; }
+    private sealed class Entry { internal EveId Id, ProfileId; internal GameObject Root; internal PNBlastInstance Instance; internal PoolEntry Pool; internal Scene Scene; internal bool Replica;internal EveWorldContext World;internal IDisposable Lease; internal bool Guess, Adopted; internal double CreatedAt; internal (long, int) GuessKey; }
     private readonly Dictionary<(PNBlastDefinition, Scene), PoolEntry> pools = new Dictionary<(PNBlastDefinition, Scene), PoolEntry>();
     private readonly Dictionary<long, Entry> entries = new Dictionary<long, Entry>();
     private readonly Queue<Action> pending = new Queue<Action>();
@@ -265,7 +368,7 @@ public sealed class PNBlastManager : MonoBehaviour, IPNHitReportReceiver
             instance.Bind(this, handle, definition, request);PNWorldPresentationRegistration.Register(world,root);root.SetActive(true);
             if (!instance.isActiveAndEnabled) throw new InvalidOperationException("Selected blast component must be active after initialization.");
             // Immediate admission occurs after activation, when owned clock effects may be acquired.
-            instance.Advance(0);
+            instance.Perform(0);
             PNWorldPresentationRegistration.Register(world,root);
             if (!instance.IsRunning) throw new InvalidOperationException("Blast ended during initialization.");
             receipt.Handle = handle; receipt.Status = PNBlastStatus.Created;
@@ -277,7 +380,7 @@ public sealed class PNBlastManager : MonoBehaviour, IPNHitReportReceiver
         {
             if (id != 0 && entries.TryGetValue(id, out var entry))
             {
-                SafeStop(entry, PNBlastEndReason.RuntimeError);
+                Stop(id, entry, PNBlastEndReason.RuntimeError);
                 if (entry.Instance.CleanupFailed) { receipt.Error = error; receipt.Status = PNBlastStatus.Failed; return; }
                 entries.Remove(id);entry.Lease?.Dispose();
             }
@@ -289,16 +392,50 @@ public sealed class PNBlastManager : MonoBehaviour, IPNHitReportReceiver
     public bool End(PNBlastHandle handle, PNBlastEndReason reason = PNBlastEndReason.Requested)
     {
         if (!Enum.IsDefined(typeof(PNBlastEndReason), reason)) throw new ArgumentException("Unknown blast end reason.");
-        if (!Contains(handle)) return false;
+        // A running blast takes any reason; one in its Ending takes only a forced stop (a second real finish is dropped); a finished one takes nothing.
+        if (!ReferenceEquals(handle.Manager, this) || !entries.TryGetValue(handle.InstanceId, out var probe) || probe.Instance == null || probe.Instance.IsDone
+            || probe.Instance.IsEnding && PNBlastInstance.IsEndReason(reason)) return false;
         Submit(() => {
-            if (!entries.TryGetValue(handle.InstanceId, out var entry) || !entry.Instance.IsRunning) return;
-            SafeStop(entry, reason);
-            bool immediate = reason == PNBlastEndReason.Disabled || reason == PNBlastEndReason.SceneUnloaded || reason == PNBlastEndReason.SessionEnded || reason == PNBlastEndReason.RuntimeError;
-            entry.Retirement = immediate ? 0 : entry.Instance.RetirementDuration;
+            if (!entries.TryGetValue(handle.InstanceId, out var entry)) return;
+            if (!Stop(handle.InstanceId, entry, reason)) return;
             // Unity may be destroying the pool storage during scene-unload OnDisable.
             // Gameplay cleanup is immediate; return after sceneUnloaded or next manager update.
-            if (entry.Retirement <= 0 && reason != PNBlastEndReason.Disabled) Return(handle.InstanceId, entry);
+            if (entry.Instance.IsDone && reason != PNBlastEndReason.Disabled) Return(handle.InstanceId, entry);
         }); return true;
+    }
+    // Gives one reason to a blast: an END starts its Ending (`OnEnd`; a fault there becomes a RuntimeError cancel), a CANCEL stops it now (`OnCancel`); the Cleanup follows when due.
+    // The sync End record carries the reason that really took effect. Returns false when nothing happened. `strict`: a failing Cleanup is thrown, not logged.
+    private bool Stop(long id, Entry entry, PNBlastEndReason reason, bool strict = false)
+    {
+        var instance = entry.Instance;
+        if (ReferenceEquals(instance, null)) { NotifyEnded(id, entry, reason); return false; }
+        var begin = instance.BeginStop(reason);
+        if (begin == PNInstanceBegin.Ignored && !instance.CleanupFailed) return false;
+        if (begin == PNInstanceBegin.RunEnd)
+        {
+            try { instance.RunEnd(reason); }
+            catch (Exception error)
+            {
+                Debug.LogException(error, this);
+                reason = PNBlastEndReason.RuntimeError; begin = instance.BeginStop(reason);
+            }
+        }
+        if (begin == PNInstanceBegin.RunCancel) instance.RunCancel(reason);
+        Exception cleanupError = null;
+        if (instance.CleanupDue || instance.CleanupFailed)
+        {
+            try { instance.RunCleanup(); } catch (Exception error) { instance.CleanupFailed = true; cleanupError = error; }
+        }
+        if (begin != PNInstanceBegin.Ignored)
+        {
+            try { NotifyEnded(id, entry, reason); } catch (Exception error) { Debug.LogException(error, this); }
+        }
+        if (cleanupError != null)
+        {
+            if (strict) throw cleanupError;
+            Debug.LogException(cleanupError, this);
+        }
+        return begin != PNInstanceBegin.Ignored;
     }
     private void Submit(Action action)
     {
@@ -330,11 +467,17 @@ public sealed class PNBlastManager : MonoBehaviour, IPNHitReportReceiver
                 {
                     if (entry.Instance == null) { Return(pair.Key, entry); continue; }
                     if(entry.World!=null&&!entry.World.CanExecute)continue;
-                    if (entry.Instance.IsRunning && !entry.Instance.isActiveAndEnabled) { End(new PNBlastHandle(this, pair.Key), PNBlastEndReason.Disabled); continue; }
-                    if (entry.Instance.IsRunning && !entry.Instance.DependencyHolds()) { End(new PNBlastHandle(this, pair.Key), PNBlastEndReason.OwnerUnavailable); continue; }
-                    if (entry.Guess && !entry.Adopted && entry.Instance.IsRunning && PredictionNow - entry.CreatedAt > OrphanSeconds) { End(new PNBlastHandle(this, pair.Key), PNBlastEndReason.Requested); continue; }
-                    if (entry.Instance.IsRunning) entry.Instance.Advance(entry.Instance.ScaleDelta(gameDelta));
-                    else { entry.Instance.AdvanceRetirement(gameDelta); entry.Retirement -= gameDelta; if (entry.Retirement <= 0) Return(pair.Key, entry); }
+                    var instance = entry.Instance;
+                    if ((instance.IsRunning || instance.IsEnding) && !instance.isActiveAndEnabled) { End(new PNBlastHandle(this, pair.Key), PNBlastEndReason.Disabled); continue; }
+                    if (instance.IsRunning && !instance.DependencyHolds()) { End(new PNBlastHandle(this, pair.Key), PNBlastEndReason.OwnerUnavailable); continue; }
+                    if (entry.Guess && !entry.Adopted && instance.IsRunning && PredictionNow - entry.CreatedAt > OrphanSeconds) { End(new PNBlastHandle(this, pair.Key), PNBlastEndReason.Requested); continue; }
+                    if (instance.IsRunning) instance.Perform(instance.ScaleDelta(gameDelta));
+                    else if (instance.IsEnding)
+                    {
+                        // The Ending runs on the blast's own clock; when it is over the Cleanup runs (once) and the blast goes back to the pool.
+                        if (instance.StepEnding(instance.ScaleDelta(gameDelta))) { instance.RunCleanup(); Return(pair.Key, entry); }
+                    }
+                    else Return(pair.Key, entry);
                 }
                 catch (Exception error) { Debug.LogException(error, this); End(new PNBlastHandle(this, pair.Key), PNBlastEndReason.RuntimeError); }
             }
@@ -364,18 +507,21 @@ public sealed class PNBlastManager : MonoBehaviour, IPNHitReportReceiver
     public long ObjectIdOf(PNBlastInstance instance) => instance != null && objectIds.TryGetValue(instance.Handle.InstanceId, out var id) ? id : 0L;
     // EN: The authority's blast has detonated: for PNHurtClaimLimits.ClaimGraceSeconds a player whose machine decides his own hits may claim it (the claim travels a trip after the copy's detonation). `apply` deals the blast's own prepared damage.
     // VI: Blast cua authority vua no: trong ClaimGraceSeconds nguoi choi ma may tu quyet duoc bao trung (lenh di mat mot chuyen sau luc ban hinh no). apply gay sat thuong da chuan bi cua chinh blast.
-    public void OpenClaims(PNBlastInstance instance, Vector3 center, float radius, float height, Action<PNStat, string> apply)
+    public void OpenClaims(PNBlastInstance instance, int strike, Vector3 center, float radius, float height, Action<PNStat, string> apply)
     {
         long objectId = ObjectIdOf(instance); if (objectId <= 0 || claimBook.Policy == null) return;
-        claimBook.OpenTicket(PNClaimTicketKey.Blast(objectId), center, radius, height, 1f, stat => { apply(stat, "o" + objectId.ToString(System.Globalization.CultureInfo.InvariantCulture) + ":" + PNHurtClaimLimits.ClaimKeyIndex(stat.EntityId.Value)); return true; }, () => PredictionNow);
+        claimBook.OpenTicket(PNClaimTicketKey.Blast(objectId, strike), center, radius, height, 1f, stat => { apply(stat, HitName(objectId, strike, stat.EntityId.Value)); return true; }, () => PredictionNow);
     }
-    // EN: A claim from the machine of `target`: the blast named by `objectId` hurts him once when the policy says his machine decides, the claim comes within the grace after the detonation and he is near the blast.
+    // The name of a hit of one strike of a blast: object, strike index and the victim, the same on the authority and on the machine that claims it.
+    public static string HitName(long objectId, int strike, long victim)
+        => "o" + objectId.ToString(System.Globalization.CultureInfo.InvariantCulture) + ":s" + strike.ToString(System.Globalization.CultureInfo.InvariantCulture) + ":" + PNHurtClaimLimits.ClaimKeyIndex(victim);
+    // EN: A claim from the machine of `target`: the strike (`report.Detail`) of the blast named by `objectId` hurts him once when the policy says his machine decides, the claim comes within the grace after that strike and he is near the blast.
     public bool AcceptHitReport(in PNHitReport report, PNStat victim, float tolerance)
-        => report.Role == PNHitReportRole.Taken && !report.ByCast && report.Kind == PNObjectKind.Blast && AcceptTaken(report.ObjectId, victim, tolerance);
-    private bool AcceptTaken(long objectId, PNStat target, float tolerance)
+        => report.Role == PNHitReportRole.Taken && !report.ByCast && report.Kind == PNObjectKind.Blast && AcceptTaken(report.ObjectId, report.Detail, victim, tolerance);
+    private bool AcceptTaken(long objectId, int strike, PNStat target, float tolerance)
     {
-        if (objectId <= 0 || target == null || Session == null || !Session.HasAuthority) return false;
-        return claimBook.AcceptTicket(PNClaimTicketKey.Blast(objectId), target, tolerance);
+        if (objectId <= 0 || strike < 0 || strike > PNHurtClaimLimits.MaxHit || target == null || Session == null || !Session.HasAuthority) return false;
+        return claimBook.AcceptTicket(PNClaimTicketKey.Blast(objectId, strike), target, tolerance);
     }
     private readonly Dictionary<long, long> objectEntries = new Dictionary<long, long>();
     // ---- the shooter's guess (plan O5, own book of the blast manager): the player's machine draws the blast at the cast, named by (cast key, index); the authority's Spawn record with that name takes it over ----
@@ -439,7 +585,11 @@ public sealed class PNBlastManager : MonoBehaviour, IPNHitReportReceiver
             var request = PNBlastCreateRequest.Replica(record.DefinitionId, input, world.PhysicsOwner, new Vector3(record.Position.X, record.Position.Y, record.Position.Z), owner, record.Scale).WithReplicaTargets(record.TargetMask);
             CreateNow(request, receipt, record.Id);
             if (receipt.Status == PNBlastStatus.Created && entries.TryGetValue(receipt.Handle.InstanceId, out var made) && made.Instance != null && elapsed > 1e-4d)
-                made.Instance.Advance((float)Math.Min(elapsed, PNObjectSyncLimits.MaxReplicaSeconds));
+            {
+                // The strikes that already passed are counted and drawn but not claimed (the authority's tickets are gone by now).
+                made.Instance.Seeking = true;
+                try { made.Instance.Perform((float)Math.Min(elapsed, PNObjectSyncLimits.MaxReplicaSeconds)); } finally { made.Instance.Seeking = false; }
+            }
         }
         catch (Exception error) { receipt.Error = error; receipt.Status = PNBlastStatus.Failed; }
     }
@@ -491,11 +641,6 @@ public sealed class PNBlastManager : MonoBehaviour, IPNHitReportReceiver
         try { objectSync.RecordEnd(PNObjectRecord.End(PNObjectKind.Blast, objectId, PNObjectWorld.Of(entry.World), (byte)reason, new PNObjectVector(at.x, at.y, at.z))); }
         catch (FormatException) { objectSync.NoteRefused(); }
     }
-    private void SafeStop(Entry entry, PNBlastEndReason reason)
-    {
-        try { if (entry.Instance != null) entry.Instance.Stop(reason); } catch (Exception error) { if (entry.Instance != null) entry.Instance.CleanupFailed = true; Debug.LogException(error, this); }
-        try { foreach (var pair in entries) if (ReferenceEquals(pair.Value, entry)) { NotifyEnded(pair.Key, entry, reason); break; } } catch (Exception error) { Debug.LogException(error, this); }
-    }
     private void Return(long id, Entry entry)
     {
         // A failed gameplay cleanup keeps its owner; pool eviction is not a cleanup retry.
@@ -508,7 +653,7 @@ public sealed class PNBlastManager : MonoBehaviour, IPNHitReportReceiver
     private void SceneUnloaded(Scene scene)
     {
         Submit(() => {
-            foreach (var pair in entries.Where(x => x.Value.Scene == scene).ToArray()) { SafeStop(pair.Value, PNBlastEndReason.SceneUnloaded); Return(pair.Key, pair.Value); }
+            foreach (var pair in entries.Where(x => x.Value.Scene == scene).ToArray()) { Stop(pair.Key, pair.Value, PNBlastEndReason.SceneUnloaded); Return(pair.Key, pair.Value); }
             // Storage is scene-local: rebuild idle pools after any scene teardown.
             foreach (var pair in pools.Where(x => x.Value.Scene == scene).ToArray())
             {
@@ -527,7 +672,7 @@ public sealed class PNBlastManager : MonoBehaviour, IPNHitReportReceiver
     {
         if(busy)throw new InvalidOperationException("Blast mutation must drain before world teardown.");
         foreach(var pair in entries.Where(x=>ReferenceEquals(x.Value.World,world)).ToArray())
-        { pair.Value.Instance?.Stop(PNBlastEndReason.SceneUnloaded);NotifyEnded(pair.Key,pair.Value,PNBlastEndReason.SceneUnloaded);Return(pair.Key,pair.Value); }
+        { Stop(pair.Key,pair.Value,PNBlastEndReason.SceneUnloaded,true);Return(pair.Key,pair.Value); }
         foreach(var pair in pools.Where(x=>PNWorldGameplay.ForScene(Session,x.Value.Scene)==world).ToArray())
         {
             if(entries.Values.Any(x=>ReferenceEquals(x.Pool,pair.Value)))throw new InvalidOperationException("World blast cleanup remains pending.");
@@ -543,7 +688,7 @@ public sealed class PNBlastManager : MonoBehaviour, IPNHitReportReceiver
         {
             try
             {
-                if (!ReferenceEquals(pair.Value.Instance, null)) pair.Value.Instance.Stop(PNBlastEndReason.SessionEnded);
+                if (!ReferenceEquals(pair.Value.Instance, null)) pair.Value.Instance.CancelNow(PNBlastEndReason.SessionEnded);
                 entries.Remove(pair.Key);pair.Value.Lease?.Dispose();
             }
             catch (Exception error) { errors.Add(error); }

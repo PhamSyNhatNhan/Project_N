@@ -119,9 +119,10 @@ public class PNTimeScaleArea : PNAreaInstance
     private PNTimeScaleDust dust;
     public int DustCount => dust != null ? dust.Count : 0;
     public float DustTime => dust != null ? dust.Time : 0;
-    public override float RetirementDuration => fadeOut;
+    // The field shrinks over `fadeOut` after it ends; what it did to others stops the moment it ends (OnEnd), only the picture takes the time.
+    public override float EndingDuration => fadeOut;
     public static void ValidateDefinition(JToken token, EveRegistryHub hub) => PNTimeScaleAreaSettings.ValidateDefinition(token, hub);
-    protected override void Initialize(PNAreaCreateRequest context)
+    protected override void OnStart(PNAreaCreateRequest context)
     {
         settings = new PNTimeScaleAreaSettings(context.Input); request = context;
         radius = settings.Radius * (float)ScaleFactor;
@@ -176,7 +177,7 @@ public class PNTimeScaleArea : PNAreaInstance
     private static PNBuffCollection CurrentCollection(PNStat entity)
     { var manager = entity != null ? entity.GetComponent<PNBuffManager>() : null; return manager != null && manager.IsReady ? manager.Buffs : null; }
     private bool SameEntity(PNStat entity, PNSource identity) => ValidEntity(entity) && identity != null && entity.EntityId == identity.EntityId && entity.SessionId == identity.SessionId;
-    public override void Advance(float gameDelta)
+    protected override void OnPerform(float gameDelta)
     {
         if (!IsRunning) return;
         if (IsReplica) { AdvanceReplica(gameDelta); return; }
@@ -292,9 +293,25 @@ public class PNTimeScaleArea : PNAreaInstance
         if(release?.Error!=null)throw release.Error;
         if(!grant.Collection.IsDisposed&&grant.Receipt.Handle.IsAlive)throw new InvalidOperationException("Owned Area Buff release must drain before resource teardown.");
     }
-    protected override void Cleanup()
+    // The area really finished: it stops affecting anyone now (Buffs and clock modifiers released), and starts to shrink.
+    protected override void OnEnd(PNAreaEndReason reason)
     {
         endingStrength = VisualStrength; endingRadius = VisualRadius; visualAge = 0;
+        ReleaseEffects();
+    }
+    // A forced stop has no shrinking: it only stops affecting anyone.
+    protected override void OnCancel(PNAreaEndReason reason) => ReleaseEffects();
+    private void ReleaseEffects()
+    {
+        var failures=new List<Exception>();
+        foreach (var pair in grants.ToArray()) { try { Revoke(pair.Value);grants.Remove(pair.Key); } catch (Exception error) { failures.Add(error); } }
+        foreach (var pair in clockGrants.ToArray()) { try { ReleaseClock(pair.Value); clockGrants.Remove(pair.Key); } catch (Exception error) { failures.Add(error); } }
+        clockInside.Clear(); clockHits.Clear();
+        if(failures.Count>0)throw new AggregateException("Owned Area Buff cleanup remains pending.",failures);
+        inside.Clear();
+    }
+    protected override void Cleanup()
+    {
         if (request != null && request.Owner != null && death != null) request.Owner.Died -= death;
         if (ownerSignal != null && disabled != null) ownerSignal.Disabled -= disabled;
         if (followSignal != null && followDisabled != null) followSignal.Disabled -= followDisabled;
@@ -303,14 +320,10 @@ public class PNTimeScaleArea : PNAreaInstance
         followSignal = null; followDisabled = null;
         ownerSignal = null; disabled = null; ownerCollection = followCollection = null;
         death = null;
-        var failures=new List<Exception>();
-        foreach (var pair in grants.ToArray()) { try { Revoke(pair.Value);grants.Remove(pair.Key); } catch (Exception error) { failures.Add(error); } }
-        foreach (var pair in clockGrants.ToArray()) { try { ReleaseClock(pair.Value); clockGrants.Remove(pair.Key); } catch (Exception error) { failures.Add(error); } }
-        clockInside.Clear(); clockHits.Clear();
-        if(failures.Count>0)throw new AggregateException("Owned Area Buff cleanup remains pending.",failures);
-        inside.Clear();
+        // Normally empty already (OnEnd / OnCancel released it); a release that failed there is retried here, and a failure here keeps the area from the pool.
+        ReleaseEffects();
     }
-    public override void AdvanceRetirement(float delta)
+    protected override void OnEnding(float delta)
     { visualAge += delta; float remaining=Mathf.Clamp01(1-visualAge/fadeOut); VisualRadius=endingRadius*Mathf.SmoothStep(0,1,remaining); VisualStrength = endingStrength * remaining; dust?.Advance(delta, VisualStrength, false); }
     public override void OnPoolRelease()
     {

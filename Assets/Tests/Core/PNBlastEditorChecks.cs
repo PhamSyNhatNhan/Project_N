@@ -17,7 +17,7 @@ public static class PNBlastEditorChecks
     {
         if (Application.isPlaying || EveRegistrySession.State != EveSessionState.Stopped) throw new InvalidOperationException("Idle Edit required.");
         var docs = new PNGameContentSource(Application.streamingAssetsPath + "/BaseContent", "unused", Array.Empty<string>()).ReadDocuments().ToArray();
-        var hub = new EveContentBootstrap().Build(new EveIContentModule[] { new PNContentModule(), new PNGameplayContentModule() }, docs);
+        var hub = new EveContentBootstrap().Build(new EveIContentModule[] { new PNContentModule(), new PNGameplayContentModule(), new PNBlastStrikesProbeModule() }, docs);
         var scene = EditorSceneManager.NewPreviewScene(); int n = 0; bool started = false; var made = new List<GameObject>();
         void Check(bool ok, string what) { if (!ok) throw new Exception("Blast check " + n + ": " + what); n++; }
         try
@@ -87,9 +87,9 @@ public static class PNBlastEditorChecks
             // ---- the tail holds the blast after the detonation ----
             float n2 = Health(near);
             Make(PNBlastGameplayContent.Cylinder, Input(.1, 1, .5), Vector3.zero, owner, PNBlastDependency.Independent); blasts.Advance(.15f);
-            Check(blasts.ActiveCount == 1 && Health(near) < n2, "a blast with a tail detonates and stays alive");
-            blasts.Advance(.3f); Check(blasts.ActiveCount == 1, "it stays through the tail");
-            blasts.Advance(.3f); Check(blasts.ActiveCount == 0, "and ends when the tail is over");
+            Check(blasts.BorrowedCount == 1 && blasts.ActiveCount == 0 && Health(near) < n2, "a blast with a tail detonates and plays its tail as its Ending (borrowed, not running)");
+            blasts.Advance(.3f); Check(blasts.BorrowedCount == 1, "it stays through the tail");
+            blasts.Advance(.3f); Check(blasts.BorrowedCount == 0, "and goes back when the tail is over");
 
             // ---- Action dependency: the creator ends it before it detonates ----
             float n3 = Health(near);
@@ -125,6 +125,47 @@ public static class PNBlastEditorChecks
             Check(frozenInstance.Clock.ModifierCount == 0, "the zone gives back its modifiers");
             blasts.Advance(1.2f);
             Check(Health(near) < n4 && blasts.ActiveCount == 0, "after the stop the blast resumes and detonates");
+
+            // ---- IL2: the lifecycle hooks and the Strike door (a blast a mod could write: two strikes, an aftershock in OnEnd, an Ending) ----
+            {
+                blasts.Advance(1.5f); var log = PNBlastStrikesProbe.Log; log.Clear(); int b0 = blasts.BorrowedCount; float h0 = Health(near), g0 = Health(far);
+                var probe = Make(PNBlastStrikesProbe.Id, new JObject(), Vector3.zero, owner, PNBlastDependency.Independent); var life = (PNBlastStrikesProbe)Running();
+                Check(probe.Status == PNBlastStatus.Created && life.IsRunning && !life.IsEnding && log.SequenceEqual(new[] { "start" }) && life.StrikeCount == 0, "OnStart runs once at creation (status " + probe.Status + ", error " + probe.Error + ", log " + string.Join(",", log) + ")");
+                blasts.Advance(.1f); Check(life.StrikeCount == 0 && Health(near) == h0, "no strike before its moment");
+                blasts.Advance(.15f); float h1 = Health(near);
+                Check(life.StrikeCount == 1 && h1 < h0 && Health(far) == g0 && life.HitCount >= 1, "the first Strike hurts the target inside the shape and not the one outside (strikes " + life.StrikeCount + ", hits " + life.HitCount + ", near " + h0 + "->" + h1 + ", far " + g0 + "->" + Health(far) + ", age " + life.Age + ")");
+                int hitsAfterFirst = life.HitCount; blasts.Advance(.3f); float h2 = Health(near);
+                Check(life.StrikeCount == 2 && h2 < h1 && life.HitCount > hitsAfterFirst, "a blast may strike again and the same target is hit again by the next strike");
+                blasts.Advance(.3f); float h3 = Health(near);
+                Check(!life.IsRunning && life.IsEnding && !probe.Handle.IsAlive && blasts.ActiveCount == 0 && blasts.BorrowedCount == b0 + 1, "a real finish starts the Ending: not running, handle not alive, still borrowed");
+                Check(life.StrikeCount == 3 && h3 < h2 && log.SequenceEqual(new[] { "start", "end:Expired" }), "OnEnd ran once with its reason and its aftershock Strike hurt (" + string.Join(",", log) + ")");
+                blasts.Advance(.1f); Check(life.IsEnding && life.EndingSteps == 1 && log.Count == 2, "OnEnding runs every frame of the Ending");
+                Check(!blasts.End(probe.Handle, PNBlastEndReason.Requested), "a second real finish is dropped in the Ending");
+                blasts.Advance(.3f);
+                Check(blasts.BorrowedCount == b0 && log.SequenceEqual(new[] { "start", "end:Expired", "cleanup" }) && Health(near) == h3, "when the Ending is over Cleanup runs once, last, and the blast goes back (" + string.Join(",", log) + ")");
+
+                // a forced stop: OnCancel, no OnEnd, no Ending, and a Strike in it does nothing
+                log.Clear(); float forcedHealth = Health(near);
+                var forced = Make(PNBlastStrikesProbe.Id, new JObject(), Vector3.zero, owner, PNBlastDependency.Independent); var forcedLife = (PNBlastStrikesProbe)Running();
+                blasts.Advance(.1f);
+                Check(blasts.End(forced.Handle, PNBlastEndReason.Disabled), "a CANCEL reason is taken by a running blast");
+                blasts.Advance(.01f);
+                Check(log.SequenceEqual(new[] { "start", "cancel:Disabled", "cleanup" }) && forcedLife.StrikeCount == 0 && Health(near) == forcedHealth && blasts.BorrowedCount == b0, "a forced stop runs OnCancel then Cleanup, never OnEnd, and its Strike hurts nobody (" + string.Join(",", log) + ")");
+
+                // a CANCEL reason ends the Ending at once
+                log.Clear();
+                var inEnding = Make(PNBlastStrikesProbe.Id, new JObject(), Vector3.zero, owner, PNBlastDependency.Independent); var endingLife = (PNBlastStrikesProbe)Running();
+                blasts.Advance(.9f); Check(endingLife.IsEnding, "a blast past its end is in its Ending");
+                Check(blasts.End(inEnding.Handle, PNBlastEndReason.SceneUnloaded) && log.SequenceEqual(new[] { "start", "end:Expired", "cancel:SceneUnloaded", "cleanup" }) && blasts.BorrowedCount == b0, "a forced stop ends the Ending at once: OnCancel then Cleanup (" + string.Join(",", log) + ")");
+
+                // an owner lost before the strike: a real finish, no strike and no Ending of a blast that never struck
+                log.Clear(); float o0 = Health(near);
+                var dependent = Make(PNBlastStrikesProbe.Id, new JObject(), Vector3.zero, owner, PNBlastDependency.Owner); var depLife = (PNBlastStrikesProbe)Running();
+                owner.gameObject.SetActive(false); blasts.Advance(.1f);
+                Check(!dependent.Handle.IsAlive && depLife.EndReason == PNBlastEndReason.OwnerUnavailable && log.Contains("end:OwnerUnavailable") && depLife.StrikeCount == 0 && Health(near) == o0, "an Owner-dependent blast whose owner is lost ends (OnEnd with OwnerUnavailable) without a strike");
+                owner.gameObject.SetActive(true); owner.GetComponent<PNBuffManager>().Advance(0); blasts.Advance(.5f);
+                Check(blasts.BorrowedCount == b0 && log.Last() == "cleanup", "and goes back after its Ending");
+            }
 
             // ---- pool reuse starts with a clean clock; session end ends every blast ----
             var reused = Make(PNBlastGameplayContent.Cylinder, Input(5, 1), Vector3.zero, owner, PNBlastDependency.Independent); var reusedInstance = (PNTimedBlast)Running();

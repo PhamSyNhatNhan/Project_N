@@ -15,7 +15,7 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable, IPNTim
     EveTimeScale IPNTimeTarget.TimeClock => Clock;
     int IPNTimeTarget.TimeLayer => PNLayers.Projectile;
     Vector3 IPNTimeTarget.TimePosition => position;
-    bool IPNTimeTarget.TimeActive => IsRunning && Clock != null;
+    bool IPNTimeTarget.TimeActive => (life.IsRunning || life.IsEnding) && Clock != null;
     private PNTimeTargets.Entry timeEntry;
     private readonly PNProjectileContacts contacts = new PNProjectileContacts();
     private Vector3 position, heading = Vector3.forward;
@@ -30,10 +30,18 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable, IPNTim
     public bool Armed => armed;
     private PNTargetCandidates tickCandidates;
     public PNProjectileHandle Handle { get; private set; }
-    public bool IsRunning { get; private set; }
+    // EN: Running = alive (moves, finds contacts, is captured for a late joiner); Ending = it really finished and only plays its own end (not running, handle not alive, no contacts, not captured). `EndReason` is the first reason that took effect.
+    // VI: Running = con song; Ending = da ket thuc that, chi choi phan ket thuc (khong di chuyen, khong va cham, khong vao baseline).
+    public bool IsRunning => life.IsRunning;
+    public bool IsEnding => life.IsEnding;
+    internal bool IsDone => life.Phase == PNInstancePhase.Done;
+    // Requested, Expired, Environment, Hit, Destroyed and OwnerUnavailable are END reasons (a real finish: EmitEndImpact, `OnEnd`, then the Ending); Disabled, SceneUnloaded, SessionEnded and RuntimeError are CANCEL (forced: `OnCancel`, no Ending).
+    private static readonly PNInstanceReasonTable Reasons = new PNInstanceReasonTable(10, (int)PNProjectileEndReason.Requested, (int)PNProjectileEndReason.Expired, (int)PNProjectileEndReason.Environment, (int)PNProjectileEndReason.Hit, (int)PNProjectileEndReason.Destroyed, (int)PNProjectileEndReason.OwnerUnavailable);
+    internal static bool IsEndReason(PNProjectileEndReason reason) => Reasons.IsEnd((int)reason);
+    private readonly PNInstanceLifecycle life = new PNInstanceLifecycle(Reasons);
     public EveWorldContext World { get; private set; }
     public Scene Scene { get; private set; }
-    public PNProjectileEndReason? EndReason { get; private set; }
+    public PNProjectileEndReason? EndReason => life.Reason.HasValue ? (PNProjectileEndReason?)life.Reason.Value : null;
     public PNProjectileLaunch Launch { get; private set; }
     // EN: A view-only copy built from a sync record (spawned-object sync): it flies the way the authority flies the object but finds no contacts, deals no damage and ends only when told to
     //     (the record's end, or its own lifetime as a leak guard). Implementations need no code for it; this class and the hooks below do the filtering.
@@ -79,13 +87,21 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable, IPNTim
     protected Vector3 Heading { get => heading; set { if (value.sqrMagnitude > 1e-12f) heading = value.normalized; } }
 
     // ---- hooks ----------------------------------------------------------------------------------------------------------
+    // ---- the hooks of a projectile (Docs/InstanceLifecyclePlan.md 3.1): Start -> Perform (Move + OnContacts) -> End -> Ending -> Cleanup, or Cancel -> Cleanup ----
     // Called once on bind (object still inactive): read the definition payload and the launch factors, set Velocity/HalfExtents.
-    protected abstract void Initialize(PNProjectileSpawn spawn);
+    protected abstract void OnStart(PNProjectileSpawn spawn);
     // Update Velocity (and optionally Position through SetPosition) for one sub-step of `dt` seconds of this projectile's own clock.
     protected abstract void Move(float dt);
     // Contacts found in the last sub-step: targets sorted by approximate entry order, and an environment hit. Call Finish to end.
     protected abstract void OnContacts(PNProjectileContacts contacts);
+    // Once, when the projectile really finishes (an END reason), after its end impact was raised. Read `EndingDuration` after it.
     protected virtual void OnEnd(PNProjectileEndReason reason) { }
+    // Seconds of its own clock the Ending lasts (the projectile no longer moves or hits); read right after `OnEnd`. Zero or less: no Ending. It holds a pool object, so keep it short.
+    public virtual float EndingDuration => 0f;
+    // Every frame of the Ending, `delta` scaled by the projectile's clock.
+    protected virtual void OnEnding(float delta) { }
+    // Once, when the projectile is stopped by force (a CANCEL reason). `OnEnd` and the end impact do not run for it.
+    protected virtual void OnCancel(PNProjectileEndReason reason) { }
     // EN: Called once per impact on every machine that shows this projectile (real, guess or copy; see PNImpact). The default does nothing: the look of an impact belongs to the implementation.
     //     A hit of a piercing projectile calls it for each hit of the real object and of its guess; a copy is told of the last impact only (its End record).
     // VI: Goi mot lan moi va cham tren moi may hien vien dan nay. Mac dinh khong lam gi: hinh dang va cham thuoc ve lop cai dat.
@@ -103,6 +119,7 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable, IPNTim
     internal void NoteEndHint(Vector3 point, Vector3 normal, long targetId) { endPoint = point; endNormal = normal; endTargetId = targetId; hasEndHint = true; recordHint = true; }
     // What the authority tells copies about the end: where, against what, and which entity (0 = none).
     internal bool TryGetEndImpact(out Vector3 point, out Vector3 normal, out long targetId) { point = endPoint; normal = endNormal; targetId = endTargetId; return hasEndHint; }
+    // Last, exactly once, after the End (and its Ending) or the Cancel: release what the projectile holds (a trail, a visual).
     protected virtual void Cleanup() { }
     // Layers treated as walls/ground (0 = none). Targets come from the launch mask.
     protected virtual int EnvironmentMask => 0;
@@ -115,8 +132,11 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable, IPNTim
     protected void SetPosition(Vector3 value) { if (!PNProjectileSpawn.Finite(value)) throw new ArgumentException("Finite position required."); position = value; }
     public bool Finish(PNProjectileEndReason reason = PNProjectileEndReason.Requested)
     {
-        if (!IsRunning || ending || Manager == null) return false;
-        ending = true; return Manager.End(Handle, reason);
+        if (Manager == null || life.Phase == PNInstancePhase.Done) return false;
+        // A running projectile takes any reason once; one in its Ending takes only a forced stop (a second real finish is dropped).
+        if (life.IsEnding ? IsEndReason(reason) : ending && IsEndReason(reason)) return false;
+        if (life.IsRunning && IsEndReason(reason)) ending = true;
+        return Manager.End(Handle, reason);
     }
     public bool TryGetTarget(out PNStat result) => target.TryGet(World, out result);
     // Best live target of this projectile's world within the radius (3D, from the box center) on the launch target layers, ranked by
@@ -166,18 +186,38 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable, IPNTim
     {
         ObjectSeed = objectSeed; random = null; CastIndex = spawn.CastIndex;
         Manager = manager; Handle = handle; Definition = definition; Launch = launch; World = world; Scene = spawn.Scene; Clock = GetComponent<PNProjectileClock>();
-        EndReason = null; CleanupFailed = false; ending = false; first = true; armed = false; Age = 0; Distance = 0; TickIndex = 0; HitCount = 0; ImpactCount = 0; hasWall = hasEndHint = recordHint = false; endTargetId = 0; hitContext = null; admission = null; Velocity = default; External = default; DestroyedBy = null;
+        CleanupFailed = false; life.Start(); ending = false; first = true; armed = false; Age = 0; Distance = 0; TickIndex = 0; HitCount = 0; ImpactCount = 0; hasWall = hasEndHint = recordHint = false; endTargetId = 0; hitContext = null; admission = null; Velocity = default; External = default; DestroyedBy = null;
         position = spawn.Position; heading = spawn.Direction; target = new PNProjectileTarget(spawn.Target); contacts.Clear();
         transform.position = position; transform.rotation = Quaternion.LookRotation(heading);
-        IsRunning = true; timeEntry = PNTimeTargets.For(world).Register(this); Initialize(spawn);
+        timeEntry = PNTimeTargets.For(world).Register(this); OnStart(spawn);
     }
-    internal void Stop(PNProjectileEndReason reason)
+    // ---- the manager drives the phases (same shape as PNBlastInstance) ----
+    internal PNInstanceBegin BeginStop(PNProjectileEndReason reason) => life.Begin((int)reason);
+    // An END: the end impact (before OnEnd, as ever), OnEnd, then the Ending is armed with EndingDuration (read after OnEnd).
+    internal void RunEnd(PNProjectileEndReason reason) { EmitEndImpact(reason); OnEnd(reason); life.ArmEnding(EndingDuration); }
+    // A failing OnCancel is reported; the Cleanup that follows still runs and decides whether the projectile is released.
+    internal void RunCancel(PNProjectileEndReason reason) { try { OnCancel(reason); } catch (Exception error) { Debug.LogException(error, this); } }
+    // One step of the Ending on the projectile's own clock; true when it is over and Cleanup is due.
+    internal bool StepEnding(float gameDelta)
     {
-        if (!IsRunning && !CleanupFailed) return;
-        IsRunning = false; EndReason = reason; CleanupFailed = true;
+        if (!life.IsEnding) return false;
+        float delta = gameDelta;
+        if (Clock != null && Clock.ModifierCount > 0) { Clock.Advance(gameDelta); delta = gameDelta * Clock.Scale; }
+        OnEnding(delta); return life.AdvanceEnding(delta);
+    }
+    internal bool CleanupDue => life.CleanupPending;
+    internal void RunCleanup()
+    {
+        if (!life.TakeCleanup() && !CleanupFailed) return;
+        CleanupFailed = true;
         if (timeEntry != null) { PNTimeTargets.Unregister(timeEntry); timeEntry = null; }
-        EmitEndImpact(reason);
-        OnEnd(reason); Cleanup(); CleanupFailed = false;
+        Cleanup(); CleanupFailed = false;
+    }
+    // A forced stop that finishes at once (shutdown): the Cancel hook if it is not over yet, then Cleanup (also a retry after a failed one).
+    internal void CancelNow(PNProjectileEndReason reason)
+    {
+        if (BeginStop(reason) == PNInstanceBegin.RunCancel) RunCancel(reason);
+        RunCleanup();
     }
     // The impact an end stands for, once: a wall, a hit nobody reported yet (a copy, or a guess the authority's End closes), the end of its life, or being cleared. A real hit already raised its own.
     private void EmitEndImpact(PNProjectileEndReason reason)
@@ -418,10 +458,10 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable, IPNTim
     public virtual void OnPoolRelease()
     {
         if (timeEntry != null) { PNTimeTargets.Unregister(timeEntry); timeEntry = null; }
-        claimedHere?.Clear(); Manager = null; World = null; Definition = null; Launch = null; Handle = default; EndReason = null; IsRunning = false; ending = false; DestroyedBy = null; target = default; hitContext = null; admission = null;
+        claimedHere?.Clear(); Manager = null; World = null; Definition = null; Launch = null; Handle = default; life.Release(); ending = false; DestroyedBy = null; target = default; hitContext = null; admission = null;
         if (CleanupFailed) throw new InvalidOperationException("Faulted projectile cleanup; the pool must discard this instance.");
     }
-    protected virtual void OnDisable() { if (IsRunning) Finish(PNProjectileEndReason.Disabled); }
-    protected virtual void OnDestroy() { if (IsRunning) Finish(PNProjectileEndReason.Disabled); DisposePooledResources(); }
+    protected virtual void OnDisable() { if (life.IsRunning || life.IsEnding) Finish(PNProjectileEndReason.Disabled); }
+    protected virtual void OnDestroy() { if (life.IsRunning || life.IsEnding) Finish(PNProjectileEndReason.Disabled); DisposePooledResources(); }
 }
 #endif

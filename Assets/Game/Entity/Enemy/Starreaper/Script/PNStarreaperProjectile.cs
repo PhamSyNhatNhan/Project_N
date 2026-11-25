@@ -10,7 +10,7 @@ public sealed class PNStarreaperProjectile : PNDirectionalProjectile
     private PNStarreaperArrowVisual visual;
     private readonly List<PNProjectileContact> single=new List<PNProjectileContact>(1);
     public override void OnPoolCreated(){base.OnPoolCreated();visual=PNStarreaperArrowVisual.Create(this);}
-    protected override void Initialize(PNProjectileSpawn spawn){base.Initialize(spawn);visual?.Begin((float)Launch.ScaleFactor,HalfExtents,Launch.Input?["echoVisual"]?.Value<bool>()??false);}
+    protected override void OnStart(PNProjectileSpawn spawn){base.OnStart(spawn);visual?.Begin((float)Launch.ScaleFactor,HalfExtents,Launch.Input?["echoVisual"]?.Value<bool>()??false);}
     protected override void OnTargets(IReadOnlyList<PNProjectileContact> targets)
     {
         for(int i=0;i<targets.Count&&IsRunning;i++)

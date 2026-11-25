@@ -12,8 +12,8 @@ public sealed class PNS3AreaProbe : PNAreaInstance
 {
     public static bool Fail, FailResources;
     public static int Cleanups;
-    protected override void Initialize(PNAreaCreateRequest request) { }
-    public override void Advance(float delta) { }
+    protected override void OnStart(PNAreaCreateRequest request) { }
+    protected override void OnPerform(float delta) { }
     protected override void Cleanup() { Cleanups++; if(Fail) throw new InvalidOperationException("expected S3 Area cleanup failure"); }
     public override void DisposePooledResources() { if(FailResources) throw new InvalidOperationException("expected S3 Area resource failure"); }
 }

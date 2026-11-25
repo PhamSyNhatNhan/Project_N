@@ -15,8 +15,8 @@ using UnityEngine.SceneManagement;
 public class PNTimeProbeArea : PNAreaInstance
 {
     public static double Total; public static int Calls;
-    protected override void Initialize(PNAreaCreateRequest request) { Total = 0; Calls = 0; }
-    public override void Advance(float delta) { Total += delta; Calls++; }
+    protected override void OnStart(PNAreaCreateRequest request) { Total = 0; Calls = 0; }
+    protected override void OnPerform(float delta) { Total += delta; Calls++; }
     protected override void Cleanup() { }
 }
 public sealed class PNTimeFreeProbeArea : PNTimeProbeArea { public override bool AffectedByTime => false; }

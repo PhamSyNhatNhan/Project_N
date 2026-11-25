@@ -25,7 +25,7 @@ public sealed class PNProbeProjectile : PNDirectionalProjectile
     public PNProjectileContact? EnvironmentHit;
     public static void Reset() { Created = 0; NextSerial = 0; Disposed.Clear(); ByHandle.Clear(); OnTargetsHook = null; }
     public override void OnPoolCreated() { Serial = ++NextSerial; Created++; }
-    protected override void Initialize(PNProjectileSpawn spawn) { base.Initialize(spawn); Ended = null; EndedBy = null; Targets.Clear(); EnvironmentHit = null; ByHandle[Handle.InstanceId] = this; }
+    protected override void OnStart(PNProjectileSpawn spawn) { base.OnStart(spawn); Ended = null; EndedBy = null; Targets.Clear(); EnvironmentHit = null; ByHandle[Handle.InstanceId] = this; }
     protected override void OnContacts(PNProjectileContacts contacts)
     {
         if (contacts.HasEnvironment) EnvironmentHit = contacts.Environment;
@@ -37,6 +37,8 @@ public sealed class PNProbeProjectile : PNDirectionalProjectile
         OnTargetsHook?.Invoke(this, targets);
     }
     protected override void OnEnd(PNProjectileEndReason reason) { Ended = reason; EndedBy = DestroyedBy; }
+    // A forced stop (SceneUnloaded, SessionEnded, Disabled, RuntimeError) calls OnCancel, not OnEnd (IL3).
+    protected override void OnCancel(PNProjectileEndReason reason) { Ended = reason; EndedBy = DestroyedBy; }
     public override void DisposePooledResources() { if (!Disposed.Contains(Serial) || Serial == 0) Disposed.Add(Serial); }
 }
 public sealed class PNProjectileNativeModule : EveIContentModule
@@ -66,7 +68,7 @@ public static class PNProjectileEditorChecks
         void Check(bool condition, string message) { if (!condition) throw new Exception(message); evidence.Add("PASS " + message); count++; }
         bool Near(float a, float b, float tolerance = 1e-3f) => Mathf.Abs(a - b) <= tolerance;
         var docs = new PNGameContentSource(Path.Combine(Application.streamingAssetsPath, "BaseContent"), ".utmp/no-mods", Array.Empty<string>()).ReadDocuments().ToArray();
-        var hub = new EveContentBootstrap().Build(new EveIContentModule[] { new PNContentModule(), new PNGameplayContentModule(), new PNWorldFixtureModule(), new PNProjectileNativeModule() }, docs);
+        var hub = new EveContentBootstrap().Build(new EveIContentModule[] { new PNContentModule(), new PNGameplayContentModule(), new PNWorldFixtureModule(), new PNProjectileNativeModule(), new PNProjectileLifecycleProbeModule() }, docs);
         var enemyMask = PNTargetLayers.Of(PNLayers.Enemy); int wall = LayerMask.NameToLayer("Wall"), boundary = LayerMask.NameToLayer("Boundary");
         Check(wall >= 0 && boundary >= 0 && LayerMask.NameToLayer("Enemy") == 7, "Wall, Boundary and Enemy layers exist");
         PNProbeProjectile.Reset();
@@ -198,6 +200,59 @@ public static class PNProjectileEditorChecks
             var doomed = Fire(manager, "test:probe", Vector3.zero, Vector3.right); var doomedProbe = Probe(doomed);
             Check(manager.Destroy(doomed.Handle, PNProjectileEndReason.Destroyed, source) && doomedProbe.Ended == PNProjectileEndReason.Destroyed && ReferenceEquals(doomedProbe.EndedBy, source) && !doomed.Handle.IsAlive && !manager.Destroy(doomed.Handle),
                 "Destroy ends a projectile with its reason and attribution, and a second call does nothing");
+
+
+            // IL3 lifecycle (Docs/InstanceLifecyclePlan.md 3.1): a real finish plays an Ending (no movement, no contacts, not alive, still borrowed) on the projectile's own clock; a forced stop has none.
+            PNProjectileLifecycleProbe.Reset();
+            var lcA = Fire(manager, "test:ending", Vector3.zero, Vector3.right); var lc = PNProjectileLifecycleProbe.Last;
+            manager.Advance(.1f);
+            Check(lcA.Handle.IsAlive && lc.IsRunning && !lc.IsEnding && Near(lc.Position.x, 1f) && PNProjectileLifecycleProbe.Log.SequenceEqual(new[] { "start" }), "IL3: a projectile starts once and moves while Running");
+            Check(lcA.Handle.End() && !lcA.Handle.IsAlive && lc.IsEnding && !lc.IsRunning && lc.EndReason == PNProjectileEndReason.Requested && PNProjectileLifecycleProbe.Log.SequenceEqual(new[] { "start", "end:Requested" }) && manager.ActiveCount == 0 && manager.BorrowedCount == 1 && manager.Snapshot().Count == 0,
+                "IL3: a real finish runs OnEnd and enters the Ending: not running, handle not alive, still borrowed, not listed");
+            float endedAt = lc.Position.x;
+            manager.Advance(.1f);
+            Check(lc.IsEnding && lc.EndingSteps == 1 && Near(lc.EndingTotal, .1f) && Near(lc.Position.x, endedAt) && lc.MovesInEnding == 0 && manager.BorrowedCount == 1, "IL3: the Ending steps on the clock without moving the projectile");
+            Check(!manager.End(lcA.Handle, PNProjectileEndReason.Hit) && PNProjectileLifecycleProbe.Log.Count == 2 && lc.EndReason == PNProjectileEndReason.Requested, "IL3: a second real finish during the Ending is dropped");
+            manager.Advance(.1f); manager.Advance(.1f); manager.Advance(.05f);
+            Check(!lc.IsEnding && PNProjectileLifecycleProbe.Log.SequenceEqual(new[] { "start", "end:Requested", "cleanup" }) && manager.BorrowedCount == 0 && manager.IdleObjectCount >= 1, "IL3: when the Ending is over Cleanup runs once and the object returns to the pool");
+            // A cancel reason has no Ending and no OnEnd.
+            PNProjectileLifecycleProbe.Reset();
+            var lcB = Fire(manager, "test:ending", Vector3.zero, Vector3.right); lc = PNProjectileLifecycleProbe.Last;
+            bool disabledEnded = manager.End(lcB.Handle, PNProjectileEndReason.Disabled); manager.Advance(0f); // Disabled is returned to the pool on the next tick
+            Check(disabledEnded && PNProjectileLifecycleProbe.Log.SequenceEqual(new[] { "start", "cancel:Disabled", "cleanup" }) && manager.BorrowedCount == 0 && lc.EndingSteps == 0, "IL3: a forced stop calls OnCancel then Cleanup at once, with no OnEnd and no Ending");
+            // A cancel during the Ending cuts it short, without OnEnd again.
+            PNProjectileLifecycleProbe.Reset();
+            var lcC = Fire(manager, "test:ending", Vector3.zero, Vector3.right); lc = PNProjectileLifecycleProbe.Last;
+            lcC.Handle.End(); manager.Advance(.05f);
+            Check(lc.IsEnding && manager.End(lcC.Handle, PNProjectileEndReason.SceneUnloaded) && PNProjectileLifecycleProbe.Log.SequenceEqual(new[] { "start", "end:Requested", "cancel:SceneUnloaded", "cleanup" }) && manager.BorrowedCount == 0, "IL3: a forced stop during the Ending cancels the rest of it and runs Cleanup once");
+            // An expiry is a real finish too, with its own Ending.
+            PNProjectileLifecycleProbe.Reset();
+            var lcD = Fire(manager, "test:ending_short", Vector3.zero, Vector3.right); lc = PNProjectileLifecycleProbe.Last;
+            for (int i = 0; i < 3; i++) manager.Advance(.1f);
+            Check(lc.EndReason == PNProjectileEndReason.Expired && PNProjectileLifecycleProbe.Log.SequenceEqual(new[] { "start", "end:Expired" }) && lc.IsEnding && !lcD.Handle.IsAlive, "IL3: expiring is an END reason with an Ending");
+            for (int i = 0; i < 4; i++) manager.Advance(.1f);
+            Check(PNProjectileLifecycleProbe.Log.SequenceEqual(new[] { "start", "end:Expired", "cleanup" }) && manager.BorrowedCount == 0, "IL3: the expired projectile cleans up once after its Ending");
+            // The Ending follows the projectile's own clock: half speed doubles it.
+            PNProjectileLifecycleProbe.Reset();
+            var lcE = Fire(manager, "test:ending", Vector3.zero, Vector3.right); lc = PNProjectileLifecycleProbe.Last;
+            var slowOwner = Fixture("ending slow owner"); lc.Clock.AddOwnedModifier(EveId.Parse("test:slow"), EveTimeModifierKind.Scale, -.5f, slowOwner);
+            lcE.Handle.End();
+            for (int i = 0; i < 4; i++) manager.Advance(.1f);
+            Check(lc.IsEnding && Near(lc.EndingTotal, .2f, .01f), "IL3: a slowed projectile has a slowed Ending");
+            for (int i = 0; i < 4; i++) manager.Advance(.1f);
+            Check(!lc.IsEnding && manager.BorrowedCount == 0, "IL3: the slowed Ending still ends");
+            // The global cap counts a projectile in its Ending (it holds a pool object).
+            manager.Shutdown(); PNProjectileLifecycleProbe.Reset(); manager = NewManager(1);
+            var capA = Fire(manager, "test:ending", Vector3.zero, Vector3.right); lc = PNProjectileLifecycleProbe.Last; capA.Handle.End();
+            Check(lc.IsEnding && Fire(manager, "test:ending", new Vector3(0, 0, 2), Vector3.right).Status == PNProjectileStatus.Rejected, "IL3: a projectile in its Ending still counts against the pool cap");
+            for (int i = 0; i < 4; i++) manager.Advance(.1f);
+            var capB = Fire(manager, "test:ending", new Vector3(0, 0, 2), Vector3.right);
+            Check(capB.Status == PNProjectileStatus.Created, "IL3: when the Ending is over the cap has room again");
+            capB.Handle.End(); manager.Advance(.05f);
+            lc = PNProjectileLifecycleProbe.Last; Check(lc.IsEnding, "IL3: a projectile is in its Ending before the session ends");
+            manager.Shutdown();
+            Check(PNProjectileLifecycleProbe.Log.Contains("cancel:SessionEnded") && PNProjectileLifecycleProbe.Log.Count(x => x == "cleanup") == PNProjectileLifecycleProbe.Log.Count(x => x == "start") && manager.BorrowedCount == 0, "IL3: ending the session cancels a projectile in its Ending and cleans up exactly once each");
+            manager = NewManager(8);
 
             // Cap: reject when every object is active; otherwise evict the idle object that has waited longest.
             manager.Shutdown(); PNProbeProjectile.Reset(); manager = NewManager(3);

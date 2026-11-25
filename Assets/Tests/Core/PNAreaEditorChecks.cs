@@ -15,14 +15,42 @@ public class PNAreaSelectedProbe : PNTimeScaleArea { }
 public class PNAreaFailureProbe : PNAreaInstance
 {
     public static int Cleanups;
-    protected override void Initialize(PNAreaCreateRequest request) { throw new InvalidOperationException("Intentional failed initialization"); }
-    public override void Advance(float delta) { }
+    protected override void OnStart(PNAreaCreateRequest request) { throw new InvalidOperationException("Intentional failed initialization"); }
+    protected override void OnPerform(float delta) { }
     protected override void Cleanup() { Cleanups++; }
 }
+// Records the order of the hooks (Docs/InstanceLifecyclePlan.md 3.1); `Duration` is the Ending it asks for, `FailEnd` makes OnEnd throw.
+public class PNAreaLifeProbe : PNAreaInstance
+{
+    public static readonly System.Collections.Generic.List<string> Events = new System.Collections.Generic.List<string>();
+    public static float Duration = .5f, EndingSum; public static bool FailEnd; public static int Performs, Cleanups;
+    public override float EndingDuration => Duration;
+    protected override void OnStart(PNAreaCreateRequest request) { Events.Add("start"); }
+    protected override void OnPerform(float delta) { Performs++; }
+    protected override void OnEnd(PNAreaEndReason reason) { Events.Add("end:" + reason); if (FailEnd) throw new InvalidOperationException("Intentional failed OnEnd"); }
+    protected override void OnEnding(float delta) { EndingSum += delta; }
+    protected override void OnCancel(PNAreaEndReason reason) { Events.Add("cancel:" + reason); }
+    protected override void Cleanup() { Events.Add("cleanup"); Cleanups++; }
+}
+// Traits for the area checks: each logs into the life probe's event list so the order against the area's own hooks is visible.
+public class PNAreaMarkTrait : PNAreaTrait
+{
+    protected virtual string Label => "m1";
+    public override void OnCreated(PNAreaTraitContext context) { PNAreaLifeProbe.Events.Add(Label + ":created"); }
+    public override void OnEnded(PNAreaTraitContext context, PNAreaEndReason reason) { PNAreaLifeProbe.Events.Add(Label + ":ended:" + reason); }
+}
+public sealed class PNAreaMarkTwoTrait : PNAreaMarkTrait { protected override string Label => "m2"; }
 public sealed class PNAreaNativeModule : EveIContentModule
 {
     public void Register(EveRegistryHub hub)
     {
+        hub.Instances().Register(new PNAreaDefinition(EveId.Parse("area_test:life"), typeof(PNAreaLifeProbe), new JObject(), (data, content) => { }, input => { }));
+        hub.AreaTraits().Register(new PNAreaTraitDefinition(EveId.Parse("area_test:mark"), typeof(PNAreaMarkTrait), PNAreaTraitDefinition.NoPayload));
+        hub.AreaTraits().Register(new PNAreaTraitDefinition(EveId.Parse("area_test:mark2"), typeof(PNAreaMarkTwoTrait), PNAreaTraitDefinition.NoPayload));
+        PNAreaTraitUse Use(string id) => new PNAreaTraitUse(EveId.Parse(id));
+        hub.Instances().Register(new PNAreaDefinition(EveId.Parse("area_test:traited"), typeof(PNAreaLifeProbe), new JObject(), (data, content) => { }, input => { }, null, new[] { Use("project_n:solizeitastronhringur"), Use("area_test:mark") }));
+        hub.Instances().Register(new PNAreaDefinition(EveId.Parse("area_test:traited2"), typeof(PNAreaLifeProbe), new JObject(), (data, content) => { }, input => { }, null, new[] { Use("area_test:mark2"), Use("area_test:mark") }));
+        hub.Instances().Register(new PNAreaDefinition(EveId.Parse("area_test:failtrait"), typeof(PNAreaFailureProbe), new JObject(), (data, content) => { }, input => { }, null, new[] { Use("project_n:solizeitastronhringur") }));
         var original = hub.Instances().GetKind<PNAreaDefinition>(EveId.Parse("project_n:timescale_area"));
         var registry = hub.Instances();
         registry.Register(new PNAreaDefinition(EveId.Parse("area_test:selected"), typeof(PNAreaSelectedProbe), original.Payload, PNTimeScaleArea.ValidateDefinition, input => { new PNTimeScaleAreaSettings(input); }));
@@ -107,6 +135,68 @@ public static class PNAreaEditorChecks
             var exclusion = Spawn(excluded); Check(clock.Scale == .5f, "Exclude mask admits all other root layers"); exclusion.Handle.End(); areas.Advance(.31f);
             var failed = areas.Create(new PNAreaCreateRequest(EveId.Parse("area_test:fail"), new JObject(), capture, scene, Vector3.zero));
             Check(failed.Status == PNAreaStatus.Failed && areas.BorrowedCount == 0 && PNAreaFailureProbe.Cleanups > 0, "Generic implementation initialization failure cleaned and returned");
+            // ---- the lifecycle (IL1a): an END gets OnEnd then an Ending then one Cleanup; a CANCEL gets OnCancel and Cleanup at once; a repeat is dropped ----
+            int basePooled = areas.PooledObjectCount;
+            PNAreaReceipt Life() { PNAreaLifeProbe.Events.Clear(); PNAreaLifeProbe.EndingSum = 0; PNAreaLifeProbe.Duration = .5f; PNAreaLifeProbe.FailEnd = false; PNAreaLifeProbe.Cleanups = 0;
+                var made = areas.Create(new PNAreaCreateRequest(EveId.Parse("area_test:life"), new JObject(), capture, scene, Vector3.zero)); Check(made.Status == PNAreaStatus.Created, "Lifecycle probe created"); return made; }
+            string Events() => string.Join(",", PNAreaLifeProbe.Events);
+            var life = Life(); areas.Advance(.1f);
+            Check(life.Handle.IsAlive && areas.Get(life.Handle).IsRunning && PNAreaLifeProbe.Performs > 0, "A running area performs and is alive");
+            Check(areas.End(life.Handle, PNAreaEndReason.Requested), "End is accepted");
+            Check(!life.Handle.IsAlive && !areas.Get(life.Handle).IsRunning && areas.Get(life.Handle).EndReason == PNAreaEndReason.Requested && areas.BorrowedCount == 1 && Events() == "start,end:Requested", "An END reason leaves Running at once: not alive, reason kept, borrowed until the Ending ends");
+            Check(!areas.End(life.Handle, PNAreaEndReason.Expired) && !life.Handle.End() && Events() == "start,end:Requested", "A second END during the Ending is dropped");
+            areas.Advance(.3f); Check(Events() == "start,end:Requested" && Math.Abs(PNAreaLifeProbe.EndingSum - .3f) < 1e-4f && areas.BorrowedCount == 1, "The Ending runs OnEnding with the delta and keeps the area");
+            areas.Advance(.3f); Check(Events() == "start,end:Requested,cleanup" && PNAreaLifeProbe.Cleanups == 1 && areas.BorrowedCount == 0, "The Ending ends with exactly one Cleanup and the area goes back to the pool");
+            life = Life(); areas.End(life.Handle, PNAreaEndReason.Replaced);
+            Check(areas.Get(life.Handle).EndReason == PNAreaEndReason.Replaced && Events() == "start,end:Replaced" && !life.Handle.IsAlive, "Replaced is an END reason: an Ending, not a cancel"); areas.Advance(.6f);
+            Check(Events() == "start,end:Replaced,cleanup" && areas.BorrowedCount == 0, "A replaced area finishes its Ending");
+            life = Life(); areas.End(life.Handle, PNAreaEndReason.Expired); Check(areas.End(life.Handle, PNAreaEndReason.RuntimeError), "A CANCEL during the Ending is accepted");
+            Check(Events() == "start,end:Expired,cancel:RuntimeError,cleanup" && areas.BorrowedCount == 0 && PNAreaLifeProbe.Cleanups == 1 && areas.Get(life.Handle) == null, "A CANCEL during the Ending drops the rest of it: OnCancel, one Cleanup, returned");
+            foreach (var reason in new[] { PNAreaEndReason.SceneUnloaded, PNAreaEndReason.SessionEnded, PNAreaEndReason.RuntimeError })
+            {
+                life = Life(); areas.End(life.Handle, reason);
+                Check(Events() == "start,cancel:" + reason + ",cleanup" && areas.BorrowedCount == 0 && PNAreaLifeProbe.Cleanups == 1, "A CANCEL (" + reason + ") from Running skips OnEnd and the Ending");
+            }
+            life = Life(); PNAreaLifeProbe.Duration = 0; areas.End(life.Handle, PNAreaEndReason.Expired);
+            Check(Events() == "start,end:Expired,cleanup" && areas.BorrowedCount == 0, "An Ending of zero seconds cleans up at once");
+            life = Life(); PNAreaLifeProbe.FailEnd = true; areas.End(life.Handle, PNAreaEndReason.Requested);
+            Check(Events() == "start,end:Requested,cancel:RuntimeError,cleanup" && areas.BorrowedCount == 0 && PNAreaLifeProbe.Cleanups == 1, "A fault in OnEnd becomes a RuntimeError cancel with one Cleanup");
+            PNAreaLifeProbe.FailEnd = false;
+            Check(Enum.IsDefined(typeof(PNAreaEndReason), (int)7) && (int)PNAreaEndReason.Replaced == 7, "Replaced is appended at 7 (the byte of the sync End record)");
+            // ---- the traits (IL1b): hooks run for the real area only, in order; solizeitastronhringur lets one area live per world instance ----
+            PNAreaReceipt Make(string id, PNCombatSource who = null) => areas.Create(new PNAreaCreateRequest(EveId.Parse(id), new JObject(), who ?? capture, scene, Vector3.zero));
+            PNAreaEndReason? Reason(PNAreaReceipt receipt) => areas.Get(receipt.Handle)?.EndReason;
+            var rival = PNCombatSource.Capture(target);
+            PNAreaLifeProbe.Events.Clear(); PNAreaLifeProbe.Duration = .5f;
+            var tA = Make("area_test:traited");
+            Check(tA.Status == PNAreaStatus.Created && tA.Handle.IsAlive && Events() == "start,m1:created", "OnCreated runs for each trait in order after the area started");
+            var tB = Make("area_test:traited", rival);
+            Check(!tA.Handle.IsAlive && Reason(tA) == PNAreaEndReason.Replaced && tB.Handle.IsAlive && Events() == "start,m1:created,start,m1:created,end:Replaced,m1:ended:Replaced",
+                "A new area with the trait ends the old one (another owner too) with Replaced: the new is made first, the old ends after, and OnEnded follows the area's own OnEnd");
+            areas.Advance(.6f); Check(areas.BorrowedCount == 1 && tB.Handle.IsAlive, "The replaced area plays its Ending and goes back to the pool; the new one stays");
+            PNAreaLifeProbe.Events.Clear(); areas.End(tB.Handle, PNAreaEndReason.Requested);
+            var tC = Make("area_test:traited");
+            Check(Reason(tB) == PNAreaEndReason.Requested && !Events().Contains("Replaced") && tC.Handle.IsAlive, "An area already in its Ending is not counted and is not ended again");
+            areas.Advance(.6f);
+            PNAreaLifeProbe.Events.Clear(); var tD = Make("area_test:traited"); var tE = Make("area_test:traited");
+            Check(Reason(tC) == PNAreaEndReason.Replaced && Reason(tD) == PNAreaEndReason.Replaced && tE.Handle.IsAlive, "Two made in a row: the one handled later wins");
+            areas.Advance(.6f);
+            PNAreaLifeProbe.Events.Clear();
+            var broken = Make("area_test:failtrait");
+            Check(broken.Status == PNAreaStatus.Failed && tE.Handle.IsAlive && Events() == "", "A creation that fails calls no hook and leaves the old area alone");
+            PNAreaLifeProbe.Events.Clear(); areas.End(tE.Handle, PNAreaEndReason.SceneUnloaded);
+            Check(Events() == "cancel:SceneUnloaded,cleanup", "A Cancel does not call OnEnded");
+            PNAreaLifeProbe.Events.Clear(); PNAreaLifeProbe.Duration = 0; var tF = Make("area_test:traited2"); areas.End(tF.Handle, PNAreaEndReason.Expired);
+            Check(Events() == "start,m2:created,m1:created,end:Expired,m2:ended:Expired,m1:ended:Expired,cleanup", "Traits are called in declared order for created and ended");
+            PNAreaLifeProbe.Duration = .5f; PNAreaLifeProbe.Events.Clear();
+            var real = Make("area_test:traited"); PNAreaLifeProbe.Events.Clear();
+            var guess = areas.CreateGuess(PNAreaCreateRequest.Replica(EveId.Parse("area_test:traited"), new JObject(), scene, Vector3.zero, null, null, 1d).WithCast(77, 0));
+            Check(guess.Status == PNAreaStatus.Created && real.Handle.IsAlive && Events() == "start", "A guess runs no trait hook and ends nobody");
+            areas.DiscardPredicted(77);
+            Check(real.Handle.IsAlive && Events() == "start,end:Requested", "A discarded guess ends without OnEnded");
+            areas.End(real.Handle, PNAreaEndReason.Requested); areas.Advance(.6f);
+            Check(areas.BorrowedCount == 0, "Every trait fixture area went back to the pool");
+            int lifePooled = areas.PooledObjectCount - basePooled;
             var timedGrant = buffs.Apply(new PNBuffApplyRequest(EveId.Parse("base:timescale_reduction"), capture, timed));
             using (buffs.Contribute("test:timescale_override", new PNBuffOverrideContribution(EveId.Parse("area_test:timed"), 1), selection: PNBuffSelection.Current, exact: timedGrant.Handle))
                 Check(timedGrant.Handle.IsAlive && Math.Abs(clock.Scale) < .00001, "Buff full override retains valid original Apply input and owns modifiers");
@@ -126,7 +216,7 @@ public static class PNAreaEditorChecks
                 var burst = Enumerable.Range(0, 32).Select(_ => Spawn(Input(1))).ToArray();
                 Check(buffs.Snapshot().Count == 32 && clock.Scale == 0, "Burst independent admission cycle " + cycle);
                 foreach (var region in burst) region.Handle.End(); areas.Advance(.31f);
-                Check(buffs.Snapshot().Count == 0 && clock.Scale == 1 && areas.PooledObjectCount == 33, "Pool retains repeated burst peak without accumulating grants cycle " + cycle);
+                Check(buffs.Snapshot().Count == 0 && clock.Scale == 1 && areas.PooledObjectCount == 33 + lifePooled, "Pool retains repeated burst peak without accumulating grants cycle " + cycle);
             }
             var child = new GameObject("Trigger child"); child.transform.SetParent(target.transform, false); child.AddComponent<SphereCollider>().isTrigger = true;
             var own = Spawn(); Check(buffs.Snapshot().Count == 1, "Trigger child does not duplicate entity");
@@ -156,6 +246,8 @@ public static class PNAreaEditorChecks
             Capture("ForegroundOcclusion"); Check(image.GetPixel(480, 320).g > center.g * 1.1f, "Opaque foreground in front of sphere remains unaffected"); UnityEngine.Object.DestroyImmediate(foreground);
             own.Handle.End(); overlap.Handle.End(); areas.Advance(.15f); Capture("Fade"); areas.Advance(.2f);
             Capture("Cleared"); Check(PNTimeScaleAreaRendering.RegisteredCount == 0 && clock.Scale == 1, "All pooled visual registrations retired");
+            life = Life(); areas.End(life.Handle, PNAreaEndReason.Expired); areas.Shutdown();
+            Check(Events() == "start,end:Expired,cancel:SessionEnded,cleanup" && PNAreaLifeProbe.Cleanups == 1, "A shutdown during the Ending cancels it and cleans up once");
             Check(original.isDirty == dirty, "Original scene dirty state preserved");
             File.WriteAllLines(".utmp/AreaReview/NativeResults.txt", evidence); return "PASS " + checks + " native area checks";
         }

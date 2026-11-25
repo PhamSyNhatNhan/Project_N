@@ -10,7 +10,7 @@ public sealed class PNStarforgerBoltProjectile : PNDirectionalProjectile
 {
     private PNStarforgerBoltVisual visual;
     public override void OnPoolCreated(){base.OnPoolCreated();visual=PNStarforgerBoltVisual.Create(this);}
-    protected override void Initialize(PNProjectileSpawn spawn){base.Initialize(spawn);visual?.Begin((float)Launch.ScaleFactor);}
+    protected override void OnStart(PNProjectileSpawn spawn){base.OnStart(spawn);visual?.Begin((float)Launch.ScaleFactor);}
     // The contact burst belongs to the impact, so the real bolt, the shooter's guess and a copy on another machine all show it (plan 4.4b).
     protected override void OnImpact(PNImpact impact)
     {

@@ -223,7 +223,7 @@ public sealed class PNProjectileManager : MonoBehaviour, IPNHitReportReceiver
         {
             if (id != 0 && entries.TryGetValue(id, out var entry))
             {
-                SafeStop(entry, PNProjectileEndReason.RuntimeError);
+                Stop(entry, PNProjectileEndReason.RuntimeError);
                 if (entry.Instance.CleanupFailed) { receipt.Error = error; receipt.Status = PNProjectileStatus.Failed; return; }
                 entries.Remove(id); entry.Removed = true; compactNeeded = true; entry.Lease?.Dispose();
             }
@@ -490,14 +490,16 @@ public sealed class PNProjectileManager : MonoBehaviour, IPNHitReportReceiver
     public bool End(PNProjectileHandle handle, PNProjectileEndReason reason = PNProjectileEndReason.Requested, PNCombatSource source = null)
     {
         if (!Enum.IsDefined(typeof(PNProjectileEndReason), reason)) throw new ArgumentException("Unknown projectile end reason.");
-        if (!Contains(handle)) return false;
+        // A running projectile takes any reason; one in its Ending takes only a forced stop (a second real finish is dropped); a finished one takes nothing.
+        if (!ReferenceEquals(handle.Manager, this) || !entries.TryGetValue(handle.InstanceId, out var probe) || ReferenceEquals(probe.Instance, null) || probe.Instance == null || probe.Instance.IsDone
+            || probe.Instance.IsEnding && PNProjectileInstance.IsEndReason(reason)) return false;
         Submit(() =>
         {
-            if (!entries.TryGetValue(handle.InstanceId, out var entry) || !entry.Instance.IsRunning) return;
-            if (source != null) entry.Instance.DestroyedBy = source;
-            SafeStop(entry, reason);
+            if (!entries.TryGetValue(handle.InstanceId, out var entry) || entry.Instance == null) return;
+            if (source != null && entry.Instance.IsRunning) entry.Instance.DestroyedBy = source;
+            if (!Stop(entry, reason)) return;
             // Unity may be destroying the pool storage during scene-unload OnDisable: return after the scene event or the next tick.
-            if (reason != PNProjectileEndReason.Disabled) Return(entry);
+            if (entry.Instance.IsDone && reason != PNProjectileEndReason.Disabled) Return(entry);
         });
         return true;
     }
@@ -539,8 +541,14 @@ public sealed class PNProjectileManager : MonoBehaviour, IPNHitReportReceiver
                     if (entry.Instance == null) { Return(entry); continue; }
                     if (entry.Predicted && !entry.Adopted && PredictionNow - entry.CreatedAt > OrphanSeconds) { End(new PNProjectileHandle(this, entry.Id)); continue; }
                     if (entry.World != null && !entry.World.CanExecute) continue;
+                    if (!entry.Instance.isActiveAndEnabled && (entry.Instance.IsRunning || entry.Instance.IsEnding)) { End(new PNProjectileHandle(this, entry.Id), PNProjectileEndReason.Disabled); continue; }
+                    if (entry.Instance.IsEnding)
+                    {
+                        // The Ending runs on the projectile's own clock: no movement, no contacts. When it is over the Cleanup runs (once) and the object goes back to the pool.
+                        if (entry.Instance.StepEnding(gameDelta)) { entry.Instance.RunCleanup(); Return(entry); }
+                        continue;
+                    }
                     if (!entry.Instance.IsRunning) { Return(entry); continue; }
-                    if (!entry.Instance.isActiveAndEnabled) { End(new PNProjectileHandle(this, entry.Id), PNProjectileEndReason.Disabled); continue; }
                     object key = (object)entry.World ?? NoWorld;
                     PNTargetCandidates candidates;
                     if (refreshed.Add(key))
@@ -556,11 +564,40 @@ public sealed class PNProjectileManager : MonoBehaviour, IPNHitReportReceiver
             }
         });
     }
-    private void SafeStop(Entry entry, PNProjectileEndReason reason)
+    // Gives one reason to a projectile: an END starts its Ending (end impact, `OnEnd`; a fault there becomes a RuntimeError cancel), a CANCEL stops it now (`OnCancel`); the Cleanup follows when due.
+    // The sync End record carries the reason that really took effect, when the Ending starts. Returns false when nothing happened. `strict`: a failing Cleanup is thrown, not logged.
+    private bool Stop(Entry entry, PNProjectileEndReason reason, bool strict = false)
     {
-        try { if (entry.Instance != null) entry.Instance.Stop(reason); } catch (Exception error) { if (entry.Instance != null) entry.Instance.CleanupFailed = true; Debug.LogException(error, this); }
-        try { NotifyEnded(entry, reason); } catch (Exception error) { Debug.LogException(error, this); }
-        if (entry.Predicted && entry.Instance != null) PredictionEnded(entry);
+        var instance = entry.Instance;
+        if (ReferenceEquals(instance, null)) { try { NotifyEnded(entry, reason); } catch (Exception error) { Debug.LogException(error, this); } return false; }
+        var begin = instance.BeginStop(reason);
+        if (begin == PNInstanceBegin.Ignored && !instance.CleanupFailed) return false;
+        if (begin == PNInstanceBegin.RunEnd)
+        {
+            try { instance.RunEnd(reason); }
+            catch (Exception error)
+            {
+                Debug.LogException(error, this);
+                reason = PNProjectileEndReason.RuntimeError; begin = instance.BeginStop(reason);
+            }
+        }
+        if (begin == PNInstanceBegin.RunCancel) instance.RunCancel(reason);
+        Exception cleanupError = null;
+        if (instance.CleanupDue || instance.CleanupFailed)
+        {
+            try { instance.RunCleanup(); } catch (Exception error) { instance.CleanupFailed = true; cleanupError = error; }
+        }
+        if (begin != PNInstanceBegin.Ignored)
+        {
+            try { NotifyEnded(entry, reason); } catch (Exception error) { Debug.LogException(error, this); }
+            if (entry.Predicted) PredictionEnded(entry);
+        }
+        if (cleanupError != null)
+        {
+            if (strict) throw cleanupError;
+            Debug.LogException(cleanupError, this);
+        }
+        return begin != PNInstanceBegin.Ignored;
     }
     private void PredictionEnded(Entry entry)
     {
@@ -583,7 +620,7 @@ public sealed class PNProjectileManager : MonoBehaviour, IPNHitReportReceiver
     {
         Submit(() =>
         {
-            foreach (var entry in entries.Values.Where(x => x.Scene == scene).ToArray()) { SafeStop(entry, PNProjectileEndReason.SceneUnloaded); Return(entry); }
+            foreach (var entry in entries.Values.Where(x => x.Scene == scene).ToArray()) { Stop(entry, PNProjectileEndReason.SceneUnloaded); Return(entry); }
             // Storage is scene-local: rebuild idle pools after any scene teardown.
             foreach (var pair in pools.Where(x => x.Value.Scene == scene).ToArray())
             {
@@ -595,7 +632,7 @@ public sealed class PNProjectileManager : MonoBehaviour, IPNHitReportReceiver
     public void ReleaseWorld(EveWorldContext world)
     {
         if (busy) throw new InvalidOperationException("Projectile mutation must drain before world teardown.");
-        foreach (var entry in entries.Values.Where(x => ReferenceEquals(x.World, world)).ToArray()) { entry.Instance?.Stop(PNProjectileEndReason.SceneUnloaded); NotifyEnded(entry, PNProjectileEndReason.SceneUnloaded); Return(entry); }
+        foreach (var entry in entries.Values.Where(x => ReferenceEquals(x.World, world)).ToArray()) { Stop(entry, PNProjectileEndReason.SceneUnloaded, true); Return(entry); }
         objectSync?.ForgetWorld(PNObjectWorld.Of(world));
         foreach (var pair in pools.Where(x => PNWorldGameplay.ForScene(Session, x.Value.Scene) == world).ToArray())
         {
@@ -613,7 +650,7 @@ public sealed class PNProjectileManager : MonoBehaviour, IPNHitReportReceiver
         {
             try
             {
-                if (!ReferenceEquals(entry.Instance, null)) entry.Instance.Stop(PNProjectileEndReason.SessionEnded);
+                if (!ReferenceEquals(entry.Instance, null)) entry.Instance.CancelNow(PNProjectileEndReason.SessionEnded);
                 entries.Remove(entry.Id); entry.Removed = true; entry.Lease?.Dispose();
             }
             catch (Exception error) { errors.Add(error); }

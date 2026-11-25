@@ -9,7 +9,10 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 
 public enum PNAreaStatus { Pending, Created, Rejected, Failed }
-public enum PNAreaEndReason { Requested, Expired, OwnerUnavailable, Disabled, SceneUnloaded, SessionEnded, RuntimeError }
+// EN: Requested, Expired, OwnerUnavailable and Replaced are END reasons (the area really finished: `OnEnd`, then its Ending phase); Disabled, SceneUnloaded, SessionEnded and
+//     RuntimeError are CANCEL reasons (forced: `OnCancel`, no Ending). The value is the byte of the sync End record, so a reason is only ever appended (Docs/InstanceLifecyclePlan.md 3.2).
+// VI: Requested, Expired, OwnerUnavailable, Replaced la ly do END (area ket thuc that: `OnEnd`, roi pha Ending); Disabled, SceneUnloaded, SessionEnded, RuntimeError la CANCEL (cuong buc: `OnCancel`, khong Ending).
+public enum PNAreaEndReason { Requested, Expired, OwnerUnavailable, Disabled, SceneUnloaded, SessionEnded, RuntimeError, Replaced }
 public readonly struct PNAreaHandle
 {
     internal readonly PNAreaManager Manager;
@@ -71,15 +74,19 @@ public abstract class PNAreaInstance : MonoBehaviour, EveIPoolable, IPNTimeTarge
 {
     // EN: Every area carries a clock (PNAreaClock, minScale 0). An area that is affected by time (the default) registers in the world's PNTimeTargets while it
     //     runs, so a time effect can slow or stop it; the manager then hands `Advance` the delta scaled by that clock. An implementation that must not be
-    //     affected (the time-scale area itself, so two overlapping zones cannot lengthen each other) overrides this to false. Retirement uses real time.
-    // VI: Mỗi vùng có đồng hồ (PNAreaClock, minScale 0). Vùng chịu thời gian (mặc định) đăng ký vào PNTimeTargets của world khi chạy; manager đưa Advance
-    //     delta đã nhân theo đồng hồ đó. Implementation không muốn chịu (chính vùng thời gian) override false. Retirement dùng thời gian thật.
+    //     affected (the time-scale area itself, so two overlapping zones cannot lengthen each other) overrides this to false. The Ending phase runs on the same clock.
+    // VI: Mỗi vùng có đồng hồ (PNAreaClock, minScale 0). Vùng chịu thời gian (mặc định) đăng ký vào PNTimeTargets của world khi chạy; manager đưa OnPerform
+    //     delta đã nhân theo đồng hồ đó. Implementation không muốn chịu (chính vùng thời gian) override false. Pha Ending chạy trên cùng đồng hồ.
     public virtual bool AffectedByTime => true;
     public PNAreaClock Clock { get; private set; }
     EveTimeScale IPNTimeTarget.TimeClock => Clock;
     int IPNTimeTarget.TimeLayer => PNLayers.Area;
     Vector3 IPNTimeTarget.TimePosition => transform.position;
-    bool IPNTimeTarget.TimeActive => IsRunning && Clock != null;
+    bool IPNTimeTarget.TimeActive => (life.IsRunning || life.IsEnding) && Clock != null;
+    // The reasons of an area: which are a real finish (END) and which a forced stop (CANCEL); see PNAreaEndReason.
+    private static readonly PNInstanceReasonTable Reasons = new PNInstanceReasonTable(8, (int)PNAreaEndReason.Requested, (int)PNAreaEndReason.Expired, (int)PNAreaEndReason.OwnerUnavailable, (int)PNAreaEndReason.Replaced);
+    internal static bool IsEndReason(PNAreaEndReason reason) => Reasons.IsEnd((int)reason);
+    private readonly PNInstanceLifecycle life = new PNInstanceLifecycle(Reasons);
     private PNTimeTargets.Entry timeEntry;
     private PNAreaCreateRequest created; private double scaleFactor = double.NaN;
     // The creator's `area_scale` (Scale route over a base of 1, read from the source snapshot at creation; 1 = unchanged). What it scales is the implementation's choice.
@@ -114,31 +121,61 @@ public abstract class PNAreaInstance : MonoBehaviour, EveIPoolable, IPNTimeTarge
     public virtual float ProgressSeconds => 0f;
     // A claim of presence from the machine of a player (plan 4.4c V3): the implementation that applies something to what stands inside takes it and answers whether it was valid; the default takes nothing.
     public virtual bool TakeClaimedPresence(PNStat target, bool inside, float tolerance) => false;
-    public bool IsRunning { get; private set; }
+    // EN: Running = alive (the area applies what it applies). Ending = it really finished and only plays its own end (`OnEnding`): it is not running, its handle is not alive,
+    //     it is not captured for a late joiner and a claim on it is refused. The first reason that took effect is `EndReason`.
+    // VI: Running = con song. Ending = da ket thuc that, chi choi phan ket thuc cua no: khong chay, handle khong song, khong vao baseline, claim bi tu choi.
+    public bool IsRunning => life.IsRunning;
+    public bool IsEnding => life.IsEnding;
+    internal bool IsDone => life.Phase == PNInstancePhase.Done;
     public EveWorldContext World { get; private set; }
-    public PNAreaEndReason? EndReason { get; private set; }
+    public PNAreaEndReason? EndReason => life.Reason.HasValue ? (PNAreaEndReason?)life.Reason.Value : null;
     internal bool CleanupFailed { get; set; }
     protected PNAreaManager Manager { get; private set; }
     protected PNAreaDefinition Definition { get; private set; }
-    public virtual float RetirementDuration => 0;
     public virtual void ActorWorldChanging(PNStat actor) { }
     internal void Bind(PNAreaManager manager, PNAreaHandle handle, PNAreaDefinition definition, PNAreaCreateRequest request)
-    { Manager = manager; World=PNWorldGameplay.ForScene(manager.Session,request.Scene);Handle = handle; Definition = definition; EndReason = null; CleanupFailed = false; IsRunning = true;
+    { Manager = manager; World=PNWorldGameplay.ForScene(manager.Session,request.Scene);Handle = handle; Definition = definition; CleanupFailed = false; life.Start();
         Clock = GetComponent<PNAreaClock>(); if (Clock != null) Clock.ClearModifiers(); created = request; scaleFactor = double.NaN;
-        Initialize(request);
+        OnStart(request);
         if (AffectedByTime && Clock != null) timeEntry = PNTimeTargets.For(World).Register(this);
     }
-    protected abstract void Initialize(PNAreaCreateRequest request);
-    public abstract void Advance(float gameDelta);
-    public virtual void AdvanceRetirement(float gameDelta) { }
+
+    // ---- the hooks of an area (Docs/InstanceLifecyclePlan.md 3.1): Start -> Perform -> End -> Ending -> Cleanup, or Cancel -> Cleanup ----
+    // Once when the area is bound, on every machine (the real area, a guess, a copy).
+    protected abstract void OnStart(PNAreaCreateRequest request);
+    // Every frame while Running, `gameDelta` already scaled by the area's clock.
+    protected abstract void OnPerform(float gameDelta);
+    // Once, when the area really finishes (an END reason). Read `EndingDuration` after it. A gameplay effect here belongs to the real area (`!IsReplica`).
+    protected virtual void OnEnd(PNAreaEndReason reason) { }
+    // Seconds of its own clock the Ending lasts; read right after `OnEnd`, so `OnEnd` may decide. Zero or less: no Ending.
+    public virtual float EndingDuration => 0f;
+    // Every frame of the Ending, `delta` scaled by the area's clock.
+    protected virtual void OnEnding(float delta) { }
+    // Once, when the area is stopped by force (a CANCEL reason), from Running or from the Ending. `OnEnd` does not run for it.
+    protected virtual void OnCancel(PNAreaEndReason reason) { }
+    // Last, exactly once, after the End (and its Ending) or the Cancel: release what the area holds.
     protected abstract void Cleanup();
     public bool Finish(PNAreaEndReason reason = PNAreaEndReason.Requested) => Manager != null && Manager.End(Handle, reason);
-    internal void Stop(PNAreaEndReason reason)
+
+    internal void Perform(float gameDelta) { if (life.IsRunning) OnPerform(gameDelta); }
+    internal PNInstanceBegin BeginStop(PNAreaEndReason reason) => life.Begin((int)reason);
+    internal void RunEnd(PNAreaEndReason reason) { OnEnd(reason); life.ArmEnding(EndingDuration); }
+    // A failing OnCancel is reported; the Cleanup that follows still runs and decides whether the area is released.
+    internal void RunCancel(PNAreaEndReason reason) { try { OnCancel(reason); } catch (Exception error) { Debug.LogException(error, this); } }
+    // One step of the Ending; true when it is over and Cleanup is due.
+    internal bool StepEnding(float delta) { if (!life.IsEnding) return false; OnEnding(delta); return life.AdvanceEnding(delta); }
+    internal bool CleanupDue => life.CleanupPending;
+    internal void RunCleanup()
     {
-        if (!IsRunning && !CleanupFailed) return;
-        IsRunning = false; EndReason = reason; CleanupFailed = true;
-        ReleaseTime();
+        if (!life.TakeCleanup() && !CleanupFailed) return;
+        CleanupFailed = true; ReleaseTime();
         Cleanup(); CleanupFailed = false;
+    }
+    // A forced stop that finishes at once (shutdown, world teardown): the Cancel hook if it is not over yet, then Cleanup (also a retry after a failed one).
+    internal void CancelNow(PNAreaEndReason reason)
+    {
+        if (BeginStop(reason) == PNInstanceBegin.RunCancel) RunCancel(reason);
+        RunCleanup();
     }
     public virtual void OnPoolCreated() { }
     public virtual void OnPoolGet(EveEasyPooling pool) { }
@@ -147,11 +184,11 @@ public abstract class PNAreaInstance : MonoBehaviour, EveIPoolable, IPNTimeTarge
     public virtual void OnPoolRelease()
     {
         ReleaseTime(); created = null;
-        Manager = null;World=null; Definition = null; Handle = default; EndReason = null; IsRunning = false;
+        Manager = null;World=null; Definition = null; Handle = default; life.Release();
         if (CleanupFailed) throw new InvalidOperationException("Faulted area cleanup; existing pool must evict this instance.");
     }
-    protected virtual void OnDisable() { if (IsRunning) Finish(PNAreaEndReason.Disabled); }
-    protected virtual void OnDestroy() { if (IsRunning) Finish(PNAreaEndReason.Disabled); DisposePooledResources(); }
+    protected virtual void OnDisable() { if (life.IsRunning || life.IsEnding) Finish(PNAreaEndReason.Disabled); }
+    protected virtual void OnDestroy() { if (life.IsRunning || life.IsEnding) Finish(PNAreaEndReason.Disabled); DisposePooledResources(); }
 }
 
 [DisallowMultipleComponent]
@@ -162,7 +199,9 @@ public sealed class PNAreaManager : MonoBehaviour, IPNHitReportReceiver
         internal GameObject Template; internal EveEasyPooling Pool; internal Scene Scene;
         internal readonly Dictionary<GameObject, PNAreaInstance> Instances = new Dictionary<GameObject, PNAreaInstance>();
     }
-    private sealed class Entry { internal EveId Id, ProfileId; internal GameObject Root; internal PNAreaInstance Instance; internal PoolEntry Pool; internal Scene Scene; internal float Retirement;internal bool Replica;internal EveWorldContext World;internal IDisposable Lease; internal bool Guess, Adopted; internal double CreatedAt; internal (long, int) GuessKey; }
+    // A trait of a real (authority) area as it was resolved at creation: the effective definition and the payload this area gave it. Null `Traits` = no trait or not the authority's area.
+    private struct TraitRun { internal PNAreaTraitDefinition Definition; internal JToken Payload; }
+    private sealed class Entry { internal TraitRun[] Traits; internal PNStat Owner; internal EveId Id, ProfileId; internal GameObject Root; internal PNAreaInstance Instance; internal PoolEntry Pool; internal Scene Scene; internal bool Replica;internal EveWorldContext World;internal IDisposable Lease; internal bool Guess, Adopted; internal double CreatedAt; internal (long, int) GuessKey; }
     private readonly Dictionary<(PNAreaDefinition, Scene), PoolEntry> pools = new Dictionary<(PNAreaDefinition, Scene), PoolEntry>();
     private readonly Dictionary<long, Entry> entries = new Dictionary<long, Entry>();
     private readonly Queue<Action> pending = new Queue<Action>();
@@ -218,6 +257,13 @@ public sealed class PNAreaManager : MonoBehaviour, IPNHitReportReceiver
             if (!Finite(p.x) || !Finite(p.y) || !Finite(p.z)) throw new ArgumentException("Finite area position required.");
             var definition = Session.Registry.Instances().GetEffectiveKind<PNAreaDefinition>(request.AreaId);
             definition.ValidateInput(request.Input);
+            // The traits of a real area are resolved before anything is borrowed: an unknown trait fails the creation (a copy or a guess never runs traits).
+            TraitRun[] traitRuns = null;
+            if (!replica && definition.Traits.Count != 0)
+            {
+                var traitRegistry = Session.Registry.AreaTraits(); traitRuns = new TraitRun[definition.Traits.Count];
+                for (int i = 0; i < traitRuns.Length; i++) traitRuns[i] = new TraitRun { Definition = traitRegistry.GetEffective(definition.Traits[i].Id), Payload = definition.Traits[i].Payload };
+            }
             if (!pools.TryGetValue((definition, request.Scene), out pool))
             {
                 var template = definition.CreatePoolTemplate();
@@ -246,23 +292,23 @@ public sealed class PNAreaManager : MonoBehaviour, IPNHitReportReceiver
             root.hideFlags = HideFlags.DontSave; root.transform.position = p;
             var instance = root.GetComponent<PNAreaInstance>();
             id = ++sequence; var handle = new PNAreaHandle(this, id);
-            entries.Add(id, new Entry { Id = Session.Registry.Instances().ResolveIdentity(request.AreaId), ProfileId = definition.Id, Root = root, Instance = instance, Pool = pool, Scene = request.Scene,World=world,Lease=world?.AcquireLease("area") });
+            entries.Add(id, new Entry { Traits = traitRuns, Owner = request.Owner, Id =Session.Registry.Instances().ResolveIdentity(request.AreaId), ProfileId = definition.Id, Root = root, Instance = instance, Pool = pool, Scene = request.Scene,World=world,Lease=world?.AcquireLease("area") });
             instance.Bind(this, handle, definition, request);PNWorldPresentationRegistration.Register(world,root);root.SetActive(true);
             if (!instance.isActiveAndEnabled) throw new InvalidOperationException("Selected area component must be active after initialization.");
             // Immediate admission occurs after activation, when owned clock effects may be acquired.
-            instance.Advance(0);
+            instance.Perform(0);
             PNWorldPresentationRegistration.Register(world,root);
             if (!instance.IsRunning) throw new InvalidOperationException("Area ended during initialization.");
             receipt.Handle = handle; receipt.Status = PNAreaStatus.Created;
             if (guess) { var made = entries[id]; made.Replica = true; made.Guess = true; made.CreatedAt = PredictionNow; made.GuessKey = (request.CastKey, request.CastIndex); predictions[made.GuessKey] = id; }
             else if (replica) { entries[id].Replica = true; objectEntries[replicaId] = id; objectIds[id] = replicaId; }
-            else RecordSpawn(id, entries[id], request);
+            else { RecordSpawn(id, entries[id], request); RunTraitsCreated(id, entries[id]); }
         }
         catch (Exception error)
         {
             if (id != 0 && entries.TryGetValue(id, out var entry))
             {
-                SafeStop(entry, PNAreaEndReason.RuntimeError);
+                Stop(id, entry, PNAreaEndReason.RuntimeError);
                 if (entry.Instance.CleanupFailed) { receipt.Error = error; receipt.Status = PNAreaStatus.Failed; return; }
                 entries.Remove(id);entry.Lease?.Dispose();
             }
@@ -274,16 +320,84 @@ public sealed class PNAreaManager : MonoBehaviour, IPNHitReportReceiver
     public bool End(PNAreaHandle handle, PNAreaEndReason reason = PNAreaEndReason.Requested)
     {
         if (!Enum.IsDefined(typeof(PNAreaEndReason), reason)) throw new ArgumentException("Unknown area end reason.");
-        if (!Contains(handle)) return false;
+        // A running area takes any reason; one in its Ending takes only a forced stop (a second real finish is dropped); a finished one takes nothing.
+        if (!ReferenceEquals(handle.Manager, this) || !entries.TryGetValue(handle.InstanceId, out var probe) || probe.Instance == null || probe.Instance.IsDone
+            || probe.Instance.IsEnding && PNAreaInstance.IsEndReason(reason)) return false;
         Submit(() => {
-            if (!entries.TryGetValue(handle.InstanceId, out var entry) || !entry.Instance.IsRunning) return;
-            SafeStop(entry, reason);
-            bool immediate = reason == PNAreaEndReason.Disabled || reason == PNAreaEndReason.SceneUnloaded || reason == PNAreaEndReason.SessionEnded || reason == PNAreaEndReason.RuntimeError;
-            entry.Retirement = immediate ? 0 : entry.Instance.RetirementDuration;
+            if (!entries.TryGetValue(handle.InstanceId, out var entry)) return;
+            if (!Stop(handle.InstanceId, entry, reason)) return;
             // Unity may be destroying the pool storage during scene-unload OnDisable.
             // Gameplay cleanup is immediate; return after sceneUnloaded or next manager update.
-            if (entry.Retirement <= 0 && reason != PNAreaEndReason.Disabled) Return(handle.InstanceId, entry);
+            if (entry.Instance.IsDone && reason != PNAreaEndReason.Disabled) Return(handle.InstanceId, entry);
         }); return true;
+    }
+    // ---- area traits (Docs/InstanceLifecyclePlan.md 3.4): hooks run for real (authority) areas only, in declaration order, inside the manager's queue ----
+    private PNAreaTraitContext TraitContext(long id, Entry entry, in TraitRun run)
+        => new PNAreaTraitContext(this, new PNAreaHandle(this, id), entry.Id, run.Definition.Id, entry.World, entry.Instance != null ? entry.Instance.transform.position : default, entry.Owner, run.Payload);
+    // After the area was made and recorded. A fault in a trait is reported and does not undo the area or stop the next trait.
+    private void RunTraitsCreated(long id, Entry entry)
+    {
+        if (entry.Traits == null) return;
+        foreach (var run in entry.Traits)
+        {
+            try { run.Definition.Behavior.OnCreated(TraitContext(id, entry, run)); } catch (Exception error) { Debug.LogException(error, this); }
+        }
+    }
+    // After the area's own OnEnd, for a real finish only.
+    private void RunTraitsEnded(long id, Entry entry, PNAreaEndReason reason)
+    {
+        if (entry.Traits == null || entry.Replica) return;
+        foreach (var run in entry.Traits)
+        {
+            try { run.Definition.Behavior.OnEnded(TraitContext(id, entry, run), reason); } catch (Exception error) { Debug.LogException(error, this); }
+        }
+    }
+    // The running real areas of `world` that carry the trait (an area in its Ending is not running).
+    internal int CollectWithTrait(EveWorldContext world, EveId traitId, List<PNAreaHandle> into)
+    {
+        int count = 0;
+        foreach (var pair in entries)
+        {
+            var entry = pair.Value;
+            if (entry.Traits == null || entry.Replica || !ReferenceEquals(entry.World, world) || entry.Instance == null || !entry.Instance.IsRunning) continue;
+            foreach (var run in entry.Traits)
+                if (run.Definition.Id == traitId) { into.Add(new PNAreaHandle(this, pair.Key)); count++; break; }
+        }
+        return count;
+    }
+    // Gives one reason to an area: an END starts its Ending (`OnEnd`; a fault there becomes a RuntimeError cancel), a CANCEL stops it now (`OnCancel`); the Cleanup follows when due.
+    // The sync End record carries the reason that really took effect. Returns false when nothing happened (already finished, a repeat). `strict`: a failing Cleanup is thrown, not logged.
+    private bool Stop(long id, Entry entry, PNAreaEndReason reason, bool strict = false)
+    {
+        var instance = entry.Instance;
+        if (ReferenceEquals(instance, null)) { NotifyEnded(id, entry, reason); return false; }
+        var begin = instance.BeginStop(reason);
+        if (begin == PNInstanceBegin.Ignored && !instance.CleanupFailed) return false;
+        if (begin == PNInstanceBegin.RunEnd)
+        {
+            try { instance.RunEnd(reason); RunTraitsEnded(id, entry, reason); }
+            catch (Exception error)
+            {
+                Debug.LogException(error, this);
+                reason = PNAreaEndReason.RuntimeError; begin = instance.BeginStop(reason);
+            }
+        }
+        if (begin == PNInstanceBegin.RunCancel) instance.RunCancel(reason);
+        Exception cleanupError = null;
+        if (instance.CleanupDue || instance.CleanupFailed)
+        {
+            try { instance.RunCleanup(); } catch (Exception error) { instance.CleanupFailed = true; cleanupError = error; }
+        }
+        if (begin != PNInstanceBegin.Ignored)
+        {
+            try { NotifyEnded(id, entry, reason); } catch (Exception error) { Debug.LogException(error, this); }
+        }
+        if (cleanupError != null)
+        {
+            if (strict) throw cleanupError;
+            Debug.LogException(cleanupError, this);
+        }
+        return begin != PNInstanceBegin.Ignored;
     }
     private void Submit(Action action)
     {
@@ -314,10 +428,16 @@ public sealed class PNAreaManager : MonoBehaviour, IPNHitReportReceiver
                 {
                     if (entry.Instance == null) { Return(pair.Key, entry); continue; }
                     if(entry.World!=null&&!entry.World.CanExecute)continue;
-                    if (entry.Instance.IsRunning && !entry.Instance.isActiveAndEnabled) { End(new PNAreaHandle(this, pair.Key), PNAreaEndReason.Disabled); continue; }
-                    if (entry.Guess && !entry.Adopted && entry.Instance.IsRunning && PredictionNow - entry.CreatedAt > OrphanSeconds) { End(new PNAreaHandle(this, pair.Key), PNAreaEndReason.Requested); continue; }
-                    if (entry.Instance.IsRunning) entry.Instance.Advance(entry.Instance.ScaleDelta(gameDelta));
-                    else { entry.Instance.AdvanceRetirement(gameDelta); entry.Retirement -= gameDelta; if (entry.Retirement <= 0) Return(pair.Key, entry); }
+                    var instance = entry.Instance;
+                    if ((instance.IsRunning || instance.IsEnding) && !instance.isActiveAndEnabled) { End(new PNAreaHandle(this, pair.Key), PNAreaEndReason.Disabled); continue; }
+                    if (entry.Guess && !entry.Adopted && instance.IsRunning && PredictionNow - entry.CreatedAt > OrphanSeconds) { End(new PNAreaHandle(this, pair.Key), PNAreaEndReason.Requested); continue; }
+                    if (instance.IsRunning) instance.Perform(instance.ScaleDelta(gameDelta));
+                    else if (instance.IsEnding)
+                    {
+                        // The Ending runs on the area's own clock; when it is over the Cleanup runs (once) and the area goes back to the pool.
+                        if (instance.StepEnding(instance.ScaleDelta(gameDelta))) { instance.RunCleanup(); Return(pair.Key, entry); }
+                    }
+                    else Return(pair.Key, entry);
                 }
                 catch (Exception error) { Debug.LogException(error, this); End(new PNAreaHandle(this, pair.Key), PNAreaEndReason.RuntimeError); }
             }
@@ -418,7 +538,7 @@ public sealed class PNAreaManager : MonoBehaviour, IPNHitReportReceiver
             var request = PNAreaCreateRequest.Replica(record.DefinitionId, input, world.PhysicsOwner, new Vector3(record.Position.X, record.Position.Y, record.Position.Z), owner, follow, record.Scale);
             CreateNow(request, receipt, record.Id);
             if (receipt.Status == PNAreaStatus.Created && entries.TryGetValue(receipt.Handle.InstanceId, out var made) && made.Instance != null && elapsed > 1e-4d)
-                made.Instance.Advance((float)Math.Min(elapsed, PNObjectSyncLimits.MaxReplicaSeconds));
+                made.Instance.Perform((float)Math.Min(elapsed, PNObjectSyncLimits.MaxReplicaSeconds));
         }
         catch (Exception error) { receipt.Error = error; receipt.Status = PNAreaStatus.Failed; }
     }
@@ -470,11 +590,6 @@ public sealed class PNAreaManager : MonoBehaviour, IPNHitReportReceiver
         try { objectSync.RecordEnd(PNObjectRecord.End(PNObjectKind.Area, objectId, PNObjectWorld.Of(entry.World), (byte)reason, new PNObjectVector(at.x, at.y, at.z))); }
         catch (FormatException) { objectSync.NoteRefused(); }
     }
-    private void SafeStop(Entry entry, PNAreaEndReason reason)
-    {
-        try { if (entry.Instance != null) entry.Instance.Stop(reason); } catch (Exception error) { if (entry.Instance != null) entry.Instance.CleanupFailed = true; Debug.LogException(error, this); }
-        try { foreach (var pair in entries) if (ReferenceEquals(pair.Value, entry)) { NotifyEnded(pair.Key, entry, reason); break; } } catch (Exception error) { Debug.LogException(error, this); }
-    }
     private void Return(long id, Entry entry)
     {
         // A failed gameplay cleanup keeps its owner; pool eviction is not a cleanup retry.
@@ -487,7 +602,7 @@ public sealed class PNAreaManager : MonoBehaviour, IPNHitReportReceiver
     private void SceneUnloaded(Scene scene)
     {
         Submit(() => {
-            foreach (var pair in entries.Where(x => x.Value.Scene == scene).ToArray()) { SafeStop(pair.Value, PNAreaEndReason.SceneUnloaded); Return(pair.Key, pair.Value); }
+            foreach (var pair in entries.Where(x => x.Value.Scene == scene).ToArray()) { Stop(pair.Key, pair.Value, PNAreaEndReason.SceneUnloaded); Return(pair.Key, pair.Value); }
             // Storage is scene-local: rebuild idle pools after any scene teardown.
             foreach (var pair in pools.Where(x => x.Value.Scene == scene).ToArray())
             {
@@ -506,7 +621,7 @@ public sealed class PNAreaManager : MonoBehaviour, IPNHitReportReceiver
     {
         if(busy)throw new InvalidOperationException("Area mutation must drain before world teardown.");
         foreach(var pair in entries.Where(x=>ReferenceEquals(x.Value.World,world)).ToArray())
-        { pair.Value.Instance?.Stop(PNAreaEndReason.SceneUnloaded);NotifyEnded(pair.Key,pair.Value,PNAreaEndReason.SceneUnloaded);Return(pair.Key,pair.Value); }
+        { Stop(pair.Key,pair.Value,PNAreaEndReason.SceneUnloaded,true);Return(pair.Key,pair.Value); }
         foreach(var pair in pools.Where(x=>PNWorldGameplay.ForScene(Session,x.Value.Scene)==world).ToArray())
         {
             if(entries.Values.Any(x=>ReferenceEquals(x.Pool,pair.Value)))throw new InvalidOperationException("World area cleanup remains pending.");
@@ -522,7 +637,7 @@ public sealed class PNAreaManager : MonoBehaviour, IPNHitReportReceiver
         {
             try
             {
-                if (!ReferenceEquals(pair.Value.Instance, null)) pair.Value.Instance.Stop(PNAreaEndReason.SessionEnded);
+                if (!ReferenceEquals(pair.Value.Instance, null)) pair.Value.Instance.CancelNow(PNAreaEndReason.SessionEnded);
                 entries.Remove(pair.Key);pair.Value.Lease?.Dispose();
             }
             catch (Exception error) { errors.Add(error); }

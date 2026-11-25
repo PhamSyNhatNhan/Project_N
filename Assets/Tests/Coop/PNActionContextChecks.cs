@@ -176,7 +176,7 @@ namespace ProjectN.Coop.Tests
             Call("Record", new JArray(5L, 3L, new JArray(9L, 1L), 1.2d, new JArray(.1, "burst"))); checks++;
             Throws(() => Call("Record", new JArray(5L, 3L, new JArray(9L, 1L), new JArray(.1, "burst"))), "validator: a fact row without stamp refused");
             Throws(() => Call("Record", new JArray(6L, 3L, new JArray(9L, 1L), 1.2d, new JArray(.1, "burst"))), "validator: tag 6 refused");
-            C(ProjectN.Coop.PNNetworkAuthenticator.NetworkVersion == 45, "NetworkVersion is 45 (the shared value store adds two sync blocks; before that 44: a melee door can be a contact door that follows the body; a hit report can name a melee hit by cast; a run fact carries up to 8 numbers)");
+            C(ProjectN.Coop.PNNetworkAuthenticator.NetworkVersion == 47, "NetworkVersion is 47 (instance lifecycle IL2: a blast Taken hit report names its strike in Detail, a blast End record is sent when its Ending starts; before that 46: instance lifecycle IL1a: an area End record can carry Replaced; before that 45: the shared value store adds two sync blocks; before that 44: a melee door can be a contact door that follows the body; a hit report can name a melee hit by cast; a run fact carries up to 8 numbers)");
             return "[PASS " + checks + " Action context checks]";
         }
     }

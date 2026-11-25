@@ -23,7 +23,7 @@ thêm là các lớp con khác. Mọi kind nằm trong **một registry tên `in
 |---|---|
 | `PNInstanceDefinition` | Abstract base: `Id`, `Kind`, `ImplementationType` (a component for area/projectile, a recipe class for entity), `Payload`, validators, `EntryFields`, `Derive(id, data, entry)`; under Unity `HasPoolTemplate` and `CreatePoolTemplate()` (optional: kinds not built from one component keep the default). |
 | `PNEntityDefinition` | Kind `entity` (RulesVersion 100): `Settings` from the payload (owner, persist, followsOwner, lifetime, prefab, spawnBuffs, despawn; room clear and loot are the world's since RulesVersion 142). |
-| `PNAreaDefinition` / `PNProjectileDefinition` | Kinds `area` / `projectile`. The projectile adds `Destroyable` (JSON entry field `destroyable`) and `Settings<T>()`. |
+| `PNAreaDefinition` / `PNProjectileDefinition` | Kinds `area` / `projectile`. The projectile adds `Destroyable` (JSON entry field `destroyable`) and `Settings<T>()`. The area adds `Traits` (JSON entry field `traits`, see `Assets/Core/Area/PNAreaREADME.md`). |
 | `PNInstances` | `Create(hub)` (once, in `PNGameplayContentModule`), `hub.Instances()`, kind-checked `GetKind<T>` / `GetEffectiveKind<T>` / `TryGetKind<T>`, `RegisterBase<T>` (override must be the same kind). |
 
 Registry family (EveEngine): `hub.GetOrCreateFamily<PNInstanceDefinition>()` makes the registry hold the base and every subclass. `GetOrCreate<PNAreaDefinition>()`
@@ -50,7 +50,7 @@ References in payloads: `context.Require<PNProjectileDefinition>(token, path)` c
 ```
 
 The kind is the kind of `factoryId` (no `kind` field). Beside `id`, `factoryId` and `data`, an entry accepts only the fields its kind lists in `EntryFields`
-(projectile: `destroyable`); any other field is rejected. Ids are unique across all kinds (one registry). The old keys `areas` and `projectiles` are gone.
+(projectile: `destroyable`; area: `traits`); any other field is rejected. Ids are unique across all kinds (one registry). The old keys `areas` and `projectiles` are gone.
 `factoryId` references a code-registered definition (not one from the same batch).
 
 ## Adding a kind (code mod or game code)

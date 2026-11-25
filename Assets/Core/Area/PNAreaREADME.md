@@ -120,24 +120,28 @@ at a later poll. Exit/invalid layer/ending revokes only its own grant via normal
 bypass cleanup. Pending grants are revoked after their mutation resolves. Multiple
 regions (including same caster) remain independent and add modifiers normally.
 
-Gameplay ends before VFX retirement. Fade-in `.1` and fade-out `.3` use Game clock;
-pool return waits for fade. Disable, scene/session teardown and runtime faults skip
-retirement. External OnDisable cleans gameplay immediately and defers pool return
+Gameplay ends before the picture does (IL1a, RulesVersion 177): the time zone's `OnEnd` releases its Buffs and clock modifiers at once, then the area is in its Ending phase
+for `EndingDuration` (= `fadeOut` .3; the zone is not affected by time, so the Ending runs in Game time) and shrinks in `OnEnding`; pool return waits for it. Cancel reasons
+(Disabled, SceneUnloaded, SessionEnded, RuntimeError) have no Ending. External OnDisable cleans gameplay immediately and defers pool return
 until sceneUnloaded/next manager update, avoiding storage destruction races.
 No global timeScale, Control lock or forced Animator/Rigidbody speed.
 
 
 ## Time clock, `area_scale` and shared time targets (RulesVersion157)
 
-- Every area root carries a `PNAreaClock` (an `EveTimeScale`, like `PNProjectileClock`) added by `PNAreaDefinition.CreatePoolTemplate`. The manager advances the instance with `ScaleDelta(gameDelta)`: the clock is advanced every tick (even at scale 0, so an orphaned modifier is reclaimed) and `Advance` receives `delta × Scale`. Retirement/fade still uses real Game time.
+- Every area root carries a `PNAreaClock` (an `EveTimeScale`, like `PNProjectileClock`) added by `PNAreaDefinition.CreatePoolTemplate`. The manager advances the instance with `ScaleDelta(gameDelta)`: the clock is advanced every tick (even at scale 0, so an orphaned modifier is reclaimed) and `OnPerform` (and `OnEnding`) receives `delta × Scale`.
 - `virtual bool AffectedByTime => true`. An implementation that returns false never registers in the time list and keeps full speed. `PNTimeScaleArea` returns false, so overlapping zones do not lengthen each other.
 - `PNTimeTargets` (`IPNTimeTarget`: clock, logical layer, position, active) is one per-world list shared by projectiles (`Projectile`=8) and areas (`Area`=19; `Blast`=18 is reserved for the Blast stage). These are logical time-effect layers, not the GameObject layers; area GameObject layers are unchanged. `Query` is allocation-free.
 - `PNTimeScaleArea.PollClocks` queries that list with the area's layer rule and puts its two modifiers on each clock (one grant per target, released on exit/end). The entity Buff path (`Poll`) is unchanged.
 - Tags `project_n:area_scale` and `project_n:area_damage` are registered. `area_scale` multiplies the time-scale zone radius (read once at `Initialize` from the source snapshot); `area_damage` is registered but no implementation uses it yet.
 ## Pool ownership and implementation
 
-Implement `Initialize`, `Advance`, `Cleanup`; optional `AdvanceRetirement` and
-`RetirementDuration`. `Initialize` receives cloned request input after inactive Get.
+Lifecycle (IL1a, `Docs/InstanceLifecyclePlan.md`): Start → Perform → End → Ending → Cleanup, or Cancel → Cleanup. Implement `OnStart`, `OnPerform`, `Cleanup`;
+optional `OnEnd(reason)`, `EndingDuration` (read after `OnEnd`; 0 = no Ending), `OnEnding(delta)`, `OnCancel(reason)`. The engine classifies the reason, the author does not:
+END = Requested, Expired, OwnerUnavailable, Replaced (real finish: `OnEnd`, then the Ending); CANCEL = Disabled, SceneUnloaded, SessionEnded, RuntimeError (`OnCancel`, no Ending).
+Phases: Running (alive) → Ending (`IsRunning` false, handle not alive, not captured for a late joiner, claims refused) → Done. A second END during the Ending is dropped; a CANCEL
+during it drops the rest. A fault in `OnEnd`/`OnEnding`/`OnPerform` becomes a RuntimeError cancel. `Cleanup` runs exactly once, last, for both paths; a gameplay effect belongs
+in `OnEnd`/`OnCancel` (real area only, `!IsReplica`), not in `Cleanup`. The sync End record carries the reason (`Replaced` = 7, appended). `OnStart` receives cloned request input after inactive Get.
 Only manager returns objects to their pool. Do not call pool Release recursively
 from OnDisable/pool hooks. Clear targets, callback subscriptions, timers and VFX in
 cleanup/reset; handle generation must gate late callbacks. `OnPoolRelease` overrides
@@ -305,3 +309,12 @@ successful gameplay cleanup is not repeated just because resource disposal retri
 New creation is closed during teardown. Fix the cause and call session RetryCleanup;
 new plays remain blocked while required cleanup is pending. Cleanup implementations
 must tolerate partial initialization/retry; resource disposal stays idempotent.
+
+## Traits (IL1b, RulesVersion 177)
+
+A trait is a named rule an area can carry (`Docs/InstanceLifecyclePlan.md` 3.4). Zero or more per area, in declaration order; an area without traits runs as before.
+
+- Definition: `PNAreaTraitDefinition` (id with a pack prefix, a stateless `PNAreaTrait` class, a payload validator; `PNAreaTraitDefinition.NoPayload` for a trait without data), registry `hub.AreaTraits()` (named `area_traits`), registered in code before the areas that use it (`PNAreaGameplayContent`).
+- Content: the entry field `traits` of an `instances` area entry: `"traits":[{"id":"project_n:solizeitastronhringur"}]`; an optional `data` object is the payload that area gives the trait. Checked at load: the trait exists and is inside the pack's dependencies, no trait twice on one area, payload passes the trait's validator. A derived area keeps its parent's traits unless it declares its own (an explicit `[]` removes them). `traits` exists on the area kind only.
+- Behavior: `PNAreaTrait.OnCreated(context)` (after the new area was made and recorded; a failed creation calls nothing) and `OnEnded(context, reason)` (after the area's own `OnEnd`, only for a real finish, never for a Cancel). They run on the Authority only, never for a copy or a guess, inside the manager's queue; a fault in a hook is logged and does not stop the area or the next trait. A trait writes nothing for the network. `PNAreaTraitContext` gives the area, its world, position, owner, payload, `CollectRunning(list)` (running areas of this world carrying the trait; one in its Ending is not counted) and `End(handle, reason)`.
+- First trait `project_n:solizeitastronhringur` (no data): one area carrying it per world instance. A newly made one ends every other running one in the same world instance (any owner) with `Replaced`, through the normal End path: the old area plays its own Ending, nothing is refunded or announced; other worlds are untouched. Made in the same frame: the later one wins. Traits are not shipped on any BaseContent area yet; the checks register their own (`area_test:*`).

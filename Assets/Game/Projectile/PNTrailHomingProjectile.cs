@@ -12,7 +12,7 @@ public class PNTrailHomingProjectile : PNHomingProjectile
 {
     private PNProjectileTrail trail;
     public override void OnPoolCreated() { base.OnPoolCreated(); trail = PNProjectileTrail.Create(this); }
-    protected override void Initialize(PNProjectileSpawn spawn) { base.Initialize(spawn); trail?.Begin(Clock); }
+    protected override void OnStart(PNProjectileSpawn spawn) { base.OnStart(spawn); trail?.Begin(Clock); }
     protected override void Cleanup() { try { trail?.End(); } finally { base.Cleanup(); } }
     public override void DisposePooledResources() { trail?.Dispose(); trail = null; base.DisposePooledResources(); }
 }

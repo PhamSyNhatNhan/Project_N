@@ -34,7 +34,8 @@ public abstract class PNInstanceDefinition : EveIIdentified
     }
     internal void ValidatePayload(EveRegistryHub registry) => validate(Payload, registry);
     public void Validate(EveRegistryHub registry) { ValidatePayload(registry); ValidateReferences(new PNContentReferenceContext(registry)); }
-    public void ValidateReferences(PNContentReferenceContext context) => validateReferences?.Invoke(Payload, context);
+    // A kind that declares more references than its payload (an area's traits) overrides this and calls the base.
+    public virtual void ValidateReferences(PNContentReferenceContext context) => validateReferences?.Invoke(Payload, context);
     public void ValidateInput(JToken input) => validateInput(input?.DeepClone());
     // Subclasses reuse the validators for a derived definition of the same kind and implementation.
     protected Action<JToken, EveRegistryHub> Validator => validate;

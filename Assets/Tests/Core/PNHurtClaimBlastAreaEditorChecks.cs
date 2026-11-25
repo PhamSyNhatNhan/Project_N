@@ -37,7 +37,7 @@ public static class PNHurtClaimBlastAreaEditorChecks
         int count = 0;
         void Check(bool condition, string message) { if (!condition) throw new Exception("Hurt claim blast/area check " + count + ": " + message); count++; }
         var docs = new PNGameContentSource(Path.Combine(Application.streamingAssetsPath, "BaseContent"), ".utmp/no-mods", Array.Empty<string>()).ReadDocuments().ToArray();
-        var hub = new EveContentBootstrap().Build(new EveIContentModule[] { new PNContentModule(), new PNGameplayContentModule(), new PNWorldFixtureModule() }, docs);
+        var hub = new EveContentBootstrap().Build(new EveIContentModule[] { new PNContentModule(), new PNGameplayContentModule(), new PNWorldFixtureModule(), new PNBlastStrikesProbeModule() }, docs);
         EveRegistrySession.Begin(); EveRegistrySession.Start(hub, EveSessionRole.Host, EveContentCompatibility.Create(hub, docs, "test:hurt_claims_ba"));
         var session = EveRegistrySession.Context; var scheduler = new EveEntityPreparationScheduler(session, new EvePreparationProfile());
         var worlds = new PNWorldRuntime(session, scheduler); var anchor = EditorSceneManager.NewPreviewScene();
@@ -104,11 +104,11 @@ public static class PNHurtClaimBlastAreaEditorChecks
             Advance(.1f);
             long blastId = SpawnId(PNObjectKind.Blast);
             Check(blastId > 0 && wire != null && clientBlasts.ReplicaCount == 1, "the copy of the blast is on the player's machine");
-            sink.Relay = (kind, id, hit) => { if (kind == PNObjectKind.Blast) hostBlasts.AcceptHitReport(PNHitReport.TakenFromObject(PNObjectKind.Blast, id), victim, 1.5f); };
+            sink.Relay = (kind, id, hit) => { if (kind == PNObjectKind.Blast) hostBlasts.AcceptHitReport(PNHitReport.TakenFromObject(PNObjectKind.Blast, id, hit), victim, 1.5f); };
             Advance(.6f);
             Check(sink.Sent.Count == 1 && sink.Sent[0].Kind == PNObjectKind.Blast && sink.Sent[0].Id == blastId, "his copy sent exactly one claim for the blast (" + sink.Sent.Count + ")");
             Check(book.Accepted == 1 && Health(victim) < health, "the authority applied the blast's damage on the claim (health " + health + " -> " + Health(victim) + ")");
-            string expected = "o" + blastId + ":" + PNHurtClaimLimits.ClaimKeyIndex(victim.EntityId.Value);
+            string expected = PNBlastManager.HitName(blastId, 0, victim.EntityId.Value);
             Check(earlyKeys.Contains(expected) && damageKeys.Contains(expected), "the claimed hit is named by its victim on both sides (" + expected + ")");
 
             // refusals
@@ -135,6 +135,31 @@ public static class PNHurtClaimBlastAreaEditorChecks
             hostBlasts.Create(new PNBlastCreateRequest(PNBlastGameplayContent.Cylinder, BlastInput(.3, .3), source, scene, Vector3.zero, owner, PNBlastDependency.Independent)); Advance(.6f);
             Check(Health(victim) < health, "once the policy hands the player back the blast hurts him itself");
             Check(!hostBlasts.AcceptHitReport(PNHitReport.TakenFromObject(PNObjectKind.Blast, blastId), victim, 1.5f) && book.Refusals.ContainsKey("policy"), "a claim for a player the policy does not hand over is refused");
+
+            // ================= IL2: a blast with three strikes: one claim ticket per strike, named by the strike =================
+            policy.Ids.Add(victim.EntityId.Value); sink.Sent.Clear(); damageKeys.Clear(); earlyKeys.Clear(); health = Health(victim); int acceptedBefore = book.Accepted;
+            sink.Relay = (kind, id, hit) => { if (kind == PNObjectKind.Blast) hostBlasts.AcceptHitReport(PNHitReport.TakenFromObject(PNObjectKind.Blast, id, hit), victim, 1.5f); };
+            hostBlasts.Create(new PNBlastCreateRequest(PNBlastStrikesProbe.Id, new JObject(), source, scene, Vector3.zero, owner, PNBlastDependency.Independent));
+            Advance(.1f);
+            long strikesId = SpawnId(PNObjectKind.Blast);
+            Check(strikesId > 0 && clientBlasts.ReplicaCount == 1, "the copy of the three-strike blast is on the player's machine");
+            Advance(1.2f);
+            Check(sink.Sent.Count == 3 && sink.Sent.Select(x => x.Hit).SequenceEqual(new[] { 0, 1, 2 }) && sink.Sent.All(x => x.Kind == PNObjectKind.Blast && x.Id == strikesId),
+                "his copy claimed each strike once, the aftershock in OnEnd included (" + string.Join(",", sink.Sent.Select(x => x.Hit)) + ")");
+            Check(book.Accepted - acceptedBefore == 3 && Health(victim) < health, "the authority applied the prepared damage once per strike (health " + health + " -> " + Health(victim) + ")");
+            Check(Enumerable.Range(0, 3).All(i => earlyKeys.Contains(PNBlastManager.HitName(strikesId, i, victim.EntityId.Value)) && damageKeys.Contains(PNBlastManager.HitName(strikesId, i, victim.EntityId.Value))),
+                "each claimed hit is named by blast, strike and victim on both sides (" + string.Join(",", damageKeys) + ")");
+            Check(clientBlasts.ReplicaCount == 0 && hostBlasts.BorrowedCount == 0 && clientBlasts.BorrowedCount == 0, "the blast and its copy went back after their Ending");
+            // refusals are per strike
+            policy.Ids.Add(victim.EntityId.Value); sink.Relay = null; sink.Sent.Clear();
+            hostBlasts.Create(new PNBlastCreateRequest(PNBlastStrikesProbe.Id, new JObject(), source, scene, Vector3.zero, owner, PNBlastDependency.Independent));
+            Advance(.1f); long secondId = SpawnId(PNObjectKind.Blast); Advance(.5f);
+            Check(sink.Sent.Count == 2, "two strikes so far, two claims sent (" + sink.Sent.Count + ")");
+            Check(hostBlasts.AcceptHitReport(PNHitReport.TakenFromObject(PNObjectKind.Blast, secondId, 1), victim, 1.5f), "strike 1 is claimed on its own ticket");
+            Check(!hostBlasts.AcceptHitReport(PNHitReport.TakenFromObject(PNObjectKind.Blast, secondId, 1), victim, 1.5f) && book.Refusals.ContainsKey("again"), "the same strike cannot be claimed twice");
+            Check(hostBlasts.AcceptHitReport(PNHitReport.TakenFromObject(PNObjectKind.Blast, secondId, 0), victim, 1.5f), "strike 0 is still its own claim after strike 1 was taken");
+            Check(!hostBlasts.AcceptHitReport(PNHitReport.TakenFromObject(PNObjectKind.Blast, secondId, 5), victim, 1.5f), "a strike that has not happened has no ticket");
+            Advance(1.2f);
 
             // ================= V3: area =================
             policy.Ids.Add(victim.EntityId.Value); sink.Sent.Clear(); sink.Relay = null;

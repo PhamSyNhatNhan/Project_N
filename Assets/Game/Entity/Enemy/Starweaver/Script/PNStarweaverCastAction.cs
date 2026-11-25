@@ -52,7 +52,7 @@ public sealed class PNStarweaverProjectile:PNDirectionalProjectile
 {
     private PNStarweaverNeedleVisual visual; private Vector3 contactPoint,environmentPoint;
     public override void OnPoolCreated(){base.OnPoolCreated();visual=PNStarweaverNeedleVisual.Create(this);}
-    protected override void Initialize(PNProjectileSpawn spawn){base.Initialize(spawn);contactPoint=environmentPoint=spawn.Position;visual?.Begin(spawn,(float)Launch.ScaleFactor);}
+    protected override void OnStart(PNProjectileSpawn spawn){base.OnStart(spawn);contactPoint=environmentPoint=spawn.Position;visual?.Begin(spawn,(float)Launch.ScaleFactor);}
     protected override void OnContacts(PNProjectileContacts contacts)
     {if(contacts.HasEnvironment)environmentPoint=contacts.Environment.Point;base.OnContacts(contacts);}
     protected override void OnTargets(System.Collections.Generic.IReadOnlyList<PNProjectileContact> targets)

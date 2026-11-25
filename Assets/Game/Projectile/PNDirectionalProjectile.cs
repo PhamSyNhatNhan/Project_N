@@ -104,7 +104,7 @@ public class PNDirectionalProjectile : PNProjectileInstance
     protected override Vector3 Gravity => settings.Gravity == null ? Vector3.zero : new Vector3((float)settings.Gravity[0], (float)settings.Gravity[1], (float)settings.Gravity[2]);
     protected override bool IsExpired => settings.ByDistance ? Distance >= limit : Age >= limit;
     protected override int SubStepLimit => settings.SubSteps > 0 ? settings.SubSteps : int.MaxValue;
-    protected override void Initialize(PNProjectileSpawn spawn)
+    protected override void OnStart(PNProjectileSpawn spawn)
     {
         settings = ParseSettings();
         double factor = Launch.SpeedFactor;

@@ -55,7 +55,8 @@ public readonly struct PNClaimTicketKey : System.IEquatable<PNClaimTicketKey>
 {
     public readonly byte Kind; public readonly long A, B; public readonly int C;
     private PNClaimTicketKey(byte kind, long a, long b, int c) { Kind = kind; A = a; B = b; C = c; }
-    public static PNClaimTicketKey Blast(long objectId) => new PNClaimTicketKey(1, objectId, 0L, 0);
+    // A blast may strike several times (IL2): each strike has its own ticket, named by the blast and the strike index.
+    public static PNClaimTicketKey Blast(long objectId, int strike = 0) => new PNClaimTicketKey(1, objectId, 0L, strike);
     public static PNClaimTicketKey Melee(long castKey, long actionOrdinal, int hit) => new PNClaimTicketKey(2, castKey, actionOrdinal, hit);
     public bool Equals(PNClaimTicketKey other) => Kind == other.Kind && A == other.A && B == other.B && C == other.C;
     public override bool Equals(object other) => other is PNClaimTicketKey key && Equals(key);
