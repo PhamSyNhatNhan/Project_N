@@ -106,7 +106,7 @@ public sealed class PNComboStrikeAction : PNSkillAction, IPNSkillMotionAction
                 hitAt[i] = hits[i]["at"].Value<float>();
                 boxes[i] = new PNSkillMeleeHitbox(c, caster, PNSkillValues.Parse(hits[i]["value"]), PNDamage.ParseIFrameDuration((JObject)hits[i]), canCrit, i);
             }
-            radius = boxes[0].ScaleLength(radius); thickness = boxes[0].ScaleLength(thickness); if (innerRadius > 0f) innerRadius = boxes[0].ScaleLength(innerRadius);
+            if (boxes.Length > 0) { radius = boxes[0].ScaleLength(radius); thickness = boxes[0].ScaleLength(thickness); if (innerRadius > 0f) innerRadius = boxes[0].ScaleLength(innerRadius); }
         }
         catch { Dispose(); throw; }
     }

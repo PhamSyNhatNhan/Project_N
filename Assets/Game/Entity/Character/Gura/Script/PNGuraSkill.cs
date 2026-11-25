@@ -29,6 +29,36 @@ public class PNGuraSkill : PNPlayerSkill
         Raise(PNGuraContent.WaterCoat); Raise(PNGuraContent.NextFour);
     }
 
+    // A tap Dash gives its reward (skill data `skill.reward`), a hold Dash none.
+    protected override void TapDash() { if (TryDash()) Pay(PNGuraContent.DashSkill, true); }
+
+    // ---- stack rewards (Docs/GuraCharacter.md 4.6): a strike pays only when it HITS, per hit, from the hit skill's own data `skill.reward {burst, wave, cut}` ----
+    private readonly System.Collections.Generic.Dictionary<EveId, int[]> rewards = new System.Collections.Generic.Dictionary<EveId, int[]>();
+    private readonly System.Collections.Generic.Dictionary<EveId, double> cuts = new System.Collections.Generic.Dictionary<EveId, double>();
+    private PNSkillActionContext prepaid, lastPaid; private long lastPaidAt = long.MinValue;
+    // The strike was paid when it was cast (the flagged fourth strike needs no hit): its hits pay nothing more.
+    public void Prepaid(PNSkillActionContext context) => prepaid = context;
+    public override void OnHitConfirmed(PNSkillActionContext context, PNStat target, PNDamageResult result)
+    {
+        base.OnHitConfirmed(context, target, result);
+        if (ReferenceEquals(context, prepaid)) return;
+        // One reward per sweep (a sweep that hits three enemies is one hit of the table): hits of one sweep follow each other within microseconds.
+        long now = System.Diagnostics.Stopwatch.GetTimestamp(); if (ReferenceEquals(context, lastPaid) && now - lastPaidAt < System.Diagnostics.Stopwatch.Frequency / 200) return;
+        if (Pay(context.SkillId, true)) { lastPaid = context; lastPaidAt = now; }
+    }
+    // Gives the reward of a skill (false when it has none). `authority` is whether the machine may also cut the Ultimate cooldown.
+    public bool Pay(EveId skillId, bool authority)
+    {
+        if (!rewards.TryGetValue(skillId, out var values))
+        {
+            var reward = (GetData(skillId).Skill as JObject)?["reward"] as JObject;
+            values = reward == null ? null : new[] { reward["burst"]?.Value<int>() ?? 0, reward["wave"]?.Value<int>() ?? 0 };
+            rewards[skillId] = values; cuts[skillId] = reward?["cut"]?.Value<double>() ?? 0d;
+        }
+        if (values == null) return false;
+        GuraResources.Gain(Abilities, values[0], values[1], cuts[skillId], authority); return true;
+    }
+
     // Starts the timed state, or refreshes it when it is already on (the collection's grant: it works on the owner's guess too).
     private void Raise(EveId id) => Abilities.GrantState(id);
 }

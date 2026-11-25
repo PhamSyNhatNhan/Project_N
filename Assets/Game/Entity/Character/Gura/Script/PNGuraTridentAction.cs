@@ -84,6 +84,14 @@ public sealed class PNGuraTridentAction : PNSkillAction
         if (!hasPoint) return;
         var at = new PNSkillActionContext(context.Skill, context.SkillId, context.Data, context.Registry, null, context.Direction, context.Invocation, false, lastPoint);
         using (var create = CreateOperation(at, PNBlastGameplayContent.CreateBlast)) create.Execute(at, payload["blast"]);
+        // The trident pays its reward only when its blast has something to hit (an enemy of the caster inside the blast's radius).
+        if (context.Mode == PNSkillMode.Authority && context.Skill is PNGuraSkill gura && Hits(lastPoint, payload["blast"]["input"]["radius"].Value<float>())) gura.Pay(context.SkillId, true);
+    }
+    private bool Hits(Vector3 at, float radius)
+    {
+        var stat = context.Skill.GetComponent<PNStat>(); if (stat == null) return false;
+        foreach (var hit in Physics.OverlapSphere(at, radius, stat.TargetLayers.Mask, QueryTriggerInteraction.Ignore)) { var other = hit.GetComponent<PNStat>(); if (other != null && other.IsReady && !other.IsDead && other != stat) return true; }
+        return false;
     }
     public override void Exit(PNSkillActionContext c) { try { c.CompleteAction(); } finally { Dispose(); } }
     public override void Cancel(PNSkillActionContext c) { try { c.CancelEffects(); } finally { Dispose(); } }

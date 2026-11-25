@@ -11,7 +11,8 @@ public sealed class GuraCastBehavior : PNSkillBehavior
 {
     public const string DecisionPoint = "cast_target";
     private readonly PNSkillBehaviorContext context;
-    private readonly EveId cooldownId, actionId, afterId;
+    private readonly EveId cooldownId, actionId, afterId, burstCooldownId, burstActionId;
+    private readonly int gainBurst, gainWave; private readonly double gainCut;
     private readonly float reach;
     private PNSkillAction action; private PNSkillActionContext actionContext; private bool casting; private PNStat stat;
     public static int Casts, Cancels;
@@ -24,22 +25,29 @@ public sealed class GuraCastBehavior : PNSkillBehavior
         cooldownId = EveId.Parse(PNBuffContentBatch.String(data, "cooldownAbilityId")); actionId = EveId.Parse(PNBuffContentBatch.String(data, "actionDataId"));
         reach = (float)PNBuffContentBatch.Number(data, "reach");
         afterId = data["afterStateId"] == null ? default : EveId.Parse(PNBuffContentBatch.String(data, "afterStateId"));
+        var gain = (JObject)data["gain"]; gainBurst = PNBuffContentBatch.Integer(gain, "burst"); gainWave = PNBuffContentBatch.Integer(gain, "wave"); gainCut = PNBuffContentBatch.Number(gain, "cut");
+        var inBurst = (JObject)data["inBurst"]; burstCooldownId = EveId.Parse(PNBuffContentBatch.String(inBurst, "cooldownAbilityId")); burstActionId = EveId.Parse(PNBuffContentBatch.String(inBurst, "actionDataId"));
     }
     public static void Validate(JToken data, EveRegistryHub hub)
     {
-        var obj = PNBuffContentBatch.Object(data); PNBuffContentBatch.Fields(obj, "cooldownAbilityId", "actionDataId", "reach", "afterStateId");
+        var obj = PNBuffContentBatch.Object(data); PNBuffContentBatch.Fields(obj, "cooldownAbilityId", "actionDataId", "reach", "afterStateId", "gain", "inBurst");
         EveId.Parse(PNBuffContentBatch.String(obj, "cooldownAbilityId")); EveId.Parse(PNBuffContentBatch.String(obj, "actionDataId"));
         double r = PNBuffContentBatch.Number(obj, "reach"); if (!(r > 0d && r <= 50d)) throw new FormatException("gura_cast reach must be in (0, 50].");
         if (obj["afterStateId"] != null) EveId.Parse(PNBuffContentBatch.String(obj, "afterStateId"));
+        var gain = PNBuffContentBatch.Object(obj["gain"]); PNBuffContentBatch.Fields(gain, "burst", "wave", "cut"); PNBuffContentBatch.Integer(gain, "burst"); PNBuffContentBatch.Integer(gain, "wave"); PNBuffContentBatch.Number(gain, "cut");
+        var burst = PNBuffContentBatch.Object(obj["inBurst"]); PNBuffContentBatch.Fields(burst, "cooldownAbilityId", "actionDataId"); EveId.Parse(PNBuffContentBatch.String(burst, "cooldownAbilityId")); EveId.Parse(PNBuffContentBatch.String(burst, "actionDataId"));
     }
-    public static void ValidateReferences(PNContentReferenceContext context, JToken data) => context.Require<EveSkillDefinition>(PNBuffContentBatch.Object(data)["actionDataId"], "actionDataId");
+    public static void ValidateReferences(PNContentReferenceContext context, JToken data)
+    { var obj = PNBuffContentBatch.Object(data); context.Require<EveSkillDefinition>(obj["actionDataId"], "actionDataId"); context.Require<EveSkillDefinition>(PNBuffContentBatch.Object(obj["inBurst"])["actionDataId"], "inBurst.actionDataId"); }
 
     public override void Input(PNSkillInputEvent input) { if (input.Interaction == PNSkillInteraction.Tap && input.Phase == PNSkillInputPhase.Started) Cast(); }
 
     public bool Cast()
     {
         if (casting) return false;
-        var cooldown = context.Abilities.GetCooldown(cooldownId);
+        // In Burst the Skill is the Skill Burst: its own action and its own cooldown.
+        bool burst = GuraResources.InBurst(context.Abilities);
+        var cooldown = context.Abilities.GetCooldown(burst ? burstCooldownId : cooldownId); var useAction = burst ? burstActionId : actionId;
         if (!cooldown.CanConsume() || !context.TryBegin()) return false;
         casting = true; bool failed = true;
         try
@@ -47,7 +55,7 @@ public sealed class GuraCastBehavior : PNSkillBehavior
             stat = context.Skill.GetComponent<PNStat>();
             var target = context.Skill.CurrentInvocation.Choose<PNStat>(DecisionPoint, () => Nearest(), null, reach);
             Vector3 direction = AimAt(target);
-            action = context.CreateAction(actionId, out actionContext, target != null ? new[] { target } : Array.Empty<PNStat>(), direction);
+            action = context.CreateAction(useAction, out actionContext, target != null ? new[] { target } : Array.Empty<PNStat>(), direction);
             context.Skill.GetComponent<PNPlayerMove>()?.FaceSkillDirection(new Vector2(direction.x, direction.z));
             action.Start(actionContext); action.Perform(actionContext);
             if (!cooldown.TryConsume()) throw new InvalidOperationException("Cast cooldown changed during the cast.");

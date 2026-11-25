@@ -1,5 +1,6 @@
 using System;
 using EveEngine;
+using System.Linq;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
 
@@ -16,6 +17,9 @@ public sealed class GuraAttackBehavior : PNSkillBehavior
     private readonly EveId stepId, windowId, nextFourId;
     private readonly EveId[] steps = new EveId[Steps];
     private readonly float reach;
+    private readonly int[] gainBurst = new int[Steps], gainWave = new int[Steps]; private readonly double[] gainCut = new double[Steps];
+    private readonly EveId freeId; private readonly int freeBurst, freeWave;
+    private readonly double[] milestones; private readonly double fangPerMilestone;
     private PNSkillAction action; private PNSkillActionContext actionContext; private bool casting;
     private PNStat stat;
     public static int Casts, NoTarget, Cancels;
@@ -28,30 +32,41 @@ public sealed class GuraAttackBehavior : PNSkillBehavior
         stepId = EveId.Parse(PNBuffContentBatch.String(data, "comboStepId")); windowId = EveId.Parse(PNBuffContentBatch.String(data, "comboWindowId")); nextFourId = EveId.Parse(PNBuffContentBatch.String(data, "nextFourId"));
         reach = (float)PNBuffContentBatch.Number(data, "reach");
         var list = (JArray)data["steps"]; for (int i = 0; i < Steps; i++) steps[i] = EveId.Parse(list[i].Value<string>());
+        var gains = (JArray)data["gains"];
+        for (int i = 0; i < Steps; i++) { var g = (JObject)gains[i]; gainBurst[i] = PNBuffContentBatch.Integer(g, "burst"); gainWave[i] = PNBuffContentBatch.Integer(g, "wave"); gainCut[i] = PNBuffContentBatch.Number(g, "cut"); }
+        freeId = EveId.Parse(PNBuffContentBatch.String(data, "freeSkillId")); var free = (JObject)data["free"]; freeBurst = PNBuffContentBatch.Integer(free, "burst"); freeWave = PNBuffContentBatch.Integer(free, "wave");
+        var chain = (JObject)data["chain"]; milestones = ((JArray)chain["milestones"]).Select(x => x.Value<double>()).ToArray(); fangPerMilestone = PNBuffContentBatch.Number(chain, "fang");
     }
     public static void Validate(JToken data, EveRegistryHub hub)
     {
-        var obj = PNBuffContentBatch.Object(data); PNBuffContentBatch.Fields(obj, "comboStepId", "comboWindowId", "nextFourId", "reach", "steps");
+        var obj = PNBuffContentBatch.Object(data); PNBuffContentBatch.Fields(obj, "comboStepId", "comboWindowId", "nextFourId", "reach", "steps", "gains", "chain", "freeSkillId", "free");
         EveId.Parse(PNBuffContentBatch.String(obj, "comboStepId")); EveId.Parse(PNBuffContentBatch.String(obj, "comboWindowId")); EveId.Parse(PNBuffContentBatch.String(obj, "nextFourId"));
         double r = PNBuffContentBatch.Number(obj, "reach"); if (!(r > 0d && r <= 50d)) throw new FormatException("gura_attack reach must be in (0, 50].");
         if (!(obj["steps"] is JArray list) || list.Count != Steps) throw new FormatException("gura_attack needs " + Steps + " step skills.");
         foreach (var item in list) { if (item.Type != JTokenType.String) throw new FormatException("gura_attack steps are skill IDs."); EveId.Parse(item.Value<string>()); }
+        if (!(obj["gains"] is JArray gains) || gains.Count != Steps) throw new FormatException("gura_attack needs one gain entry per step.");
+        foreach (var token in gains) { var g = PNBuffContentBatch.Object(token); PNBuffContentBatch.Fields(g, "burst", "wave", "cut"); if (PNBuffContentBatch.Integer(g, "burst") < 0 || PNBuffContentBatch.Integer(g, "wave") < 0 || PNBuffContentBatch.Number(g, "cut") < 0d) throw new FormatException("gura_attack gains are not negative."); }
+        EveId.Parse(PNBuffContentBatch.String(obj, "freeSkillId")); var freeGain = PNBuffContentBatch.Object(obj["free"]); PNBuffContentBatch.Fields(freeGain, "burst", "wave"); PNBuffContentBatch.Integer(freeGain, "burst"); PNBuffContentBatch.Integer(freeGain, "wave");
+        var chain = PNBuffContentBatch.Object(obj["chain"]); PNBuffContentBatch.Fields(chain, "milestones", "fang");
+        if (!(chain["milestones"] is JArray ms) || ms.Count != 3) throw new FormatException("gura_attack chain needs three milestones."); PNBuffContentBatch.Number(chain, "fang");
     }
     public static void ValidateReferences(PNContentReferenceContext context, JToken data)
     {
         var obj = PNBuffContentBatch.Object(data);
         foreach (var item in (JArray)obj["steps"]) context.Require<EveSkillDefinition>(item, "steps");
+        context.Require<EveSkillDefinition>(obj["freeSkillId"], "freeSkillId");
     }
 
     public override void Input(PNSkillInputEvent input)
     {
         // A tap presses at once (Started); a held press repeats (Performed). Releasing ends nothing: the strike in flight finishes.
-        bool press = input.Interaction == PNSkillInteraction.Tap ? input.Phase == PNSkillInputPhase.Started : input.Interaction == PNSkillInteraction.Repeat && input.Phase == PNSkillInputPhase.Performed;
-        if (press) Cast();
+        bool held = input.Interaction == PNSkillInteraction.Repeat && input.Phase == PNSkillInputPhase.Performed;
+        bool press = input.Interaction == PNSkillInteraction.Tap ? input.Phase == PNSkillInputPhase.Started : held;
+        if (press) Cast(held);
     }
 
     // Public so a fixture can strike without input.
-    public bool Cast()
+    public bool Cast(bool held = false)
     {
         // A press during the recovery of a strike (all its hits done) cuts the recovery short and starts the next strike; during the hits it is ignored.
         if (casting)
@@ -71,12 +86,17 @@ public sealed class GuraAttackBehavior : PNSkillBehavior
             int index = flagged ? Steps - 1 : IsOn(abilities, windowId) ? Math.Min(step.Current, Steps - 1) : 0;
             if (target == null) NoTarget++;
             Vector3 direction = AimAt(target);
-            action = context.CreateAction(steps[index], out actionContext, target != null ? new[] { target } : Array.Empty<PNStat>(), direction);
+            // A held strike in Burst spends Wave (the chain); the one that would reach the last milestone is the free Skill Burst instead of a strike.
+            var waveCounter = abilities.GetCounter(PNGuraContent.WaveStack); var chainCount = abilities.GetCounter(PNGuraContent.ChainCount);
+            bool chainStrike = held && GuraResources.InBurst(abilities) && waveCounter.Current > 0;
+            bool final = chainStrike && (IsOn(abilities, PNGuraContent.ChainState) ? chainCount.Current : 0) + 1 >= (int)milestones[2];
+            action = context.CreateAction(final ? freeId : steps[index], out actionContext, target != null ? new[] { target } : Array.Empty<PNStat>(), direction);
             (action as IPNSkillMotionAction)?.BindMovementOwner(() => context.Skill.CancelBindingExecution());
             context.Skill.GetComponent<PNPlayerMove>()?.FaceSkillDirection(new Vector2(direction.x, direction.z));
             action.Start(actionContext); action.Perform(actionContext);
             if (flagged) foreach (var on in abilities.Find(nextFourId)) if (on is PNAbilityState s && s.IsActive) s.End();
             step.SetAmount((index + 1) % Steps);
+            Reward(abilities, index, chainStrike, final, flagged, actionContext.Mode == PNSkillMode.Authority);
             abilities.GrantState(windowId);
             context.Commit(target != null ? new[] { target } : null, direction);
             if (actionContext.Mode == PNSkillMode.Authority) Casts++;
@@ -86,12 +106,31 @@ public sealed class GuraAttackBehavior : PNSkillBehavior
         finally { if (failed) { try { action?.Cancel(actionContext); } catch { } Finish(true); } }
     }
 
-    // Reads work on the owner's guess too (a replica); the states are only written through the collection's own grant, which a guess may do.
-    private static bool IsOn(PNAbilityCollection abilities, EveId id)
+    // The strike's reward. In Burst a HELD strike spends one Wave (the chain): the count reaches 6, 12, 18 (each +Fang, the first two keep the bonus state alive, the last gives the free Skill Burst); any other strike
+    // gives the table's BurstStack / Wave. The chain lives while its short State is refreshed; when it lapses the milestone states (the bonuses) lapse with it.
+    private void Reward(PNAbilityCollection abilities, int index, bool chainStrike, bool final, bool flagged, bool authority)
     {
-        foreach (var found in abilities.Find(id)) if (found is PNAbilityState state && state.IsActive) return true;
-        return false;
+        var wave = abilities.GetCounter(PNGuraContent.WaveStack);
+        if (!(chainStrike && wave.TryConsume(1)))
+        {
+            // The flagged fourth strike needs no hit: it pays when it is cast (and its hits pay nothing more). Any other strike pays per hit (PNGuraSkill.OnHitConfirmed).
+            if (flagged) { GuraResources.Gain(abilities, gainBurst[index], gainWave[index], gainCut[index], authority); context.Skill.GetComponent<PNGuraSkill>()?.Prepaid(actionContext); }
+            return;
+        }
+        var count = abilities.GetCounter(PNGuraContent.ChainCount);
+        if (!GuraResources.IsOn(abilities, PNGuraContent.ChainState)) { count.SetAmount(0); GuraResources.End(abilities, PNGuraContent.Chain6); GuraResources.End(abilities, PNGuraContent.Chain12); }
+        int n = count.Current + 1; count.SetAmount(n);
+        abilities.GrantState(PNGuraContent.ChainState);
+        var fang = abilities.GetCounter(PNGuraContent.FangStack);
+        if (n >= (int)milestones[0]) abilities.GrantState(PNGuraContent.Chain6);
+        if (n >= (int)milestones[1]) abilities.GrantState(PNGuraContent.Chain12);
+        for (int i = 0; i < milestones.Length; i++) if (n == (int)milestones[i]) fang.Add((int)fangPerMilestone);
+        // The last milestone: the free Skill Burst gives what a Skill Burst gives (Wave, the next-strike flag) and no cooldown; the chain starts over.
+        if (final) { count.SetAmount(0); GuraResources.End(abilities, PNGuraContent.ChainState); abilities.GrantState(nextFourId); }
     }
+
+    // Reads work on the owner's guess too (a replica); the states are only written through the collection's own grant, which a guess may do.
+    private static bool IsOn(PNAbilityCollection abilities, EveId id) => GuraResources.IsOn(abilities, id);
 
     private PNStat Nearest()
     {

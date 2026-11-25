@@ -506,6 +506,138 @@ namespace ProjectN.Coop.Tests
                     Mark("gura-trident-hit");
                 }
                 yield return Wait(() => Has("gura-trident-hit"), "the host verified the trident"); if (failed) yield break;
+                // ---- Gura G2: Ultimate tap (shark) and hold (dive, released into the shark) ----
+                if (name == "client1")
+                {
+                    yield return Wait(() => guraSkill.CurrentInvocation == null && remote1.PendingPredictions == 0, "Gura idle before the Ultimate"); if (failed) yield break;
+                    try
+                    {
+                        int guessed = remote1.PredictedCount;
+                        guraSkill.RequestSlot(PNSkillSlots.Ultimate, new PNSkillInputEvent(PNSkillInputPhase.Started, PNSkillInteraction.Tap)); bool pressed = guraSkill.RequestSlot(PNSkillSlots.Ultimate, new PNSkillInputEvent(PNSkillInputPhase.Performed, PNSkillInteraction.Tap));
+                        Check(pressed && remote1.PredictedCount == guessed + 1, "client1 guesses the Ultimate shark"); Mark("gura-ult-tap");
+                    } catch (Exception e) { Fail(e); yield break; }
+                    yield return Wait(() => remote1.PendingPredictions == 0 && guraSkill.CurrentInvocation == null, "the host answered the Ultimate: " + Diag(remote1, e1)); if (failed) yield break;
+                }
+                if (host)
+                {
+                    yield return Wait(() => Has("gura-ult-tap") && GuraUltimateBehavior.Casts >= 1, "the host cast the Ultimate shark (" + GuraUltimateBehavior.Casts + ")"); if (failed) yield break;
+                    yield return Wait(() => guraSkill.Abilities.GetCounter(PNGuraContent.BurstStack).Current >= 15, "the shark's hit gave BurstStack (" + guraSkill.Abilities.GetCounter(PNGuraContent.BurstStack).Current + ")"); if (failed) yield break;
+                    try { guraSkill.Abilities.GetCooldown(PNGuraContent.UltimateReady).ResetToFull(); Mark("gura-ult-reset"); } catch (Exception e) { Fail(e); yield break; }
+                }
+                yield return Wait(() => Has("gura-ult-reset"), "the Ultimate cooldown reset"); if (failed) yield break;
+                if (name == "client1")
+                {
+                    yield return Wait(() => guraSkill.CurrentInvocation == null && remote1.PendingPredictions == 0 && !guraSkill.Abilities.GetCooldown(PNGuraContent.UltimateReady).IsRecovering, "Gura ready for the dive"); if (failed) yield break;
+                    try { guraSkill.RequestSlot(PNSkillSlots.Ultimate, new PNSkillInputEvent(PNSkillInputPhase.Started, PNSkillInteraction.Hold)); guraSkill.RequestSlot(PNSkillSlots.Ultimate, new PNSkillInputEvent(PNSkillInputPhase.Performed, PNSkillInteraction.Hold)); Mark("gura-dive-sent"); } catch (Exception e) { Fail(e); yield break; }
+                    yield return new WaitForSeconds(.8f);
+                    try { guraSkill.RequestSlot(PNSkillSlots.Ultimate, new PNSkillInputEvent(PNSkillInputPhase.Canceled, PNSkillInteraction.Hold)); } catch (Exception e) { Fail(e); yield break; }
+                    yield return Wait(() => remote1.PendingPredictions == 0 && guraSkill.CurrentInvocation == null, "the host answered the dive: " + Diag(remote1, e1)); if (failed) yield break;
+                }
+                if (host)
+                {
+                    yield return Wait(() => Has("gura-dive-sent") && e1.GetComponent<PNBuffManager>().Buffs.Snapshot().Any(x => x.Id.Equals(EveId.Parse("project_n:gura_untouchable"))), "Gura is untouchable while she dives"); if (failed) yield break;
+                    try
+                    {
+                        var diver = e1.GetComponent<PNStat>(); double beforeHit = diver.GetCurrent(PNContentIds.Health); guraPrey.SendDamage(diver, 50d, EveId.Parse("base:physical"));
+                        Check(diver.GetCurrent(PNContentIds.Health) >= beforeHit - 1e-9, "a real hit on the diving Gura did nothing (" + beforeHit + " -> " + diver.GetCurrent(PNContentIds.Health) + ")");
+                    } catch (Exception e) { Fail(e); yield break; }
+                    yield return Wait(() => !e1.GetComponent<PNBuffManager>().Buffs.Snapshot().Any(x => x.Id.Equals(EveId.Parse("project_n:gura_untouchable"))), "the dive took the immunity back"); if (failed) yield break;
+                    yield return Wait(() => GuraUltimateBehavior.Dives >= 1 && GuraUltimateBehavior.Casts >= 2, "the host dived and called the shark (dives " + GuraUltimateBehavior.Dives + ", casts " + GuraUltimateBehavior.Casts + ")"); if (failed) yield break;
+                    // G3: fill the Burst gauge and the Fangs on the authority; the client sees them replicate.
+                    try { guraSkill.Abilities.GetCounter(PNGuraContent.BurstStack).SetAmount(150); guraSkill.Abilities.GetCounter(PNGuraContent.FangStack).SetAmount(3); Mark("gura-g3-ready"); } catch (Exception e) { Fail(e); yield break; }
+                }
+                yield return Wait(() => Has("gura-g3-ready"), "the Burst gauge filled"); if (failed) yield break;
+                if (name == "client1")
+                {
+                    yield return Wait(() => guraSkill.CurrentInvocation == null && remote1.PendingPredictions == 0 && guraSkill.Abilities.GetCounter(PNGuraContent.BurstStack).Current >= 125, "client1 sees the gauge full"); if (failed) yield break;
+                    try { guraSkill.RequestSlot(PNSkillSlots.Burst, new PNSkillInputEvent(PNSkillInputPhase.Started, PNSkillInteraction.Tap)); Mark("gura-burst-sent"); } catch (Exception e) { Fail(e); yield break; }
+                    yield return Wait(() => remote1.PendingPredictions == 0 && guraSkill.CurrentInvocation == null, "the host answered the Burst: " + Diag(remote1, e1)); if (failed) yield break;
+                }
+                if (host)
+                {
+                    yield return Wait(() => Has("gura-burst-sent") && GuraBurstBehavior.Casts >= 1 && GuraResources.InBurst(guraSkill.Abilities), "the host started the Burst (casts " + GuraBurstBehavior.Casts + ")"); if (failed) yield break;
+                    try { Check(guraSkill.Abilities.GetCounter(PNGuraContent.WaveStack).Current >= 10 && guraSkill.Abilities.GetCounter(PNGuraContent.BurstStack).Current <= 25, "the Burst cost 125 and gave 10 Wave (" + guraSkill.Abilities.GetCounter(PNGuraContent.WaveStack).Current + " Wave, " + guraSkill.Abilities.GetCounter(PNGuraContent.BurstStack).Current + " BurstStack)"); } catch (Exception e) { Fail(e); yield break; }
+                    yield return Wait(() => Resources.FindObjectsOfTypeAll<PNGuraTideArea>().Any(x => x.IsRunning), "the tide area runs"); if (failed) yield break;
+                    yield return Wait(() => e1.GetComponent<PNBuffManager>().Buffs.Snapshot().Any(x => x.Id.Equals(EveId.Parse("project_n:gura_blessing"))), "Gura stands in her own tide and wears the blessing"); if (failed) yield break;
+                    Mark("gura-burst-ok");
+                }
+                yield return Wait(() => Has("gura-burst-ok"), "the host verified the Burst"); if (failed) yield break;
+                // ---- Gura G3: inside her own tide a normal attack heals 5% of max health (the blessing's OnHit heal) ----
+                double guraLow = 0;
+                if (host)
+                {
+                    try
+                    {
+                        var self = e1.GetComponent<PNStat>(); guraLow = self.Evaluate(PNContentIds.Health) * .3; self.SetCurrent(PNContentIds.Health, guraLow); Mark("gura-heal-ready");
+                    } catch (Exception e) { Fail(e); yield break; }
+                }
+                yield return Wait(() => Has("gura-heal-ready"), "Gura's health lowered"); if (failed) yield break;
+                if (name == "client1")
+                {
+                    yield return Wait(() => guraSkill.CurrentInvocation == null && remote1.PendingPredictions == 0, "Gura idle before the healing strike"); if (failed) yield break;
+                    try { guraSkill.RequestSlot(PNSkillSlots.Attack, new PNSkillInputEvent(PNSkillInputPhase.Started, PNSkillInteraction.Tap)); guraSkill.RequestSlot(PNSkillSlots.Attack, new PNSkillInputEvent(PNSkillInputPhase.Canceled, PNSkillInteraction.Tap)); Mark("gura-heal-sent"); } catch (Exception e) { Fail(e); yield break; }
+                    yield return Wait(() => remote1.PendingPredictions == 0 && guraSkill.CurrentInvocation == null, "the host answered the healing strike: " + Diag(remote1, e1)); if (failed) yield break;
+                }
+                if (host)
+                {
+                    var self = e1.GetComponent<PNStat>();
+                    yield return Wait(() => Has("gura-heal-sent") && self.GetCurrent(PNContentIds.Health) > guraLow + 1e-6, "the blessing healed Gura (" + self.GetCurrent(PNContentIds.Health) + " from " + guraLow + ")"); if (failed) yield break;
+                    Mark("gura-heal-ok");
+                }
+                yield return Wait(() => Has("gura-heal-ok"), "the host verified the heal"); if (failed) yield break;
+                // ---- Gura G4: the held attack inside Burst spends Wave; the milestones give Fangs (the chain) ----
+                if (host)
+                {
+                    try
+                    {
+                        // The milestone bonuses reach melee_scale (the size of her strikes): +0.2 at 6, +0.5 in all at 12.
+                        var self = e1.GetComponent<PNStat>(); guraSkill.Abilities.GrantState(PNGuraContent.Chain6);
+                        double scale6 = PNCombatSource.Capture(self).Snapshot.Calculate(1d, PNContentIds.MeleeScale); guraSkill.Abilities.GrantState(PNGuraContent.Chain12);
+                        double scale12 = PNCombatSource.Capture(self).Snapshot.Calculate(1d, PNContentIds.MeleeScale);
+                        GuraResources.End(guraSkill.Abilities, PNGuraContent.Chain6); GuraResources.End(guraSkill.Abilities, PNGuraContent.Chain12);
+                        Check(Mathf.Abs((float)scale6 - 1.2f) < .01f && Mathf.Abs((float)scale12 - 1.5f) < .01f, "the chain bonus scales her strikes (melee_scale " + scale6.ToString("F2") + " at 6, " + scale12.ToString("F2") + " at 12)");
+                    } catch (Exception e) { Fail(e); yield break; }
+                    try { guraSkill.Abilities.GetCounter(PNGuraContent.WaveStack).SetAmount(18); guraSkill.Abilities.GetCounter(PNGuraContent.FangStack).SetAmount(0); Mark("gura-chain-ready"); } catch (Exception e) { Fail(e); yield break; }
+                }
+                yield return Wait(() => Has("gura-chain-ready"), "Wave filled"); if (failed) yield break;
+                if (name == "client1")
+                {
+                    yield return Wait(() => guraSkill.CurrentInvocation == null && remote1.PendingPredictions == 0 && guraSkill.Abilities.GetCounter(PNGuraContent.WaveStack).Current == 18, "client1 sees the Wave"); if (failed) yield break;
+                    try { guraSkill.RequestSlot(PNSkillSlots.Attack, new PNSkillInputEvent(PNSkillInputPhase.Started, PNSkillInteraction.Repeat)); } catch (Exception e) { Fail(e); yield break; }
+                    for (int hold = 0; hold < 60; hold++)
+                    {
+                        try { guraSkill.RequestSlot(PNSkillSlots.Attack, new PNSkillInputEvent(PNSkillInputPhase.Performed, PNSkillInteraction.Repeat)); } catch (Exception e) { Fail(e); yield break; }
+                        yield return new WaitForSeconds(.1f);
+                    }
+                    try { guraSkill.RequestSlot(PNSkillSlots.Attack, new PNSkillInputEvent(PNSkillInputPhase.Canceled, PNSkillInteraction.Repeat)); Mark("gura-chain-sent"); } catch (Exception e) { Fail(e); yield break; }
+                    yield return Wait(() => remote1.PendingPredictions == 0 && guraSkill.CurrentInvocation == null, "the host answered the chain: " + Diag(remote1, e1)); if (failed) yield break;
+                }
+                if (host)
+                {
+                    yield return Wait(() => Has("gura-chain-sent"), "client1 held the attack"); if (failed) yield break;
+                    yield return new WaitForSeconds(.5f);
+                    try
+                    {
+                        int waveLeft = guraSkill.Abilities.GetCounter(PNGuraContent.WaveStack).Current, fang = guraSkill.Abilities.GetCounter(PNGuraContent.FangStack).Current;
+                        Check(waveLeft < 18 && fang >= 6, "the held attack spent Wave through all three milestones, the last one the free Skill Burst (" + waveLeft + " Wave left, " + fang + " Fang)");
+                        guraSkill.Abilities.GetCounter(PNGuraContent.FangStack).SetAmount(3); guraSkill.Abilities.GrantState(PNGuraContent.BurstState); Mark("gura-chain-ok");
+                    } catch (Exception e) { Fail(e); yield break; }
+                }
+                yield return Wait(() => Has("gura-chain-ok"), "the host verified the chain"); if (failed) yield break;
+                // ---- Gura G4: the Ultimate inside Burst ends it and spends every Fang ----
+                if (name == "client1")
+                {
+                    yield return Wait(() => guraSkill.CurrentInvocation == null && remote1.PendingPredictions == 0 && GuraResources.InBurst(guraSkill.Abilities) && guraSkill.Abilities.GetCounter(PNGuraContent.FangStack).Current == 3, "client1 sees the Burst and the Fangs"); if (failed) yield break;
+                    try { guraSkill.RequestSlot(PNSkillSlots.Ultimate, new PNSkillInputEvent(PNSkillInputPhase.Started, PNSkillInteraction.Tap)); guraSkill.RequestSlot(PNSkillSlots.Ultimate, new PNSkillInputEvent(PNSkillInputPhase.Performed, PNSkillInteraction.Tap)); Mark("gura-fang-sent"); } catch (Exception e) { Fail(e); yield break; }
+                    yield return Wait(() => remote1.PendingPredictions == 0 && guraSkill.CurrentInvocation == null, "the host answered the Burst Ultimate: " + Diag(remote1, e1)); if (failed) yield break;
+                }
+                if (host)
+                {
+                    yield return Wait(() => Has("gura-fang-sent") && GuraUltimateBehavior.BurstCasts >= 1, "the host cast the Burst Ultimate (" + GuraUltimateBehavior.BurstCasts + ")"); if (failed) yield break;
+                    yield return Wait(() => !GuraResources.InBurst(guraSkill.Abilities) && guraSkill.Abilities.GetCounter(PNGuraContent.FangStack).Current == 0, "the Burst ended and the Fangs were spent (" + guraSkill.Abilities.GetCounter(PNGuraContent.FangStack).Current + " Fang, burst " + GuraResources.InBurst(guraSkill.Abilities) + ")"); if (failed) yield break; Mark("gura-fang-ok");
+                }
+                yield return Wait(() => Has("gura-fang-ok"), "the host verified the Burst Ultimate"); if (failed) yield break;
+                yield return new WaitForSeconds(3f); // the Fang projectiles and the shark blast finish before the next scenario counts hit reports
             }
             int baseApplied = host ? remote1.HitsApplied : 0, baseRejected = host ? remote1.HitsRejected : 0;
             if (host) Mark("host-base");
