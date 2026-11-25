@@ -256,9 +256,13 @@ public partial class PNSkill
         executingBehavior=null;executingSlot=default;
         try{value.Behavior.Cancel();}finally{EndActivation(true);}return true;
     }
+    // H1 (Docs/GuraCharacter.md 5.3): a behavior's cast that runs as a GUESS on the owner's client (Predicted) is advanced there too, with the machine's own delta, exactly as on the authority.
+    // The behavior writes no network code: the same Input/Advance/Cancel run on both machines, the invocation's mode is what the services read. A machine with neither authority nor a guess running advances nothing.
+    protected bool IsPredictedBindingRunning=>executingBehavior!=null&&CurrentInvocation!=null&&CurrentInvocation.Mode==PNSkillMode.Predicted;
+    protected void AdvancePredictedBindings(float delta){if(IsPredictedBindingRunning)AdvanceBindings(delta);}
     protected void AdvanceBindings(float delta)
     {
-        BeforeBindingTick();if(bindingsTicking||bindingsDisposed||!IsReady||!HasGameplayAuthority)return;if(bindingsSuspended)UpdateBindingSelections();bindingsTicking=true;
+        BeforeBindingTick();if(bindingsTicking||bindingsDisposed||!IsReady||!HasGameplayAuthority&&!IsPredictedBindingRunning)return;if(bindingsSuspended)UpdateBindingSelections();bindingsTicking=true;
         try{var value=executingBehavior;if(value!=null){value.Behavior.Advance(delta);if(ReferenceEquals(executingBehavior,value)&&CurrentInvocation==null&&!LegacyBindingBusy){executingBehavior=null;executingSlot=default;}}}
         catch(Exception error){CancelBindingExecution();BindingError(error);}finally{bindingsTicking=false;}
     }

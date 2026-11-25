@@ -16,7 +16,7 @@ internal sealed class PNSkillPlanarMotion : IDisposable
     private PNMoveExecution movementExecution;
     private PNSkillOperation movementLock;
 #if UNITY_5_3_OR_NEWER
-    private RaycastHit[] sweepHits;
+    private RaycastHit[] sweepHits = new RaycastHit[32];
     private Rigidbody movingBody;
     private IDisposable physics;
     private RigidbodyInterpolation previousInterpolation;
@@ -83,33 +83,12 @@ internal sealed class PNSkillPlanarMotion : IDisposable
 #if UNITY_5_3_OR_NEWER
         PrepareBody();
         var capsule = root.GetComponent<CapsuleCollider>();
-        if (capsule != null && step > 0)
+        if (capsule != null && capsule.direction == 1 && step > 0)
         {
-            var bounds = capsule.bounds;
-            float r = Math.Max(.02f, Math.Min(bounds.extents.x, bounds.extents.z) * .95f);
-            // EN: Leave vertical contact skin: a floor-touching cast can report -direction at distance zero.
-            // VI: Chừa khe tiếp xúc dọc; cast chạm sàn có thể trả pháp tuyến -direction và khoảng cách 0.
-            float half = Math.Max(0, bounds.extents.y - r - .02f);
-            if (sweepHits == null) sweepHits = new RaycastHit[16];
-            int count;
-            do
-            {
-                count = root.gameObject.scene.GetPhysicsScene().CapsuleCast(bounds.center + Vector3.up * half,
-                    bounds.center - Vector3.up * half, r, direction, sweepHits, step + .03f, ~0, QueryTriggerInteraction.Ignore);
-                if (count < sweepHits.Length) break;
-                Array.Resize(ref sweepHits, sweepHits.Length * 2);
-            } while (true);
-            for (int i = 0; i < count; i++)
-            {
-                var hit = sweepHits[i];
-                if (hit.collider == null || hit.collider.transform.IsChildOf(root.transform)) continue;
-                if (ignoreEntities && hit.collider.GetComponentInParent<PNStat>() != null) continue;
-                // Physical enemy bodies may overlap; this does not disable hurtbox queries.
-                if (root.GetComponent<PNEnemyStat>() != null && (hit.collider.GetComponentInParent<PNEnemyStat>() != null ||
-                    Physics.GetIgnoreLayerCollision(root.gameObject.layer, hit.collider.gameObject.layer))) continue;
-                if (Vector3.Dot(direction, hit.normal) >= -.001f) continue;
-                step = Math.Min(step, Math.Max(0, hit.distance - .03f));
-            }
+            // The shared sweep (PNBodyMotion.Clip): the same skin, "moving away from it" and enemy-body rules as the trajectories.
+            step = PNBodyMotion.Clip(root.gameObject.scene, capsule, root, direction, step, ignoreEntities ? PNMotionActorCollision.IgnoreAllActors : PNMotionActorCollision.BlockAll,
+                PNBodyMotion.PlanarSkin, ref sweepHits, out bool overflow);
+            if (overflow) step = 0f;
         }
         var position = (movingBody != null ? movingBody.position : root.transform.position) + direction * step;
         if (movingBody != null) movingBody.position = position;

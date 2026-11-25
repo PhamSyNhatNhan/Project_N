@@ -163,6 +163,13 @@ public partial class PNMove
         permission=loadContext.Registry.ControlPermissions().ResolveIdentity(permission);
         var token=new PNMoveExecution(this,checked(++nextExecution),permission,notifyOwner); motionExecutions.Add(token); return token;
     }
+    // Docs/BodyMotionPlan.md B4/B10: a forced motion takes the body from whatever voluntary motion runs (each one is told through its own cancel callback, as a lost permission does). Returns how many were cancelled.
+    public int CancelMotions()
+    {
+        int count=0;
+        foreach(var execution in motionExecutions.ToArray())if(execution.IsValid){execution.Invalidate();count++;}
+        return count;
+    }
     public void DetachNetwork()
     {
         if(networkDetached)return; networkDetached=true;

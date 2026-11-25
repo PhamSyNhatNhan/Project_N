@@ -154,6 +154,12 @@ public static class PNObjectSyncO5EditorChecks
             var adoptedArea = scene.GetRootGameObjects().SelectMany(x => x.GetComponentsInChildren<PNTimeScaleArea>(true)).Where(x => x.IsRunning && x.IsReplica).ToArray();
             Check(clientAreas.AdoptScaleFixes == 1 && adoptedArea.Length == 1 && Math.Abs(adoptedArea[0].SyncScale - 2d) < 1e-6, "a guess made with area_scale 1 takes the authority's 2 when the record takes it over (fixes " + clientAreas.AdoptScaleFixes + ")");
             owner.SetSource(EveId.Parse("test:o5_area_scale"), Array.Empty<EveStatModifier>()); Advance(2.2f);
+            // the record can come first (latency under a frame): the copy is the one shown, the late guess is refused, never a second area
+            int areaRecordFirst = clientAreas.Adoptions;
+            hostAreas.Create(new PNAreaCreateRequest(EveId.Parse("base:timescale_area"), AreaInput(2), source, scene, Vector3.zero).WithCast(7006, 0)); Advance(.05f);
+            Check(clientAreas.ReplicaCount == 1 && clientAreas.CreateGuess(GuessOf(7006)).Status == PNAreaStatus.Rejected && clientAreas.ReplicaCount == 1 && clientAreas.GuessCount == 0 && clientAreas.Adoptions == areaRecordFirst, "a guess made after its record's copy is refused: still one area on the shooter's machine");
+            Advance(2.2f);
+            Check(clientAreas.ReplicaCount == 0 && clientAreas.CreateGuess(GuessOf(7006)).Status == PNAreaStatus.Rejected, "(and once the copy ended it is not drawn again)");
 
             // ---- blast guess: draws, never hurts, taken over by the record, refused / orphaned guesses go, size corrected ----
             clientBlasts.PredictionClock = () => clock;
@@ -174,6 +180,12 @@ public static class PNObjectSyncO5EditorChecks
             Check(Health(victim) < beforeReal && Timed().Where(x => x.IsReplica).All(x => x.HitCount == 0), "the victim is hurt once, by the authority's blast; the taken-over guess hit nobody");
             Advance(.6f);
             Check(clientBlasts.ActiveCount == 0 && hostBlasts.ActiveCount == 0 && clientBlasts.ReplicaCount == 0, "the End record ends the taken-over guess with the real blast");
+            // the record can come first (latency under a frame): the copy is the one shown, the late guess is refused, never a second blast
+            int recordFirstAdoptions = clientBlasts.Adoptions;
+            hostBlasts.Create(new PNBlastCreateRequest(PNBlastGameplayContent.Cylinder, BlastInput(1, .5), source, scene, Vector3.zero, owner, PNBlastDependency.Independent).WithCast(7015, 0)); Advance(.05f);
+            Check(clientBlasts.ReplicaCount == 1 && clientBlasts.CreateGuess(BlastGuessOf(7015, 1, .5)).Status == PNBlastStatus.Rejected && clientBlasts.ReplicaCount == 1 && clientBlasts.GuessCount == 0 && clientBlasts.Adoptions == recordFirstAdoptions, "a guess made after its record's copy is refused: still one blast on the shooter's machine");
+            Advance(1.8f);
+            Check(clientBlasts.ReplicaCount == 0 && clientBlasts.CreateGuess(BlastGuessOf(7015, 1, .5)).Status == PNBlastStatus.Rejected, "(and once the copy ended it is not drawn again)");
             clientBlasts.CreateGuess(BlastGuessOf(7012, 5)); clientBlasts.DiscardPredicted(7012);
             Check(clientBlasts.GuessCount == 0 && clientBlasts.ActiveCount == 0, "a refused cast removes its guessed blast at once");
             clientBlasts.CreateGuess(BlastGuessOf(7013, 5)); Advance(.5f);

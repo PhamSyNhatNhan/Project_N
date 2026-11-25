@@ -77,7 +77,7 @@ public class PNContentModule : EveIContentModule, EveIContentFinalizeModule, Eve
         elements.Register(new PNElementDefinition(Lightning));
 
         var tags = hub.GetOrCreate<PNTagDefinition>();
-        foreach (var id in new[] { Physical, Magic, True, Fire, Ice, Lightning, PNContentIds.Heal })
+        foreach (var id in new[] { Physical, Magic, True, Fire, Ice, Lightning, PNContentIds.Heal, PNContentIds.CrowdControl })
             tags.Register(new PNTagDefinition(id));
         foreach (var id in new[] { PNContentIds.AttackTag, PNContentIds.SkillTag, PNContentIds.UltimateTag, PNContentIds.DashTag, PNContentIds.BurstTag })
             tags.Register(new PNTagDefinition(id));

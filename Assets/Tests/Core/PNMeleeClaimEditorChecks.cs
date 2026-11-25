@@ -138,6 +138,25 @@ public static class PNMeleeClaimEditorChecks
                 clock += PNHurtClaimLimits.ClaimGraceSeconds + .1;
                 float beforeExpired = Health(near);
                 Check(!book.AcceptTicket(PNClaimTicketKey.Melee(castKey, ordinal, 1), near, 1.5f) && Health(near) == beforeExpired && book.TicketCount == 0, "past the grace the ticket is gone and a claim hurts nobody");
+
+                // ---- a claim that comes before its ticket waits (IL fix): decided the moment the ticket opens, refused "gone" if none comes in time ----
+                try
+                {
+                    policy.Ids.Add(near.EntityId.Value); book.EarlyHoldSeconds = .05d;
+                    var early = PNClaimTicketKey.Melee(castKey, 9001, 0); int applied = 0; int gone0 = book.Refusals.TryGetValue("gone", out var g0) ? g0 : 0;
+                    Check(!book.AcceptTicket(early, near, 1.5f) && book.HeldCount == 1 && (book.Refusals.TryGetValue("gone", out var g1) ? g1 : 0) == gone0, "a claim ahead of its ticket waits instead of being refused");
+                    Check(!book.AcceptTicket(early, near, 1.5f) && book.HeldCount == 1, "the same player waits once, not twice");
+                    int acc = book.Accepted;
+                    book.OpenTicket(early, near.transform.position, 2f, -1f, 0f, stat => { applied++; return true; });
+                    Check(applied == 1 && book.HeldCount == 0 && book.HeldDecided == 1 && book.Accepted == acc + 1, "the ticket opening decides the waiting claim at once, once (applied " + applied + ", held " + book.HeldCount + ")");
+                    var late = PNClaimTicketKey.Melee(castKey, 9002, 0); int expired0 = book.HeldExpired;
+                    Check(!book.AcceptTicket(late, near, 1.5f) && book.HeldCount == 1, "a second waiting claim");
+                    clock += .09; book.PruneTickets();
+                    Check(book.HeldCount == 0 && book.HeldExpired == expired0 + 1 && (book.Refusals.TryGetValue("gone", out var g2) ? g2 : 0) == gone0 + 1, "a claim whose ticket never came is refused gone after the wait");
+                    book.EarlyHoldSeconds = 0d;
+                    Check(!book.AcceptTicket(PNClaimTicketKey.Melee(castKey, 9003, 0), near, 1.5f) && book.HeldCount == 0, "with no hold a missing ticket is refused at once");
+                }
+                finally { book.EarlyHoldSeconds = 0d; }
             }
             finally { if (!exited) { try { sweep.Dispose(); } catch (Exception) { } } }
 

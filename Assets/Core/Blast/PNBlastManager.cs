@@ -326,7 +326,7 @@ public sealed class PNBlastManager : MonoBehaviour, IPNHitReportReceiver
         GameObject root = null; PoolEntry pool = null; long id = 0; bool replica = replicaId != 0 || guess;
         try
         {
-            if (closing || !isActiveAndEnabled || Session == null || !Session.IsActive || !replica && !Session.HasAuthority || replica && (request == null || !request.IsReplica || replicaId != 0 && objectEntries.ContainsKey(replicaId) || guess && (request.CastKey <= 0 || predictions.ContainsKey((request.CastKey, request.CastIndex))))) { receipt.Status = PNBlastStatus.Rejected; return; }
+            if (closing || !isActiveAndEnabled || Session == null || !Session.IsActive || !replica && !Session.HasAuthority || replica && (request == null || !request.IsReplica || replicaId != 0 && objectEntries.ContainsKey(replicaId) || guess && (request.CastKey <= 0 || predictions.ContainsKey((request.CastKey, request.CastIndex)) || RecordCopyExists((request.CastKey, request.CastIndex))))) { receipt.Status = PNBlastStatus.Rejected; return; }
             if (request == null || !replica && (request.Source == null || request.Source.SessionId != Session.SessionId) || !request.Scene.IsValid() || !request.Scene.isLoaded)
                 throw new ArgumentException("Blast requires valid source/session and loaded scene.");
             var p = request.Position;
@@ -549,6 +549,19 @@ public sealed class PNBlastManager : MonoBehaviour, IPNHitReportReceiver
         foreach (var pair in predictions.ToArray())
             if (pair.Key.Item1 == castKey && entries.TryGetValue(pair.Value, out var entry) && entry.Guess && !entry.Adopted) End(new PNBlastHandle(this, pair.Value));
     }
+    // EN: The record can reach a machine before its own player's predicted cast does (latency under a frame); the copy made from it is then the one to show, so the late guess is refused instead of drawing a second one.
+    // VI: Ban ghi co the toi may truoc khi cu danh du doan cua chinh nguoi choi xong (tre it hon mot khung); ban sao tu ban ghi la cai de hien, nen ban doan toi sau bi tu choi thay vi ve them mot cai.
+    private readonly Dictionary<(long, int), double> recordCasts = new Dictionary<(long, int), double>();
+    // A guess is late for a record made within this many seconds (the copy may even have ended by now: it is not drawn again).
+    private const double RecordCastWindow = 3d;
+    private bool RecordCopyExists((long, int) key) => recordCasts.TryGetValue(key, out var at) && PredictionNow - at <= RecordCastWindow;
+    private void RememberRecordCast(PNObjectRecord record, PNBlastReceipt receipt)
+    {
+        if (receipt.Status != PNBlastStatus.Created || string.IsNullOrEmpty(record.CastKey) || !long.TryParse(record.CastKey, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var castKey) || castKey <= 0) return;
+        if (!entries.TryGetValue(receipt.Handle.InstanceId, out var entry) || entry.Guess) return;
+        if (recordCasts.Count >= 64) { var old = new List<(long, int)>(); foreach (var pair in recordCasts) if (PredictionNow - pair.Value > RecordCastWindow) old.Add(pair.Key); foreach (var k in old) recordCasts.Remove(k); }
+        recordCasts[(castKey, record.CastIndex)] = PredictionNow;
+    }
     private bool TryAdopt(PNObjectRecord record)
     {
         if (string.IsNullOrEmpty(record.CastKey) || !long.TryParse(record.CastKey, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var castKey)) return false;
@@ -584,6 +597,7 @@ public sealed class PNBlastManager : MonoBehaviour, IPNHitReportReceiver
             if (record.Owner != 0 && Session.Entities.TryGet(new EveEntityId(record.Owner), out var loader) && loader != null) owner = loader.GetComponent<PNStat>();
             var request = PNBlastCreateRequest.Replica(record.DefinitionId, input, world.PhysicsOwner, new Vector3(record.Position.X, record.Position.Y, record.Position.Z), owner, record.Scale).WithReplicaTargets(record.TargetMask);
             CreateNow(request, receipt, record.Id);
+            RememberRecordCast(record, receipt);
             if (receipt.Status == PNBlastStatus.Created && entries.TryGetValue(receipt.Handle.InstanceId, out var made) && made.Instance != null && elapsed > 1e-4d)
             {
                 // The strikes that already passed are counted and drawn but not claimed (the authority's tickets are gone by now).
@@ -682,7 +696,7 @@ public sealed class PNBlastManager : MonoBehaviour, IPNHitReportReceiver
     }
     public void Shutdown()
     {
-        closing = true; SceneManager.sceneUnloaded -= SceneUnloaded; objectEntries.Clear(); objectIds.Clear(); predictions.Clear();
+        closing = true; SceneManager.sceneUnloaded -= SceneUnloaded; objectEntries.Clear(); objectIds.Clear(); predictions.Clear(); recordCasts.Clear();
         var errors = new List<Exception>();
         foreach (var pair in entries.ToArray())
         {

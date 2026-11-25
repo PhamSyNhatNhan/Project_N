@@ -140,7 +140,7 @@ public partial class PNPlayerSkill
     }
     protected override void Update()
     {
-        if(!HasGameplayAuthority){if(IsPredictingDash)AdvancePlayerDash(playerDashClock!=null&&playerDashClock.isActiveAndEnabled?playerDashClock.DeltaTime:Time.deltaTime);return;}
+        if(!HasGameplayAuthority){if(IsPredictingDash)AdvancePlayerDash(playerDashClock!=null&&playerDashClock.isActiveAndEnabled?playerDashClock.DeltaTime:Time.deltaTime);AdvancePredictedBindings(playerDashClock!=null&&playerDashClock.isActiveAndEnabled?playerDashClock.DeltaTime:Time.deltaTime);return;}
         var delta = playerDashClock!=null&&playerDashClock.isActiveAndEnabled?playerDashClock.DeltaTime:Time.deltaTime;
         AdvanceAuxiliaryEffects(delta); AdvancePlayerDash(delta); AdvanceBindings(delta);
     }

@@ -47,6 +47,8 @@ public static class PNContentIds
     public static readonly EveId Fire = EveId.Parse("project_n:fire");
     public static readonly EveId Ice = EveId.Parse("project_n:ice");
     public static readonly EveId Lightning = EveId.Parse("project_n:lightning");
+    // Crowd control (Docs/BodyMotionPlan.md 3.4): one combat tag for the strength of every control effect; Scale on the sender, Mitigation on the receiver, penetration travels with the hit.
+    public static readonly EveId CrowdControl = EveId.Parse("project_n:crowd_control");
     public static readonly EveId Scale = EveId.Parse("project_n:scale");
     public static readonly EveId Mitigation = EveId.Parse("project_n:mitigation");
     public static readonly EveId Penetration = EveId.Parse("project_n:penetration");

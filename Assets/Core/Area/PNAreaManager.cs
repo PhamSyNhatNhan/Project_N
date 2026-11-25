@@ -247,7 +247,7 @@ public sealed class PNAreaManager : MonoBehaviour, IPNHitReportReceiver
         GameObject root = null; PoolEntry pool = null; long id = 0;
         try
         {
-            if (closing || !isActiveAndEnabled || Session == null || !Session.IsActive || !replica && !Session.HasAuthority || replica && (request == null || !request.IsReplica || replicaId != 0 && objectEntries.ContainsKey(replicaId) || guess && (request.CastKey <= 0 || predictions.ContainsKey((request.CastKey, request.CastIndex))))) { receipt.Status = PNAreaStatus.Rejected; return; }
+            if (closing || !isActiveAndEnabled || Session == null || !Session.IsActive || !replica && !Session.HasAuthority || replica && (request == null || !request.IsReplica || replicaId != 0 && objectEntries.ContainsKey(replicaId) || guess && (request.CastKey <= 0 || predictions.ContainsKey((request.CastKey, request.CastIndex)) || RecordCopyExists((request.CastKey, request.CastIndex))))) { receipt.Status = PNAreaStatus.Rejected; return; }
             if (request == null || !replica && (request.Source == null || request.Source.SessionId != Session.SessionId) || !request.Scene.IsValid() || !request.Scene.isLoaded)
                 throw new ArgumentException("Area requires valid source/session and loaded scene.");
             var p = request.Position;
@@ -504,6 +504,19 @@ public sealed class PNAreaManager : MonoBehaviour, IPNHitReportReceiver
         foreach (var pair in predictions.ToArray())
             if (pair.Key.Item1 == castKey && entries.TryGetValue(pair.Value, out var entry) && entry.Guess && !entry.Adopted) End(new PNAreaHandle(this, pair.Value));
     }
+    // EN: The record can reach a machine before its own player's predicted cast does (latency under a frame); the copy made from it is then the one to show, so the late guess is refused instead of drawing a second one.
+    // VI: Ban ghi co the toi may truoc khi cu danh du doan cua chinh nguoi choi xong (tre it hon mot khung); ban sao tu ban ghi la cai de hien, nen ban doan toi sau bi tu choi thay vi ve them mot cai.
+    private readonly Dictionary<(long, int), double> recordCasts = new Dictionary<(long, int), double>();
+    // A guess is late for a record made within this many seconds (the copy may even have ended by now: it is not drawn again).
+    private const double RecordCastWindow = 3d;
+    private bool RecordCopyExists((long, int) key) => recordCasts.TryGetValue(key, out var at) && PredictionNow - at <= RecordCastWindow;
+    private void RememberRecordCast(PNObjectRecord record, PNAreaReceipt receipt)
+    {
+        if (receipt.Status != PNAreaStatus.Created || string.IsNullOrEmpty(record.CastKey) || !long.TryParse(record.CastKey, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var castKey) || castKey <= 0) return;
+        if (!entries.TryGetValue(receipt.Handle.InstanceId, out var entry) || entry.Guess) return;
+        if (recordCasts.Count >= 64) { var old = new List<(long, int)>(); foreach (var pair in recordCasts) if (PredictionNow - pair.Value > RecordCastWindow) old.Add(pair.Key); foreach (var k in old) recordCasts.Remove(k); }
+        recordCasts[(castKey, record.CastIndex)] = PredictionNow;
+    }
     private bool TryAdopt(PNObjectRecord record)
     {
         if (string.IsNullOrEmpty(record.CastKey) || !long.TryParse(record.CastKey, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var castKey)) return false;
@@ -537,6 +550,7 @@ public sealed class PNAreaManager : MonoBehaviour, IPNHitReportReceiver
             if (record.Follow != 0 && Session.Entities.TryGet(new EveEntityId(record.Follow), out var followLoader) && followLoader != null) follow = followLoader.GetComponent<PNStat>();
             var request = PNAreaCreateRequest.Replica(record.DefinitionId, input, world.PhysicsOwner, new Vector3(record.Position.X, record.Position.Y, record.Position.Z), owner, follow, record.Scale);
             CreateNow(request, receipt, record.Id);
+            RememberRecordCast(record, receipt);
             if (receipt.Status == PNAreaStatus.Created && entries.TryGetValue(receipt.Handle.InstanceId, out var made) && made.Instance != null && elapsed > 1e-4d)
                 made.Instance.Perform((float)Math.Min(elapsed, PNObjectSyncLimits.MaxReplicaSeconds));
         }
@@ -631,7 +645,7 @@ public sealed class PNAreaManager : MonoBehaviour, IPNHitReportReceiver
     }
     public void Shutdown()
     {
-        closing = true; SceneManager.sceneUnloaded -= SceneUnloaded; objectEntries.Clear(); objectIds.Clear(); predictions.Clear();
+        closing = true; SceneManager.sceneUnloaded -= SceneUnloaded; objectEntries.Clear(); objectIds.Clear(); predictions.Clear(); recordCasts.Clear();
         var errors = new List<Exception>();
         foreach (var pair in entries.ToArray())
         {

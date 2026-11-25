@@ -180,6 +180,8 @@ namespace ProjectN.Coop.Tests
                 try { a = skill.RequestSlot(PNSkillSlots.Dash, new PNSkillInputEvent(PNSkillInputPhase.Started, PNSkillInteraction.Tap)); b = skill.RequestSlot(PNSkillSlots.Dash, new PNSkillInputEvent(PNSkillInputPhase.Performed, PNSkillInteraction.Tap)); c = skill.RequestSlot(PNSkillSlots.Dash, new PNSkillInputEvent(PNSkillInputPhase.Canceled, PNSkillInteraction.Tap)); Check(a && b && c, "the client press is accepted for forwarding"); var ps = e1.GetComponent<PNPlayerSkill>(); Check(remote1.PredictedCount == 1 && ps.DashRecovery.Current < charges, "the client spent its Dash charge on the replica at once, before any answer (charges " + charges + " -> " + ps.DashRecovery.Current + ")"); } catch (Exception e) { Fail(e); yield break; }
                 yield return Wait(() => remote1.AckedKey >= 3, "skill_cast_result for the dash: " + Diag(remote1, e1)); if (failed) yield break;
                 yield return Wait(() => hostSkill1.DashRecovery.Current < charges || hostSkill1.DashRecovery.CooldownRemaining > 0, "the replica shows the spent dash charge"); if (failed) yield break;
+                // The ack of the last key can overtake the cast result of the press on a lossy link: the guess is confirmed a moment later, so wait for it before judging.
+                yield return Wait(() => remote1.PendingPredictions == 0 || remote1.RolledBackCount > 0, "the dash guess is confirmed or rolled back: " + Diag(remote1, e1)); if (failed) yield break;
                 try { Check(remote1.Refusals.Count == 0 && remote1.RolledBackCount == 0 && remote1.PendingPredictions == 0, "the host refused nothing: the guess was confirmed, not rolled back (pending " + remote1.PendingPredictions + ", rolled back " + remote1.RolledBackCount + ")"); Mark("client1-dashed"); } catch (Exception e) { Fail(e); yield break; }
             }
             if (host)
@@ -434,6 +436,76 @@ namespace ProjectN.Coop.Tests
                     try { Check(slashFar.GetCurrent(PNContentIds.Health) < farHealth && slashNear.GetCurrent(PNContentIds.Health) == nearHealth, "the host hit the enemy client1 chose (its far one), not the one the host would have chosen (decisions taken " + remote1.DecisionsTaken + " waiting " + remote1.DecisionsWaiting + " expired " + remote1.DecisionsExpired + "; near " + slashNear.GetCurrent(PNContentIds.Health) + "/" + nearHealth + ", far " + slashFar.GetCurrent(PNContentIds.Health) + "/" + farHealth + ")"); Mark("slash-hit"); } catch (Exception e) { Fail(e); yield break; }
                 }
                 yield return Wait(() => Has("slash-hit"), "host verified the slash"); if (failed) yield break;
+            }
+            // ---- Gura G1: the four-strike Attack. The owner's client guesses each strike (its body steps toward the enemy as a guess), the host casts the same strike and deals the damage; no network code in the character ----
+            var guraSkill = e1.GetComponent<PNGuraSkill>();
+            if (guraSkill != null)
+            {
+                PNStat guraPrey = null; double guraHealth = 0; Vector3 guraStart = Vector3.zero;
+                if (host)
+                {
+                    try
+                    {
+                        var world = PNLocalWorldContext.Current.World;
+                        var request = new PNEntityRequest { Entity = "project_n:enemy", Template = "project_n:enemy", Character = "project_n:dummy_lorica", World = world, WorldIncarnation = world.Incarnation, ContentSlot = PNGridWorldController.SlotId, SceneKey = "skilltest:gura_enemy", EntityKey = "", Position = e1.transform.position + new Vector3(2.0f, 0, 0) };
+                        if (PNEntityHosts.For(EveRegistrySession.Context).TrySpawn(request, null, null, error => Debug.LogException(error)) == null) throw new Exception("the host refused the Gura test enemy");
+                    } catch (Exception e) { Fail(e); yield break; }
+                    yield return Wait(() => FindObjectsByType<PNEnemyStat>(FindObjectsSortMode.None).Any(x => x.IsReady), "the Gura test enemy is published"); if (failed) yield break;
+                    try
+                    {
+                        guraPrey = FindObjectsByType<PNEnemyStat>(FindObjectsSortMode.None).First(x => x.IsReady);
+                        guraPrey.transform.position = e1.transform.position + new Vector3(2.0f, 0, 0); Physics.SyncTransforms();
+                        guraHealth = guraPrey.GetCurrent(PNContentIds.Health); guraStart = e1.transform.position; Mark("gura-prey-ready");
+                    } catch (Exception e) { Fail(e); yield break; }
+                }
+                yield return Wait(() => Has("gura-prey-ready"), "the Gura enemy placed"); if (failed) yield break;
+                if (name == "client1")
+                {
+                    yield return Wait(() => FindObjectsByType<PNEnemyStat>(FindObjectsSortMode.None).Any(x => (x.transform.position - e1.transform.position).sqrMagnitude < 3.2f * 3.2f), "the enemy shows near client1's Gura"); if (failed) yield break;
+                    long guraSent = 0; var before = e1.transform.position; float guraBest = 0f, guraGap3 = -1f, guraGap4 = -1f; string guraTrace = "";
+                    for (int strike = 0; strike < 4; strike++)
+                    {
+                        yield return Wait(() => guraSkill.CurrentInvocation == null && remote1.PendingPredictions == 0, "Gura idle before strike " + (strike + 1)); if (failed) yield break;
+                        try
+                        {
+                            int guessed = remote1.PredictedCount;
+                            bool pressed = guraSkill.RequestSlot(PNSkillSlots.Attack, new PNSkillInputEvent(PNSkillInputPhase.Started, PNSkillInteraction.Tap)); guraSent = remote1.LastSentKey;
+                            Check(pressed && remote1.PredictedCount == guessed + 1, "client1 guesses strike " + (strike + 1) + " (guesses " + (remote1.PredictedCount - guessed) + ")");
+                            guraSkill.RequestSlot(PNSkillSlots.Attack, new PNSkillInputEvent(PNSkillInputPhase.Canceled, PNSkillInteraction.Tap)); guraSent = remote1.LastSentKey;
+                        } catch (Exception e) { Fail(e); yield break; }
+                        yield return Wait(() => remote1.AckedKey >= guraSent && remote1.PendingPredictions == 0 && guraSkill.CurrentInvocation == null, "the host answered strike " + (strike + 1) + ": " + Diag(remote1, e1)); if (failed) yield break;
+                        guraBest = Mathf.Max(guraBest, (e1.transform.position - before).x); var guraEnemy = FindObjectsByType<PNEnemyStat>(FindObjectsSortMode.None).Where(x => x.IsReady).OrderBy(x => (x.transform.position - e1.transform.position).sqrMagnitude).FirstOrDefault(); if (guraEnemy != null) { var flat = guraEnemy.transform.position - e1.transform.position; flat.y = 0; if (strike == 2) guraGap3 = flat.magnitude; if (strike == 3) guraGap4 = flat.magnitude; } guraTrace += " " + (e1.transform.position - before).x.ToString("F2") + "(rb" + remote1.RolledBackCount + " ref" + remote1.Refusals.Count + " nul" + GuraAttackBehavior.NoTarget + " lost" + GuraAttackBehavior.Cancels + " enemy" + FindObjectsByType<PNEnemyStat>(FindObjectsSortMode.None).Where(x => x.IsReady).Select(x => (x.transform.position - e1.transform.position).x.ToString("F2")).FirstOrDefault() + ")";
+                    }
+                    try { Check(guraGap3 >= 0f && guraGap3 < .9f && Mathf.Abs(guraGap4 - 1.2f) < .35f, "client1 closed on the enemy to about 0.6 m by strike 3 and stood 1.2 m away after strike 4 (gaps " + guraGap3.ToString("F2") + " and " + guraGap4.ToString("F2") + "; " + guraTrace + ")"); Mark("client1-gura"); } catch (Exception e) { Fail(e); yield break; }
+                }
+                if (host)
+                {
+                    yield return Wait(() => Has("client1-gura"), "client1 struck"); if (failed) yield break;
+                    yield return Wait(() => guraPrey == null || !guraPrey.IsReady || guraPrey.GetCurrent(PNContentIds.Health) < guraHealth, "the enemy lost health to client1's strikes"); if (failed) yield break;
+                    try { Check(GuraAttackBehavior.Casts >= 4, "the host cast the four strikes (" + GuraAttackBehavior.Casts + ") and sees client1's Gura moved " + (e1.transform.position - guraStart).x.ToString("F2") + " m"); Mark("gura-hit"); } catch (Exception e) { Fail(e); yield break; }
+                }
+                yield return Wait(() => Has("gura-hit") || !host && Has("client1-gura"), "the host verified the Gura strikes"); if (failed) yield break;
+                // ---- Gura G2: the Skill slot's trident (homing projectile, blast where it ends). The host alone makes the projectile and the blast; client1 guesses the cast ----
+                double guraAfter = host && guraPrey != null && guraPrey.IsReady ? guraPrey.GetCurrent(PNContentIds.Health) : 0;
+                if (name == "client1")
+                {
+                    yield return Wait(() => guraSkill.CurrentInvocation == null && remote1.PendingPredictions == 0, "Gura idle before the trident"); if (failed) yield break;
+                    try
+                    {
+                        int guessed = remote1.PredictedCount;
+                        bool pressed = guraSkill.RequestSlot(PNSkillSlots.Skill, new PNSkillInputEvent(PNSkillInputPhase.Started, PNSkillInteraction.Tap)); long sent = remote1.LastSentKey;
+                        Check(pressed && remote1.PredictedCount == guessed + 1, "client1 guesses the trident cast");
+                        guraSkill.RequestSlot(PNSkillSlots.Skill, new PNSkillInputEvent(PNSkillInputPhase.Canceled, PNSkillInteraction.Tap)); Mark("gura-trident-sent");
+                    } catch (Exception e) { Fail(e); yield break; }
+                    yield return Wait(() => remote1.PendingPredictions == 0 && guraSkill.CurrentInvocation == null, "the host answered the trident: " + Diag(remote1, e1)); if (failed) yield break;
+                }
+                if (host)
+                {
+                    yield return Wait(() => Has("gura-trident-sent"), "client1 threw the trident"); if (failed) yield break;
+                    yield return Wait(() => GuraCastBehavior.Casts >= 1 && (guraPrey == null || !guraPrey.IsReady || guraPrey.GetCurrent(PNContentIds.Health) < guraAfter), "the trident's blast hurt the enemy (casts " + GuraCastBehavior.Casts + ")"); if (failed) yield break;
+                    Mark("gura-trident-hit");
+                }
+                yield return Wait(() => Has("gura-trident-hit"), "the host verified the trident"); if (failed) yield break;
             }
             int baseApplied = host ? remote1.HitsApplied : 0, baseRejected = host ? remote1.HitsRejected : 0;
             if (host) Mark("host-base");

@@ -26,7 +26,7 @@ Docs/EnemyToolkitFollowupReport.md để biết trạng thái kiểm chứng hi�
 | Cast receipt | Context.TryCast(id, direction, execution, out receipt, targets, pay, position); Started/Busy/Denied admission; Completed/Cancelled/Failed terminal receipt |
 | Group | PNAgentGroupService(session), Join(agent, kind, encounter, eligible), membership Send/Drain/Reserve/FormationPoint/Dispose |
 | Game composition | PNGameSession.AgentGroups lazy, LateUpdate tick active service bằng world.GameplayTime; không có service khi không dùng |
-| Motion | IPNSkillMotionAction binding; PNMotionMotor + PNMove.AcquireMotionPhysics; outcome và deferred-cleanup contract |
+| Motion | IPNSkillMotionAction binding; PNBodyMotion + PNMove.AcquireMotionPhysics; outcome và deferred-cleanup contract |
 
 Không dùng trực tiếp Load field của handle từ Game/mod; dùng SameActor để so lifetime.
 Permission/Ready/world vẫn được kiểm tại lệnh thực thi; snapshot perception không cấp

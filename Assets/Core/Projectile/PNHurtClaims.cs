@@ -18,6 +18,8 @@ public static class PNHurtClaimLimits
     public const int MaxHit = 63;
     // How long after a blast detonates on the authority a claim for it is still taken (the claim travels a trip behind the copy's own detonation).
     public const double ClaimGraceSeconds = 0.5d;
+    // How long a claim that came before its ticket waits for it (a networked play sets the book to this; see PNHurtClaimBook.EarlyHoldSeconds).
+    public const double EarlyHoldSeconds = 0.25d;
     // A claimed hit is named by who was hit, not by a count: both machines know the victim, while the authority's running hit count also includes the hits the claimer never sees. Index = ClaimKeyBase + low 20 bits of his entity id (the hit index of an ordinary hit stays far below).
     public const int ClaimKeyBase = 1 << 20;
     public static int ClaimKeyIndex(long entityId) => ClaimKeyBase + (int)(entityId & 0xFFFFF);
@@ -83,22 +85,57 @@ public sealed partial class PNHurtClaimBook
         PruneTickets();
         clock = clock ?? Clock;
         tickets[key] = new Ticket { Expires = Now(clock) + PNHurtClaimLimits.ClaimGraceSeconds + System.Math.Max(0f, extraSeconds), Clock = clock, Center = center, Radius = radius, Height = height, Slack = slack, Apply = apply };
+        ResolveHeld(key);
+    }
+    // EN: A claim that names a ticket the authority has not opened yet (a copy's strike can land in the same frame as the real one, ahead of it in the frame order) waits up to EarlyHoldSeconds for that
+    //     ticket and is decided the moment it opens; one that finds none in time is refused "gone". 0 (the default) holds nothing; a networked play sets it (PNGameSession). At most MaxHeld wait at once.
+    // VI: Lenh bao goi ve chua mo (cu cua ban sao co the roi cung khung, truoc cu that) duoc cho toi EarlyHoldSeconds; ve mo ra la xet ngay, het han ma khong co ve thi tu choi "gone". 0 = khong giu.
+    public double EarlyHoldSeconds { get; set; }
+    public const int MaxHeld = 64;
+    private sealed class Held { internal PNClaimTicketKey Key; internal PNStat Target; internal float Tolerance; internal double Expires; }
+    private readonly System.Collections.Generic.List<Held> held = new System.Collections.Generic.List<Held>();
+    public int HeldCount => held.Count;
+    // Claims that waited and were then decided / that ran out of time.
+    public int HeldDecided { get; private set; }
+    public int HeldExpired { get; private set; }
+    private bool TryHold(PNClaimTicketKey key, PNStat target, float tolerance)
+    {
+        if (EarlyHoldSeconds <= 0d || held.Count >= MaxHeld) return false;
+        foreach (var other in held) if (other.Key.Equals(key) && ReferenceEquals(other.Target, target)) return true;   // already waiting: a repeat is not a second claim
+        held.Add(new Held { Key = key, Target = target, Tolerance = tolerance, Expires = Now(Clock) + EarlyHoldSeconds }); return true;
+    }
+    // Decides the claims waiting for `key` now that its ticket exists.
+    private void ResolveHeld(PNClaimTicketKey key)
+    {
+        if (held.Count == 0) return;
+        System.Collections.Generic.List<Held> ready = null;
+        foreach (var h in held) if (h.Key.Equals(key)) (ready ??= new System.Collections.Generic.List<Held>()).Add(h);
+        if (ready == null) return;
+        foreach (var h in ready) held.Remove(h);
+        foreach (var h in ready) { HeldDecided++; if (h.Target != null) AcceptTicket(h.Key, h.Target, h.Tolerance); else Refuse("gone"); }
+    }
+    private void ExpireHeld()
+    {
+        if (held.Count == 0) return;
+        double now = Now(Clock);
+        for (int i = held.Count - 1; i >= 0; i--) if (now > held[i].Expires) { held.RemoveAt(i); HeldExpired++; Refuse("gone"); }
     }
     public void PruneTickets()
     {
+        ExpireHeld();
         if (tickets.Count == 0) return;
         System.Collections.Generic.List<PNClaimTicketKey> gone = null;
         foreach (var pair in tickets) if (Now(pair.Value.Clock) > pair.Value.Expires) (gone ??= new System.Collections.Generic.List<PNClaimTicketKey>()).Add(pair.Key);
         if (gone != null) foreach (var key in gone) tickets.Remove(key);
     }
-    public void ClearTickets() => tickets.Clear();
+    public void ClearTickets() { tickets.Clear(); HeldExpired += held.Count; held.Clear(); }
     // The one rule of a ticket claim: the policy hands the player over, the ticket is there and in time, he has not claimed it, he can be hit, he is within reach (radius + tolerance + slack). Refusals: policy / gone / again / rule.
     public bool AcceptTicket(PNClaimTicketKey key, PNStat target, float tolerance)
     {
         if (target == null) return false;
         if (Policy == null || !Policy.ClaimsDecide(target)) return Refuse("policy");
         PruneTickets();
-        if (!tickets.TryGetValue(key, out var ticket)) return Refuse("gone");
+        if (!tickets.TryGetValue(key, out var ticket)) return TryHold(key, target, tolerance) ? false : Refuse("gone");
         if (!ticket.Claimed.Add(target.EntityId.Value)) return Refuse("again");
         if (!target.IsReady || PNTargetCandidates.IsDead(target) || !PNWorldGameplay.CanExecute(target)) return Refuse("rule");
         var d = target.transform.position - ticket.Center; float slack = System.Math.Max(0f, tolerance) + ticket.Slack;

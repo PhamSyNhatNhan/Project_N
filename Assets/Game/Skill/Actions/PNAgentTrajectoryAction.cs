@@ -76,7 +76,7 @@ public class PNAgentTrajectoryAction : PNSkillAction, IPNSkillMotionAction, IPNS
 {
     private PNSkillActionContext context;
     private PNAgentTrajectorySettings settings;
-    private PNMotionMotor motor;
+    private PNBodyMotion motor;
     private PNSkillOperation movementLock;
     private Action cancelOwner;
     private Vector3 origin, direction, side, anchor;
@@ -107,7 +107,8 @@ public class PNAgentTrajectoryAction : PNSkillAction, IPNSkillMotionAction, IPNS
     }
     public override void Start(PNSkillActionContext value)
     {
-        bool shown = value != null && value.Mode == PNSkillMode.Observed;
+        // A body this machine does not write (a replay, the host's view of a client's player, an observer) only runs the clock (PNBodyMotion.ShowsOnly): the owner's machine writes the pose and sends it.
+        bool shown = value != null && PNBodyMotion.ShowsOnly(value.Skill != null ? value.Skill.GetComponent<PNMove>() : null, value.Mode);
         if (context != null || disposed || value == null || !value.Direction.HasValue || cancelOwner == null && !shown) throw new InvalidOperationException("Invalid trajectory Start or missing motion owner.");
         settings = PNAgentTrajectorySettings.Parse(MotionPayload(value), value.Registry, Contact);
         if (shown) { context = value; timelineOnly = true; context.BeginAction(); return; }
@@ -120,7 +121,7 @@ public class PNAgentTrajectoryAction : PNSkillAction, IPNSkillMotionAction, IPNS
         if (settings.Kind == PNTrajectoryKind.OrbitSegment && (value.Position == null || Mathf.Abs(PNAgentGeometry.CenterDistance(origin, anchor) - settings.Radius) > .1f)) throw new ArgumentException("Orbit requires a snapshot anchor at the configured radius.");
         context = value; context.BeginAction(); caster = value.Skill.GetComponent<PNStat>();
         movementLock = CreateOperation(context, EveId.Parse("base:lock_movement")); movementLock.Execute(context, null);
-        motor = new PNMotionMotor(move, settings.Permission, settings.ActorCollision, settings.Kind == PNTrajectoryKind.Hop, cancelOwner);
+        motor = new PNBodyMotion(move, settings.Permission, settings.ActorCollision, settings.Kind == PNTrajectoryKind.Hop, cancelOwner);
         for (int i = 0; i <= 16; i++)
         {
             var point = Sample(i / 16f); point.y = origin.y;

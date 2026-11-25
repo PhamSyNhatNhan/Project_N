@@ -187,6 +187,22 @@ public static class PNStarkeeperEditorChecks
                 blocked.Cancel(blockedContext);Check(Markers()==0,"blocked/cancelled point cleans all owned VFX");
             }
             finally{blocked.Dispose();}
+            // H0 (Docs/GuraCharacter.md 5.2): a body this machine does not write (the host's view of a client's player, an observer) only runs the clock: no owner needed, no motor, no movement.
+            var roleSetter=typeof(PNMove).GetProperty("NetworkRole").GetSetMethod(true);
+            foreach(var role in new[]{PNMoveNetworkRole.RemoteOwnerHost,PNMoveNetworkRole.Observer})
+            {
+                go.transform.position=Vector3.zero;go.GetComponent<Rigidbody>().position=Vector3.zero;Physics.SyncTransforms();
+                roleSetter.Invoke(go.GetComponent<PNMove>(),new object[]{role});
+                var remote=skill.CreateAction(PNStarkeeperCombatContent.StarPoint,out var remoteContext,new[]{targetA},Vector3.right,new Vector3(2,0,0));
+                try
+                {
+                    remote.Start(remoteContext);Adv(remote,remoteContext,0f);remote.Perform(remoteContext);
+                    for(int i=0;i<60;i++)Adv(remote,remoteContext,.1f);
+                    Check(((PNAgentTrajectoryAction)remote).Outcome==PNMotionOutcome.Completed,"a "+role+" body runs the Hop clock to completion without an owner or a motor");
+                    Check(go.transform.position.sqrMagnitude<.00001f,"a "+role+" body is not moved by the Action (the owner's machine writes the pose)");
+                }
+                finally{roleSetter.Invoke(go.GetComponent<PNMove>(),new object[]{PNMoveNetworkRole.Local});remote.Cancel(remoteContext);remote.Dispose();}
+            }
             Check(go.transform.Find("Star spear").GetComponent<MeshRenderer>().enabled,"real spear renderer restored after point completion/cancellation");
             var data = skill.GetData(PNStarkeeperCombatContent.StarPoint); Check((float)data.Action.Perform["maxRange"] == 4.5f, "the behavior reads the 4.5 m range from the registered data");
             return "PASS " + n + " Starkeeper combat checks (" + sweepDamage + "; sweep timeline/re-aim/cancel/cleanup, star point windup/cancel/marker); point lunge/path hit/no endpoint AOE/wall stop covered in disposable Editor physics, not actual AI/Player";

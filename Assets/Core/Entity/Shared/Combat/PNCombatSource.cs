@@ -78,6 +78,12 @@ public class PNCombatSourceSnapshot
     }
     // True when the id is a registered stat (so a modifier on it is already part of that stat's final value), false for tags, damage types and elements.
     public virtual bool IsStat(EveId id) => stats.IsBaseStatId(id);
+    // Crowd control sender side (Docs/BodyMotionPlan.md B6): the registered `input` through this capture's Scale route of the crowd_control tag, with the captured penetration modifiers riding along.
+    public virtual PNCrowdControl CreateCrowdControl(double input)
+    {
+        RequireReady(); PNCrowdControl.Require(input, nameof(input));
+        return new PNCrowdControl(SessionId, SourceId, input, stats.Calculate(PNContentIds.Scale, input, PNContentIds.CrowdControl), stats.PenetrationModifiers);
+    }
     protected void RequireReady() { if (!canCreate()) throw new InvalidOperationException("Combat snapshot requires its active authoritative session."); }
     // One formula source: the four-argument overload is PrepareDamage + CreateDamage(prepared), so a subclass that
     // overrides PrepareDamage also changes this overload. Subclasses that only override this overload are unchanged.

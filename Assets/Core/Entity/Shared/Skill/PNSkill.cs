@@ -87,6 +87,8 @@ public partial class PNSkill : EveSkill, EveIEntityLoadPreparation, EveIEntityCo
         invocation.Refused = true;
         try
         {
+            // H1: a multi-frame behavior that was driving the guess is cancelled through its own Cancel (then the cast ends), so its state machine resets as it does on the authority.
+            if (ReferenceEquals(CurrentInvocation, invocation) && !invocation.IsEnded && IsPredictedBindingRunning) CancelBindingExecution();
             if (ReferenceEquals(CurrentInvocation, invocation) && !invocation.IsEnded && !TryInterrupt(EveId.Parse("project_n:prediction_refused"))) CancelCast(PNCastEnd.Interrupted);
         }
         finally
@@ -206,7 +208,7 @@ public partial class PNSkill : EveSkill, EveIEntityLoadPreparation, EveIEntityCo
     protected void AdvanceIdle(float delta) { if (CurrentInvocation == null) IdleTime += delta; }
     protected void ResetIdle() => IdleTime = 0;
     protected virtual void Update()
-    { if (!IsReady) return; if (!HasGameplayAuthority) { if (Effects != null && Effects.HasPredictedAuxiliaries) AdvanceAuxiliaryEffects(Time.deltaTime); return; } var clock = GetComponent<EveTimeScale>(); var delta=clock != null && clock.isActiveAndEnabled ? clock.DeltaTime : Time.deltaTime; AdvanceAuxiliaryEffects(delta);AdvanceBindings(delta); }
+    { if (!IsReady) return; if (!HasGameplayAuthority) { if (Effects != null && Effects.HasPredictedAuxiliaries) AdvanceAuxiliaryEffects(Time.deltaTime); AdvancePredictedBindings(Time.deltaTime); return; } var clock = GetComponent<EveTimeScale>(); var delta=clock != null && clock.isActiveAndEnabled ? clock.DeltaTime : Time.deltaTime; AdvanceAuxiliaryEffects(delta);AdvanceBindings(delta); }
     protected virtual void OnDisable() { if(GetComponent<EveEntityIdentity>()?.IsChangingWorld==true)return;try{CancelBindingInputs();}finally{SuspendBindingSelections();prepared?.Dispose();prepared = null;EndActivation(true, PNCastEnd.Disabled);Effects?.CancelExecutions();} }
     protected virtual void OnDestroy() { StopActionImpactObserver(); Unload(); }
     public virtual void CancelWorldExecutions()

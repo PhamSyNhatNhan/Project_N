@@ -1,0 +1,469 @@
+{
+  "schemaVersion": 1,
+  "characters": [
+    {
+      "id": "project_n:gura",
+      "portraitPath": "UI/Portraits/Eve_Icon",
+      "data": {
+        "playable": {
+          "name": "Gura",
+          "description": "Cá mập nhỏ của biển cả: đánh bốn nhịp, lặn và tung sóng.",
+          "accent": [
+            110,
+            160,
+            220
+          ],
+          "availability": "default",
+          "prefab": "gura"
+        }
+      },
+      "stats": [
+        {
+          "statId": "base:health",
+          "base": 7500,
+          "initialCurrent": 7500
+        },
+        {
+          "statId": "base:attack_power",
+          "base": 10
+        },
+        {
+          "statId": "base:attack_speed",
+          "base": 100
+        },
+        {
+          "statId": "base:cooldown_reduction",
+          "base": 0
+        },
+        {
+          "statId": "base:crit_rate",
+          "base": 20
+        },
+        {
+          "statId": "base:crit_damage",
+          "base": 150
+        },
+        {
+          "statId": "base:defense",
+          "base": 5
+        },
+        {
+          "statId": "base:move_speed",
+          "base": 3
+        },
+        {
+          "statId": "base:jump_speed",
+          "base": 3.2
+        }
+      ],
+      "skill": [
+        {
+          "id": "project_n:gura_trident",
+          "data": {
+            "skill": {},
+            "action": {
+              "id": "project_n:gura_trident_action",
+              "start": {},
+              "perform": {
+                "windup": 0.25,
+                "recovery": 0.3,
+                "maxFlight": 1.8,
+                "projectile": {
+                  "projectileId": "project_n:gura_trident",
+                  "input": {},
+                  "count": 1,
+                  "spread": 0,
+                  "aimRadius": 8
+                },
+                "blast": {
+                  "blastId": "project_n:blast_cylinder",
+                  "dependency": "Independent",
+                  "input": {
+                    "delay": 0.05,
+                    "tail": 0.15,
+                    "radius": 2.0,
+                    "height": 1.5,
+                    "value": {
+                      "amount": 200,
+                      "statId": "base:attack_power"
+                    },
+                    "canCrit": true,
+                    "tags": [
+                      "base:physical",
+                      "base:skill"
+                    ]
+                  }
+                }
+              },
+              "exit": {},
+              "cancel": {}
+            },
+            "categoryIds": [
+              "base:skill"
+            ],
+            "affectedByAttackSpeed": false
+          }
+        },
+        {
+          "id": "project_n:gura_moveset",
+          "data": {
+            "skill": {
+              "abilities": [
+                {
+                  "id": "project_n:gura_combo_step",
+                  "kind": "Counter",
+                  "showInUI": false,
+                  "iconPath": "",
+                  "displayOrder": 0,
+                  "maximum": 3,
+                  "initialAmount": 0,
+                  "clock": "Game"
+                },
+                {
+                  "id": "project_n:gura_combo_window",
+                  "kind": "State",
+                  "showInUI": false,
+                  "iconPath": "",
+                  "displayOrder": 0,
+                  "duration": 1.2,
+                  "reapply": "Refresh",
+                  "clock": "Game"
+                },
+                {
+                  "id": "project_n:gura_next_four",
+                  "kind": "State",
+                  "showInUI": true,
+                  "iconPath": "",
+                  "displayOrder": 0,
+                  "duration": 3,
+                  "reapply": "Refresh",
+                  "clock": "Game"
+                },
+                {
+                  "id": "project_n:gura_water_coat",
+                  "kind": "State",
+                  "showInUI": true,
+                  "iconPath": "",
+                  "displayOrder": 0,
+                  "duration": 3,
+                  "reapply": "Refresh",
+                  "clock": "Game"
+                },
+                {
+                  "id": "project_n:gura_skill_ready",
+                  "kind": "Cooldown",
+                  "showInUI": true,
+                  "iconPath": "",
+                  "displayOrder": 0,
+                  "maximum": 1,
+                  "initialAmount": 1,
+                  "cooldown": 5,
+                  "recovery": "PerStack",
+                  "autoRecover": true,
+                  "clock": "Game"
+                }
+              ],
+              "stateEffects": [
+                {
+                  "state": "project_n:gura_water_coat",
+                  "statSource": {
+                    "id": "project_n:gura_water_coat_bonus",
+                    "modifiers": [
+                      {
+                        "statId": "base:move_speed",
+                        "value": 0.35,
+                        "group": 0
+                      }
+                    ]
+                  }
+                }
+              ],
+              "tuning": {
+                "targetRange": 2.5
+              }
+            },
+            "action": {
+              "id": "project_n:combo_strike_action",
+              "start": {},
+              "perform": {
+                "tags": [
+                  "base:physical",
+                  "base:attack"
+                ],
+                "duration": 0.45,
+                "radius": 1.6,
+                "angle": 110,
+                "thickness": 0.7,
+                "height": 0.3,
+                "canCrit": true,
+                "hits": [
+                  {
+                    "at": 0.17,
+                    "value": {
+                      "amount": 100,
+                      "statId": "base:attack_power"
+                    }
+                  }
+                ],
+                "step": {
+                  "at": 0.0,
+                  "duration": 0.15,
+                  "distance": 0.75,
+                  "stopDistance": 0.6,
+                  "retreat": false,
+                  "permissionId": "base:motion_voluntary",
+                  "actorCollision": "IgnoreAllActors"
+                }
+              },
+              "exit": {},
+              "cancel": {}
+            },
+            "categoryIds": [
+              "base:attack"
+            ],
+            "affectedByAttackSpeed": false
+          }
+        },
+        {
+          "id": "project_n:gura_dash",
+          "data": {
+            "skill": {
+              "recoveryId": "project_n:gura_dash_charge",
+              "applyCooldownReduction": true,
+              "abilities": [
+                {
+                  "id": "project_n:gura_dash_charge",
+                  "kind": "Cooldown",
+                  "showInUI": true,
+                  "iconPath": "",
+                  "displayOrder": 0,
+                  "maximum": 3,
+                  "initialAmount": 3,
+                  "cooldown": 7,
+                  "recovery": "PerStack",
+                  "autoRecover": true,
+                  "clock": "Game"
+                }
+              ]
+            },
+            "action": {
+              "id": "base:motion_action",
+              "start": {},
+              "perform": {
+                "distance": 1.5,
+                "duration": 0.16,
+                "ignoreEntities": true,
+                "permissionId": "base:motion_voluntary"
+              },
+              "exit": {},
+              "cancel": {}
+            },
+            "categoryIds": [
+              "base:dash"
+            ],
+            "affectedByAttackSpeed": false
+          }
+        },
+        {
+          "id": "project_n:gura_attack_1",
+          "data": {
+            "skill": {},
+            "action": {
+              "id": "project_n:combo_strike_action",
+              "start": {},
+              "perform": {
+                "tags": [
+                  "base:physical",
+                  "base:attack"
+                ],
+                "duration": 0.45,
+                "radius": 1.6,
+                "angle": 110,
+                "thickness": 0.7,
+                "height": 0.3,
+                "canCrit": true,
+                "hits": [
+                  {
+                    "at": 0.17,
+                    "value": {
+                      "amount": 100,
+                      "statId": "base:attack_power"
+                    }
+                  }
+                ],
+                "step": {
+                  "at": 0.0,
+                  "duration": 0.15,
+                  "distance": 0.75,
+                  "stopDistance": 0.6,
+                  "retreat": false,
+                  "permissionId": "base:motion_voluntary",
+                  "actorCollision": "IgnoreAllActors"
+                }
+              },
+              "exit": {},
+              "cancel": {}
+            },
+            "categoryIds": [
+              "base:attack"
+            ],
+            "affectedByAttackSpeed": true
+          }
+        },
+        {
+          "id": "project_n:gura_attack_2",
+          "data": {
+            "skill": {},
+            "action": {
+              "id": "project_n:combo_strike_action",
+              "start": {},
+              "perform": {
+                "tags": [
+                  "base:physical",
+                  "base:attack"
+                ],
+                "duration": 0.45,
+                "radius": 1.6,
+                "angle": 110,
+                "thickness": 0.7,
+                "height": 0.3,
+                "canCrit": true,
+                "hits": [
+                  {
+                    "at": 0.17,
+                    "value": {
+                      "amount": 100,
+                      "statId": "base:attack_power"
+                    }
+                  }
+                ],
+                "step": {
+                  "at": 0.0,
+                  "duration": 0.15,
+                  "distance": 0.75,
+                  "stopDistance": 0.6,
+                  "retreat": false,
+                  "permissionId": "base:motion_voluntary",
+                  "actorCollision": "IgnoreAllActors"
+                }
+              },
+              "exit": {},
+              "cancel": {}
+            },
+            "categoryIds": [
+              "base:attack"
+            ],
+            "affectedByAttackSpeed": true
+          }
+        },
+        {
+          "id": "project_n:gura_attack_3",
+          "data": {
+            "skill": {},
+            "action": {
+              "id": "project_n:combo_strike_action",
+              "start": {},
+              "perform": {
+                "tags": [
+                  "base:physical",
+                  "base:attack"
+                ],
+                "duration": 0.85,
+                "radius": 1.3,
+                "angle": 60,
+                "thickness": 0.45,
+                "height": 0.3,
+                "canCrit": true,
+                "hits": [
+                  {
+                    "at": 0.3,
+                    "value": {
+                      "amount": 50,
+                      "statId": "base:attack_power"
+                    }
+                  },
+                  {
+                    "at": 0.42,
+                    "value": {
+                      "amount": 50,
+                      "statId": "base:attack_power"
+                    }
+                  },
+                  {
+                    "at": 0.54,
+                    "value": {
+                      "amount": 50,
+                      "statId": "base:attack_power"
+                    }
+                  }
+                ],
+                "step": {
+                  "at": 0.0,
+                  "duration": 0.24,
+                  "distance": 2.0,
+                  "stopDistance": 0.6,
+                  "retreat": false,
+                  "permissionId": "base:motion_voluntary",
+                  "actorCollision": "IgnoreAllActors"
+                }
+              },
+              "exit": {},
+              "cancel": {}
+            },
+            "categoryIds": [
+              "base:attack"
+            ],
+            "affectedByAttackSpeed": true
+          }
+        },
+        {
+          "id": "project_n:gura_attack_4",
+          "data": {
+            "skill": {},
+            "action": {
+              "id": "project_n:combo_strike_action",
+              "start": {},
+              "perform": {
+                "tags": [
+                  "base:physical",
+                  "base:attack"
+                ],
+                "duration": 0.85,
+                "radius": 3.4,
+                "angle": 70,
+                "thickness": 0.7,
+                "height": 0.3,
+                "canCrit": true,
+                "hits": [
+                  {
+                    "at": 0.32,
+                    "value": {
+                      "amount": 170,
+                      "statId": "base:attack_power"
+                    }
+                  }
+                ],
+                "innerRadius": 1.5,
+                "step": {
+                  "at": 0.0,
+                  "duration": 0.22,
+                  "distance": 2.0,
+                  "stopDistance": 1.2,
+                  "retreat": true,
+                  "permissionId": "base:motion_voluntary",
+                  "actorCollision": "IgnoreAllActors"
+                }
+              },
+              "exit": {},
+              "cancel": {}
+            },
+            "categoryIds": [
+              "base:attack"
+            ],
+            "affectedByAttackSpeed": true
+          }
+        }
+      ]
+    }
+  ]
+}

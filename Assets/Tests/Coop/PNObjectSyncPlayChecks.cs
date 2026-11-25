@@ -13,7 +13,7 @@ namespace ProjectN.Coop.Tests
     // Client2 (and client1) must see the host's projectiles as copies through the object channel, and see the pet at the same size and near its owner (PNMove + summon_scale).
     public static class PNObjectSyncPlayChecks
     {
-        public static bool Enabled => Environment.GetCommandLineArgs().Contains("--pn-object-sync") || O4 || Refuse || NoGuess || O6 || SharedScenario || Enemy || Melee || Quiet || O5 || O5b || Load || Hits || Dodge || DodgeBlast || DodgeMelee || DodgeSlam || DodgePoint || DodgeDash || Grace || BindingChange || WorldChange || MeleeMany || Strike || StrikeAll || Slow;
+        public static bool Enabled => Environment.GetCommandLineArgs().Contains("--pn-object-sync") || O4 || Refuse || NoGuess || O6 || SharedScenario || Enemy || Melee || Quiet || O5 || O5b || Load || Hits || Dodge || DodgeBlast || DodgeMelee || DodgeSlam || DodgePoint || DodgeDash || Grace || BindingChange || WorldChange || MeleeMany || Strike || StrikeAll || Slow || TraitScenario || MultiStrike || Push;
         private static bool Dodge => Environment.GetCommandLineArgs().Contains("--pn-object-sync-dodge");
         // V2 variant of the dodge fixture: the host drops a cylinder blast where it sees the player (plan 4.4c); the machine of the player decides whether it hurt him.
         // O7 (--pn-object-sync-strike): the host spawns a Starkeeper next to the players and its AI sweeps them; every other machine must replay the sweep from the enemy's `skill_cast` block.
@@ -38,6 +38,12 @@ namespace ProjectN.Coop.Tests
         private static bool Hits => Environment.GetCommandLineArgs().Contains("--pn-object-sync-hits");
         private static bool O5 => Environment.GetCommandLineArgs().Contains("--pn-object-sync-o5");
         private static bool O5b => Environment.GetCommandLineArgs().Contains("--pn-object-sync-o5b");
+        // IL scenarios (clone-only builds, Docs/InstanceLifecyclePlan.md): --pn-object-sync-trait (client1 dashes twice with a clone-patched Eve whose dash field carries the solizeitastronhringur trait)
+        // and --pn-object-sync-multistrike (the host makes three multi-strike blasts on client1's player).
+        private static bool TraitScenario => Environment.GetCommandLineArgs().Contains("--pn-object-sync-trait");
+        private static bool MultiStrike => Environment.GetCommandLineArgs().Contains("--pn-object-sync-multistrike");
+        // --pn-object-sync-push (Docs/BodyMotionPlan.md M4): the host pushes client1 player three times (one lift, one with two parallel commands); every machine reads how far the body moved, the host counts how often its safety net had to act.
+        private static bool Push => Environment.GetCommandLineArgs().Contains("--pn-object-sync-push");
         // O4 (character Eve): client1 casts Skill (three homing projectiles) near enemies; the shooter must see a guess before any answer and no second copy, the host must take the shooter's reports, client2 sees copies.
         private static bool O4 => Environment.GetCommandLineArgs().Contains("--pn-object-sync-o4");
         // --pn-object-sync-o4r: the host refuses the shooter's cast (a Control lock the client did not know yet): the guess must go and nothing must show or hurt anywhere.
@@ -89,6 +95,9 @@ namespace ProjectN.Coop.Tests
             if (Melee || MeleeMany) { yield return MeleeBody(folder, name, e1, log); yield break; }
             if (O5) { yield return O5Body(folder, name, e1, log); yield break; }
             if (O5b) { yield return O5bBody(folder, name, e1, log); yield break; }
+            if (TraitScenario) { yield return TraitBody(folder, name, e1, log); yield break; }
+            if (MultiStrike) { yield return MultiStrikeBody(folder, name, e1, log); yield break; }
+            if (Push) { yield return PushBody(folder, name, e1, log); yield break; }
             if (Load) { yield return LoadBody(folder, name, e1, log); yield break; }
             if (Hits) { yield return HitsBody(folder, name, e1, log); yield break; }
             if (Dodge || DodgeBlast) { yield return DodgeBody(folder, name, e1, log); yield break; }
@@ -507,6 +516,161 @@ namespace ProjectN.Coop.Tests
             yield return Wait(() => Has("host-observed"), "host observed");
             if (name == "client1" && (blasts.Adoptions != 1 || peakGuess != 1 || peakActive != 1)) throw new Exception("the dasher's guess blast must be taken over by the record: one blast, one adoption " + log);
             if (name == "client2" && (peakCopies != 1 || blasts.ReplicasDetonated != 1)) throw new Exception("client2 must show exactly one blast copy and see it detonate " + log);
+        }
+
+        // IL1b over the real wire (--pn-object-sync-trait, character Eve, CLONE-ONLY build where Eve's dash field is `project_n:tide_field_test`, a time-scale area carrying `project_n:solizeitastronhringur`):
+        // client1 dashes, then dashes again 4 s later. The second field ends the first with Replaced on the host. Every machine must end with exactly one field (the first lives 15 s, so only the trait could end it),
+        // must have seen the first play an Ending (borrowed > running), the host must never show two running fields, and client1's guesses must both be taken over by the record.
+        private static IEnumerator TraitBody(string folder, string name, PNPlayerMove e1, System.Text.StringBuilder log)
+        {
+            bool Has(string value) => File.Exists(Path.Combine(folder, value));
+            bool host = name == "host";
+            var eve = e1.GetComponent<EveCharacterSkill>(); var remote = e1.GetComponent<PNSkillRemoteInput>();
+            if (eve == null) throw new Exception("the trait fixture needs Eve (--pn-skill-character=project_n:eve)");
+            var areas = PNAreaManager.Resolve(EveRegistrySession.Context, e1.gameObject.scene);
+            void Dash()
+            {
+                eve.RequestSlot(PNSkillSlots.Dash, new PNSkillInputEvent(PNSkillInputPhase.Started, PNSkillInteraction.Tap));
+                eve.RequestSlot(PNSkillSlots.Dash, new PNSkillInputEvent(PNSkillInputPhase.Performed, PNSkillInteraction.Tap));
+                eve.RequestSlot(PNSkillSlots.Dash, new PNSkillInputEvent(PNSkillInputPhase.Canceled, PNSkillInteraction.Tap));
+            }
+            int runningAfterSecond = -1, peakRunning = 0, peakBorrowed = 0, endingFrames = 0, peakGuess = 0, adoptionsAtSecond = -1, copiesAtSecond = -1; bool second = false; string lastState = ""; var timeline = new System.Text.StringBuilder();
+            if (name == "client1")
+            {
+                yield return Wait(() => remote != null && remote.IsBound && !eve.IsBusy, "Eve ready");
+                yield return new WaitForSecondsRealtime(1.5f);
+                Dash(); Mark(folder, "client1-dash1");
+            }
+            yield return Wait(() => Has("client1-dash1"), "the first dash");
+            double secondAt = Time.realtimeSinceStartupAsDouble + 4.0, until = Time.realtimeSinceStartupAsDouble + 13.0;
+            while (Time.realtimeSinceStartupAsDouble < until)
+            {
+                if (name == "client1" && !second && Time.realtimeSinceStartupAsDouble >= secondAt && !eve.IsBusy) { second = true; adoptionsAtSecond = areas.Adoptions; copiesAtSecond = areas.ReplicaCount; Dash(); Mark(folder, "client1-dash2"); }
+                peakGuess = Math.Max(peakGuess, areas.GuessCount);
+                if (runningAfterSecond < 0 && Has("client1-dash2") && Time.realtimeSinceStartupAsDouble >= secondAt + 0.9) runningAfterSecond = areas.ActiveCount;
+                { var state = areas.ActiveCount + "/" + areas.BorrowedCount + "/g" + areas.GuessCount + "/a" + areas.Adoptions + "/c" + areas.ReplicaCount; if (state != lastState) { lastState = state; timeline.Append((Time.realtimeSinceStartupAsDouble - (secondAt - 4.0)).ToString("F2") + "s " + state + " | "); } }
+                int running = areas.ActiveCount, borrowed = areas.BorrowedCount;
+                peakRunning = Math.Max(peakRunning, running); peakBorrowed = Math.Max(peakBorrowed, borrowed);
+                if (borrowed > running) endingFrames++;
+                yield return null;
+            }
+            int finalRunning = areas.ActiveCount, finalBorrowed = areas.BorrowedCount;
+            log.Append(name + ": peakRunning=" + peakRunning + " peakBorrowed=" + peakBorrowed + " endingFrames=" + endingFrames + " finalRunning=" + finalRunning + " finalBorrowed=" + finalBorrowed + " adoptions=" + areas.Adoptions + " (before the second dash " + adoptionsAtSecond + ") copies=" + areas.ReplicaCount + " (before the second dash " + copiesAtSecond + ") peakGuess=" + peakGuess + " timeline(running/borrowed/guess/adopted/copies)=" + timeline + "; ");
+            if (!Has("client1-dash2")) throw new Exception("client1 never made the second dash " + log);
+            if (peakRunning < 1) throw new Exception("this machine never showed a field " + log);
+            if (host && peakRunning > 1) throw new Exception("the authority showed two running fields at once " + log);
+            if (peakRunning > 2) throw new Exception("more than two fields ran at once " + log);
+            if (endingFrames < 1) throw new Exception("this machine never saw the first field play its Ending " + log);
+            if (finalRunning != 1 || finalBorrowed != 1) throw new Exception("this machine must end with exactly one field (running " + finalRunning + ", borrowed " + finalBorrowed + ") " + log);
+            // 0.7 s after the second dash the first field has finished its Ending (0.3 s) and no orphan guess may be left drawing next to the record's copy (an orphan lives 1 s): exactly one running field on every machine.
+            if (runningAfterSecond != 1) throw new Exception("0.7 s after the second dash this machine must show exactly one field (it shows " + runningAfterSecond + ") " + log);
+        }
+
+        // IL2 over the real wire (--pn-object-sync-multistrike, CLONE-ONLY build that registers `project_n:strikes_play_test`, see PNStrikesPlayProbe): the host makes three of these blasts where the players stand (they spawn together, all inside the cylinder, and stand still).
+        // Each blast strikes twice while it runs and once in OnEnd (the aftershock): the host must apply 9 claims and refuse none, client1 sends 9 and is told 9 damage events, and every machine counts the same nine strikes.
+        // M4 forced motion over the real wire (--pn-object-sync-push). The host finds client1's player (its RemoteOwnerHost body), publishes its id, then decides three pushes on it. Every machine reads the body's position before
+        // and after each push (client1 reads its own predicted pose, the others the pose they were sent); a push is right when the body moved by about the displacement on every machine.
+        private static IEnumerator PushBody(string folder, string name, PNPlayerMove e1, System.Text.StringBuilder log)
+        {
+            bool Has(string value) => File.Exists(Path.Combine(folder, value));
+            bool host = name == "host"; var remote = e1.GetComponent<PNSkillRemoteInput>();
+            if (name != "host") { yield return Wait(() => remote != null && remote.IsBound, "the player's input bound"); yield return new WaitForSecondsRealtime(1f); }
+            PNMove subject = null; int relocations = 0;
+            if (host)
+            {
+                yield return Wait(() => UnityEngine.Object.FindObjectsByType<PNPlayerMove>().Any(x => x.NetworkRole == PNMoveNetworkRole.RemoteOwnerHost && x.NetworkUsable), "client players on the host");
+                subject = UnityEngine.Object.FindObjectsByType<PNPlayerMove>().First(x => x.NetworkRole == PNMoveNetworkRole.RemoteOwnerHost && x.NetworkUsable);
+                PNForcedMotion.Of(subject).Relocated += p => relocations++;
+                Mark(folder, "subject-" + subject.GetComponent<EveEntityIdentity>().Id.Value);
+            }
+            yield return Wait(() => Directory.GetFiles(folder, "subject-*").Length > 0, "the subject");
+            long subjectId = long.Parse(Path.GetFileName(Directory.GetFiles(folder, "subject-*")[0]).Substring("subject-".Length));
+            yield return Wait(() => UnityEngine.Object.FindObjectsByType<PNMove>().Any(x => x.GetComponent<EveEntityIdentity>().Id.Value == subjectId && x.NetworkUsable), "the subject body on this machine");
+            subject = UnityEngine.Object.FindObjectsByType<PNMove>().First(x => x.GetComponent<EveEntityIdentity>().Id.Value == subjectId);
+            if (name != "host") Mark(folder, "push-" + name + "-ready");
+            if (host) { yield return Wait(() => Has("push-client1-ready") && Has("push-client2-ready"), "the clients ready"); yield return new WaitForSecondsRealtime(1f); Mark(folder, "push-start"); }
+            yield return Wait(() => Has("push-start"), "push start");
+            var view = subject.GetComponent<PNForcedMotionView>();
+            var expected = new[] { new Vector3(4, 0, 0), new Vector3(3, 0, 0), new Vector3(-2, 0, 2) };
+            var seen = new Vector3[3];
+            for (int i = 0; i < 3; i++)
+            {
+                var before = subject.Body.position;
+                if (host)
+                {
+                    var layer = PNForcedMotion.Of(subject);
+                    if (i == 0) layer.Issue(new Vector3(4, 0, 0), 1f, 0f);
+                    else if (i == 1) layer.Issue(new Vector3(3, 0, 0), 1f, 1.5f);
+                    else { layer.Issue(new Vector3(0, 0, 2), 1f, 0f); layer.Issue(new Vector3(-2, 0, 0), 1.2f, 0f); }
+                    Mark(folder, "push-" + i + "-sent");
+                }
+                yield return Wait(() => Has("push-" + i + "-sent"), "push " + i + " sent");
+                if (!host) before = subject.Body.position;
+                yield return new WaitForSecondsRealtime(3.2f);
+                if (host) Mark(folder, "push-" + i + "-done");
+                yield return Wait(() => Has("push-" + i + "-done"), "push " + i + " done");
+                var after = subject.Body.position; var delta = after - before; delta.y = 0; seen[i] = delta;
+                log.Append(name + ": push " + i + " moved " + delta.ToString("F2") + " (wanted " + expected[i] + ") y=" + after.y.ToString("F2") + "; ");
+                yield return new WaitForSecondsRealtime(.5f);
+            }
+            if (host) log.Append("host safety net relocations=" + relocations + "; ");
+            if (view != null) log.Append(name + " view{" + view.Diagnostics + "} layer.dropped=" + PNForcedMotion.Of(subject).Dropped + "; ");
+            for (int i = 0; i < 3; i++)
+                if ((seen[i] - expected[i]).magnitude > 1.0f) throw new Exception(name + ": push " + i + " moved " + seen[i] + " but " + expected[i] + " was decided " + log);
+            if (host && relocations != 0) throw new Exception("the host's safety net had to move the body " + relocations + " times: the owner's machine did not run the push " + log);
+            bool ownsSubject = !host && subject.GetComponent<EveEntityIdentity>().OwnerId == EveRegistrySession.Context.LocalOwnerId;
+            if (ownsSubject && (view == null || view.AppliedCount != 4)) throw new Exception(name + " owns the pushed player and must have started the four commands the host decided " + log);
+            if (!host && !ownsSubject && (view == null || view.AppliedCount != 0 || view.ApplyCalls != 0)) throw new Exception(name + " does not own the pushed player and must never receive its forced motion state " + log);
+            Mark(folder, "push-" + name + "-ok");
+            yield return Wait(() => Has("push-host-ok") && Has("push-client1-ok") && Has("push-client2-ok"), "every machine finished");
+        }
+
+        private static IEnumerator MultiStrikeBody(string folder, string name, PNPlayerMove e1, System.Text.StringBuilder log)
+        {
+            bool Has(string value) => File.Exists(Path.Combine(folder, value));
+            bool host = name == "host";
+            var scene = e1.gameObject.scene; var blasts = PNBlastManager.Resolve(EveRegistrySession.Context, scene); var remote = e1.GetComponent<PNSkillRemoteInput>();
+            PNStat enemy = null; PNStrikesPlayBlast.ResetCounters();
+            if (host)
+            {
+                var world = PNLocalWorldContext.Current.World;
+                var request = new PNEntityRequest { Entity = "project_n:enemy", Template = "project_n:enemy", Character = "project_n:dummy_lorica", World = world, WorldIncarnation = world.Incarnation, ContentSlot = PNGridWorldController.SlotId, SceneKey = "objectsync:multistrike", EntityKey = "", Position = e1.transform.position + new Vector3(30f, 0, 0) };
+                if (PNEntityHosts.For(EveRegistrySession.Context).TrySpawn(request, null, null, error => Debug.LogException(error)) == null) throw new Exception("the host refused the source enemy");
+                yield return Wait(() => UnityEngine.Object.FindObjectsByType<PNStat>().Any(x => x.gameObject.layer == PNLayers.Enemy && x.IsReady), "the source enemy");
+                enemy = UnityEngine.Object.FindObjectsByType<PNStat>().First(x => x.gameObject.layer == PNLayers.Enemy && x.IsReady);
+                Mark(folder, "host-enemy");
+            }
+            yield return Wait(() => Has("host-enemy"), "the source enemy");
+            if (name != "host") { yield return Wait(() => remote != null && remote.IsBound, "the player's input bound"); yield return new WaitForSecondsRealtime(1f); if (name == "client1") Mark(folder, "strikes-armed"); }
+            yield return Wait(() => Has("strikes-armed"), "the clients armed");
+            int damageOnPlayer = 0; long playerId = e1.GetComponent<EveEntityIdentity>().Id.Value;
+            Action<PNCombatEvent, bool> onEvent = (combatEvent, matched) => { if (combatEvent.Kind == PNCombatEventKind.Damage && combatEvent.TargetId == playerId) damageOnPlayer++; };
+            PNCombatEvents.Observed += onEvent;
+            try
+            {
+                double start = Time.realtimeSinceStartupAsDouble; int made = 0;
+                while (Time.realtimeSinceStartupAsDouble < start + 14)
+                {
+                    if (host && made < 3 && Time.realtimeSinceStartupAsDouble >= start + 1 + made * 3.5)
+                    {
+                        var source = PNCombatSource.Capture(enemy);
+                        var receipt = blasts.Create(new PNBlastCreateRequest(PNStrikesPlayBlast.Id, new Newtonsoft.Json.Linq.JObject(), source, scene, e1.transform.position, enemy, PNBlastDependency.Independent));
+                        if (receipt.Status != PNBlastStatus.Created) throw new Exception("the host's blast was " + receipt.Status);
+                        made++;
+                    }
+                    yield return null;
+                }
+            }
+            finally { PNCombatEvents.Observed -= onEvent; }
+            var book = blasts.ClaimBook;
+            string claims = " claims(accepted/refused/sent)=" + book.Accepted + "/" + book.Refused + "/" + book.Sent + " refusals{" + string.Join(",", book.Refusals.Select(x => x.Key + "x" + x.Value)) + "}";
+            log.Append(name + ": starts=" + PNStrikesPlayBlast.Starts + " strikes=" + PNStrikesPlayBlast.Strikes + " ends=" + PNStrikesPlayBlast.Ends + " endingSteps=" + PNStrikesPlayBlast.EndingSteps + " damageOnPlayer=" + damageOnPlayer + claims + " borrowed=" + blasts.BorrowedCount + " timing(strike@age,copy/real,realtime)=" + PNStrikesPlayBlast.Timing + "; ");
+            if (PNStrikesPlayBlast.Starts != 3) throw new Exception("this machine must have run three blasts " + log);
+            if (PNStrikesPlayBlast.Strikes != 9) throw new Exception("this machine must have counted nine strikes (3 blasts x 2 + 1 aftershock) " + log);
+            if (PNStrikesPlayBlast.Ends != 3) throw new Exception("this machine must have told three ends " + log);
+            if (blasts.BorrowedCount != 0) throw new Exception("blasts leaked " + log);
+            if (host && (book.Accepted != 18 || book.Refused != 0)) throw new Exception("the host must apply nine claims for each of its two clients (all players stand in the cylinder) and refuse none " + log);
+            if (!host && (book.Sent != 9 || damageOnPlayer != 9)) throw new Exception("this client must send nine claims for its own player and be told nine damage events " + log);
         }
 
         // O6 load (--pn-object-sync-load): the host keeps 100 long-lived homing projectiles flying toward enemies far away (so they curve and the audit has something to correct) and the run reports what the object channel cost:

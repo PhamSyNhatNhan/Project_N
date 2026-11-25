@@ -16,6 +16,7 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
     public static readonly EveId WorkAction = EveId.Parse("project_n:work_action");
     public static readonly EveId LocomotionAction = EveId.Parse("project_n:locomotion_action");
     public static readonly EveId HealOperation = EveId.Parse("project_n:heal");
+    public static readonly EveId ForcedMotionOperation = EveId.Parse("project_n:forced_motion");
     public static readonly EveId EveAttackEntry = EveId.Parse("project_n:eve_attack_entry");
     public static readonly EveId EveSkillEntry = EveId.Parse("project_n:eve_skill_entry");
     public static readonly EveId EveUltimateEntry = EveId.Parse("project_n:eve_ultimate_entry");
@@ -114,6 +115,7 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         PNProjectileGameplayContent.Register(hub);
         PNEntityGameplayContent.Register(hub);
         PNSummonGameplayContent.Register(hub);
+        PNGuraContent.Register(hub);
         PNEnemyGameplayContent.Register(hub);
         PNStarweaverCombatContent.Register(hub);
         PNStarkeeperCombatContent.Register(hub);
@@ -132,6 +134,7 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         hub.EntityModules().Register(new PNEntityModuleDefinition(EveId.Parse("project_n:rogue_buff_player"),PNEntityModuleRoles.Player,null,new[]{PNRunFeatures.RogueBuff},new[]{typeof(PNSyncEntity),typeof(PNRogueEntityView),typeof(PNRogueBuffManager)}));
         // The owner's skill state (Abilities + view binding), sent only to the owner (Docs/SkillNetworkingAPlan.md S1).
         hub.SyncStates().Register(new PNSyncStateDefinition(PNSkillOwnerView.State,2,PNSkillOwnerView.StateBytes,PNSyncTargets.Entity,true));
+        hub.SyncStates().Register(new PNSyncStateDefinition(PNForcedMotionView.State,1,PNForcedMotionView.StateBytes,PNSyncTargets.Entity,true));
         hub.SyncStates().Register(new PNSyncStateDefinition(PNSkillScaleState.State,1,PNSkillScaleState.StateBytes,PNSyncTargets.Entity));
         hub.SyncCommands().Register(new PNSyncCommandDefinition(PNSkillOwnerView.BaselineCommand,typeof(PNSkillOwnerBaselineHandler),()=>new PNSkillOwnerBaselineHandler(),32,PNSyncTargets.Entity));
         hub.SyncStates().Register(new PNSyncStateDefinition(PNPresentationSync.State,1,PNPresentationSync.StateBytes,PNSyncTargets.Entity));
@@ -141,7 +144,7 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         // The hits a player's machine decided (S4, 4.4c, one command both ways since V4a: Dealt = my cast hit these, Taken = this object hit me) and its choices at decision points (S5): proposals the authority checks, never orders.
         hub.SyncCommands().Register(new PNSyncCommandDefinition(PNSkillRemoteInput.HitReportCommand,typeof(PNHitReportCommandHandler),()=>new PNHitReportCommandHandler(),PNSkillRemoteInput.HitReportCommandBytes,PNSyncTargets.Entity));
         hub.SyncCommands().Register(new PNSyncCommandDefinition(PNSkillRemoteInput.DecisionCommand,typeof(PNSkillDecisionCommandHandler),()=>new PNSkillDecisionCommandHandler(),PNSkillRemoteInput.DecisionCommandBytes,PNSyncTargets.Entity));
-        hub.EntityModules().Register(new PNEntityModuleDefinition(EveId.Parse("project_n:skill_owner_player"),PNEntityModuleRoles.Player,null,new[]{PNRunFeatures.SkillSync},new[]{typeof(PNSyncEntity),typeof(PNSkillOwnerView),typeof(PNSkillRemoteInput),typeof(PNPresentationSync),typeof(PNSkillScaleState)}));
+        hub.EntityModules().Register(new PNEntityModuleDefinition(EveId.Parse("project_n:skill_owner_player"),PNEntityModuleRoles.Player,null,new[]{PNRunFeatures.SkillSync},new[]{typeof(PNSyncEntity),typeof(PNSkillOwnerView),typeof(PNSkillRemoteInput),typeof(PNPresentationSync),typeof(PNSkillScaleState),typeof(PNForcedMotionView)}));
         // O7 (Docs/SpawnedObjectSyncPlan.md): the other machines see what an enemy casts, through the Action stream's views (PV8); the shared presentation clock and the scale block; no owner, input or hit channel.
         hub.EntityModules().Register(new PNEntityModuleDefinition(EveId.Parse("project_n:skill_sync_enemy"),PNEntityModuleRoles.None,new[]{PNEntityGameplayContent.Enemy},new[]{PNRunFeatures.SkillSync},new[]{typeof(PNSyncEntity),typeof(PNPresentationSync),typeof(PNSkillScaleState)}));
         // The two things an enemy owes a room (G6), answered by the world's features instead of flags on the role: the clear marker the room director counts and the loot source.
@@ -208,6 +211,8 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
             (data, context) => context.Require<PNBuffDefinition>(PNBuffContentBatch.Object(data)["buffId"], "buffId"), sourceIndependent: true));
         operations.Register(new PNSkillOperationDefinition(LockMovementOperation, typeof(PNLockMovementOperation)));
         operations.Register(new PNSkillOperationDefinition(HealOperation, typeof(PNHealOperation), (data, content) => PNHealSettings.Parse(data).ValidateContent(content)));
+        // Body motion (Docs/BodyMotionPlan.md M4): the host moves the bodies a skill hit; the strength goes through the crowd_control tag.
+        operations.Register(new PNSkillOperationDefinition(ForcedMotionOperation, typeof(PNForcedMotionOperation), (data, content) => PNForcedMotionSettings.Parse(data), PNSkillContextRequirements.Targets));
         foreach (var definition in hub.Actions().Snapshot().Values)
             if (definition.Id.Namespace == "project_n")
                 hub.Actions().RegisterBase(new EveId("base", definition.Id.Path), definition.Id, "project_n",
@@ -222,6 +227,7 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
     {
         PNGameSkillBindings.Register(hub);
         PNSummonGameplayContent.RegisterBindings(hub);
+        PNGuraContent.RegisterBindings(hub);
         foreach(var behavior in hub.Get<PNSkillBehaviorDefinition>().Snapshot().Values.Where(x=>x.Id.Namespace=="project_n"))
             hub.Get<PNSkillBehaviorDefinition>().RegisterBase(new EveId("base",behavior.Id.Path),behavior.Id,"project_n",compatible:(original,replacement)=>true);
         foreach(var profile in hub.Get<PNSkillBindingProfile>().Snapshot().Values.Where(x=>x.Id.Namespace=="project_n"))

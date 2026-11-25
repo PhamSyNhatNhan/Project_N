@@ -12,7 +12,7 @@ using UnityEngine;
 public sealed class PNStarkeeperSweepAction : PNSkillAction, IPNSkillMotionAction
 {
     // each sweep carries the Starkeeper forward toward the target: during the `step.duration` seconds that END at the hit it moves up to `step.distance` (never closer than `stopDistance`)
-    private Action cancelOwner; private PNMotionMotor motor; private float stepDistance, stepSeconds, stopDistance, stepAmount, stepDone; private EveId stepPermission; private PNMotionActorCollision stepCollision;
+    private Action cancelOwner; private PNBodyMotion motor; private float stepDistance, stepSeconds, stopDistance, stepAmount, stepDone; private EveId stepPermission; private PNMotionActorCollision stepCollision;
     private bool stepOpen; private Vector3 stepDirection; private readonly bool[] stepped = new bool[2];
     public void BindMovementOwner(Action cancel) { if (context != null || ended) throw new InvalidOperationException("Bind before Start."); cancelOwner = cancel ?? throw new ArgumentNullException(nameof(cancel)); }
     private PNSkillActionContext context; private float age, windup, gap, reaimAt, recovery, maxReaim, radius, angle, thickness;
@@ -75,7 +75,7 @@ public sealed class PNStarkeeperSweepAction : PNSkillAction, IPNSkillMotionActio
             stepAmount = Mathf.Min(stepDistance, Mathf.Max(0f, distance - stopDistance)); stepDone = 0f;
             if (stepAmount < .001f || distance < 1e-4f) { stepped[index] = true; return; }
             stepDirection = toward / distance;
-            try { motor = new PNMotionMotor(context.Skill.GetComponent<PNMove>(), stepPermission, stepCollision, false, cancelOwner); }
+            try { motor = new PNBodyMotion(context.Skill.GetComponent<PNMove>(), stepPermission, stepCollision, false, cancelOwner); }
             catch (InvalidOperationException) { motor = null; stepped[index] = true; return; }     // no local motion rights (a replica or a held body): the sweep still happens in place
             stepOpen = true;
         }

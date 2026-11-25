@@ -335,6 +335,14 @@ public class PNStatSet : EveStatSet
         }
     }
 
+
+    // EN: The receiver side of crowd control (Docs/BodyMotionPlan.md B6): `value` through this set's Mitigation route of the crowd_control tag; `penetration` joins for this call only.
+    public double CalculateCrowdControl(double value, IReadOnlyList<EveStatModifier> penetration)
+    {
+        if (double.IsNaN(value) || double.IsInfinity(value) || value < 0d) throw new ArgumentOutOfRangeException(nameof(value));
+        var ids = new[] { PNContentIds.CrowdControl };
+        return penetration == null || penetration.Count == 0 ? Calculate(PNContentIds.Mitigation, value, ids) : CalculateCore(PNContentIds.Mitigation, value, ids, penetration);
+    }
     // Defense is signed and base-backed, so this mirrors EvaluateUncached for the single defense id; the cached Evaluate path is never touched.
     private static readonly EveId[] defenseIds = { PNContentIds.Defense };
     private double EvaluateDefenseWith(IReadOnlyList<EveStatModifier> carried)
