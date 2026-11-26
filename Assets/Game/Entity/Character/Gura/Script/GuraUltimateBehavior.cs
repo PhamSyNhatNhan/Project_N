@@ -125,8 +125,13 @@ public sealed class GuraUltimateBehavior : PNSkillBehavior
     public override void Advance(float delta)
     {
         if (!casting || action == null) return;
-        bool done;
-        try { done = action.AdvanceAuxiliary(delta); }
+        bool done = false;
+        try
+        {
+            using var frame = context.Skill.BeginActionExecutionFrame(delta);
+            if (delta == 0f) { frame.Hold(actionContext); done = action.AdvanceAuxiliary(0f); }
+            else frame.Advance(actionContext, delta, 1d, step => done = action.AdvanceAuxiliary(step));
+        }
         catch { try { action.Cancel(actionContext); } catch { } Finish(true); throw; }
         // The dive ends when the player lets go: the dive is taken back (its immunity with it) and the shark follows.
         if (diving && released && !done)

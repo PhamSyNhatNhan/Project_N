@@ -15,6 +15,9 @@ public static class PNGuraContent
     public static readonly EveId DashProfile = EveId.Parse("project_n:binding_gura_dash");
     public static readonly EveId AttackProfile = EveId.Parse("project_n:binding_gura_attack");
     public static readonly EveId AttackBehavior = EveId.Parse("project_n:gura_attack");
+    public static readonly EveId CombatStrikeAction = EveId.Parse("project_n:gura_combat_strike");
+    public static readonly EveId DashAction = EveId.Parse("project_n:gura_dash_action");
+    public static readonly EveId ThrownTrident = EveId.Parse("project_n:gura_thrown_trident"), TridentSplash = EveId.Parse("project_n:gura_trident_splash");
     public static readonly EveId ComboStrikeAction = EveId.Parse("project_n:combo_strike_action");
     public static readonly EveId ComboStep = EveId.Parse("project_n:gura_combo_step"), ComboWindow = EveId.Parse("project_n:gura_combo_window"),
         NextFour = EveId.Parse("project_n:gura_next_four"), WaterCoat = EveId.Parse("project_n:gura_water_coat");
@@ -36,10 +39,25 @@ public static class PNGuraContent
     {
         var action = new PNSkillActionDefinition(ComboStrikeAction, typeof(PNComboStrikeAction), (a, h) => PNComboStrikeAction.Validate(a, h), PNSkillContextRequirements.Direction).NoView();
         hub.Actions().Register(action);
+        var combat = new PNSkillActionDefinition(CombatStrikeAction, typeof(PNComboStrikeAction), ValidateCombatStrike, PNSkillContextRequirements.Direction);
+        var dash = new PNSkillActionDefinition(DashAction, typeof(PNMotionAction), PNGameplayContentModule.ValidateEffectAction, PNSkillContextRequirements.Direction).WithDriverProgress();
+        var throwing = new PNSkillActionDefinition(TridentAction, typeof(PNGuraTridentAction), PNGuraTridentAction.Validate, PNSkillContextRequirements.Direction);
+#if UNITY_5_3_OR_NEWER
+        combat.WithView(PNGuraCombatView.CreateStrike, PNContentIds.MeleeScale);
+        dash.WithView(PNGuraCombatView.CreateDash);
+        throwing.WithView(PNGuraCombatView.CreateThrow);
+#else
+        combat.NoView(); dash.NoView(); throwing.NoView();
+#endif
+        hub.Actions().Register(combat);
+        hub.Actions().Register(dash);
+        hub.Actions().Register(throwing);
         // The trident: Eve-like homing, one hit ends it; the Action blasts where it ends (the projectile itself deals no damage).
         var trident = JObject.Parse("{'speed':14,'acceleration':0,'speedMin':0,'speedMax':40,'life':{'mode':'Time','value':1.6},'volume':{'size':[0.3,0.3,0.3]},'environmentMask':['Wall'],'hitLimit':1,'turnRate':720,'homeAfter':0,'lostTarget':'Reacquire','searchRadius':10,'searchInterval':0.2}");
         hub.Instances().Register(new PNProjectileDefinition(TridentProjectile, typeof(PNHomingProjectile), trident, PNHomingSettings.ValidateDefinition, PNDirectionalSettings.ValidateInput));
-        hub.Actions().Register(new PNSkillActionDefinition(TridentAction, typeof(PNGuraTridentAction), (a, h) => PNGuraTridentAction.Validate(a, h), PNSkillContextRequirements.Direction).NoView());
+        hub.Instances().Register(new PNProjectileDefinition(ThrownTrident, typeof(PNGuraThrownTrident), trident, PNHomingSettings.ValidateDefinition, PNDirectionalSettings.ValidateInput));
+        hub.Instances().Register(new PNBlastDefinition(TridentSplash, typeof(PNGuraTridentSplash), new JObject(),
+            (token, _) => PNBuffContentBatch.Fields(PNBuffContentBatch.Object(token)), input => PNCylinderBlast.Validate(input)));
         hub.Actions().Register(new PNSkillActionDefinition(FangAction, typeof(PNGuraFangAction), (a, h) => PNGuraFangAction.Validate(a, h), PNSkillContextRequirements.Direction).NoView());
         hub.Get<PNSkillBehaviorDefinition>().Register(new PNSkillBehaviorDefinition(UltimateBehavior, UltimateBehavior, c => new GuraUltimateBehavior(c), GuraUltimateBehavior.Validate, GuraUltimateBehavior.ValidateReferences));
         hub.Get<PNSkillBehaviorDefinition>().Register(new PNSkillBehaviorDefinition(BurstBehavior, BurstBehavior, c => new GuraBurstBehavior(c), GuraBurstBehavior.Validate, GuraBurstBehavior.ValidateReferences));
@@ -50,6 +68,19 @@ public static class PNGuraContent
             new[] { new PNAreaTraitUse(PNAreaTraits.Solizeitastronhringur) }));
         hub.Get<PNSkillBehaviorDefinition>().Register(new PNSkillBehaviorDefinition(SkillBehavior, SkillBehavior, c => new GuraCastBehavior(c), GuraCastBehavior.Validate, GuraCastBehavior.ValidateReferences));
         hub.Get<PNSkillBehaviorDefinition>().Register(new PNSkillBehaviorDefinition(AttackBehavior, AttackBehavior, c => new GuraAttackBehavior(c), GuraAttackBehavior.Validate, GuraAttackBehavior.ValidateReferences));
+    }
+
+    private static void ValidateCombatStrike(PNSkillActionData data, EveRegistryHub hub)
+    {
+        PNComboStrikeAction.Validate(data, hub);
+        var payload = (JObject)data.Perform;
+        switch (payload["visualState"]?.Value<string>())
+        {
+            case "attack_1": case "attack_2": case "attack_3": case "attack_4": case "shark": case "dive":
+                break;
+            default:
+                throw new FormatException("Gura combat strike requires an attack, shark or dive visualState.");
+        }
     }
 
     // The slot bindings, once the characters (and so the skill data in their JSON) exist. Attack and Dash are Gura's; the other slots join with the later stages.

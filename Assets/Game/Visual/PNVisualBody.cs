@@ -82,6 +82,7 @@ public sealed class PNVisualBody : MonoBehaviour
         stat = GetComponent<PNStat>();
         dead = false; hasLast = false; hasHealth = false; locomotion = "";
         actor.Play("idle");
+        actor.Tick(0f); // Publish the selected idle pose before a newly bound puppet can be rendered.
         buffs = GetComponent<PNBuffManager>(); broken = false; pullPending = false;
         if(stat is PNEnemyStat)PNLoricaPresentation.Ensure(gameObject);
         StartEntrance(appearance, hub);

@@ -157,8 +157,13 @@ public sealed class GuraAttackBehavior : PNSkillBehavior
         if (!casting || action == null) return;
         // The strike's clock is attack speed (a normal attack): the registered speed stat, 100 = normal.
         double speed = context.Skill.CurrentInvocation?.Metadata.AffectedByAttackSpeed == true && stat != null ? Math.Max(0d, stat.Evaluate(PNContentIds.AttackSpeed) / 100d) : 1d;
-        bool done;
-        try { done = action.AdvanceAuxiliary(delta * (float)speed); }
+        bool done = false;
+        try
+        {
+            using var frame = context.Skill.BeginActionExecutionFrame(delta);
+            if (speed == 0d || delta == 0f) { frame.Hold(actionContext); done = action.AdvanceAuxiliary(0f); }
+            else frame.Advance(actionContext, delta * (float)speed, speed, step => done = action.AdvanceAuxiliary(step));
+        }
         catch { try { action.Cancel(actionContext); } catch { } Finish(true); throw; }
         if (!done) return;
         try { action.Exit(actionContext); } finally { Finish(false); }

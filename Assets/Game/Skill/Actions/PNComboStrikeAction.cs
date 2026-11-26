@@ -23,7 +23,9 @@ public sealed class PNComboStrikeAction : PNSkillAction, IPNSkillMotionAction
     public static void Validate(PNSkillActionData data, EveRegistryHub hub)
     {
         var p = PNBuffContentBatch.Object(data.Perform);
-        PNBuffContentBatch.Fields(p, "duration", "radius", "innerRadius", "angle", "thickness", "height", "step", "hits", "canCrit", "tags");
+        PNBuffContentBatch.Fields(p, "duration", "radius", "innerRadius", "angle", "thickness", "height", "step", "hits", "canCrit", "tags", "visualState");
+        if (p["visualState"] != null && p["visualState"].Type != JTokenType.String)
+            throw new FormatException("visualState must be a string.");
         Positive(p, "duration", 10); Positive(p, "radius", 20); Positive(p, "angle", 360); Positive(p, "thickness", 10);
         if (p["innerRadius"] != null && !(PNBuffContentBatch.Number(p, "innerRadius") >= 0d && PNBuffContentBatch.Number(p, "innerRadius") < PNBuffContentBatch.Number(p, "radius"))) throw new FormatException("innerRadius must be in [0, radius).");
         if (p["height"] != null) { double h = PNBuffContentBatch.Number(p, "height"); if (!(h >= 0d && h <= 5d)) throw new FormatException("height must be in [0, 5]."); }
@@ -107,6 +109,7 @@ public sealed class PNComboStrikeAction : PNSkillAction, IPNSkillMotionAction
                 boxes[i] = new PNSkillMeleeHitbox(c, caster, PNSkillValues.Parse(hits[i]["value"]), PNDamage.ParseIFrameDuration((JObject)hits[i]), canCrit, i);
             }
             if (boxes.Length > 0) { radius = boxes[0].ScaleLength(radius); thickness = boxes[0].ScaleLength(thickness); if (innerRadius > 0f) innerRadius = boxes[0].ScaleLength(innerRadius); }
+            else if (c.Registry.Actions().Get(c.Data.Action.Id).PresentationScaleTag.HasValue) c.CommitPresentationScale(1d);
         }
         catch { Dispose(); throw; }
     }

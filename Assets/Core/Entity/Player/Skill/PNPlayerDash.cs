@@ -108,7 +108,18 @@ public partial class PNPlayerSkill
         SyncPlayerDashCooldown();
         if(!IsDashing)return;
         if(playerDashStats==null || !playerDashStats.IsReady || playerDashStats.IsDead){CancelPlayerDash();return;}
-        try {playerDash.Advance(delta * ExecutionSpeed);if(playerDash.IsComplete)EndPlayerDash(false);}
+        try
+        {
+            var speed = ExecutionSpeed;
+            if (playerDashContext.Registry.Actions().Get(playerDashContext.Data.Action.Id).DriverProgress)
+            {
+                using var frame = BeginActionExecutionFrame(delta);
+                if (speed == 0f || delta == 0f) frame.Hold(playerDashContext);
+                else frame.Advance(playerDashContext, delta * speed, speed, playerDash.Advance);
+            }
+            else playerDash.Advance(delta * speed);
+            if (playerDash.IsComplete) EndPlayerDash(false);
+        }
         catch {CancelPlayerDash();throw;}
     }
     // `reason` is why the dash was stopped (PNCastEnd or an interrupt id); it reaches the skill's end hook as the cast's reason. Null: the default (interrupted).

@@ -258,7 +258,7 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
     }
 
     // EN: Validate recognized Core envelopes against the selected action before publishing a session.
-    private static void ValidateEffectAction(PNSkillActionData data, EveRegistryHub hub)
+    internal static void ValidateEffectAction(PNSkillActionData data, EveRegistryHub hub)
     {
         var implementation = hub.Actions().Get(data.Id).ImplementationType;
         if (typeof(PNBuffAction).IsAssignableFrom(implementation)) PNBuffAction.Validate(data.Perform, hub);

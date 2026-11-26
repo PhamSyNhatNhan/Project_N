@@ -261,6 +261,7 @@ GameObject:
   - component: {fileID: 6357888033808482921}
   - component: {fileID: 1075422595786096491}
   - component: {fileID: 3131149227425469292}
+  - component: {fileID: 114728527008153911}
   m_Layer: 6
   m_Name: Gura
   m_TagString: Player
@@ -447,3 +448,19 @@ MonoBehaviour:
   m_EditorClassIdentifier: ProjectN.Core::PNAbilityManager
   initialAbilities: []
   definitionsAsset: {fileID: 0}
+--- !u!114 &114728527008153911
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4508174443292714787}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: aa7ef6eecda6f314caadee65ec6a6fc7, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: ProjectN.Game::PNVisualBody
+  visual: {fileID: 2546223823194522214}
+  capsule: {fileID: 4433101056947997976}
+  walkSpeed: 0.08
+  runSpeed: 1.1
