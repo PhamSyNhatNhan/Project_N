@@ -1,119 +1,232 @@
 #if UNITY_5_3_OR_NEWER
 using System;
+using EveEngine;
 using UnityEngine;
+using UnityEngine.Rendering;
+using UnityEngine.SceneManagement;
 
-internal sealed class PNGuraSharkBite : IDisposable
+public sealed class PNGuraSharkBite : MonoBehaviour, IDisposable
 {
-    private static readonly Color Back = new(.012f,.31f,.52f);
-    private static readonly Color Flank = new(.035f,.55f,.72f);
-    private static readonly Color Belly = new(.54f,.88f,.91f);
-    private static readonly Color Mouth = new(.047f,.11f,.20f);
-    private static readonly Color Tooth = new(.85f,.99f,.97f);
-    private readonly PNGuraVolume upper, lower;
+    internal const float Start = -.14f, End = .53f;
+    private const float RiseStart = -.094f, SinkEnd = .38f;
+    private PNGuraSharkModel model;
+    private PNGuraWaterFx water;
+    private PNGuraWaterParticles splash;
+    private EveTimeScale clock;
+    private Transform caster;
+    private Vector3 origin, direction;
+    private float radius, age;
+    private bool placed, released, disposed;
 
-    public PNGuraSharkBite(Transform owner)
+    internal bool HasTail => released && !disposed;
+
+    internal static PNGuraSharkBite Create(Transform owner)
     {
-        upper = new PNGuraVolume(owner, "Gura shark upper jaw");
-        lower = new PNGuraVolume(owner, "Gura shark lower jaw");
-        BuildJaw(true).Apply(upper.Mesh);
-        BuildJaw(false).Apply(lower.Mesh);
+        var root = new GameObject("Gura shark surface") { layer = owner.gameObject.layer };
+        SceneManager.MoveGameObjectToScene(root, owner.gameObject.scene);
+        var bite = root.AddComponent<PNGuraSharkBite>();
+        bite.caster = owner;
+        bite.clock = owner.GetComponent<EveTimeScale>();
+        bite.model = new PNGuraSharkModel(root.transform);
+        bite.water = new PNGuraWaterFx(root.transform, "Gura shark ripples");
+        bite.splash = PNGuraWaterParticles.Create(root.transform, "shark");
+        return bite;
     }
 
-    public void Draw(Vector3 origin, Vector3 direction, float radius, float untilHit)
+    internal void Draw(Vector3 point, Vector3 facing, float reach, float since, bool seeking)
     {
-        float rise = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(-.15f,-.034f,untilHit));
-        float close = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(-.046f,0f,untilHit));
-        float sink = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(.055f,.22f,untilHit));
-        Vector3 center = origin + Vector3.up * (radius * (-.98f + 1.31f * rise - 1.29f * sink));
-        center -= direction * (.22f * radius);
-        Quaternion facing = Quaternion.LookRotation(direction);
-        float opening = (1f - close) * 53f;
-        float tilt = Mathf.Lerp(-27f,-6f,close);
-        DrawJaw(upper, center, facing * Quaternion.Euler(tilt - opening * .30f,0,0), radius, origin.y);
-        DrawJaw(lower, center, facing * Quaternion.Euler(tilt + opening * .70f,0,0), radius, origin.y);
+        origin = point;
+        direction = facing;
+        radius = reach;
+        age = since;
+        placed = true;
+        DrawFrame(seeking);
     }
 
-    private static void DrawJaw(PNGuraVolume jaw, Vector3 center, Quaternion rotation, float radius, float surface)
+    private void DrawFrame(bool seeking)
     {
-        jaw.Transform.SetPositionAndRotation(center, rotation);
-        jaw.Transform.localScale = Vector3.one * radius;
-        jaw.Show(waterline: surface);
-    }
-
-    private static PNGuraFacets BuildJaw(bool top)
-    {
-        var mesh = new PNGuraFacets();
-        float[] z = { -.78f, -.50f, -.13f, .30f, .66f, .86f, .94f };
-        float[] w = { .53f, .85f, 1f, .90f, .66f, .39f, .15f };
-        float[] height = top ? new[] { .36f,.63f,.67f,.49f,.27f,.16f,.06f } : new[] { .49f,.45f,.35f,.27f,.21f,.13f,.06f };
-        const int facets = 8;
-
-        Vector3 At(int row, int side)
+        if (age >= RiseStart && age < SinkEnd)
         {
-            float angle = Mathf.PI * side / facets;
-            float lift = Mathf.Sin(angle) * height[row] * (top ? 1f : -1f) - (row == 0 ? .16f : 0f);
-            return new Vector3(Mathf.Cos(angle) * w[row], lift, z[row]);
+            float rise = Ease(RiseStart, -.038f, age);
+            float sink = Ease(.081f, SinkEnd, age);
+            float pose = age < -.022f ? Mathf.Lerp(1.80f, 1.875f, Ease(RiseStart, -.042f, age)) :
+                age < 0f ? Mathf.Lerp(3.375f, 3.75f, Ease(-.022f, 0f, age)) : 3.75f;
+            Vector3 centre = origin + Vector3.up * (radius * (-2.58f + 1.30f * rise - 1.38f * sink));
+            model.Draw(centre, Quaternion.LookRotation(Vector3.up, -direction), radius, origin.y, pose, age - Start);
         }
+        else model.Hide();
 
-        for (int row = 0; row < z.Length - 1; row++)
-        {
-            for (int side = 0; side < facets; side++)
-            {
-                float ridge = Mathf.Sin((side + .5f) * Mathf.PI / facets);
-                var tint = top ? Color.Lerp(Belly, Back, Mathf.Lerp(.45f,.98f,ridge)) : Color.Lerp(Belly, Flank,.26f * ridge);
-                mesh.Quad(At(row,side), At(row+1,side), At(row+1,side+1), At(row,side+1), tint);
-            }
-            mesh.Quad(At(row,0), At(row,facets), At(row+1,facets), At(row+1,0), Mouth);
-        }
-        int tip = z.Length - 1;
-        for (int side = 0; side < facets; side++)
-            mesh.Triangle(At(tip,side), At(tip,side+1), Vector3.forward * .96f, top ? Flank : Belly);
+        var surface = origin + Vector3.up * .032f;
+        if (age >= -.048f && age < .34f)
+            splash?.Sample(surface, direction, new Vector3(radius*.68f,radius*.65f,radius*.68f), (age + .048f)*1.80f, seeking);
+        else splash?.Hide();
 
-        for (int side = -1; side <= 1; side += 2)
-        {
-            for (int i = 2; i < z.Length - 1; i++)
-            {
-                Vector3 root = new Vector3(side * (w[i] - .065f),0,z[i]);
-                ToothAt(mesh, root, top ? -.115f : .087f, side);
-            }
-            if (top)
-            {
-                var eye = new Vector3(side * .873f,.232f,.25f);
-                var outward = new Vector3(side * .82f,.18f,.38f).normalized;
-                var horizontal = Vector3.Cross(Vector3.up,outward).normalized;
-                Disc(mesh, eye, horizontal*.115f, Vector3.up*.084f, Mouth);
-                Disc(mesh, eye + outward*.015f, horizontal*.067f, Vector3.up*.054f, Tooth);
-                Disc(mesh, eye + outward*.027f + Vector3.forward*.017f, horizontal*.034f, Vector3.up*.043f, Mouth);
-            }
-        }
-
-        for (int i = -2; i <= 2; i++)
-            ToothAt(mesh, new Vector3(i * .144f,0,.89f - Mathf.Abs(i)*.022f), top ? -.128f : .082f, 1);
-        return mesh;
+        water.Begin();
+        float breach = Ease(-.12f, -.041f, age);
+        float breachFade = breach * (1f - Ease(-.01f, .24f, age));
+        if (breachFade > .001f)
+            water.Ripple(surface, radius * Mathf.Lerp(.32f, .86f, breach), radius*.075f, breachFade*.80f);
+        float after = Ease(0f, End, age);
+        float impact = Ease(-.037f, 0f, age) * (1f - after);
+        if (impact > .001f)
+            water.Ripple(surface + Vector3.up*.005f, radius * Mathf.Lerp(.76f, 1f, Ease(-.037f, 0f, age)), radius*.052f, impact);
+        if (age >= 0f && age < .26f) DrawSpray(surface);
+        float sinkRipple = Ease(.15f, .31f, age) * (1f - Ease(.30f, End, age));
+        if (sinkRipple > .001f)
+            water.Ripple(surface, radius * Mathf.Lerp(.53f, .93f, Ease(.15f, End, age)), radius*.035f, sinkRipple*.65f);
+        water.Draw();
     }
 
-    private static void ToothAt(PNGuraFacets mesh, Vector3 center, float height, int side)
+    private void DrawSpray(Vector3 surface)
     {
-        Vector3 a = center + new Vector3(-.045f,0,-.039f);
-        Vector3 b = center + new Vector3(.045f,0,-.039f);
-        Vector3 c = center + new Vector3(0,0,.054f);
-        Vector3 tip = center + new Vector3(-side*.024f,height,.019f);
-        mesh.Triangle(a,b,tip,Tooth);
-        mesh.Triangle(b,c,tip,Belly);
-        mesh.Triangle(c,a,tip,Tooth);
-    }
-
-    private static void Disc(PNGuraFacets mesh, Vector3 center, Vector3 x, Vector3 y, Color color)
-    {
-        for (int i = 0; i < 8; i++)
+        float progress = age / .26f;
+        for (int i = 0; i < 12; i++)
         {
-            float a = i * Mathf.PI / 4f;
-            float b = (i+1) * Mathf.PI / 4f;
-            mesh.Triangle(center, center + x * Mathf.Cos(a) + y * Mathf.Sin(a), center + x * Mathf.Cos(b) + y * Mathf.Sin(b), color);
+            Vector3 outward = Quaternion.AngleAxis(i * 137.5f, Vector3.up) * direction;
+            float lift = .23f + .065f * (i % 4);
+            float reach = Mathf.Lerp(.49f, .85f + (i % 3) * .062f, progress);
+            float height = .045f + lift * 4f * progress * (1f - progress);
+            Vector3 point = surface + radius * (outward * reach + Vector3.up * height);
+            Vector3 travel = outward * .68f + Vector3.up * (1f - 2f * progress);
+            water.Drop(point, travel, radius * (.022f + .007f * (i % 3)), .66f,
+                (1f - progress) * Mathf.SmoothStep(.34f, .91f, progress * 4f));
         }
     }
 
-    public void Hide() { upper.Hide(); lower.Hide(); }
-    public void Dispose() { upper.Dispose(); lower.Dispose(); }
+    private static float Ease(float from, float to, float time) =>
+        Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(from, to, time));
+
+    internal void Hide()
+    {
+        placed = false;
+        model?.Hide();
+        water?.Hide();
+        splash?.Hide();
+    }
+
+    internal bool Release()
+    {
+        if (!Application.isPlaying || !placed || age >= End) return false;
+        released = true;
+        return true;
+    }
+
+    private void LateUpdate()
+    {
+        if (!released || disposed) return;
+        if (caster == null) { Dispose(); return; }
+        age += clock != null && clock.isActiveAndEnabled ? clock.DeltaTime : Time.deltaTime;
+        if (age >= End) Dispose();
+        else DrawFrame(false);
+    }
+
+    public void Dispose()
+    {
+        Cleanup();
+        if (Application.isPlaying) Destroy(gameObject);
+        else DestroyImmediate(gameObject);
+    }
+
+    private void OnDestroy() => Cleanup();
+
+    private void Cleanup()
+    {
+        if (disposed) return;
+        disposed = true;
+        model?.Dispose();
+        water?.Dispose();
+        splash?.Dispose();
+    }
+}
+
+// The imported body and rig are reusable. The cast supplies the pose, waterline, scale and jaw opening.
+internal sealed class PNGuraSharkModel : IDisposable
+{
+    private const string ResourcePath = "PNVfx/GuraShark";
+    internal const string JawJoint = "Bone.028_Armature_16";
+    internal const float HeadReferenceRadius = .205f;
+    private static readonly Vector3 HeadAnchor = new(0f, .565f, .76f);
+    private static readonly int WaterMode = Shader.PropertyToID("_WaterSkin");
+    private static readonly int Waterline = Shader.PropertyToID("_Waterline");
+    private static readonly int FlowAge = Shader.PropertyToID("_SharkFlowAge");
+    private static readonly int FlowDirection = Shader.PropertyToID("_SharkFlowDirection");
+    private static readonly int FlowAcross = Shader.PropertyToID("_SharkFlowAcross");
+    private static readonly int FlowOrigin = Shader.PropertyToID("_SharkFlowOrigin");
+    private readonly GameObject node, source;
+    private readonly Transform jaw;
+    private readonly SkinnedMeshRenderer skin;
+    private readonly AnimationClip swim, bite;
+    private readonly MaterialPropertyBlock water = new();
+
+    public PNGuraSharkModel(Transform owner)
+    {
+        var prefab = Resources.Load<GameObject>(ResourcePath);
+        var material = Resources.Load<Material>("PNVfx/GuraWater");
+        if (prefab == null || material == null) return;
+
+        node = new GameObject("Gura shark model") { layer = owner.gameObject.layer };
+        // The Action owns this model. Keep it in the same scene without following
+        // the caster's transform, which can still move after a view update.
+        SceneManager.MoveGameObjectToScene(node, owner.gameObject.scene);
+        source = UnityEngine.Object.Instantiate(prefab, node.transform, false);
+        skin = source.GetComponentInChildren<SkinnedMeshRenderer>(true);
+        if (skin == null) { Hide(); return; }
+        skin.gameObject.layer = node.layer;
+        skin.sharedMaterial = material;
+        skin.shadowCastingMode = ShadowCastingMode.Off;
+        skin.receiveShadows = false;
+        skin.updateWhenOffscreen = true;
+        foreach (var bone in skin.bones)
+        {
+            if (bone == null || bone.name != JawJoint) continue;
+            jaw = bone;
+            break;
+        }
+        foreach (var animator in source.GetComponentsInChildren<Animator>(true)) animator.enabled = false;
+        foreach (var clip in Resources.LoadAll<AnimationClip>(ResourcePath))
+        {
+            if (clip.name.EndsWith("|Swim", StringComparison.Ordinal)) swim = clip;
+            if (clip.name.EndsWith("|ArmatureAction", StringComparison.Ordinal)) bite = clip;
+        }
+        water.SetFloat("_Solid", 1f);
+        water.SetFloat("_Opacity", .95f);
+        water.SetFloat(WaterMode, 2f);
+        water.SetTexture("_SharkAlbedo", Resources.Load<Texture2D>("PNVfx/GuraSharkAlbedo") ?? Texture2D.whiteTexture);
+        Hide();
+    }
+
+    public void Draw(Vector3 centre, Quaternion facing, float radius, float waterline, float jawTime, float age)
+    {
+        if (node == null || skin == null || radius <= 0f) { Hide(); return; }
+        node.transform.SetPositionAndRotation(centre, facing);
+        node.transform.localScale = Vector3.one * (radius / HeadReferenceRadius);
+        node.SetActive(true);
+
+        Quaternion authoredJaw = default;
+        if (jaw != null && bite != null)
+        {
+            bite.SampleAnimation(source, jawTime);
+            authoredJaw = jaw.localRotation;
+        }
+        if (swim != null) swim.SampleAnimation(source, Mathf.Repeat(Mathf.Max(0f, age), swim.length));
+        if (jaw != null && bite != null) jaw.localRotation = authoredJaw;
+        source.transform.localPosition = -HeadAnchor;
+        water.SetFloat(Waterline, waterline);
+        water.SetFloat(FlowAge, age);
+        water.SetVector(FlowDirection, facing * Vector3.forward);
+        water.SetVector(FlowAcross, facing * Vector3.right);
+        water.SetVector(FlowOrigin, new Vector4(centre.x, centre.y, centre.z, 1f / radius));
+        skin.SetPropertyBlock(water);
+    }
+
+    public void Hide() { if (node != null) node.SetActive(false); }
+
+    public void Dispose()
+    {
+        if (node == null) return;
+        Hide();
+        if (Application.isPlaying) UnityEngine.Object.Destroy(node);
+        else UnityEngine.Object.DestroyImmediate(node);
+    }
 }
 #endif

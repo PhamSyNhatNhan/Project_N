@@ -1,0 +1,7 @@
+Great White Shark
+Creator: charliegodofsharks
+Source: https://sketchfab.com/3d-models/great-white-shark-bf81b64f0121443da38112f706b7356f
+License: Creative Commons Attribution 4.0 International (CC BY 4.0)
+License URL: https://creativecommons.org/licenses/by/4.0/
+
+Converted the GLB to FBX with Blender and extracted its original base color texture. The source's single Bite pose is held for two keyframes in the FBX. Project N adds animated jaw motion, a water material and a waterline clip at runtime.

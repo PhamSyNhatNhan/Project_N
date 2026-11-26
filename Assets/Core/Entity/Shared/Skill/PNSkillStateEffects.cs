@@ -3,9 +3,10 @@ using System.Collections.Generic;
 using EveEngine;
 using Newtonsoft.Json.Linq;
 
-// EN: State-bound effects (G2c). A skill declares "while this Ability state is active: this stat source and these Buffs"; the AUTHORITY applies them when the state starts and takes them back
-//     when it ends, whatever ended it (expiry, End, Reset). Then it tells the skill (`OnAbilityEnded`) so rewards and clean-up run in one place. The Ability stays passive state; the
-//     skill never writes "start" and "end" code for the effects, and a guess or a replay never touches them (their state follows the authority's).
+// EN: State-bound effects (G2c). A skill declares "while this Ability state is active: this stat source, these Buffs and this look"; the AUTHORITY applies the stat source and Buffs when the state
+//     starts and takes them back when it ends, whatever ended it (expiry, End, Reset). Then it tells the skill (`OnAbilityEnded`) so rewards and clean-up run in one place. The Ability stays passive
+//     state; the skill never writes "start" and "end" code for the effects, and a guess or a replay never touches the stats and Buffs (their state follows the authority's). The look is a picture only:
+//     the engine turns it on and off with the state on the authority and the owner's machine, and `SetLook` carries it to everyone else.
 // VI: Hiệu ứng gắn với trạng thái. Skill khai báo "khi state này đang bật: nguồn chỉ số này và các Buff này"; AUTHORITY áp khi state bắt đầu, gỡ khi kết thúc (hết hạn, End, Reset),
 //     rồi báo skill (`OnAbilityEnded`) để phần thưởng/dọn dẹp chạy ở một chỗ. Ability vẫn là trạng thái thụ động; guess/replay không đụng vào.
 public sealed class PNStateEffectData
@@ -15,6 +16,8 @@ public sealed class PNStateEffectData
     public EveId SourceId { get; private set; }
     public IReadOnlyList<EveStatModifier> Modifiers { get; private set; } = Array.Empty<EveStatModifier>();
     public IReadOnlyList<EveId> BuffIds { get; private set; } = Array.Empty<EveId>();
+    // Optional look sustained on the entity while the state is on (a registered `PNLookDefinition`): display only, it follows the state itself.
+    public EveId LookId { get; private set; }
 
     public static IReadOnlyList<PNStateEffectData> ParseAll(JToken token)
     {
@@ -33,7 +36,7 @@ public sealed class PNStateEffectData
     {
         if (!(token is JObject obj)) throw new FormatException("A stateEffects entry must be an object.");
         foreach (var property in obj.Properties())
-            if (property.Name != "state" && property.Name != "statSource" && property.Name != "buffs")
+            if (property.Name != "state" && property.Name != "statSource" && property.Name != "buffs" && property.Name != "look")
                 throw new FormatException("Unknown stateEffects field: " + property.Name);
         if (obj["state"]?.Type != JTokenType.String) throw new FormatException("stateEffects entry needs a state ID.");
         var data = new PNStateEffectData { State = EveId.Parse(obj["state"].Value<string>()) };
@@ -65,10 +68,15 @@ public sealed class PNStateEffectData
             }
             data.BuffIds = ids;
         }
-        if (!data.SourceId.IsValid && data.BuffIds.Count == 0) throw new FormatException("A stateEffects entry needs a statSource or buffs.");
+        if (obj["look"] != null)
+        {
+            if (obj["look"].Type != JTokenType.String) throw new FormatException("A stateEffects look must be an ID string.");
+            data.LookId = EveId.Parse(obj["look"].Value<string>());
+        }
+        if (!data.SourceId.IsValid && data.BuffIds.Count == 0 && !data.LookId.IsValid) throw new FormatException("A stateEffects entry needs a statSource, buffs or a look.");
         return data;
     }
-    // Content check: every modifier resolves, every Buff exists.
+    // Content check: every modifier resolves, every Buff and look exists.
     public void Validate(EveRegistryHub hub)
     {
         if (SourceId.IsValid && hub.IsSealed)
@@ -83,6 +91,7 @@ public sealed class PNStateEffectData
             source.SetSource(SourceId, Modifiers);
         }
         foreach (var id in BuffIds) hub.Buffs().Get(id);
+        if (LookId.IsValid) hub.Get<PNLookDefinition>().Get(LookId);
     }
 }
 
@@ -126,6 +135,7 @@ public partial class PNSkill
         stateEffectAbilities = null;
         var left = new List<ActiveStateEffect>(activeStateEffects.Values); activeStateEffects.Clear();
         foreach (var effect in left) effect.Dispose();
+        foreach (var effect in stateEffectData) if (effect.LookId.IsValid && HasLook(effect.LookId)) SetLook(effect.LookId, false);
         stateEffectData = Array.Empty<PNStateEffectData>();
     }
     protected bool HasStateEffects(EveId state) => activeStateEffects.ContainsKey(state);
@@ -137,10 +147,13 @@ public partial class PNSkill
     }
     private void OnStateEffectChange(PNAbilityChange change)
     {
-        var after = change.After; if (after == null || !HasGameplayAuthority) return;
+        var after = change.After; if (after == null) return;
         PNStateEffectData data = null;
         foreach (var candidate in stateEffectData) if (candidate.State == after.Id) { data = candidate; break; }
         if (data == null) return;
+        // The look follows the state wherever this skill is simulated (the authority and the owner's guess); every other machine draws it from the entity's picture.
+        if (data.LookId.IsValid && (HasGameplayAuthority || IsOwnerClient)) SetLook(data.LookId, after.IsActive);
+        if (!HasGameplayAuthority) return;
         bool wasActive = change.Before != null && change.Before.IsActive;
         if (!wasActive && after.IsActive) StartStateEffects(data);
         else if (wasActive && !after.IsActive && activeStateEffects.TryGetValue(data.State, out var effect))

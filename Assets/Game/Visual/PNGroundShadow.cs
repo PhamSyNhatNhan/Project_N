@@ -27,9 +27,12 @@ public sealed class PNGroundShadow : MonoBehaviour, IPNSceneEntityVisual
     private CapsuleCollider capsule;
     private bool bodyEnabled = true;
     private float scaleMultiplier = 1f, opacityMultiplier = 1f;
+    private bool suppressed;
 
     public void BindGround(Collider value) { ground = value; UpdateShadow(); }
     public bool Visible => shadowRenderer != null && shadowRenderer.enabled;
+    // Local presentation only: set while an effect has taken the body out of sight, cleared by the same effect.
+    public bool Suppressed { get => suppressed; set { if (suppressed == value) return; suppressed = value; UpdateShadow(); } }
 
     // Applies a body's `shadow` setting (on/off, scale, opacity) to this shadow.
     public void Apply(PNBodyShadow setting)
@@ -78,7 +81,7 @@ public sealed class PNGroundShadow : MonoBehaviour, IPNSceneEntityVisual
     private void UpdateShadow()
     {
         if (shadowRenderer == null) return;
-        if (target == null || !bodyEnabled) { shadowRenderer.enabled = false; return; }
+        if (target == null || !bodyEnabled || suppressed) { shadowRenderer.enabled = false; return; }
         if (capsule == null) capsule = target.GetComponent<CapsuleCollider>();
         Vector3 origin = target.position + Vector3.up * RayHeight;
         if (!FindGround(origin, out var point, out var normal)) { shadowRenderer.enabled = false; return; }

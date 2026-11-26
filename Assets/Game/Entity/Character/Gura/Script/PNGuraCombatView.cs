@@ -12,35 +12,42 @@ internal sealed class PNGuraCombatView : IPNActionView
     private readonly Vector3 direction;
     private readonly string state;
     private readonly bool fixedSweep;
+    private readonly bool rush, finisher;
     private const float SweepLeadFraction = .86f;
     private const float SweepFollowSeconds = .089f;
     // Attacks 1-2: the trident crosses the whole hit angle in this window around the hit, just ahead of the water.
     private const float SwingLead = .072f, SwingFollow = .014f;
-    private readonly float sweepHeight;
+    private readonly float sweepHeight, innerRadius, halfThickness;
+    private readonly System.Func<float, float, float> sweepLift;
     private readonly PNGuraSlashArc[] slashes;
     private readonly float[] hitAges;
+    private readonly Vector3[] hitDirections;
     private readonly Vector3[] hitOrigins;
-    private readonly bool[] placed;
     private readonly bool[] sweepAnchored;
-    private readonly PNGuraWaterParticles[] cuts;
     private readonly PNGuraAttackWeapon[] ghosts;
     private readonly PNGuraSharkBite shark;
-    private readonly float surgeStart;
     private readonly float duration, radius, angle;
     private readonly PNGuraWaterFx water;
+    private readonly PNGuraWaterFx accents;
+    private readonly PNGuraEchoRush echo;
     private readonly PNGuraWaterParticles particles;
     private readonly PNGuraAttackWeapon weapon;
-    private readonly System.Func<float, PNGuraAttackWeapon.Pose> sampleBlade;
     private const int GripHistorySize = 24;
     private readonly float[] gripTimes = new float[GripHistorySize];
     private readonly Vector3[] gripPositions = new Vector3[GripHistorySize];
     private Vector3 grip;
     private Vector3 biteOrigin;
+    private Vector3? biteStepEnd;
     private bool bitePlaced;
-    private int trailHit, gripCount, gripNext;
+    private int gripCount, gripNext;
     private bool ended, hidden;
-    private Vector3 dashOrigin;
-    public bool HasTail => false;
+    private float previousFinisherAge = -1f;
+    private bool finisherShook;
+    private IPNCameraHandle finisherShake;
+    private readonly PNGuraDashVisual dash;
+    private bool dashTail;
+    // The Dash goes on playing after its 0.16 s: the picture advances itself from there.
+    public bool HasTail => dashTail && dash != null || shark != null && shark.HasTail;
     public bool Lead { private get; set; } = true;
 
     public static IPNActionView CreateStrike(PNActionViewBuild build) =>
@@ -54,39 +61,47 @@ internal sealed class PNGuraCombatView : IPNActionView
         body = build.Skill.GetComponent<PNVisualBody>();
         this.state = state;
         fixedSweep = state == "attack_1" || state == "attack_2";
+        rush = state == "attack_3";
+        finisher = state == "attack_4";
         direction = Flat(build.Direction);
         var payload = (JObject)build.Data.Action.Perform;
-        hitAges = payload["hits"] is JArray hits ? hits.Select(x => x["at"].Value<float>()).ToArray() : System.Array.Empty<float>();
+        var hits = payload["hits"] as JArray;
+        hitAges = hits != null ? hits.Select(x => x["at"].Value<float>()).ToArray() : System.Array.Empty<float>();
         hitOrigins = new Vector3[hitAges.Length];
-        placed = new bool[hitAges.Length];
-        if (fixedSweep) sweepAnchored = new bool[hitAges.Length];
         duration = state == "throw" ? payload["windup"].Value<float>() : payload["duration"].Value<float>();
         radius = payload["radius"] != null ? PNHitCapture.ScaleLength(payload["radius"].Value<float>(), build.Scale) : 0;
         angle = payload["angle"]?.Value<float>() ?? 0;
-        surgeStart = payload["step"]?["at"]?.Value<float>() ?? 0f;
         bool attack = state.StartsWith("attack_", System.StringComparison.Ordinal);
-        if (state == "dash" || state == "dive" || state == "shark") particles = PNGuraWaterParticles.Create(owner, state);
-        if (state == "attack_3") particles = PNGuraWaterParticles.Create(owner, "surge");
-        if (state != "throw") water = new PNGuraWaterFx(owner);
-        if (fixedSweep)
+        if (state == "dive") particles = PNGuraWaterParticles.Create(owner, state);
+        if (state == "dash") dash = PNGuraDashVisual.Create(owner, direction, duration, payload["distance"]?.Value<float>() ?? 0f);
+        else if (state != "shark") water = new PNGuraWaterFx(owner);
+        if (finisher) accents = new PNGuraWaterFx(owner, "Gura finisher water accents");
+        if (rush)
         {
-            sweepHeight = payload["height"]?.Value<float>() ?? .3f;
-            slashes = new PNGuraSlashArc[hitAges.Length];
-            for (int i = 0; i < slashes.Length; i++) slashes[i] = PNGuraSlashArc.Create(owner);
+            var steps = PNComboStrikeAction.Steps(payload["step"]);
+            echo = new PNGuraEchoRush(owner, body, direction, hitAges, radius,
+                steps.Count > 0 ? steps[0]["at"].Value<float>() + steps[0]["duration"].Value<float>() : 0f);
         }
-        if (state == "shark") shark = new PNGuraSharkBite(owner);
-        if (attack || state == "throw") weapon = new PNGuraAttackWeapon(owner, state == "throw" ? "Gura windup trident" : "Gura attack trident");
-        if (attack)
+        if (attack && !rush)
         {
-            sampleBlade = age => BladeAt(trailHit, age);
-            ghosts = new PNGuraAttackWeapon[state == "attack_3" ? 1 : fixedSweep ? 2 : 3];
+            hitDirections = hits != null ? hits.Select(hit => PNComboStrikeAction.HitDirection(direction, hit)).ToArray() : System.Array.Empty<Vector3>();
+            sweepHeight = payload["height"]?.Value<float>() ?? .3f;
+            innerRadius = PNHitCapture.ScaleLength(payload["innerRadius"]?.Value<float>() ?? 0f, build.Scale);
+            halfThickness = PNHitCapture.ScaleLength(payload["thickness"]?.Value<float>() ?? .45f, build.Scale) * .5f;
+            float sweepAngle = angle;
+            if (fixedSweep) sweepLift = (swing, reach) => PNGuraSlashArc.TiltLift(swing, reach, sweepAngle);
+            else sweepLift = AttackLift;
+            sweepAnchored = new bool[hitAges.Length];
+            slashes = new PNGuraSlashArc[hitAges.Length];
+            for (int i = 0; i < slashes.Length; i++) slashes[i] = PNGuraSlashArc.Create(owner, finisher, 1f);
+        }
+        if (state == "shark") shark = PNGuraSharkBite.Create(owner);
+        if (attack && !rush || state == "throw") weapon = new PNGuraAttackWeapon(owner, state == "throw" ? "Gura windup trident" : "Gura attack trident");
+        if (attack && !rush)
+        {
+            ghosts = new PNGuraAttackWeapon[fixedSweep ? 2 : 3];
             for (int i = 0; i < ghosts.Length; i++)
                 ghosts[i] = new PNGuraAttackWeapon(owner, "Gura trident afterimage " + i, true);
-            if (!fixedSweep)
-            {
-                cuts = new PNGuraWaterParticles[hitAges.Length];
-                for (int i = 0; i < cuts.Length; i++) cuts[i] = PNGuraWaterParticles.Create(owner, "cut");
-            }
         }
     }
 
@@ -101,12 +116,8 @@ internal sealed class PNGuraCombatView : IPNActionView
         {
             if (body != null && body.PlayActionAt(state, age, state == "throw" ? duration * 2.2f : duration, resuming))
             {
-                if (fixedSweep)
-                {
-                    var camera = PNViewCamera.Current;
-                    float horizontal = Vector3.Dot(direction, camera != null ? camera.transform.right : Vector3.right);
-                    if (Mathf.Abs(horizontal) > .01f) body.Actor.SetFacingLeft(horizontal < 0f);
-                }
+                // Every pose of Gura's actions (strikes, the throw, the bite) looks where the cast is aimed. A dive keeps the way she already faces.
+                if (state != "dive") body.FaceAction(direction);
                 if (!PoseOwners.TryGetValue(body, out var active) || !ReferenceEquals(active, this))
                 {
                     PoseOwners.Remove(body);
@@ -115,6 +126,12 @@ internal sealed class PNGuraCombatView : IPNActionView
             }
         }
         else ReleasePose();
+
+        if (dash != null)
+        {
+            dash.Run(t, resuming);
+            return;
+        }
 
         if (state == "throw")
         {
@@ -125,22 +142,19 @@ internal sealed class PNGuraCombatView : IPNActionView
             var pose = new PNGuraAttackWeapon.Pose(origin + Vector3.up*.16f, axis, Vector3.Cross(Vector3.up,axis).normalized,
                 Mathf.Lerp(.37f,.57f,cast), .22f, .065f * Mathf.Sin(phase*Mathf.PI));
             weapon.Draw(pose, Lead && t < duration ? Mathf.Clamp01(t/.045f) : 0f);
+            water.Begin();
+            if (Lead && t < duration)
+            {
+                float charge = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(.19f, .82f, phase));
+                water.TridentStream(pose, t, pose.Length * .61f, charge);
+            }
+            water.Draw();
             return;
         }
 
-        water.Begin();
-        if (state == "dash")
-        {
-            if (resuming) dashOrigin = origin;
-            float phase = Mathf.Clamp01(t / duration);
-            float distance = Vector3.Distance(dashOrigin, origin);
-            Vector3 waterline = origin + Vector3.up * .045f;
-            water.GroundWake(waterline,direction,Mathf.Max(.58f,distance),.25f,t, 1f - phase*.52f);
-            water.BowSplash(waterline,direction,.28f,.13f,t,1f - phase*.66f);
-            particles?.Sample(origin - direction*Mathf.Min(distance*.32f,.32f) + Vector3.up * .027f,
-                -direction, new Vector3(.29f,.13f,.44f), .06f+2.9f*t,resuming);
-        }
-        else if (state == "dive")
+        water?.Begin();
+        accents?.Begin();
+        if (state == "dive")
         {
             Vector3 surface = origin + Vector3.up*.029f;
             particles?.Sample(surface,Vector3.zero,new Vector3(.22f,.12f,.22f),.12f+t,resuming);
@@ -148,31 +162,34 @@ internal sealed class PNGuraCombatView : IPNActionView
             water.Ripple(surface, .26f + .30f*pulse, .018f, (1f-pulse)*.8f);
         }
         else if (shark != null) DrawBite(origin,t,resuming);
+        else if (echo != null)
+        {
+            if (Lead) echo.Draw(t, resuming);
+            else echo.Hide();
+        }
         else DrawAttack(origin,t,resuming);
-        water.Draw();
+        water?.Draw();
+        accents?.Draw();
     }
 
     private void DrawBite(Vector3 origin, float age, bool seeking)
     {
         if (hitAges.Length == 0) return;
         float since = age - hitAges[0];
-        if (since < -.16f || since > .24f)
+        if (since < PNGuraSharkBite.Start || since > PNGuraSharkBite.End)
         {
             shark.Hide();
-            particles?.Hide();
             bitePlaced = false;
             return;
         }
-        if (!bitePlaced || since < 0f || seeking)
+        // Commit the line before the first visible frame. A late observer can
+        // recover the pose at the caster even when the step fact was skipped.
+        if (!bitePlaced || seeking)
         {
-            biteOrigin = origin;
-            bitePlaced = since >= 0f;
+            biteOrigin = biteStepEnd ?? origin;
+            bitePlaced = true;
         }
-        shark.Draw(biteOrigin,direction,radius,since);
-        float phase = Mathf.InverseLerp(-.13f,.23f,since);
-        Vector3 surface = biteOrigin + Vector3.up*.045f;
-        water.Ripple(surface, radius*Mathf.SmoothStep(.32f,1f,Mathf.InverseLerp(-.13f,.011f,since)), .045f*radius, Mathf.Sin(phase*Mathf.PI)*.92f);
-        particles?.Sample(surface,direction,new Vector3(.41f,.24f,.41f)*radius,.07f+.82f*phase,seeking);
+        shark.Draw(biteOrigin,direction,radius,since,seeking);
     }
 
     private void DrawAttack(Vector3 origin, float age, bool seeking)
@@ -181,7 +198,6 @@ internal sealed class PNGuraCombatView : IPNActionView
         {
             weapon.Hide();
             foreach (var ghost in ghosts) ghost.Hide();
-            if (cuts != null) foreach (var cut in cuts) cut?.Hide();
             if (slashes != null) foreach (var slash in slashes) slash?.Hide();
             particles?.Hide();
             gripCount = gripNext = 0;
@@ -201,47 +217,20 @@ internal sealed class PNGuraCombatView : IPNActionView
             gripCount = Mathf.Min(gripCount + 1, GripHistorySize);
         }
         int current = ClosestHit(age);
-        bool rush = state == "attack_3";
-        float rushEnd = hitAges[hitAges.Length - 1] + .12f;
-        if (rush && age >= surgeStart && age < rushEnd)
-        {
-            Vector3 surface = origin + Vector3.up*.071f;
-            float fade = Mathf.SmoothStep(1f,0f,Mathf.InverseLerp(rushEnd-.13f,rushEnd,age));
-            water.GroundWake(surface+direction*.20f,direction,.86f,.43f,age,fade);
-            water.BowSplash(surface,direction,.44f,.31f,age,fade);
-            particles?.Sample(surface+direction*.11f,-direction,new Vector3(.42f,.33f,.63f),.04f+2.05f*(age-surgeStart),seeking);
-        }
-        else particles?.Hide();
         for (int i = 0; i < hitAges.Length; i++)
         {
-            float hit = hitAges[i];
-            float since = age - hit;
-            trailHit = i;
-            if (fixedSweep)
+            float since = age - hitAges[i];
+            if (since < 0f || seeking) sweepAnchored[i] = false;
+            if (!sweepAnchored[i])
             {
-                if (since < 0f || seeking) sweepAnchored[i] = false;
-                if (!sweepAnchored[i])
-                {
-                    hitOrigins[i] = origin;
-                    sweepAnchored[i] = since >= 0f;
-                }
-                DrawSweep(i, since);
-                continue;
+                hitOrigins[i] = origin;
+                sweepAnchored[i] = since >= 0f;
             }
-            water.Trail(Mathf.Max(0f, hit - .046f), hit + .067f, age, state == "attack_4" ? .16f : .105f, sampleBlade, rush);
-            if (since >= -.018f && since <= (rush ? .105f : .145f))
-            {
-                if (!placed[i] || seeking) hitOrigins[i] = origin;
-                placed[i] = true;
-                float size = radius * (rush ? .35f : .42f);
-                const float foamOffset = .36f;
-                cuts[i]?.Sample(hitOrigins[i] + direction * (radius * foamOffset) + Vector3.up*.095f,
-                    direction, new Vector3(size,size*.60f,size), (rush ? .16f : .11f) + (since + .018f)*2.85f, seeking,
-                    i % 2 == 1 || state == "attack_2" ? 26f : -26f);
-            }
-            else { cuts[i]?.Hide(); placed[i] = false; }
+            DrawSweep(i, since);
+            if (finisher) DrawFinisherWater(i, since);
         }
 
+        if (finisher) PlayFinisherShake(age, seeking);
         float alpha = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(age / .055f));
         alpha *= Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((duration - age) / .11f));
         weapon.Draw(BladeAt(current, age), alpha);
@@ -250,7 +239,7 @@ internal sealed class PNGuraCombatView : IPNActionView
             float past = age - (.019f + i*.018f);
             int beat = ClosestHit(past);
             float travel = past - hitAges[beat];
-            float opacity = alpha * (rush ? .13f : fixedSweep ? .15f - i * .05f : .29f - i*.075f);
+            float opacity = alpha * (fixedSweep ? .15f - i * .05f : .29f - i*.075f);
             bool visible = past > 0f && travel > -.068f && travel < .075f;
             ghosts[i].Draw(BladeAt(beat,past), visible ? opacity : 0f);
         }
@@ -259,54 +248,117 @@ internal sealed class PNGuraCombatView : IPNActionView
     // The picture of a sweep is the hit sector itself: centred where the hit is queried (the caster plus the registered height), out to the scaled radius, across the hit angle. Complete on the hit.
     private void DrawSweep(int hit, float since)
     {
-        float side = state == "attack_2" ? -1f : 1f;
+        float side = state == "attack_2" || hit % 2 == 1 ? -1f : 1f;
         Vector3 centre = hitOrigins[hit] + Vector3.up * sweepHeight;
-        slashes[hit]?.Draw(centre, direction, radius, angle, side, since);
+        Vector3 aim = hitDirections[hit];
+        slashes[hit]?.Draw(centre, aim, radius, innerRadius, angle, side, since, sweepLift);
         float swept = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(-PNGuraSlashArc.Lead, 0f, since));
         float fade = 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(.012f, .085f, since));
-        water.SectorEdge(centre, direction, radius, angle, side, swept, PNGuraSlashArc.Lift, fade);
+        water.SectorEdge(centre, aim, radius, angle, side, swept, sweepLift, finisher ? fade * .72f : fade);
+    }
+
+    private float AttackLift(float swing, float reach) =>
+        Mathf.Lerp(.54f, -.19f, swing) * Mathf.Max(0f, halfThickness - .004f);
+
+    private void PlayFinisherShake(float age, bool seeking)
+    {
+        float hit = hitAges[0];
+        if (!finisherShook && !seeking && previousFinisherAge >= 0f && previousFinisherAge < hit && age >= hit && Application.isPlaying)
+        {
+            finisherShook = true;
+            finisherShake = PNCameraServices.Current.RequestShake(owner.gameObject, "gura.finisher",
+                new PNShakeSpec(.092f, 26f, .22f, .17f, 0f, PNShakeShape.Recoil, .68f, 1f, .12f, 7f, PNShakeFalloff.Quadratic));
+        }
+        previousFinisherAge = age;
+    }
+
+    // The finisher's water, one piece after the other: two thinner strokes chase the main one, a wall of water rises along the outer arc behind the swing, breaks into columns one after another
+    // in the swing's direction, and leaves drops and a band of foam. The damage is the sector's; all of this is its picture.
+    private void DrawFinisherWater(int hit, float since)
+    {
+        Vector3 aim = hitDirections[hit];
+        Vector3 centre = hitOrigins[hit] + Vector3.up * sweepHeight;
+        Vector3 ground = hitOrigins[hit] + Vector3.up * .045f;
+        float side = hit % 2 == 1 ? -1f : 1f;
+        accents.EdgeSpray(centre, aim, radius, angle, since, 54, radius * .25f);
+        float swept = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(-PNGuraSlashArc.Lead, 0f, since));
+        float fade = 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(.045f, .22f, since));
+        accents.FinisherCrest(centre, aim, innerRadius, radius, angle, swept, fade, halfThickness, sweepLift);
+        for (int stroke = 1; stroke <= 2; stroke++)
+        {
+            float late = since - .028f * stroke;
+            float run = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(-PNGuraSlashArc.Lead, 0f, late));
+            float left = 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(.02f, .13f, late));
+            accents.SectorEdge(centre, aim, radius * (1f - .17f * stroke), angle * (1f - .06f * stroke), side, run, sweepLift, left * (1f - .28f * stroke));
+        }
+        accents.BreakingWave(ground, aim, radius, angle, side, since, radius * .31f);
+
+        const int columns = 5;
+        for (int i = 0; i < columns; i++)
+        {
+            float local = since - (.075f + .026f * i);
+            if (local < 0f) continue;
+            float turn = side * Mathf.Lerp(-angle * .40f, angle * .40f, i / (columns - 1f));
+            Vector3 at = ground + Quaternion.AngleAxis(turn, Vector3.up) * aim * (radius * .86f);
+            float size = radius * (i == columns / 2 ? .108f : i % 2 == 0 ? .074f : .088f);
+            float p = Mathf.Clamp01(local / .24f);
+            if (p < 1f)
+            {
+                float jet = Mathf.Sin(Mathf.PI * Mathf.Lerp(.08f, 1f, p));
+                accents.Crown(at, size * Mathf.Lerp(.45f, 1.25f, Mathf.Sqrt(p)), size * 3.6f * jet, since + i, (1f - p * p) * .95f);
+                accents.Crown(at, size * Mathf.Lerp(.15f, .45f, p), size * 5.0f * jet, since + i + .6f, (1f - p * p) * .85f);
+            }
+            accents.Fountain(at, radius * .17f, .05f + local * 1.9f, 11);
+        }
+
+        float foam = Mathf.InverseLerp(.10f, duration - hitAges[hit] - .02f, since);
+        if (foam > 0f && foam < 1f)
+        {
+            accents.ArcFoam(ground, aim, radius * Mathf.Lerp(.90f, 1.05f, 1f - (1f - foam) * (1f - foam)), angle, radius * .13f, 1f - foam * foam, since);
+            accents.ArcFoam(ground + Vector3.up * .004f, aim, radius * Mathf.Lerp(.66f, .82f, foam), angle * .86f, radius * .075f, (1f - foam) * .75f, since + 1.3f);
+        }
     }
 
     private PNGuraAttackWeapon.Pose BladeAt(int hit, float age)
     {
         float now = age - hitAges[hit];
-        bool rush = state == "attack_3";
         float sign = (state == "attack_2" || hit % 2 == 1) ? -1f : 1f;
-        float beforeWindow = rush && hit > 0 ? (hitAges[hit]-hitAges[hit-1])*.5f : rush ? .06f : hitAges[hit] * SweepLeadFraction;
-        float afterWindow = rush && hit+1 < hitAges.Length ? (hitAges[hit+1]-hitAges[hit])*.5f : SweepFollowSeconds;
-        float approach = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(-beforeWindow, 0f, now));
-        float follow = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0f, afterWindow, now));
-        float span = fixedSweep ? angle * .5f : rush ? 75f : Mathf.Clamp(82f+angle*.42f,110f,142f);
+        float approach = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(-hitAges[hit] * SweepLeadFraction, 0f, now));
+        float follow = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0f, SweepFollowSeconds, now));
+        float span = angle * .5f;
         float yaw = sign * span * (now < 0f ? approach - 1f : follow);
-        Vector3 axis = Quaternion.AngleAxis(yaw, Vector3.up) * direction;
+        Vector3 aim = hitDirections[hit];
+        Vector3 axis = Quaternion.AngleAxis(yaw, Vector3.up) * aim;
         float extension = Mathf.SmoothStep(0f,1f,Mathf.InverseLerp(-.082f,0f,now))
             * (1f - Mathf.SmoothStep(0f,1f,Mathf.InverseLerp(.018f,.145f,now)));
-        if (rush)
-        {
-            float hold = Mathf.Clamp01((age - surgeStart)/.08f) * (1f - Mathf.InverseLerp(hitAges[hitAges.Length - 1]+.03f, duration, age));
-            extension = Mathf.Max(extension, hold*.65f);
-        }
         if (fixedSweep)
         {
             // Wound back until the swing, then across the whole hit angle with the water.
             float wind = Mathf.Lerp(.93f, 1f, Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(-hitAges[hit], -SwingLead, now)));
             float swing = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(-SwingLead, SwingFollow, now));
             yaw = sign * span * (now < -SwingLead ? -wind : 2f * swing - 1f);
-            axis = Quaternion.AngleAxis(yaw, Vector3.up) * direction;
-            // The low follow-through keeps the full-length trident above the floor.
-            float elevation = Mathf.Max(-.19f, -sign * Mathf.Sin(yaw * Mathf.Deg2Rad) * 1.12f);
+            axis = Quaternion.AngleAxis(yaw, Vector3.up) * aim;
+            // The trident leans with the water's plane; the low follow-through keeps its full length above the floor.
+            float elevation = Mathf.Max(-.19f, -sign * Mathf.Sin(yaw * Mathf.Deg2Rad) * .66f);
             Vector3 sweepAxis = (axis + Vector3.up * elevation).normalized;
-            return new PNGuraAttackWeapon.Pose(GripAt(age), sweepAxis,
+            return new PNGuraAttackWeapon.Pose(GripAt(age) + Vector3.up * .06f, sweepAxis,
                 Vector3.Cross(Vector3.up, sweepAxis).normalized, .55f, .205f, 0f);
         }
 
-        float lift = rush ? .12f + .12f*Mathf.Cos(yaw*Mathf.Deg2Rad) : .25f*(1f-extension)+.095f*follow;
-        axis = (axis + Vector3.up * lift).normalized;
+        if (finisher)
+        {
+            float sweep = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(-.072f, .014f, now));
+            axis = Quaternion.AngleAxis(sign * span * (2f * sweep - 1f), Vector3.up) * aim;
+        }
+
+        float swingProgress = now < 0f ? approach * .5f : .5f + follow * .5f;
+        axis = (axis + Vector3.up * (.25f*(1f-extension)+.095f*follow)).normalized;
         Vector3 across = Vector3.Cross(Vector3.up, axis).normalized;
-        float length = Mathf.Lerp(.42f, Mathf.Max(.42f, radius-.14f), extension);
+        const float length = .86f;
         float width = Mathf.Lerp(.22f,.33f,extension);
         float bend = sign * length * .135f * Mathf.Sin((now < 0f ? approach : 1f + follow)*Mathf.PI*.82f);
-        return new PNGuraAttackWeapon.Pose(GripAt(age), axis, across, length, width, bend);
+        Vector3 at = GripAt(age);
+        return new PNGuraAttackWeapon.Pose(at, axis, across, length, width, bend);
     }
 
     private int ClosestHit(float age)
@@ -345,31 +397,58 @@ internal sealed class PNGuraCombatView : IPNActionView
         body.EndAction();
     }
 
-    public void Fact(string key, double[] values, double age) { }
+    public void Fact(string key, double[] values, double age)
+    {
+        if (shark != null && !bitePlaced && key == PNComboStrikeAction.StepEndFact && values.Length == 3)
+            biteStepEnd = new Vector3((float)values[0], (float)values[1], (float)values[2]);
+    }
     public void Result(in PNActionViewResult result) { }
     public void Hide()
     {
         hidden = true;
         ReleasePose();
         water?.Hide();
+        accents?.Hide();
+        echo?.Hide();
+        finisherShake?.Dispose();
+        finisherShake = null;
+        previousFinisherAge = -1f;
         particles?.Hide();
         weapon?.Hide();
         shark?.Hide();
+        if (dash != null) dash.Hide();
         if (ghosts != null) foreach (var ghost in ghosts) ghost.Hide();
-        if (cuts != null) foreach (var cut in cuts) cut?.Hide();
         if (slashes != null) foreach (var slash in slashes) slash?.Hide();
     }
     public void End(PNActionViewEnd kind)
     {
-        if (ended) return;
+        if (ended)
+        {
+            // Teardown ends a tail a second time.
+            if (kind == PNActionViewEnd.Cancelled)
+            {
+                dashTail = false;
+                if (dash != null) dash.Remove();
+                if (shark != null) shark.Dispose();
+            }
+            return;
+        }
         ended = true;
         ReleasePose();
+        if (dash != null)
+        {
+            dashTail = kind == PNActionViewEnd.Completed && !hidden && dash.gameObject.activeInHierarchy;
+            if (dashTail) dash.Release();
+            else dash.Remove();
+        }
         water?.Dispose();
+        accents?.Dispose();
+        echo?.Dispose();
+        finisherShake?.Dispose();
         particles?.Dispose();
         weapon?.Dispose();
-        shark?.Dispose();
+        if (shark != null && (kind != PNActionViewEnd.Completed || !shark.Release())) shark.Dispose();
         if (ghosts != null) foreach (var ghost in ghosts) ghost.Dispose();
-        if (cuts != null) foreach (var cut in cuts) cut?.Dispose();
         if (slashes != null) foreach (var slash in slashes) slash?.Dispose();
     }
 }

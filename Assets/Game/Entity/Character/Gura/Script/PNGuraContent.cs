@@ -94,8 +94,8 @@ public static class PNGuraContent
         // Tap presses at once; holding repeats the combo (the same gesture Eve uses for her held chain).
         var attackInput = new PlayerSkillInputConfig { PressImmediately = true, HoldMode = PlayerSkillHoldMode.Repeat, RepeatDelay = .2f, RepeatInterval = .05f };
         hub.Get<PNSkillBindingProfile>().Register(new PNSkillBindingProfile(AttackProfile, AttackSkills[0], AttackBehavior, data, attackInput, actionDataIds: AttackSkills.Concat(new[] { SkillBurstSkill }).ToArray()));
-        // Dash: the shared player Dash logic. A tap dashes on release, a hold dashes and gives the water coat (PNGuraSkill.HoldDash).
-        var dashInput = new PlayerSkillInputConfig { TapDuration = .15f, HoldMode = PlayerSkillHoldMode.Hold, HoldDuration = .15f };
+        // Dash: the shared player Dash logic. A tap dashes on release; a press still held after the tap window dashes once and keeps the water coat until released (PNGuraSkill.RepeatDash).
+        var dashInput = new PlayerSkillInputConfig { TapDuration = .15f, HoldMode = PlayerSkillHoldMode.Repeat, RepeatDelay = .16f, RepeatInterval = .1f };
         hub.Get<PNSkillBindingProfile>().Register(new PNSkillBindingProfile(DashProfile, DashSkill, PNGameSkillBindings.LegacyBehavior,
             new JObject { ["slot"] = PNSkillSlots.Dash.ToString(), ["eve"] = false }, dashInput));
         var skillData = new JObject { ["cooldownAbilityId"] = SkillReady.ToString(), ["actionDataId"] = TridentSkill.ToString(), ["reach"] = 8.0, ["afterStateId"] = NextFour.ToString(),

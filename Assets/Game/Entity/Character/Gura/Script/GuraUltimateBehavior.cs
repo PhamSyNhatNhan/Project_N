@@ -94,6 +94,9 @@ public sealed class GuraUltimateBehavior : PNSkillBehavior
     {
         current = phases.Dequeue(); DisposeAction();
         action = context.CreateAction(current, out actionContext, target != null && target.IsReady ? new[] { target } : Array.Empty<PNStat>(), direction);
+#if UNITY_5_3_OR_NEWER
+        if (current.Equals(sharkId) && action is PNComboStrikeAction bite) bite.PresentFirstStepEnd = true;
+#endif
         (action as IPNSkillMotionAction)?.BindMovementOwner(() => context.Skill.CancelBindingExecution());
         context.Skill.GetComponent<PNPlayerMove>()?.FaceSkillDirection(new Vector2(direction.x, direction.z));
         action.Start(actionContext); action.Perform(actionContext);

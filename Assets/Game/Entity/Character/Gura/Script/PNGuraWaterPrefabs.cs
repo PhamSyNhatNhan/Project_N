@@ -4,11 +4,12 @@ using UnityEngine;
 public sealed class PNGuraWaterPrefabs : ScriptableObject
 {
     public GameObject TridentImpact;
+    public GameObject SkillExplosion;
     public GameObject SharkBreach;
     public GameObject DiveBubbles;
     public GameObject DashSplash;
-    public GameObject DashFoam;
     public GameObject Slash;
+    public GameObject FinisherSlash;
 }
 
 internal sealed class PNGuraWaterParticles : System.IDisposable
@@ -24,18 +25,14 @@ internal sealed class PNGuraWaterParticles : System.IDisposable
         if (pack == null) return null;
         switch (effect)
         {
-            case "impact":
-                return new PNGuraWaterParticles(owner, pack.TridentImpact, "water_ring", "splash_ground", "splash_long");
+            case "skill_explosion":
+                return new PNGuraWaterParticles(owner, pack.SkillExplosion);      // every layer, as the pack made it
             case "shark":
-                return new PNGuraWaterParticles(owner, pack.SharkBreach, "water_ring", "splash_ground", "splash_long");
+                return new PNGuraWaterParticles(owner, pack.SharkBreach, "splash_ground", "splash_long");
             case "dive":
                 return new PNGuraWaterParticles(owner, pack.DiveBubbles);
-            case "dash":
-                return new PNGuraWaterParticles(owner, pack.DashSplash, "ground_water", "splash_long");
             case "surge":
-                return new PNGuraWaterParticles(owner, pack.DashFoam, "splash_mesh", "splash_long");
-            case "cut":
-                return new PNGuraWaterParticles(owner, pack.Slash, "slash_alp", "splash1", "splash2");
+                return new PNGuraWaterParticles(owner, pack.DashSplash, "ground_water", "ripples");
             default:
                 return null;
         }

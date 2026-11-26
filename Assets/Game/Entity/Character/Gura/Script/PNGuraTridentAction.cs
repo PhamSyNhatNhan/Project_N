@@ -16,7 +16,9 @@ public sealed class PNGuraTridentAction : PNSkillAction
     public static void Validate(PNSkillActionData data, EveRegistryHub hub)
     {
         var p = PNBuffContentBatch.Object(data.Perform);
-        PNBuffContentBatch.Fields(p, "windup", "recovery", "maxFlight", "projectile", "blast");
+        PNBuffContentBatch.Fields(p, "windup", "recovery", "maxFlight", "projectile", "blast", "lockMovement");
+        if (p["lockMovement"] != null && p["lockMovement"].Type != JTokenType.Boolean)
+            throw new FormatException("Trident lockMovement must be a boolean.");
         foreach (var key in new[] { "windup", "recovery", "maxFlight" }) { double n = PNBuffContentBatch.Number(p, key); if (!(n >= 0d && n <= 10d) || key == "maxFlight" && n <= 0d) throw new FormatException("Invalid trident number: " + key); }
         PNCreateProjectileOperation.Validate(p["projectile"], hub); PNCreateBlastOperation.Validate(p["blast"], hub);
     }
@@ -25,7 +27,7 @@ public sealed class PNGuraTridentAction : PNSkillAction
     private PNSkillActionContext context; private JObject payload;
     private float age, windup, recovery, maxFlight, thrownAt;
     private bool thrown, blasted, ended;
-    private PNSkillOperation launch; private PNCreateProjectileOperation volley;
+    private PNSkillOperation launch, movementLock; private PNCreateProjectileOperation volley;
     private Vector3 lastPoint; private bool hasPoint;
     public override bool HasAuxiliaryTimeline => true;
 
@@ -35,7 +37,17 @@ public sealed class PNGuraTridentAction : PNSkillAction
         Validate(c.Data.Action, c.Registry);
         if (!c.Direction.HasValue) throw new InvalidOperationException("Trident direction required");
         payload = (JObject)c.Data.Action.Perform; windup = payload["windup"].Value<float>(); recovery = payload["recovery"].Value<float>(); maxFlight = payload["maxFlight"].Value<float>();
-        context = c; c.BeginAction();
+        context = c;
+        try
+        {
+            c.BeginAction();
+            if (payload["lockMovement"]?.Value<bool>() == true)
+            {
+                movementLock = CreateOperation(c, EveId.Parse("base:lock_movement"));
+                movementLock.Execute(c, null);
+            }
+        }
+        catch { Dispose(); throw; }
     }
     public override void Perform(PNSkillActionContext c) { }
 
@@ -98,7 +110,12 @@ public sealed class PNGuraTridentAction : PNSkillAction
     public override void Dispose()
     {
         if (ended) return; ended = true;
-        launch?.Dispose(); launch = null; volley = null; context = null;
+        try { launch?.Dispose(); }
+        finally
+        {
+            movementLock?.Dispose();
+            movementLock = null; launch = null; volley = null; context = null;
+        }
     }
 #else
     public override void Start(PNSkillActionContext c) { Validate(c.Data.Action, c.Registry); }

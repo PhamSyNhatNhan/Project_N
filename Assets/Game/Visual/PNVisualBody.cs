@@ -18,6 +18,7 @@ public sealed class PNVisualBody : MonoBehaviour
     private float baseHeight, baseRadius; private Vector3 baseCenter; private string locomotion = "";
     // Strings and the Lorica break (all derived from replicated data: the buff presentation snapshot and the health, so a replica needs nothing on the wire).
     private PNBuffManager buffs; private bool broken, pullPending;
+    private PNPlayerMove skillFacing;
     public const float StringLowerSeconds = .8f, EntranceLowerSeconds = .9f, BreakPollSeconds = .1f;
     // Checks only: when set, it replaces the buff presentation as the source of "the Lorica is broken".
     public Func<bool> BreakSource;
@@ -48,6 +49,15 @@ public sealed class PNVisualBody : MonoBehaviour
         }
         actor.DriveAction(age, duration);
         holdTimer = Mathf.Max(holdTimer, .1f); locomotion = ""; return true;
+    }
+    // Turns the puppet toward the way an action is aimed, as the camera sees it. While the action holds the pose, movement does not turn it back (Feed). An aim straight toward or away
+    // from the camera leaves the puppet as it faces.
+    public void FaceAction(Vector3 direction)
+    {
+        if (actor == null || dead || broken) return;
+        var camera = PNViewCamera.Current;
+        float horizontal = Vector3.Dot(direction, camera != null ? camera.transform.right : Vector3.right);
+        if (Mathf.Abs(horizontal) > .01f) actor.SetFacingLeft(horizontal < 0f);
     }
     public bool PullingUp => pullPending;
 
@@ -84,6 +94,7 @@ public sealed class PNVisualBody : MonoBehaviour
         actor.Play("idle");
         actor.Tick(0f); // Publish the selected idle pose before a newly bound puppet can be rendered.
         buffs = GetComponent<PNBuffManager>(); broken = false; pullPending = false;
+        skillFacing = GetComponent<PNPlayerMove>(); if (skillFacing != null) skillFacing.SkillFaced += OnSkillFaced;     // a skill that turns the body turns the puppet
         if(stat is PNEnemyStat)PNLoricaPresentation.Ensure(gameObject);
         StartEntrance(appearance, hub);
         return true;
@@ -115,8 +126,12 @@ public sealed class PNVisualBody : MonoBehaviour
         return buffs!=null && buffs.TryReadPresentationTiming(PNContentIds.LoricaBreak,out timing);
     }
 
+    private void OnSkillFaced(Vector2 direction) => FaceAction(new Vector3(direction.x, 0f, direction.y));
+
     public void Clear()
     {
+        if (skillFacing != null) skillFacing.SkillFaced -= OnSkillFaced;
+        skillFacing = null;
         reconnecting=false;lowerSpan=StringLowerSeconds;stat = null;
         if (actor != null) { DestroyObject(actor.gameObject); actor = null; }
         if (visual != null) visual.gameObject.SetActive(true);

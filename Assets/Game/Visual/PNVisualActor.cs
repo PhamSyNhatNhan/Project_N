@@ -381,6 +381,9 @@ public sealed class PNVisualActor : MonoBehaviour
     public PNVisualAnimator Animator { get { EnsurePose(); return animator; } }
     private void EnsurePose() { if (poseDirty && animator != null) { animator.Evaluate(); poseDirty = false; } }
     public PNVisualAppearanceDefinition Appearance => appearance;
+    // With Appearance, what another puppet needs to look like this one (an effect's double).
+    public EveRegistryHub Hub => hubUsed;
+    public EveId? BuildId => build == null ? (EveId?)null : build.Id;
     public int QuadCount => drawables == null ? 0 : drawables.Length;
     public Mesh Mesh => mesh;
     public MeshRenderer Renderer => meshRenderer;

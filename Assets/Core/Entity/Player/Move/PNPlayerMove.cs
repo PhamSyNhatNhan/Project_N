@@ -87,11 +87,15 @@ public class PNPlayerMove : PNMove, IPNEntityResourceOwner
     }
 
 
+    // Raised after a skill turned this body (world X/Z). A body drawn by something else than the authored sprite (a rig puppet) turns with it.
+    public event System.Action<Vector2> SkillFaced;
+
     // Skill selects aim; apply sprite facing immediately before it locks movement.
     public virtual void FaceSkillDirection(Vector2 direction)
     {
         if (!TryFaceSkill(direction)) return;
         if (spriteRenderer != null) spriteRenderer.flipX = FacingDirection < 0;
+        SkillFaced?.Invoke(direction);
     }
     protected override void RefreshFacingVisual()
     { if(spriteRenderer!=null)spriteRenderer.flipX=FacingDirection<0; }

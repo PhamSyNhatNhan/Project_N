@@ -408,6 +408,7 @@
               "start": {},
               "perform": {
                 "windup": 0.25,
+                "lockMovement": true,
                 "recovery": 0.3,
                 "maxFlight": 1.8,
                 "projectile": {
@@ -422,7 +423,7 @@
                   "dependency": "Independent",
                   "input": {
                     "delay": 0.05,
-                    "tail": 0.15,
+                    "tail": 0.75,
                     "radius": 2.0,
                     "height": 1.5,
                     "value": {
@@ -467,7 +468,7 @@
                   "showInUI": false,
                   "iconPath": "",
                   "displayOrder": 0,
-                  "duration": 1.2,
+                  "duration": 1.5,
                   "reapply": "Refresh",
                   "clock": "Game"
                 },
@@ -487,7 +488,7 @@
                   "showInUI": true,
                   "iconPath": "",
                   "displayOrder": 0,
-                  "duration": 3,
+                  "duration": 4,
                   "reapply": "Refresh",
                   "clock": "Game"
                 },
@@ -614,6 +615,7 @@
               "stateEffects": [
                 {
                   "state": "project_n:gura_water_coat",
+                  "look": "project_n:gura_coat",
                   "statSource": {
                     "id": "project_n:gura_water_coat_bonus",
                     "modifiers": [
@@ -778,6 +780,7 @@
               "start": {},
               "perform": {
                 "visualState": "attack_1",
+                "lockMovement": true,
                 "tags": [
                   "base:physical",
                   "base:attack"
@@ -831,6 +834,7 @@
               "start": {},
               "perform": {
                 "visualState": "attack_2",
+                "lockMovement": true,
                 "tags": [
                   "base:physical",
                   "base:attack"
@@ -884,48 +888,64 @@
               "start": {},
               "perform": {
                 "visualState": "attack_3",
+                "lockMovement": true,
                 "tags": [
                   "base:physical",
                   "base:attack"
                 ],
-                "duration": 0.85,
+                "duration": 1.0,
+                "recoveryCancelAt": 0.9,
                 "radius": 1.3,
-                "angle": 60,
+                "angle": 360,
                 "thickness": 0.45,
                 "height": 0.3,
                 "canCrit": true,
                 "hits": [
                   {
-                    "at": 0.3,
+                    "at": 0.22,
+                    "yawDegrees": 36,
                     "value": {
                       "amount": 50,
                       "statId": "base:attack_power"
                     }
                   },
                   {
-                    "at": 0.42,
+                    "at": 0.4,
+                    "yawDegrees": 108,
                     "value": {
                       "amount": 50,
                       "statId": "base:attack_power"
                     }
                   },
                   {
-                    "at": 0.54,
+                    "at": 0.58,
+                    "yawDegrees": 180,
                     "value": {
                       "amount": 50,
                       "statId": "base:attack_power"
                     }
                   }
                 ],
-                "step": {
-                  "at": 0.0,
-                  "duration": 0.24,
-                  "distance": 2.0,
-                  "stopDistance": 0.6,
-                  "retreat": false,
-                  "permissionId": "base:motion_voluntary",
-                  "actorCollision": "IgnoreAllActors"
-                }
+                "step": [
+                  {
+                    "at": 0.0,
+                    "duration": 0.12,
+                    "distance": 2.0,
+                    "stopDistance": 0.6,
+                    "retreat": false,
+                    "permissionId": "base:motion_voluntary",
+                    "actorCollision": "IgnoreAllActors"
+                  },
+                  {
+                    "at": 0.64,
+                    "duration": 0.16,
+                    "distance": 2.2,
+                    "stopDistance": 2.2,
+                    "retreat": true,
+                    "permissionId": "base:motion_voluntary",
+                    "actorCollision": "IgnoreAllActors"
+                  }
+                ]
               },
               "exit": {},
               "cancel": {}
@@ -943,7 +963,7 @@
                 "data": {
                   "buffId": "project_n:gura_untouchable",
                   "input": {
-                    "duration": 0.9
+                    "duration": 1.2
                   }
                 }
               },
@@ -983,13 +1003,14 @@
               "start": {},
               "perform": {
                 "visualState": "attack_4",
+                "lockMovement": true,
                 "tags": [
                   "base:physical",
                   "base:attack"
                 ],
                 "duration": 0.85,
                 "radius": 3.4,
-                "angle": 70,
+                "angle": 180,
                 "thickness": 0.7,
                 "height": 0.3,
                 "canCrit": true,
@@ -1007,7 +1028,7 @@
                   "at": 0.0,
                   "duration": 0.22,
                   "distance": 2.0,
-                  "stopDistance": 1.2,
+                  "stopDistance": 2.2,
                   "retreat": true,
                   "permissionId": "base:motion_voluntary",
                   "actorCollision": "IgnoreAllActors"
