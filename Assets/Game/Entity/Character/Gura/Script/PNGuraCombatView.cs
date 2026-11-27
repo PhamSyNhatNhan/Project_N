@@ -13,6 +13,9 @@ internal sealed class PNGuraCombatView : IPNActionView
     private readonly string state;
     private readonly bool fixedSweep;
     private readonly bool rush, finisher;
+    // The two forms of the Skill: the whirl of the near one (three sweeps, each with its own sector) and the stab that ends the far one.
+    private readonly bool whirl, lunge;
+    private readonly float[] hitRadii, hitAngles;
     private const float SweepLeadFraction = .86f;
     private const float SweepFollowSeconds = .089f;
     // Attacks 1-2: the trident crosses the whole hit angle in this window around the hit, just ahead of the water.
@@ -26,6 +29,7 @@ internal sealed class PNGuraCombatView : IPNActionView
     private readonly bool[] sweepAnchored;
     private readonly PNGuraAttackWeapon[] ghosts;
     private readonly PNGuraSharkBite shark;
+    private readonly PNGuraDiveVisual dive;
     private readonly float duration, radius, angle;
     private readonly PNGuraWaterFx water;
     private readonly PNGuraWaterFx accents;
@@ -63,6 +67,8 @@ internal sealed class PNGuraCombatView : IPNActionView
         fixedSweep = state == "attack_1" || state == "attack_2";
         rush = state == "attack_3";
         finisher = state == "attack_4";
+        whirl = state == "vortex";
+        lunge = state == "rush";
         direction = Flat(build.Direction);
         var payload = (JObject)build.Data.Action.Perform;
         var hits = payload["hits"] as JArray;
@@ -72,9 +78,21 @@ internal sealed class PNGuraCombatView : IPNActionView
         radius = payload["radius"] != null ? PNHitCapture.ScaleLength(payload["radius"].Value<float>(), build.Scale) : 0;
         angle = payload["angle"]?.Value<float>() ?? 0;
         bool attack = state.StartsWith("attack_", System.StringComparison.Ordinal);
-        if (state == "dive") particles = PNGuraWaterParticles.Create(owner, state);
+        hitRadii = new float[hitAges.Length]; hitAngles = new float[hitAges.Length];
+        for (int i = 0; i < hitAges.Length; i++)
+        {
+            float own = hits[i]["radius"]?.Value<float>() ?? 0f;
+            hitRadii[i] = own > 0f ? PNHitCapture.ScaleLength(own, build.Scale) : radius;
+            hitAngles[i] = hits[i]["angle"]?.Value<float>() ?? angle;
+        }
+        attack |= whirl;
+        if (state == "dive")
+        {
+            particles = PNGuraWaterParticles.Create(owner, state);
+            dive = PNGuraDiveVisual.Create(owner, direction);
+        }
         if (state == "dash") dash = PNGuraDashVisual.Create(owner, direction, duration, payload["distance"]?.Value<float>() ?? 0f);
-        else if (state != "shark") water = new PNGuraWaterFx(owner);
+        else if (state != "shark" && state != "dive") water = new PNGuraWaterFx(owner);
         if (finisher) accents = new PNGuraWaterFx(owner, "Gura finisher water accents");
         if (rush)
         {
@@ -96,7 +114,7 @@ internal sealed class PNGuraCombatView : IPNActionView
             for (int i = 0; i < slashes.Length; i++) slashes[i] = PNGuraSlashArc.Create(owner, finisher, 1f);
         }
         if (state == "shark") shark = PNGuraSharkBite.Create(owner);
-        if (attack && !rush || state == "throw") weapon = new PNGuraAttackWeapon(owner, state == "throw" ? "Gura windup trident" : "Gura attack trident");
+        if (attack && !rush || state == "throw" || lunge) weapon = new PNGuraAttackWeapon(owner, state == "throw" ? "Gura windup trident" : "Gura attack trident");
         if (attack && !rush)
         {
             ghosts = new PNGuraAttackWeapon[fixedSweep ? 2 : 3];
@@ -114,7 +132,7 @@ internal sealed class PNGuraCombatView : IPNActionView
         hidden = false;
         if (Lead && state != "dash" && (state != "throw" || t < duration))
         {
-            if (body != null && body.PlayActionAt(state, age, state == "throw" ? duration * 2.2f : duration, resuming))
+            if (body != null && Pose(age, resuming))
             {
                 // Every pose of Gura's actions (strikes, the throw, the bite) looks where the cast is aimed. A dive keeps the way she already faces.
                 if (state != "dive") body.FaceAction(direction);
@@ -154,12 +172,10 @@ internal sealed class PNGuraCombatView : IPNActionView
 
         water?.Begin();
         accents?.Begin();
-        if (state == "dive")
+        if (dive != null)
         {
-            Vector3 surface = origin + Vector3.up*.029f;
-            particles?.Sample(surface,Vector3.zero,new Vector3(.22f,.12f,.22f),.12f+t,resuming);
-            float pulse = Mathf.Repeat(t*2.5f,1f);
-            water.Ripple(surface, .26f + .30f*pulse, .018f, (1f-pulse)*.8f);
+            particles?.Sample(origin + Vector3.up*.029f,Vector3.zero,new Vector3(.22f,.12f,.22f),.12f+t,resuming);
+            dive.Draw(origin,t,duration,resuming);
         }
         else if (shark != null) DrawBite(origin,t,resuming);
         else if (echo != null)
@@ -167,9 +183,44 @@ internal sealed class PNGuraCombatView : IPNActionView
             if (Lead) echo.Draw(t, resuming);
             else echo.Hide();
         }
+        else if (lunge) DrawLunge(origin,t);
         else DrawAttack(origin,t,resuming);
         water?.Draw();
         accents?.Draw();
+    }
+
+    // EN: The Skill's two strikes have no motion of their own yet (rough pictures): they borrow the attack motions, each placed so that its blow falls on the Skill's hit.
+    private bool Pose(double age, bool seeking)
+    {
+        if (whirl)
+        {
+            int beat = age < .25 ? 0 : age < .47 ? 1 : 2;
+            string motion = beat == 0 ? "attack_1" : beat == 1 ? "attack_4" : "attack_2";
+            double blow = beat == 1 ? .32 : .17, length = beat == 1 ? .85 : .45;
+            double local = System.Math.Max(0d, System.Math.Min(length, blow + age - hitAges[beat]));
+            return body.PlayActionAt(motion, local, length, seeking);
+        }
+        if (lunge) return body.PlayActionAt("attack_1", System.Math.Max(0d, System.Math.Min(.45, .17 + age - hitAges[0])), .45, seeking);
+        return body.PlayActionAt(state, age, state == "throw" ? duration * 2.2f : duration, seeking);
+    }
+
+    private void DrawLunge(Vector3 origin, float age)
+    {
+        if (!Lead) { weapon.Hide(); return; }
+        float since = age - hitAges[0];
+        float alpha = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(age / .03f)) * Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((duration - age) / .1f));
+        var pose = new PNGuraAttackWeapon.Pose(origin + Vector3.up * .18f + direction * .14f, direction, Vector3.Cross(Vector3.up, direction).normalized,
+            .72f, .26f, 0f);
+        weapon.Draw(pose, alpha);
+        water.TridentStream(pose, age, 1.5f, alpha * (1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0f, .12f, since))));
+        float spread = Mathf.InverseLerp(0f, .2f, since);
+        if (since >= 0f && spread < 1f)
+        {
+            Vector3 ground = origin + Vector3.up * .045f;
+            float reach = radius * Mathf.Lerp(.4f, 1f, 1f - (1f - spread) * (1f - spread));
+            water.Ripple(ground, reach, radius * .16f, 1f - spread);
+            water.EdgeSpray(ground, direction, reach, 360f, since, 26, radius * .3f);
+        }
     }
 
     private void DrawBite(Vector3 origin, float age, bool seeking)
@@ -189,6 +240,8 @@ internal sealed class PNGuraCombatView : IPNActionView
             biteOrigin = biteStepEnd ?? origin;
             bitePlaced = true;
         }
+        // Coming up out of a dive, she stays out of sight behind the shark until its Action is over.
+        if (PNGuraSubmerge.Held(body)) PNGuraSubmerge.Hold(body, this, 0f);
         shark.Draw(biteOrigin,direction,radius,since,seeking);
     }
 
@@ -251,11 +304,24 @@ internal sealed class PNGuraCombatView : IPNActionView
         float side = state == "attack_2" || hit % 2 == 1 ? -1f : 1f;
         Vector3 centre = hitOrigins[hit] + Vector3.up * sweepHeight;
         Vector3 aim = hitDirections[hit];
-        slashes[hit]?.Draw(centre, aim, radius, innerRadius, angle, side, since, sweepLift);
+        float radius = hitRadii[hit], angle = hitAngles[hit];
+        // The whirl: a low pull, a flat full turn, then a flick that rises.
+        var lift = !whirl ? sweepLift : hit == 0 ? PullLift : hit == 1 ? SpinLift : FlickLift;
+        slashes[hit]?.Draw(centre, aim, radius, innerRadius, angle, side, since, lift);
         float swept = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(-PNGuraSlashArc.Lead, 0f, since));
         float fade = 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(.012f, .085f, since));
-        water.SectorEdge(centre, aim, radius, angle, side, swept, sweepLift, finisher ? fade * .72f : fade);
+        water.SectorEdge(centre, aim, radius, angle, side, swept, lift, finisher ? fade * .72f : fade);
+        if (!whirl || since < 0f) return;
+        float after = Mathf.InverseLerp(0f, .18f, since);
+        if (after >= 1f) return;
+        Vector3 ground = hitOrigins[hit] + Vector3.up * .045f;
+        if (hit == 1) water.Ripple(ground, radius * Mathf.Lerp(.55f, 1.05f, after), radius * .09f, 1f - after);
+        if (hit == 2) water.EdgeSpray(centre, aim, radius, angle, since, 40, radius * .32f);
     }
+
+    private static float PullLift(float swing, float reach) => -.2f;
+    private static float SpinLift(float swing, float reach) => 0f;
+    private static float FlickLift(float swing, float reach) => Mathf.Lerp(-.2f, .45f, swing);
 
     private float AttackLift(float swing, float reach) =>
         Mathf.Lerp(.54f, -.19f, swing) * Mathf.Max(0f, halfThickness - .004f);
@@ -325,7 +391,7 @@ internal sealed class PNGuraCombatView : IPNActionView
         float sign = (state == "attack_2" || hit % 2 == 1) ? -1f : 1f;
         float approach = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(-hitAges[hit] * SweepLeadFraction, 0f, now));
         float follow = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0f, SweepFollowSeconds, now));
-        float span = angle * .5f;
+        float span = hitAngles[hit] * .5f;
         float yaw = sign * span * (now < 0f ? approach - 1f : follow);
         Vector3 aim = hitDirections[hit];
         Vector3 axis = Quaternion.AngleAxis(yaw, Vector3.up) * aim;
@@ -416,6 +482,8 @@ internal sealed class PNGuraCombatView : IPNActionView
         particles?.Hide();
         weapon?.Hide();
         shark?.Hide();
+        if (dive != null) dive.Hide();
+        PNGuraSubmerge.Release(body, this);
         if (dash != null) dash.Hide();
         if (ghosts != null) foreach (var ghost in ghosts) ghost.Hide();
         if (slashes != null) foreach (var slash in slashes) slash?.Hide();
@@ -448,6 +516,9 @@ internal sealed class PNGuraCombatView : IPNActionView
         particles?.Dispose();
         weapon?.Dispose();
         if (shark != null && (kind != PNActionViewEnd.Completed || !shark.Release())) shark.Dispose();
+        // Letting go of the dive cancels it, so its short way out plays however it ended.
+        if (dive != null && !dive.Release()) dive.Dispose();
+        PNGuraSubmerge.Release(body, this);
         if (ghosts != null) foreach (var ghost in ghosts) ghost.Dispose();
         if (slashes != null) foreach (var slash in slashes) slash?.Dispose();
     }

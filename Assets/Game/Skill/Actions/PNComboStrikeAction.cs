@@ -17,6 +17,9 @@ using UnityEngine;
 //       recoveryCancelAt (s, optional): the earliest age at which the next press may cut the recovery short; the last hit and the end of the last step come first in any case
 //       hits [{at, value, iframeDuration?, yawDegrees?}]   each opens a separate melee hitbox at its own age; yawDegrees rotates the sector relative to cast aim (default 0)
 //       lockMovement (optional)  blocks manual controls through recovery; scripted motion keeps its own permission
+//       hits[].radius, hits[].innerRadius, hits[].angle, hits[].thickness (optional)   that hit's own sector; a missing one is the strike's
+//       guard {at, duration, buffId} (optional)   a registered Buff on the caster for that part of the strike (its apply input takes the duration), given through the context's Buff door; a cancel
+//            is cleaned up by the skill data's own OnCancel remove
 //       canCrit, tags
 //     The behavior supplies the aim (Direction) and the target (Targets, may be empty: the strike then happens in place). The Action has no network code: the melee hitbox, the body motion and the damage service
 //     decide by role (Authority sweeps, Predicted reports, Observed nothing); the Action advances through `AdvanceAuxiliary` like every timeline Action.
@@ -27,7 +30,7 @@ public sealed class PNComboStrikeAction : PNSkillAction, IPNSkillMotionAction
     public static void Validate(PNSkillActionData data, EveRegistryHub hub)
     {
         var p = PNBuffContentBatch.Object(data.Perform);
-        PNBuffContentBatch.Fields(p, "duration", "radius", "innerRadius", "angle", "thickness", "height", "step", "hits", "canCrit", "tags", "visualState", "lockMovement", "recoveryCancelAt");
+        PNBuffContentBatch.Fields(p, "duration", "radius", "innerRadius", "angle", "thickness", "height", "step", "hits", "canCrit", "tags", "visualState", "lockMovement", "recoveryCancelAt", "guard");
         if (p["lockMovement"] != null && p["lockMovement"].Type != JTokenType.Boolean)
             throw new FormatException("lockMovement must be a boolean.");
         if (p["visualState"] != null && p["visualState"].Type != JTokenType.String)
@@ -67,11 +70,26 @@ public sealed class PNComboStrikeAction : PNSkillAction, IPNSkillMotionAction
 #endif
             }
         }
+        if (p["guard"] != null)
+        {
+            var guard = PNBuffContentBatch.Object(p["guard"]); PNBuffContentBatch.Fields(guard, "at", "duration", "buffId");
+            double from = PNBuffContentBatch.Number(guard, "at");
+            if (!(from >= 0d && from <= duration)) throw new FormatException("guard.at must be inside the Action duration.");
+            Positive(guard, "duration", 10); EveId.Parse(PNBuffContentBatch.String(guard, "buffId"));
+        }
         if (!(p["hits"] is JArray hits) || hits.Count > MaxHits) throw new FormatException("At most " + MaxHits + " hits.");
         double last = -1d;
         foreach (var token in hits)
         {
-            var hit = PNBuffContentBatch.Object(token); PNBuffContentBatch.Fields(hit, "at", "value", "iframeDuration", "yawDegrees");
+            var hit = PNBuffContentBatch.Object(token); PNBuffContentBatch.Fields(hit, "at", "value", "iframeDuration", "yawDegrees", "radius", "innerRadius", "angle", "thickness");
+            if (hit["radius"] != null) Positive(hit, "radius", 20);
+            if (hit["angle"] != null) Positive(hit, "angle", 360);
+            if (hit["thickness"] != null) Positive(hit, "thickness", 10);
+            if (hit["innerRadius"] != null)
+            {
+                double inner = PNBuffContentBatch.Number(hit, "innerRadius");
+                if (!(inner >= 0d && inner < PNBuffContentBatch.Number(hit["radius"] != null ? hit : p, "radius"))) throw new FormatException("Hit innerRadius must be in [0, radius).");
+            }
             double at = PNBuffContentBatch.Number(hit, "at");
             if (!(at >= 0d && at <= duration) || at < last) throw new FormatException("Hit times must be ordered and inside the Action duration.");
             if (hit["yawDegrees"] != null)
@@ -105,6 +123,8 @@ public sealed class PNComboStrikeAction : PNSkillAction, IPNSkillMotionAction
     private PNBodyMotion motor;
     private PNSkillOperation movementLock;
     private float[] hitAt; private PNSkillMeleeHitbox[] boxes; private bool[] swept;
+    private struct Shape { public float Radius, Inner, Angle, Thickness; }
+    private Shape[] shapes; private float guardAt, guardSeconds; private EveId guardBuff; private bool guardPending;
     private Vector3[] hitDirections;
     private PNStat caster; private bool ended;
     public override bool HasAuxiliaryTimeline => true;
@@ -155,13 +175,21 @@ public sealed class PNComboStrikeAction : PNSkillAction, IPNSkillMotionAction
                 movementLock.Execute(c, null);
             }
             var hits = (JArray)p["hits"]; hitAt = new float[hits.Count]; boxes = new PNSkillMeleeHitbox[hits.Count]; swept = new bool[hits.Count];
-            hitDirections = new Vector3[hits.Count];
+            hitDirections = new Vector3[hits.Count]; shapes = new Shape[hits.Count];
+            var guard = p["guard"] as JObject; guardPending = guard != null;
+            if (guardPending) { guardAt = guard["at"].Value<float>(); guardSeconds = guard["duration"].Value<float>(); guardBuff = EveId.Parse(guard["buffId"].Value<string>()); }
             // One hitbox per hit, each with its own damage capture taken now, so Buffs gained during the strike change none of its hits.
             for (int i = 0; i < hits.Count; i++)
             {
                 hitAt[i] = hits[i]["at"].Value<float>();
                 hitDirections[i] = HitDirection(aim, hits[i]);
                 boxes[i] = new PNSkillMeleeHitbox(c, caster, PNSkillValues.Parse(hits[i]["value"]), PNDamage.ParseIFrameDuration((JObject)hits[i]), canCrit, i);
+                float inner = hits[i]["innerRadius"]?.Value<float>() ?? innerRadius;
+                shapes[i] = new Shape
+                {
+                    Radius = boxes[i].ScaleLength(hits[i]["radius"]?.Value<float>() ?? radius), Thickness = boxes[i].ScaleLength(hits[i]["thickness"]?.Value<float>() ?? thickness),
+                    Inner = inner > 0f ? boxes[i].ScaleLength(inner) : 0f, Angle = hits[i]["angle"]?.Value<float>() ?? angle
+                };
             }
             if (boxes.Length > 0) { radius = boxes[0].ScaleLength(radius); thickness = boxes[0].ScaleLength(thickness); if (innerRadius > 0f) innerRadius = boxes[0].ScaleLength(innerRadius); }
             else if (c.Registry.Actions().Get(c.Data.Action.Id).PresentationScaleTag.HasValue) c.CommitPresentationScale(1d);
@@ -181,7 +209,8 @@ public sealed class PNComboStrikeAction : PNSkillAction, IPNSkillMotionAction
     {
         swept[index] = true;
         var origin = context.Skill.transform.position + Vector3.up * height;
-        boxes[index].Open(EveHitboxShape.Sector(radius, thickness, angle, innerRadius), origin, radius, 0, (point, outcome) => { },
+        var shape = shapes[index];
+        boxes[index].Open(EveHitboxShape.Sector(shape.Radius, shape.Thickness, shape.Angle, shape.Inner), origin, shape.Radius, 0, (point, outcome) => { },
             target => !target.IsDead && PNWorldGameplay.CanTarget(context.Skill, target));
         boxes[index].ReportTime = age;
         boxes[index].Sample(EveHitboxPose.Planar(origin, hitDirections[index]), age);
@@ -239,6 +268,12 @@ public sealed class PNComboStrikeAction : PNSkillAction, IPNSkillMotionAction
     {
         if (ended) return true;
         age += dt;
+        if (guardPending && age >= guardAt)
+        {
+            guardPending = false;
+            var buffs = context.Skill.GetComponent<PNBuffManager>();
+            if (buffs != null && buffs.IsReady) context.ApplyBuff(buffs, guardBuff, caster, new JObject { ["duration"] = (double)guardSeconds });
+        }
         Step();
         for (int i = 0; i < boxes.Length; i++) if (!swept[i] && age >= hitAt[i]) Sweep(i);
         return age >= duration;

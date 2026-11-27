@@ -5,7 +5,6 @@ public sealed class PNGuraWaterPrefabs : ScriptableObject
 {
     public GameObject TridentImpact;
     public GameObject SkillExplosion;
-    public GameObject SharkBreach;
     public GameObject DiveBubbles;
     public GameObject DashSplash;
     public GameObject Slash;
@@ -27,8 +26,6 @@ internal sealed class PNGuraWaterParticles : System.IDisposable
         {
             case "skill_explosion":
                 return new PNGuraWaterParticles(owner, pack.SkillExplosion);      // every layer, as the pack made it
-            case "shark":
-                return new PNGuraWaterParticles(owner, pack.SharkBreach, "splash_ground", "splash_long");
             case "dive":
                 return new PNGuraWaterParticles(owner, pack.DiveBubbles);
             case "surge":

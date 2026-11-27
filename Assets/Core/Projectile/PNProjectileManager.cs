@@ -135,6 +135,27 @@ public sealed class PNProjectileManager : MonoBehaviour, IPNHitReportReceiver
         SceneManager.sceneUnloaded += SceneUnloaded;
     }
     public bool Contains(PNProjectileHandle handle) => ReferenceEquals(handle.Manager, this) && entries.TryGetValue(handle.InstanceId, out var entry) && entry.Instance != null && entry.Instance.IsRunning;
+    // EN: The last entity a projectile of this manager hit, kept after the projectile ended: the real one on the authority (its own contacts or the shooter's report), the shooter's guess on a predicting
+    //     machine. A skill that goes on from a hit (rush to what the throw struck) reads this by its receipt's handle, with the same code in every mode. Only the latest MaxRememberedHits are kept.
+    // VI: Muc tieu cuoi ma mot vien da trung, con giu sau khi vien ket thuc. Skill doc theo handle de lam tiep (lao toi muc tieu vua trung).
+    public const int MaxRememberedHits = 64;
+    private readonly Dictionary<long, (PNStat Target, Vector3 Point)> targetHits = new Dictionary<long, (PNStat, Vector3)>();
+    private readonly Queue<long> targetHitOrder = new Queue<long>();
+    internal void NoteTargetHit(long id, PNStat target, Vector3 point)
+    {
+        if (!targetHits.ContainsKey(id))
+        {
+            targetHitOrder.Enqueue(id);
+            while (targetHitOrder.Count > MaxRememberedHits) targetHits.Remove(targetHitOrder.Dequeue());
+        }
+        targetHits[id] = (target, point);
+    }
+    public bool TryGetTargetHit(PNProjectileHandle handle, out PNStat target, out Vector3 point)
+    {
+        target = null; point = default;
+        if (!ReferenceEquals(handle.Manager, this) || !targetHits.TryGetValue(handle.InstanceId, out var hit) || hit.Target == null) return false;
+        target = hit.Target; point = hit.Point; return true;
+    }
     public PNProjectileSnapshot Get(PNProjectileHandle handle)
         => ReferenceEquals(handle.Manager, this) && entries.TryGetValue(handle.InstanceId, out var entry) && entry.Instance != null ? new PNProjectileSnapshot(handle, entry.DefinitionId, entry.DefinitionId, entry.Instance) : null;
     // Running projectiles (position, box, heading, world, handle) for systems that scan or clear them; geometry and filtering are the caller's.

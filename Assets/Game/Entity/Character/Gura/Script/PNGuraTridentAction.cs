@@ -6,30 +6,32 @@ using Newtonsoft.Json.Linq;
 using UnityEngine;
 #endif
 
-// EN: `project_n:gura_trident_action` (Docs/GuraCharacter.md 4.2): a thrown trident that flies on its own to the target and bursts in a blast where it ends (hit, wall or end of its time). Payload:
-//       windup (s) before the throw, recovery (s) after the blast, maxFlight (s) the cast waits for the trident, projectile = a `create_projectile` payload, blast = a `create_blast` payload (its position is where the
-//       trident ended). The Action creates the projectile through the registered Operation, then watches it through the projectile manager; the blast is the authority's (a guess draws nothing of it).
-//     The cast stays open while the trident flies (at most maxFlight), so the skill cannot overlap itself; it has no network code.
-// VI: Dinh ba bay tu dong toi muc tieu va no blast noi no ket thuc (trung, cham tuong, het gio). Action tao dan qua Operation dang ky roi theo doi qua projectile manager; blast la cua authority.
+// EN: `project_n:gura_trident_action` (Docs/GuraCharacter.md 4.2, the far form of the Skill): a thrown trident that deals the damage of its own projectile. Payload:
+//       windup (s) before the throw, recovery (s) after a miss, maxFlight (s) the Action waits for the trident, projectile = a `create_projectile` payload (its damage included), lockMovement (optional).
+//     The Action creates the projectile through the registered Operation and watches it through the projectile manager. A hit ends the Action at once and leaves `Struck` (the entity hit: the real one on the
+//     authority, the guess on a predicting machine) for the behavior, which goes on with the rush. A miss (wall, end of range or of time) ends it after the recovery with `Struck` null.
+//     The trident's reward (skill data `skill.reward`) is paid by the authority when it hits. The Action has no network code.
+// VI: Dinh ba nem (dang xa cua Skill): trung thi ket thuc ngay va de lai `Struck` cho behavior lao toi; truot thi hoi don roi ket thuc.
 public sealed class PNGuraTridentAction : PNSkillAction
 {
     public static void Validate(PNSkillActionData data, EveRegistryHub hub)
     {
         var p = PNBuffContentBatch.Object(data.Perform);
-        PNBuffContentBatch.Fields(p, "windup", "recovery", "maxFlight", "projectile", "blast", "lockMovement");
+        PNBuffContentBatch.Fields(p, "windup", "recovery", "maxFlight", "projectile", "lockMovement");
         if (p["lockMovement"] != null && p["lockMovement"].Type != JTokenType.Boolean)
             throw new FormatException("Trident lockMovement must be a boolean.");
         foreach (var key in new[] { "windup", "recovery", "maxFlight" }) { double n = PNBuffContentBatch.Number(p, key); if (!(n >= 0d && n <= 10d) || key == "maxFlight" && n <= 0d) throw new FormatException("Invalid trident number: " + key); }
-        PNCreateProjectileOperation.Validate(p["projectile"], hub); PNCreateBlastOperation.Validate(p["blast"], hub);
+        PNCreateProjectileOperation.Validate(p["projectile"], hub);
     }
 
 #if UNITY_5_3_OR_NEWER
     private PNSkillActionContext context; private JObject payload;
-    private float age, windup, recovery, maxFlight, thrownAt;
-    private bool thrown, blasted, ended;
+    private float age, windup, recovery, maxFlight, thrownAt, missedAt;
+    private bool thrown, missed, ended;
     private PNSkillOperation launch, movementLock; private PNCreateProjectileOperation volley;
-    private Vector3 lastPoint; private bool hasPoint;
     public override bool HasAuxiliaryTimeline => true;
+    // What the trident hit, kept after the Action is disposed.
+    public PNStat Struck { get; private set; }
 
     public override void Start(PNSkillActionContext c)
     {
@@ -56,12 +58,13 @@ public sealed class PNGuraTridentAction : PNSkillAction
         if (ended || context == null) return true;
         age += dt;
         if (!thrown && age >= windup) Throw();
-        if (thrown && !blasted)
+        if (!thrown) return false;
+        if (!missed)
         {
-            Track();
-            if (volley == null || Ended() || age - thrownAt >= maxFlight) Burst();
+            if (TakeHit()) return true;
+            if (volley == null || Ended() || age - thrownAt >= maxFlight) { missed = true; missedAt = age; }
         }
-        return blasted && age >= thrownAt + recovery || thrown && volley == null && age >= windup + recovery;
+        return missed && age >= missedAt + recovery;
     }
 
     private void Throw()
@@ -70,40 +73,26 @@ public sealed class PNGuraTridentAction : PNSkillAction
         launch = CreateOperation(context, PNProjectileGameplayContent.CreateProjectile);
         launch.Execute(context, payload["projectile"]);
         volley = launch as PNCreateProjectileOperation;
-        if (volley == null || volley.Results.Count == 0) volley = null;
-        else { var self = context.Skill.transform.position; lastPoint = self; hasPoint = true; }
+        if (volley != null && volley.Results.Count == 0) volley = null;
     }
-    private bool Ended()
+    private bool TakeHit()
     {
-        foreach (var receipt in volley.Results) if (receipt.Status == PNProjectileStatus.Created && receipt.Handle.IsAlive) return false;
-        return true;
-    }
-    private void Track()
-    {
-        if (volley == null) return;
+        if (volley == null) return false;
         var manager = PNProjectileManager.Resolve(EveRegistrySession.Context, context.Skill.gameObject.scene);
         foreach (var receipt in volley.Results)
         {
-            if (receipt.Status != PNProjectileStatus.Created || !receipt.Handle.IsAlive) continue;
-            var snapshot = manager.Get(receipt.Handle);
-            if (snapshot != null && snapshot.IsRunning) { lastPoint = snapshot.Position; hasPoint = true; }
+            if (receipt.Status != PNProjectileStatus.Created || !manager.TryGetTargetHit(receipt.Handle, out var target, out _)) continue;
+            Struck = target;
+            if (context.Mode == PNSkillMode.Authority && context.Skill is PNGuraSkill gura) gura.Pay(context.SkillId, true);
+            return true;
         }
-    }
-    // The trident ended (or ran out of waiting): the blast bursts where it was last seen, through the registered create_blast (it admits only the authority; a guess draws nothing here).
-    private void Burst()
-    {
-        blasted = true; thrownAt = age;
-        if (!hasPoint) return;
-        var at = new PNSkillActionContext(context.Skill, context.SkillId, context.Data, context.Registry, null, context.Direction, context.Invocation, false, lastPoint);
-        using (var create = CreateOperation(at, PNBlastGameplayContent.CreateBlast)) create.Execute(at, payload["blast"]);
-        // The trident pays its reward only when its blast has something to hit (an enemy of the caster inside the blast's radius).
-        if (context.Mode == PNSkillMode.Authority && context.Skill is PNGuraSkill gura && Hits(lastPoint, payload["blast"]["input"]["radius"].Value<float>())) gura.Pay(context.SkillId, true);
-    }
-    private bool Hits(Vector3 at, float radius)
-    {
-        var stat = context.Skill.GetComponent<PNStat>(); if (stat == null) return false;
-        foreach (var hit in Physics.OverlapSphere(at, radius, stat.TargetLayers.Mask, QueryTriggerInteraction.Ignore)) { var other = hit.GetComponent<PNStat>(); if (other != null && other.IsReady && !other.IsDead && other != stat) return true; }
         return false;
+    }
+    private bool Ended()
+    {
+        foreach (var receipt in volley.Results)
+            if (receipt.Status == PNProjectileStatus.Pending || receipt.Status == PNProjectileStatus.Created && receipt.Handle.IsAlive) return false;
+        return true;
     }
     public override void Exit(PNSkillActionContext c) { try { c.CompleteAction(); } finally { Dispose(); } }
     public override void Cancel(PNSkillActionContext c) { try { c.CancelEffects(); } finally { Dispose(); } }

@@ -13,6 +13,9 @@ public sealed class PNVisualBody : MonoBehaviour
     [SerializeField] private Transform visual;          // the authored sprite object, switched off while a puppet is drawn
     [SerializeField] private CapsuleCollider capsule;
     [SerializeField, Min(0f)] private float walkSpeed = .08f, runSpeed = 1.1f;   // m/s of the entity; below walkSpeed it stands
+    // A position that does not change for a frame is not a stop: physics steps and replicated positions arrive less often than frames are drawn.
+    public const float StillSeconds = .1f;
+    private float stillTimer, moveSpeed; private PNPhysicsPose pose;
 
     private PNVisualActor actor; private PNStat stat; private Vector3 lastPosition; private bool hasLast, dead, savedCapsule, hasHealth; private double lastHealth;
     private float baseHeight, baseRadius; private Vector3 baseCenter; private string locomotion = "";
@@ -83,6 +86,11 @@ public sealed class PNVisualBody : MonoBehaviour
         actor = created;
         actor.KeyActor = GetComponent<PNPlayerStat>() != null; actor.RefreshShadowMode();   // the KeyActors shadow setting: the player now, bosses when they get a visual
         if (visual != null) visual.gameObject.SetActive(false);
+        if (!TryGetComponent(out pose)) pose = gameObject.AddComponent<PNPhysicsPose>();
+        // The puppet's camera facing re-places it from its foot anchor after the camera moved, so the anchor is what carries the offset.
+        var drawnFacing = child.GetComponent<PNCameraFacingTarget>();
+        pose.Bind(offset => { if (child == null) return; drawnFacing.FootAnchor = feet + offset; child.transform.localPosition = feet + offset; });
+        stillTimer = moveSpeed = 0f;
         if (capsule != null)
         {
             baseHeight = capsule.height; baseRadius = capsule.radius; baseCenter = capsule.center; savedCapsule = true;
@@ -133,6 +141,8 @@ public sealed class PNVisualBody : MonoBehaviour
         if (skillFacing != null) skillFacing.SkillFaced -= OnSkillFaced;
         skillFacing = null;
         reconnecting=false;lowerSpan=StringLowerSeconds;stat = null;
+        if (pose != null) pose.Unbind();
+        stillTimer = moveSpeed = 0f;
         if (actor != null) { DestroyObject(actor.gameObject); actor = null; }
         if (visual != null) visual.gameObject.SetActive(true);
         if (savedCapsule && capsule != null) { capsule.height = baseHeight; capsule.radius = baseRadius; capsule.center = baseCenter; }
@@ -178,13 +188,16 @@ public sealed class PNVisualBody : MonoBehaviour
         }
         if (pullPending && actor.Strings != null && !actor.Strings.AnyLowering) { pullPending = false; locomotion = ""; Recover(); }       // the strings are on again: pull the puppet up
         if (holdTimer > 0f) { holdTimer -= dt; if (holdTimer <= 0f) locomotion = ""; }
-        var position = transform.position;
-        if (broken || pullPending || holdTimer > 0f) { lastPosition = position; hasLast = true; return; }       // no walking animation while slumped or being pulled up
+        var position = transform.position + (pose != null ? pose.Offset : Vector3.zero);
+        if (broken || pullPending || holdTimer > 0f) { lastPosition = position; hasLast = true; stillTimer = moveSpeed = 0f; return; }       // no walking animation while slumped or being pulled up
         if (hasLast && dt > 1e-5f)
         {
-            var delta = position - lastPosition; delta.y = 0f; float speed = delta.magnitude / dt;
+            var delta = position - lastPosition; delta.y = 0f; stillTimer += dt;
+            // A step after a rest is timed by this frame alone, else by the time since the last step.
+            if (delta.sqrMagnitude > 1e-10f) { moveSpeed = delta.magnitude / (moveSpeed > 0f ? stillTimer : dt); stillTimer = 0f; }
+            else if (stillTimer >= StillSeconds) moveSpeed = 0f;
             if (Mathf.Abs(delta.x) > 1e-4f) actor.SetFacingLeft(delta.x < 0f);
-            string next = speed < walkSpeed ? "idle" : speed < runSpeed ? "walk" : "run";
+            string next = moveSpeed < walkSpeed ? "idle" : moveSpeed < runSpeed ? "walk" : "run";
             if (next != locomotion) { locomotion = next; actor.Play(next); }
         }
         lastPosition = position; hasLast = true;

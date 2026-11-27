@@ -112,7 +112,7 @@ public abstract class PNProjectileInstance : MonoBehaviour, EveIPoolable, IPNTim
     private PNImpactOrigin ImpactOrigin => Launch != null && Launch.IsReplica ? PNImpactOrigin.Copy : Launch != null && Launch.IsPrediction ? PNImpactOrigin.Guess : PNImpactOrigin.Real;
     private void RaiseImpact(PNImpactKind kind, Vector3 point, Vector3 normal, PNStat target, long targetId, int hitIndex)
     {
-        ImpactCount++; Manager?.NoteImpact(ImpactOrigin, kind); endPoint = point; endNormal = normal; endTargetId = targetId; hasEndHint = true;
+        ImpactCount++; Manager?.NoteImpact(ImpactOrigin, kind); if (kind == PNImpactKind.Target && target != null) Manager?.NoteTargetHit(Handle.InstanceId, target, point); endPoint = point; endNormal = normal; endTargetId = targetId; hasEndHint = true;
         try { OnImpact(new PNImpact(kind, ImpactOrigin, point, normal, heading, target, targetId, hitIndex)); } catch (Exception error) { Debug.LogException(error, this); }
     }
     // The End record's own account of the impact (a copy has no contacts of its own).

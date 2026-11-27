@@ -4,9 +4,9 @@ using Newtonsoft.Json.Linq;
 using UnityEngine;
 
 // EN: Gura's own skill class (Docs/GuraCharacter.md). Every slot is a registered behavior binding (PNGuraContent); the shared player logic keeps the Dash, but with Gura's own Dash data
-//     (3 charges, 7 s each, `gura_dash_charge`). The Dash gestures are Gura's: a tap is the plain Dash; keeping the button held dashes once and puts the water coat on her (move speed, a timed State whose
+//     (2 charges, 7 s each, `gura_dash_charge`). The Dash gestures are Gura's: a tap is the plain Dash; keeping the button held dashes once and puts the water coat on her (move speed, a timed State whose
 //     registered `stateEffects` apply and take back the bonus). The coat lasts while the button is held, at most its own duration; a stun or a menu counts as letting go. When it ends - either way -
-//     it raises the next-strike flag (the next Attack press is the fourth strike); death takes the coat with no flag. The states are Ability state, so the flag and the coat follow the entity on every machine.
+//     it raises the next-strike flag (the next Attack press is the third strike); death takes the coat with no flag. The states are Ability state, so the flag and the coat follow the entity on every machine.
 // VI: Class skill rieng cua Gura: moi o la binding dang ky; Dash dung logic chung voi du lieu Dash cua Gura. Tap = Dash thuong; giu = Dash mot lan + ao nuoc den khi buong (toi da theo thoi luong), ao tat moi cap co.
 [DisallowMultipleComponent]
 public class PNGuraSkill : PNPlayerSkill
@@ -75,10 +75,16 @@ public class PNGuraSkill : PNPlayerSkill
     {
         base.OnHitConfirmed(context, target, result);
         if (ReferenceEquals(context, prepaid)) return;
+        // A skill that says `flagOnHit` (the forms of the Skill) raises the next-strike flag by hitting.
+        if (FlagsOnHit(context.SkillId)) Raise(PNGuraContent.NextFour);
+        // A reward marked `once` is paid once for the whole Action, however many of its hits land.
+        if (ReferenceEquals(context, lastPaid) && PaysOnce(context.SkillId)) return;
         // One reward per sweep (a sweep that hits three enemies is one hit of the table): hits of one sweep follow each other within microseconds.
         long now = System.Diagnostics.Stopwatch.GetTimestamp(); if (ReferenceEquals(context, lastPaid) && now - lastPaidAt < System.Diagnostics.Stopwatch.Frequency / 200) return;
         if (Pay(context.SkillId, true)) { lastPaid = context; lastPaidAt = now; }
     }
+    private bool FlagsOnHit(EveId skillId) => (GetData(skillId).Skill as JObject)?["flagOnHit"]?.Value<bool>() == true;
+    private bool PaysOnce(EveId skillId) => (GetData(skillId).Skill as JObject)?["reward"]?["once"]?.Value<bool>() == true;
     // Gives the reward of a skill (false when it has none). `authority` is whether the machine may also cut the Ultimate cooldown.
     public bool Pay(EveId skillId, bool authority)
     {

@@ -508,10 +508,13 @@ public sealed class PNUiRuntime : MonoBehaviour
             if(float.IsNaN(referenceHeight) || float.IsInfinity(referenceHeight) || referenceHeight<=0)
             { root.style.display=DisplayStyle.None; if(buffRoot!=null)buffRoot.style.display=DisplayStyle.None; return false; }
             bool visible=!owner.MenuOpen && camera!=null && stat.IsReady && stat.isActiveAndEnabled && stat.gameObject.activeInHierarchy && stat.HealthBar!=PNHealthBarMode.Hidden && PNVitals.TryRead(stat,PNContentIds.Health,out _,out _,out var dead) && !dead;
-            var position=stat.transform.position+(PNEntityRoles.IsPlayer(stat)?owner.playerOffset:owner.enemyOffset);
+            // The root only moves on physics steps while the camera and the puppet are drawn between them (PNPhysicsPose), so the bars anchor to the drawn place too. Zero for a body without it.
+            var smoothing=PNPhysicsPose.OffsetOf(stat.transform);
+            var drawn=stat.transform.position+smoothing;
+            var position=drawn+(PNEntityRoles.IsPlayer(stat)?owner.playerOffset:owner.enemyOffset);
             if(camera!=null && characterSprite!=null && characterSprite.enabled && characterSprite.sprite!=null)
             {
-                var anchor=camera.WorldToScreenPoint(stat.transform.position);
+                var anchor=camera.WorldToScreenPoint(drawn);
                 var bounds=characterSprite.sprite.bounds;
                 float top=anchor.y;
                 float left=float.PositiveInfinity, right=float.NegativeInfinity;
@@ -520,7 +523,7 @@ public sealed class PNUiRuntime : MonoBehaviour
                     var point=bounds.center+Vector3.Scale(bounds.extents,new Vector3((corner&1)==0?-1:1,(corner&2)==0?-1:1,0));
                     if(characterSprite.flipX)point.x=-point.x;
                     if(characterSprite.flipY)point.y=-point.y;
-                    var projected=camera.WorldToScreenPoint(characterSprite.transform.TransformPoint(point));
+                    var projected=camera.WorldToScreenPoint(characterSprite.transform.TransformPoint(point)+smoothing);
                     top=Mathf.Max(top,projected.y);
                     left=Mathf.Min(left,projected.x); right=Mathf.Max(right,projected.x);
                 }
@@ -531,8 +534,8 @@ public sealed class PNUiRuntime : MonoBehaviour
             {
                 // The head on the puppet's own axis, in its local space (feet = origin), carried by its transform: it tilts with the camera facing like the drawn body, so the bar sits over the head at any
                 // view angle and does not jump when the puppet turns. (The renderer's bounds are a padded culling box, and a world-vertical point above the feet drifts with perspective.)
-                var anchor=camera.WorldToScreenPoint(stat.transform.position);
-                var head=camera.WorldToScreenPoint(rigActor.transform.TransformPoint(new Vector3(0f,rigActor.BodyTopLocal,0f)));
+                var anchor=camera.WorldToScreenPoint(drawn);
+                var head=camera.WorldToScreenPoint(rigActor.transform.TransformPoint(new Vector3(0f,rigActor.BodyTopLocal,0f)));   // the puppet is already placed at the drawn point
                 float gap=14*camera.pixelHeight/referenceHeight;
                 anchor.x=head.x; anchor.y=Mathf.Max(anchor.y,head.y)+gap; position=camera.ScreenToWorldPoint(anchor);
             }

@@ -3,42 +3,47 @@ using EveEngine;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
 
-// EN: Gura's single-action slots (the Skill slot's trident, Docs/GuraCharacter.md 4.2): on a press it checks the cooldown Ability, makes ONE decision (`cast_target`: the nearest enemy in reach, `invocation.Choose`),
-//     runs the registered Action over several frames (`Advance`) and ends the cast when the Action ends; the cooldown is spent when the cast starts. On the end it raises the optional `afterStateId` state (Gura's
-//     next-strike flag). Profile data {cooldownAbilityId, actionDataId, reach, afterStateId?}. It has no network code: the owner's guess advances through the binding layer's predicted-behavior path and the authority replays the same.
-// VI: Behavior cho cac o mot Action cua Gura (Skill = dinh ba): kiem cooldown, mot quyet dinh muc tieu, chay Action nhieu khung, het thi cap co `afterStateId`.
+// EN: Gura's Skill slot (Docs/GuraCharacter.md 4.2). Outside Burst it has two forms, picked once per press (`cast_form`, a decision, so the owner's guess and the authority take the same one): an enemy nearer than
+//     `formRange` (to the edge of its body) gets the near form (`meleeActionDataId`, the vortex); a farther one, or none within `reach`, gets the throw (`actionDataId`). A throw that hits an enemy which is still
+//     alive goes on, in the same cast, with the rush (`rushActionDataId`, a strike that walks to it); a miss, a kill or no right to move ends the cast. The next-strike flag of these two forms is not
+//     given here but by their hits (skill data `flagOnHit`). In Burst the slot is the Skill Burst (`inBurst`): one Action, and `afterStateId` is raised when it ends.
+//     Profile data {cooldownAbilityId, actionDataId, meleeActionDataId, rushActionDataId, formRange, reach, afterStateId, inBurst}. It has no network code.
+// VI: O Skill cua Gura. Ngoai Burst co hai dang chon mot lan luc bam: quai gan thi xoay nuoc, quai xa thi nem dinh ba, trung quai con song thi lao toi. Trong Burst la Skill Burst.
 public sealed class GuraCastBehavior : PNSkillBehavior
 {
     public const string DecisionPoint = "cast_target";
+    public const string FormPoint = "cast_form";
     private readonly PNSkillBehaviorContext context;
-    private readonly EveId cooldownId, actionId, afterId, burstCooldownId, burstActionId;
-    private readonly int gainBurst, gainWave; private readonly double gainCut;
-    private readonly float reach;
-    private PNSkillAction action; private PNSkillActionContext actionContext; private bool casting; private PNStat stat;
-    public static int Casts, Cancels;
+    private readonly EveId cooldownId, throwId, meleeId, rushId, afterId, burstCooldownId, burstActionId;
+    private readonly float reach, formRange;
+    private PNSkillAction action; private PNSkillActionContext actionContext; private bool casting, inBurst; private PNStat stat;
+    public static int Casts, Cancels, Melees, Throws, Rushes;
     public bool IsCasting => casting;
 
     public GuraCastBehavior(PNSkillBehaviorContext context)
     {
         this.context = context ?? throw new ArgumentNullException(nameof(context));
         var data = PNBuffContentBatch.Object(context.Profile.Data);
-        cooldownId = EveId.Parse(PNBuffContentBatch.String(data, "cooldownAbilityId")); actionId = EveId.Parse(PNBuffContentBatch.String(data, "actionDataId"));
-        reach = (float)PNBuffContentBatch.Number(data, "reach");
-        afterId = data["afterStateId"] == null ? default : EveId.Parse(PNBuffContentBatch.String(data, "afterStateId"));
-        var gain = (JObject)data["gain"]; gainBurst = PNBuffContentBatch.Integer(gain, "burst"); gainWave = PNBuffContentBatch.Integer(gain, "wave"); gainCut = PNBuffContentBatch.Number(gain, "cut");
-        var inBurst = (JObject)data["inBurst"]; burstCooldownId = EveId.Parse(PNBuffContentBatch.String(inBurst, "cooldownAbilityId")); burstActionId = EveId.Parse(PNBuffContentBatch.String(inBurst, "actionDataId"));
+        cooldownId = EveId.Parse(PNBuffContentBatch.String(data, "cooldownAbilityId")); throwId = EveId.Parse(PNBuffContentBatch.String(data, "actionDataId"));
+        meleeId = EveId.Parse(PNBuffContentBatch.String(data, "meleeActionDataId")); rushId = EveId.Parse(PNBuffContentBatch.String(data, "rushActionDataId"));
+        reach = (float)PNBuffContentBatch.Number(data, "reach"); formRange = (float)PNBuffContentBatch.Number(data, "formRange");
+        afterId = EveId.Parse(PNBuffContentBatch.String(data, "afterStateId"));
+        var burst = (JObject)data["inBurst"]; burstCooldownId = EveId.Parse(PNBuffContentBatch.String(burst, "cooldownAbilityId")); burstActionId = EveId.Parse(PNBuffContentBatch.String(burst, "actionDataId"));
     }
     public static void Validate(JToken data, EveRegistryHub hub)
     {
-        var obj = PNBuffContentBatch.Object(data); PNBuffContentBatch.Fields(obj, "cooldownAbilityId", "actionDataId", "reach", "afterStateId", "gain", "inBurst");
-        EveId.Parse(PNBuffContentBatch.String(obj, "cooldownAbilityId")); EveId.Parse(PNBuffContentBatch.String(obj, "actionDataId"));
+        var obj = PNBuffContentBatch.Object(data); PNBuffContentBatch.Fields(obj, "cooldownAbilityId", "actionDataId", "meleeActionDataId", "rushActionDataId", "formRange", "reach", "afterStateId", "inBurst");
+        foreach (var key in new[] { "cooldownAbilityId", "actionDataId", "meleeActionDataId", "rushActionDataId", "afterStateId" }) EveId.Parse(PNBuffContentBatch.String(obj, key));
         double r = PNBuffContentBatch.Number(obj, "reach"); if (!(r > 0d && r <= 50d)) throw new FormatException("gura_cast reach must be in (0, 50].");
-        if (obj["afterStateId"] != null) EveId.Parse(PNBuffContentBatch.String(obj, "afterStateId"));
-        var gain = PNBuffContentBatch.Object(obj["gain"]); PNBuffContentBatch.Fields(gain, "burst", "wave", "cut"); PNBuffContentBatch.Integer(gain, "burst"); PNBuffContentBatch.Integer(gain, "wave"); PNBuffContentBatch.Number(gain, "cut");
+        double near = PNBuffContentBatch.Number(obj, "formRange"); if (!(near >= 0d && near <= r)) throw new FormatException("gura_cast formRange must be in [0, reach].");
         var burst = PNBuffContentBatch.Object(obj["inBurst"]); PNBuffContentBatch.Fields(burst, "cooldownAbilityId", "actionDataId"); EveId.Parse(PNBuffContentBatch.String(burst, "cooldownAbilityId")); EveId.Parse(PNBuffContentBatch.String(burst, "actionDataId"));
     }
     public static void ValidateReferences(PNContentReferenceContext context, JToken data)
-    { var obj = PNBuffContentBatch.Object(data); context.Require<EveSkillDefinition>(obj["actionDataId"], "actionDataId"); context.Require<EveSkillDefinition>(PNBuffContentBatch.Object(obj["inBurst"])["actionDataId"], "inBurst.actionDataId"); }
+    {
+        var obj = PNBuffContentBatch.Object(data);
+        foreach (var key in new[] { "actionDataId", "meleeActionDataId", "rushActionDataId" }) context.Require<EveSkillDefinition>(obj[key], key);
+        context.Require<EveSkillDefinition>(PNBuffContentBatch.Object(obj["inBurst"])["actionDataId"], "inBurst.actionDataId");
+    }
 
     public override void Input(PNSkillInputEvent input) { if (input.Interaction == PNSkillInteraction.Tap && input.Phase == PNSkillInputPhase.Started) Cast(); }
 
@@ -46,8 +51,8 @@ public sealed class GuraCastBehavior : PNSkillBehavior
     {
         if (casting) return false;
         // In Burst the Skill is the Skill Burst: its own action and its own cooldown.
-        bool burst = GuraResources.InBurst(context.Abilities);
-        var cooldown = context.Abilities.GetCooldown(burst ? burstCooldownId : cooldownId); var useAction = burst ? burstActionId : actionId;
+        inBurst = GuraResources.InBurst(context.Abilities);
+        var cooldown = context.Abilities.GetCooldown(inBurst ? burstCooldownId : cooldownId);
         if (!cooldown.CanConsume() || !context.TryBegin()) return false;
         casting = true; bool failed = true;
         try
@@ -55,9 +60,14 @@ public sealed class GuraCastBehavior : PNSkillBehavior
             stat = context.Skill.GetComponent<PNStat>();
             var target = context.Skill.CurrentInvocation.Choose<PNStat>(DecisionPoint, () => Nearest(), null, reach);
             Vector3 direction = AimAt(target);
-            action = context.CreateAction(useAction, out actionContext, target != null ? new[] { target } : Array.Empty<PNStat>(), direction);
-            context.Skill.GetComponent<PNPlayerMove>()?.FaceSkillDirection(new Vector2(direction.x, direction.z));
-            action.Start(actionContext); action.Perform(actionContext);
+            var useAction = burstActionId;
+            if (!inBurst)
+            {
+                bool melee = context.Skill.CurrentInvocation.Choose<bool>(FormPoint, () => target != null && Gap(target) <= formRange);
+                useAction = melee ? meleeId : throwId;
+                if (melee) Melees++; else Throws++;
+            }
+            Begin(useAction, target, direction);
             if (!cooldown.TryConsume()) throw new InvalidOperationException("Cast cooldown changed during the cast.");
             context.Commit(target != null ? new[] { target } : null, direction);
             if (actionContext.Mode == PNSkillMode.Authority) Casts++;
@@ -66,6 +76,26 @@ public sealed class GuraCastBehavior : PNSkillBehavior
         finally { if (failed) { try { action?.Cancel(actionContext); } catch { } Finish(true); } }
     }
 
+    private void Begin(EveId actionDataId, PNStat target, Vector3 direction)
+    {
+        action = context.CreateAction(actionDataId, out actionContext, target != null ? new[] { target } : Array.Empty<PNStat>(), direction);
+        (action as IPNSkillMotionAction)?.BindMovementOwner(() => context.Skill.CancelBindingExecution());
+        context.Skill.GetComponent<PNPlayerMove>()?.FaceSkillDirection(new Vector2(direction.x, direction.z));
+        action.Start(actionContext); action.Perform(actionContext);
+    }
+
+    // Distance on the ground from the caster to the edge of the target's body (a large enemy standing close is close).
+    private float Gap(PNStat target)
+    {
+#if UNITY_5_3_OR_NEWER
+        var delta = target.transform.position - context.Skill.transform.position; delta.y = 0f;
+        var body = target.GetComponent<CapsuleCollider>();
+        float radius = body != null ? body.radius * Mathf.Max(Mathf.Abs(body.transform.lossyScale.x), Mathf.Abs(body.transform.lossyScale.z)) : 0f;
+        return Mathf.Max(0f, delta.magnitude - radius);
+#else
+        return 0f;
+#endif
+    }
     private PNStat Nearest()
     {
 #if UNITY_5_3_OR_NEWER
@@ -98,8 +128,32 @@ public sealed class GuraCastBehavior : PNSkillBehavior
         }
         catch { try { action.Cancel(actionContext); } catch { } Finish(true); throw; }
         if (!done) return;
-        try { action.Exit(actionContext); } finally { if (afterId.IsValid) context.Abilities.GrantState(afterId); Finish(false); }
+        PNStat struck = null;
+#if UNITY_5_3_OR_NEWER
+        struck = (action as PNGuraTridentAction)?.Struck;
+#endif
+        bool failed = true;
+        try
+        {
+            action.Exit(actionContext);
+            if (CanRush(struck))
+            {
+                DisposeAction();
+                Begin(rushId, struck, AimAt(struck));
+                Rushes++; failed = false; return;
+            }
+            failed = false;
+        }
+        finally { if (failed) { try { action?.Cancel(actionContext); } catch { } Finish(true); } }
+        // The Skill Burst gives its flag when it ends; the two forms of the Skill give theirs by hitting.
+        if (inBurst) context.Abilities.GrantState(afterId);
+        Finish(false);
     }
+
+    // A rush needs something the trident hit that is still there to walk to, and the right to move (a rooted body stays, and gets no flag).
+    private bool CanRush(PNStat struck) =>
+        struck != null && struck.IsReady && !struck.IsDead && context.Skill.Controls.IsAllowed(PNControlIds.VoluntaryMotion);
+
     public override void Cancel()
     {
         if (!casting) return;

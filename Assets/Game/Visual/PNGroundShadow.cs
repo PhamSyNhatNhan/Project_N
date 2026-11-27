@@ -3,7 +3,7 @@ using UnityEngine;
 
 // EN: The soft shadow on the ground under a body's feet. It is NOT the paper shadow between rig parts (PNVisualPaperSettings). It replaces PNCharacterShadow, which only shadowed what one ground collider
 //     (named by the spawn point) was under: a grid world has no such collider (chunk colliders are rebuilt), so the shadow went out as soon as the body left the spawn cell.
-//     Ground: a collider the owner binds (BindGround, the Hall's scene floor) is tried first; when it is not hit, or none is bound, a ray goes down through the PHYSICS SCENE of the body, against the ground layer
+//     Ground: a collider the owner binds (BindGround, the Hall's scene floor; a trigger is ignored) is tried first; when it is not hit, or none is bound, a ray goes down through the PHYSICS SCENE of the body, against the ground layer
 //     (13: scene floors and grid chunks), triggers ignored. The shadow shrinks and fades with the height of the capsule's bottom over the ground, so a body in the air needs no setting.
 //     `PNGroundShadow.Ensure` gives every spawned character one (size from the capsule) unless its prefab has a shadow already or its `body.shadow` is false; `body.shadow` scale/opacity multiply the result.
 //     Serialized names match PNCharacterShadow, so the prefabs that had it keep their values. The sprite is one shared soft ellipse.
@@ -73,7 +73,8 @@ public sealed class PNGroundShadow : MonoBehaviour, IPNSceneEntityVisual
     private bool FindGround(Vector3 origin, out Vector3 point, out Vector3 normal)
     {
         point = default; normal = Vector3.up;
-        if (ground != null && ground.Raycast(new Ray(origin, Vector3.down), out var bound, RayLength)) { point = bound.point; normal = bound.normal; return true; }
+        // A bound trigger (a spawn pad) is not a floor: its top is above the ground the body stands on.
+        if (ground != null && !ground.isTrigger && ground.Raycast(new Ray(origin, Vector3.down), out var bound, RayLength)) { point = bound.point; normal = bound.normal; return true; }
         if (!gameObject.scene.GetPhysicsScene().Raycast(origin, Vector3.down, out var hit, RayLength, GroundMask, QueryTriggerInteraction.Ignore)) return false;
         point = hit.point; normal = hit.normal; return true;
     }
@@ -83,7 +84,8 @@ public sealed class PNGroundShadow : MonoBehaviour, IPNSceneEntityVisual
         if (shadowRenderer == null) return;
         if (target == null || !bodyEnabled || suppressed) { shadowRenderer.enabled = false; return; }
         if (capsule == null) capsule = target.GetComponent<CapsuleCollider>();
-        Vector3 origin = target.position + Vector3.up * RayHeight;
+        Vector3 drawn = target.position + PNPhysicsPose.OffsetOf(target);
+        Vector3 origin = drawn + Vector3.up * RayHeight;
         if (!FindGround(origin, out var point, out var normal)) { shadowRenderer.enabled = false; return; }
 
         float bottom = capsule != null ? capsule.bounds.min.y : target.position.y - footOffset;

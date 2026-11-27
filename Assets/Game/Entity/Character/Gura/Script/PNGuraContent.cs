@@ -25,6 +25,7 @@ public static class PNGuraContent
         TridentSkill = EveId.Parse("project_n:gura_trident"), TridentAction = EveId.Parse("project_n:gura_trident_action"), TridentProjectile = EveId.Parse("project_n:gura_trident"),
         SkillReady = EveId.Parse("project_n:gura_skill_ready"), SkillBurstSkill = EveId.Parse("project_n:gura_skill_burst"),
         UltimateProfile = EveId.Parse("project_n:binding_gura_ultimate"), UltimateBehavior = EveId.Parse("project_n:gura_ultimate"), BurstProfile = EveId.Parse("project_n:binding_gura_burst"), BurstBehavior = EveId.Parse("project_n:gura_burst"),
+        VortexSkill = EveId.Parse("project_n:gura_vortex"), RushSkill = EveId.Parse("project_n:gura_rush"),
         SharkSkill = EveId.Parse("project_n:gura_shark"), DiveSkill = EveId.Parse("project_n:gura_dive"), LeapSkill = EveId.Parse("project_n:gura_leap"), FangsSkill = EveId.Parse("project_n:gura_fangs"), BurstSlamSkill = EveId.Parse("project_n:gura_burst_slam"),
         FangAction = EveId.Parse("project_n:gura_fang_action"), TideArea = EveId.Parse("project_n:gura_burst_area");
     public static readonly EveId BurstStack = EveId.Parse("project_n:gura_burst_stack"), WaveStack = EveId.Parse("project_n:gura_wave_stack"), FangStack = EveId.Parse("project_n:gura_fang_stack"),
@@ -54,8 +55,10 @@ public static class PNGuraContent
         hub.Actions().Register(throwing);
         // The trident: Eve-like homing, one hit ends it; the Action blasts where it ends (the projectile itself deals no damage).
         var trident = JObject.Parse("{'speed':14,'acceleration':0,'speedMin':0,'speedMax':40,'life':{'mode':'Time','value':1.6},'volume':{'size':[0.3,0.3,0.3]},'environmentMask':['Wall'],'hitLimit':1,'turnRate':720,'homeAfter':0,'lostTarget':'Reacquire','searchRadius':10,'searchInterval':0.2}");
-        hub.Instances().Register(new PNProjectileDefinition(TridentProjectile, typeof(PNHomingProjectile), trident, PNHomingSettings.ValidateDefinition, PNDirectionalSettings.ValidateInput));
-        hub.Instances().Register(new PNProjectileDefinition(ThrownTrident, typeof(PNGuraThrownTrident), trident, PNHomingSettings.ValidateDefinition, PNDirectionalSettings.ValidateInput));
+        hub.Instances().Register(new PNProjectileDefinition(TridentProjectile, typeof(PNGuraFangProjectile), trident, PNHomingSettings.ValidateDefinition, PNDirectionalSettings.ValidateInput));
+        // The Skill's own throw is quick and ends at 6 m; the Fangs keep the slower, longer one above.
+        var thrown = JObject.Parse("{'speed':24,'acceleration':0,'speedMin':0,'speedMax':40,'life':{'mode':'Distance','value':6},'volume':{'size':[0.3,0.3,0.3]},'environmentMask':['Wall'],'hitLimit':1,'turnRate':720,'homeAfter':0,'lostTarget':'Reacquire','searchRadius':6,'searchInterval':0.1}");
+        hub.Instances().Register(new PNProjectileDefinition(ThrownTrident, typeof(PNGuraThrownTrident), thrown, PNHomingSettings.ValidateDefinition, PNDirectionalSettings.ValidateInput));
         hub.Instances().Register(new PNBlastDefinition(TridentSplash, typeof(PNGuraTridentSplash), new JObject(),
             (token, _) => PNBuffContentBatch.Fields(PNBuffContentBatch.Object(token)), input => PNCylinderBlast.Validate(input)));
         hub.Actions().Register(new PNSkillActionDefinition(FangAction, typeof(PNGuraFangAction), (a, h) => PNGuraFangAction.Validate(a, h), PNSkillContextRequirements.Direction).NoView());
@@ -76,10 +79,10 @@ public static class PNGuraContent
         var payload = (JObject)data.Perform;
         switch (payload["visualState"]?.Value<string>())
         {
-            case "attack_1": case "attack_2": case "attack_3": case "attack_4": case "shark": case "dive":
+            case "attack_1": case "attack_2": case "attack_3": case "attack_4": case "shark": case "dive": case "vortex": case "rush":
                 break;
             default:
-                throw new FormatException("Gura combat strike requires an attack, shark or dive visualState.");
+                throw new FormatException("Gura combat strike requires an attack, vortex, rush, shark or dive visualState.");
         }
     }
 
@@ -98,9 +101,10 @@ public static class PNGuraContent
         var dashInput = new PlayerSkillInputConfig { TapDuration = .15f, HoldMode = PlayerSkillHoldMode.Repeat, RepeatDelay = .16f, RepeatInterval = .1f };
         hub.Get<PNSkillBindingProfile>().Register(new PNSkillBindingProfile(DashProfile, DashSkill, PNGameSkillBindings.LegacyBehavior,
             new JObject { ["slot"] = PNSkillSlots.Dash.ToString(), ["eve"] = false }, dashInput));
-        var skillData = new JObject { ["cooldownAbilityId"] = SkillReady.ToString(), ["actionDataId"] = TridentSkill.ToString(), ["reach"] = 8.0, ["afterStateId"] = NextFour.ToString(),
-            ["gain"] = new JObject { ["burst"] = 10, ["wave"] = 4, ["cut"] = 2.5 }, ["inBurst"] = new JObject { ["cooldownAbilityId"] = BurstSkillReady.ToString(), ["actionDataId"] = SkillBurstSkill.ToString() } };
-        hub.Get<PNSkillBindingProfile>().Register(new PNSkillBindingProfile(SkillProfile, TridentSkill, SkillBehavior, skillData, new PlayerSkillInputConfig { PressImmediately = true }, actionDataIds: new[] { TridentSkill, SkillBurstSkill }));
+        var skillData = new JObject { ["cooldownAbilityId"] = SkillReady.ToString(), ["actionDataId"] = TridentSkill.ToString(), ["meleeActionDataId"] = VortexSkill.ToString(), ["rushActionDataId"] = RushSkill.ToString(),
+            ["formRange"] = 2.0, ["reach"] = 8.0, ["afterStateId"] = NextFour.ToString(),
+            ["inBurst"] = new JObject { ["cooldownAbilityId"] = BurstSkillReady.ToString(), ["actionDataId"] = SkillBurstSkill.ToString() } };
+        hub.Get<PNSkillBindingProfile>().Register(new PNSkillBindingProfile(SkillProfile, TridentSkill, SkillBehavior, skillData, new PlayerSkillInputConfig { PressImmediately = true }, actionDataIds: new[] { TridentSkill, VortexSkill, RushSkill, SkillBurstSkill }));
         var ultimateData = new JObject { ["cooldownAbilityId"] = UltimateReady.ToString(), ["reach"] = 3.0, ["shark"] = SharkSkill.ToString(), ["dive"] = DiveSkill.ToString(),
             ["gain"] = new JObject { ["burst"] = 15, ["wave"] = 0, ["cut"] = 0 },
             ["inBurst"] = new JObject { ["leap"] = LeapSkill.ToString(), ["fangs"] = FangsSkill.ToString(), ["fangId"] = FangStack.ToString(), ["burstStateId"] = BurstState.ToString() } };

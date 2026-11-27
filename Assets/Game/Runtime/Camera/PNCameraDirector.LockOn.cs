@@ -83,7 +83,7 @@ public sealed partial class PNCameraDirector
         var profile = Profile;
         var actor = local.Actor.transform;
         lockGroup.Targets.Clear();
-        lockGroup.AddMember(actor, 1f, .5f);
+        lockGroup.AddMember(PNPhysicsPose.FollowOf(actor), 1f, .5f);
         groupedTarget = record.Target;
         lockGroup.AddMember(record.Target, 0f, record.Request.Radius);
         lockWeight = 0f; lockClock = record.Request.Clock; lockEase = record.Request.Ease;
@@ -120,7 +120,7 @@ public sealed partial class PNCameraDirector
         lockActive = false;
         if (lockWorldRig != null)
         {
-            var actor = local?.Actor != null ? local.Actor.transform : null;
+            var actor = local?.Actor != null ? PNPhysicsPose.FollowOf(local.Actor.transform) : null;
             lockWorldRig.Follow = actor; lockWorldRig.LookAt = actor; lockWorldRig = null;
         }
         else if (lockRig != null) Unadmit(lockRig);

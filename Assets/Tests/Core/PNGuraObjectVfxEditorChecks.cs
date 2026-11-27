@@ -218,14 +218,16 @@ public static class PNGuraObjectVfxEditorChecks
                             if (i == 1)
                             {
                                 sharkAtBreach = sharkRoot.position;
-                                Check(Mathf.Abs(sharkAtBreach.x - sharkStepEnd.x) < .001f && Mathf.Abs(sharkAtBreach.z - sharkStepEnd.z) < .001f,
+                                Check(sharkStepEnd.x - sharkAtBreach.x > .2f && sharkStepEnd.x - sharkAtBreach.x < .6f && Mathf.Abs(sharkAtBreach.z - sharkStepEnd.z) < .001f,
                                     "Shark did not breach at the projected end of the approach.");
                             }
                             if (i == 2)
                             {
                                 var offset = sharkRoot.position - sharkAtBreach;
-                                Check(offset.y > 0f && Mathf.Abs(offset.x) + Mathf.Abs(offset.z) < .001f &&
-                                    Vector3.Dot(sharkRoot.forward, Vector3.up) > .999f, "Shark breach follows the caster or is tilted.");
+                                // Aimed to the right: it comes up along the aim, nose nearly straight up and tipped towards it, mouth that way too.
+                                Check(offset.y > 0f && Mathf.Abs(offset.z) < .001f && sharkRoot.forward.y > .93f && sharkRoot.forward.x > .15f,
+                                    "Shark does not rise along the aim with a small lean: " + offset + " nose " + sharkRoot.forward);
+                                Check(sharkRoot.up.x < -.9f, "The shark's mouth does not face the enemy: back " + sharkRoot.up);
                                 Check(sharkRoot.localScale.x == sharkRoot.localScale.y && sharkRoot.localScale.y == sharkRoot.localScale.z,
                                     "Shark model proportions changed when scaled to the attack radius.");
                                 Vector3 anchored = sharkRoot.position;
@@ -238,15 +240,31 @@ public static class PNGuraObjectVfxEditorChecks
                             {
                                 float closing = Quaternion.Angle(sharkOpenJaw,
                                     sharkRoot.GetComponentInChildren<SkinnedMeshRenderer>().bones.Single(bone => bone.name == PNGuraSharkModel.JawJoint).localRotation);
-                                Check(closing > 22f && closing < 28f, "Shark did not close by the authored jaw angle at the hit.");
+                                Check(closing > 40f, "Shark did not snap its jaws shut at the hit: " + closing);
                                 var ring = scene.GetRootGameObjects().Single(obj => obj.name == "Gura shark surface").transform.Find("Gura shark ripples");
                                 float radius = ring.GetComponent<MeshFilter>().sharedMesh.vertices.Max(point =>
                                 {
                                     var offset = ring.TransformPoint(point) - sharkStepEnd;
                                     return new Vector2(offset.x, offset.z).magnitude;
                                 });
-                                Check(Mathf.Abs(radius - 1.5f) < .002f, "The shark's impact ripple does not reach the hit radius.");
+                                Check(radius > 1.5f && radius < 1.95f, "The shark's wave and shock do not cover the hit radius: " + radius);
+                                var crest = ring.GetComponent<MeshFilter>().sharedMesh.vertices.Select(point => ring.TransformPoint(point) - sharkStepEnd)
+                                    .Where(offset => offset.y > .15f).Select(offset => new Vector2(offset.x, offset.z).magnitude).ToArray();
+                                Check(crest.Length > 50 && crest.Max() > 1.49f && crest.Max() < 1.65f, "The wave's crest does not stand on the hit radius.");
                             }
+                        }
+                        if (state == "dive")
+                        {
+                            Check(PNGuraSubmerge.Held(body), "Gura is not taken out of sight while she dives.");
+                            var surface = scene.GetRootGameObjects().Single(obj => obj.name == "Gura dive surface").transform;
+                            Check(surface.Find("Gura dive water").gameObject.activeSelf && SharkRoot().gameObject.activeSelf,
+                                "The dive shows no water or no fin.");
+                            var finSkin = SharkRoot().GetComponentInChildren<SkinnedMeshRenderer>();
+                            var finBlock = new MaterialPropertyBlock();
+                            finSkin.GetPropertyBlock(finBlock);
+                            float line = gura.transform.position.y + .03f;
+                            Check(finBlock.GetFloat("_Fin") == 1f && Mathf.Abs(finBlock.GetFloat("_Waterline") - line) < .001f,
+                                "The dive does not cut the shark off at the water.");
                         }
                         if (i == 0 && state != "dive" && state != "dash") Check(!body.Actor.FacingLeft, state + " did not turn the puppet to its aim.");
                         body.Actor.Tick(1f/120f);
@@ -334,8 +352,8 @@ public static class PNGuraObjectVfxEditorChecks
                             Check(rigged != null && rigged.bones.Length == 29, "Ultimate shark does not use the imported rig.");
                             var skin = new MaterialPropertyBlock();
                             rigged.GetPropertyBlock(skin);
-                            Check(skin.GetFloat("_WaterSkin") == 2f && skin.GetFloat("_Opacity") < 1f,
-                                "Ultimate does not use the translucent shark material.");
+                            Check(skin.GetFloat("_WaterSkin") == 2f && rigged.sharedMaterials.Length == 2 && rigged.sharedMaterials[0].GetFloat("_DepthWrite") == 1f,
+                                "Ultimate does not draw the water shark over its own depth copy.");
                             var renderer = camera.GetUniversalAdditionalCameraData();
                             renderer.SetRenderer(1);
                             try
@@ -359,6 +377,7 @@ public static class PNGuraObjectVfxEditorChecks
                     }
                     view.Hide();
                     if (state == "shark") Check(!SharkRoot().gameObject.activeSelf, "Shark retained visible graphics after Hide.");
+                    if (state == "dive") Check(!SharkRoot().gameObject.activeSelf && !PNGuraSubmerge.Held(body), "A hidden dive keeps its fin or keeps Gura out of sight.");
                     Check(!gura.transform.Cast<Transform>().Any(x => (x.name.StartsWith("Gura ") || x.name.EndsWith("(Gura)")) && x.gameObject.activeSelf),
                         state + " retained visible graphics after Hide.");
                     if (state == "attack_3")
@@ -750,6 +769,8 @@ public static class PNGuraObjectVfxEditorChecks
 
             var castData = PNSkillData.Parse(hub.Skills.Get(PNGuraContent.TridentSkill).Data);
             var config = (JObject)castData.Action.Perform;
+            // The Skill no longer ends in a blast; the registered trident blast is still checked with the settings the Skill used.
+            var splashConfig = JObject.Parse("{'blastId':'project_n:gura_trident_splash','input':{'delay':0.05,'tail':0.75,'radius':2.0,'height':1.5,'value':{'amount':200,'statId':'base:attack_power'},'canCrit':true,'tags':['base:physical','base:skill']}}");
             move.SetMoveDirection(Vector2.right);
             Check(skill.RequestSlot(PNSkillSlots.Skill, started) && !move.CanMove, "Skill windup must lock walking.");
             move.SendMessage("FixedUpdate", SendMessageOptions.RequireReceiver);
@@ -770,7 +791,7 @@ public static class PNGuraObjectVfxEditorChecks
             Check(move.CanMove, "Skill completion did not release walking.");
             skill.RequestSlot(PNSkillSlots.Skill, released);
             var projectileId = EveId.Parse(config["projectile"]["projectileId"].Value<string>());
-            var blastId = EveId.Parse(config["blast"]["blastId"].Value<string>());
+            var blastId = EveId.Parse(splashConfig["blastId"].Value<string>());
             var combat = PNCombatSource.Capture(stat);
             var shot = projectiles.Create(
                 new PNProjectileLaunch(projectileId,config["projectile"]["input"],combat,stat.TargetLayers),
@@ -793,9 +814,9 @@ public static class PNGuraObjectVfxEditorChecks
             Capture("10-flight",instance.Position + Vector3.left * .24f,1.08f,instance.gameObject);
             Check(shot.Handle.End(),"Terminating the trident failed.");
             Check(!head.gameObject.activeSelf && !ribbon.gameObject.activeSelf,"Returned projectile left a visible weapon or trail.");
-            var explosion = blasts.Create(new PNBlastCreateRequest(blastId,config["blast"]["input"],combat,scene,hitAt,stat));
+            var explosion = blasts.Create(new PNBlastCreateRequest(blastId,splashConfig["input"],combat,scene,hitAt,stat));
             Check(explosion.Status==PNBlastStatus.Created,"Blast spawn failed "+explosion.Status+" "+explosion.Error);
-            float blastDelay = config["blast"]["input"]["delay"].Value<float>();
+            float blastDelay = splashConfig["input"]["delay"].Value<float>();
             blasts.Advance(blastDelay * .5f);
             Check(explosion.Handle.IsAlive, "The trident blast detonated before its registered delay.");
             blasts.Advance(blastDelay * .5f);
@@ -849,7 +870,7 @@ public static class PNGuraObjectVfxEditorChecks
                     UnityEngine.Object.DestroyImmediate(floor); UnityEngine.Object.DestroyImmediate(floorMaterial);
                 }
             }
-            float blastTail = config["blast"]["input"]["tail"].Value<float>();
+            float blastTail = splashConfig["input"]["tail"].Value<float>();
             Check(blastTail >= .7f, "The Skill explosion must take its time to come down.");
             int tailFrames = Mathf.FloorToInt(blastTail * 60f) - 1;
             for (int frame = 0; frame < tailFrames; frame++)
@@ -957,13 +978,13 @@ public static class PNGuraObjectVfxEditorChecks
             {
                 var draw = modelType.GetMethod("Draw");
                 var facing = Quaternion.LookRotation(new Vector3(.97f, 0f, .23f));
-                draw.Invoke(model, new object[] { Vector3.up*.68f, facing, .47f, -100f, 1.875f, .16f });
+                draw.Invoke(model, new object[] { Vector3.up*.68f, facing, .47f, -100f, 1f, .16f });
                 var rigged = SharkRoot().GetComponentInChildren<SkinnedMeshRenderer>();
                 Check(rigged != null && rigged.sharedMesh.vertexCount > 2000, "Full shark is missing the imported mesh.");
                 var jaw = rigged.bones.Single(b => b.name == PNGuraSharkModel.JawJoint);
                 var open = jaw.localRotation;
-                draw.Invoke(model, new object[] { Vector3.up*.68f, facing, .47f, -100f, 3.75f, .16f });
-                Check(Quaternion.Angle(open, jaw.localRotation) > 22f, "The lower jaw does not close between the authored open and bite pose.");
+                draw.Invoke(model, new object[] { Vector3.up*.68f, facing, .47f, -100f, -.85f, .16f });
+                Check(Quaternion.Angle(open, jaw.localRotation) > 22f, "The lower jaw does not close between the open and shut gape.");
                 var dark = camera.backgroundColor;
                 Capture("shark-full", new Vector3(-1.1f, .30f, 0f), 1.52f, gura);
                 camera.backgroundColor = new Color(.56f, .68f, .60f);

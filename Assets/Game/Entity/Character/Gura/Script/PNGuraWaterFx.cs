@@ -362,6 +362,281 @@ internal sealed class PNGuraWaterFx : IDisposable
         }
     }
 
+    // One unbroken wave around a body that has just broken the surface: dark foot inside, foam on a crest that stands at `radius` and curls outward.
+    // The crest is uneven and its foam broken, so it reads as moving water. The side towards `viewer` is lower so it does not hide what is inside the ring.
+    public void Surge(Vector3 ground, float radius, float height, float age, float alpha, Vector3 viewer, float phase)
+    {
+        if (alpha <= .001f || height <= .004f || radius <= 0f) return;
+        const int slices = 128;
+        int start = points.Count;
+        for (int i = 0; i <= slices; i++)
+        {
+            float u = i / (float)slices;
+            float a = u * Mathf.PI * 2f;
+            Vector3 outward = new(Mathf.Sin(a), 0f, Mathf.Cos(a));
+            float lobe = Lobe(a + phase, age);
+            float top = height * lobe * Low(outward, viewer);
+            float froth = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(.50f, .98f, lobe));
+            Vertex(ground + outward * (radius * .62f), new Vector2(u * 6f - age, .05f), WithAlpha(DeepWater.linear, alpha * .05f));
+            Vertex(ground + outward * (radius * .84f) + Vector3.up * (top * .34f), new Vector2(u * 6f - age, .40f), WithAlpha(DeepWater.linear, alpha * .58f));
+            Vertex(ground + outward * (radius * .95f) + Vector3.up * (top * .84f), new Vector2(u * 6f - age, .78f), WithAlpha(Aqua.linear, alpha * .94f));
+            Vertex(ground + outward * radius + Vector3.up * top, new Vector2(u, 2f), WithAlpha(Color.Lerp(Aqua, Foam, froth).linear, alpha * Mathf.Lerp(.55f, 1f, froth)));
+            Vertex(ground + outward * (radius * 1.05f) + Vector3.up * (top * .76f), new Vector2(u, 2f), WithAlpha(Color.Lerp(Foam, Color.white, froth).linear, alpha * Mathf.Lerp(.20f, .85f, froth)));
+            Vertex(ground + outward * (radius * 1.085f) + Vector3.up * (top * .30f), new Vector2(u, 2f), WithAlpha(Aqua.linear, 0f));
+            if (i == 0) continue;
+            int k = start + i * 6;
+            for (int j = 0; j < 5; j++) Join(k - 6 + j, k - 5 + j, k + j, k + j + 1);
+        }
+    }
+
+    // The sheet of water running out from the breach: a thin disc whose bright streaks travel outward, with a foamy leading edge.
+    public void Outflow(Vector3 ground, float inner, float outer, float age, float alpha)
+    {
+        if (alpha <= .001f || outer <= inner) return;
+        const int slices = 128, rings = 16;
+        int start = points.Count;
+        for (int i = 0; i <= slices; i++)
+        {
+            float a = i / (float)slices * Mathf.PI * 2f;
+            Vector3 outward = new(Mathf.Sin(a), 0f, Mathf.Cos(a));
+            float reach = outer * (1f + .035f * Mathf.Sin(a * 7f + age * 3f) + .025f * Mathf.Sin(a * 13f - age * 5f));
+            for (int j = 0; j <= rings; j++)
+            {
+                float v = j / (float)rings;
+                // The noise slides along the radius: what is seen at `v` now was nearer the middle a moment ago.
+                float travel = v * 1.5f - age * 2.6f;
+                float noise = Mathf.PerlinNoise(outward.x * 4.6f + travel * .83f + 11.3f, outward.z * 4.6f + travel * .57f + 7.9f);
+                float streak = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(.52f, .76f, noise));
+                float lip = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(.80f, .94f, v));
+                float edge = 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(.93f, 1f, v));
+                Color tint = Color.Lerp(Color.Lerp(DeepWater, Aqua, v), Foam, Mathf.Max(streak, lip * (.35f + .65f * noise)));
+                float shown = alpha * edge * Mathf.SmoothStep(0f, 1f, v * 3f) * (.34f + .46f * streak + .28f * lip);
+                Vertex(ground + outward * Mathf.Lerp(inner, reach, v), new Vector2(v, 2f), WithAlpha(tint.linear, shown));
+                if (i == 0 || j == 0) continue;
+                int k = start + i * (rings + 1) + j;
+                Join(k - rings - 2, k - rings - 1, k - 1, k);
+            }
+        }
+    }
+
+    // Patches of foam carried out by that sheet, lying flat on it and drawn out along the flow, all over the disc. `since` counts from the breach.
+    public void FlowFoam(Vector3 ground, float radius, float since)
+    {
+        const int patches = 150;
+        for (int i = 0; i < patches; i++)
+        {
+            float seed = Mathf.Repeat(i * .618034f + .15f, 1f);
+            float variation = Mathf.Repeat(i * .414214f + .28f, 1f);
+            float birth = Mathf.Repeat(i * .732051f + .61f, 1f);
+            float phase = (since - .42f * birth * birth) / Mathf.Lerp(.48f, .85f, variation);
+            if (phase < 0f || phase >= 1f) continue;
+            float turn = Mathf.Repeat(Mathf.Sin(i * 12.9898f) * 43758.55f, 1f) * Mathf.PI * 2f;
+            Vector3 outward = new(Mathf.Sin(turn), 0f, Mathf.Cos(turn));
+            Vector3 across = new(outward.z, 0f, -outward.x);
+            float flown = 1f - (1f - phase) * (1f - phase);
+            float from = Mathf.Lerp(.42f, .92f, Mathf.Repeat(Mathf.Sin(i * 78.233f) * 12543.13f, 1f));
+            Vector3 at = ground + outward * (radius * Mathf.Lerp(from, from + Mathf.Lerp(.25f, .55f, variation), flown));
+            float size = radius * Mathf.Lerp(.030f, .085f, variation * variation) * (.6f + .7f * flown);
+            float alpha = Mathf.Min(1f, phase * 5f) * (1f - phase) * (1f - phase * .3f);
+            Puff(at, size, alpha, across * .90f, outward * Mathf.Lerp(1.05f, 1.70f, seed), seed);
+        }
+    }
+
+    // The water Gura has gone into: a dark see-through patch with a soft ragged edge and one bright lip.
+    public void Pool(Vector3 ground, float radius, float age, float alpha)
+    {
+        if (alpha <= .001f) return;
+        const int slices = 64;
+        int start = points.Count;
+        for (int i = 0; i <= slices; i++)
+        {
+            float a = i / (float)slices * Mathf.PI * 2f;
+            Vector3 outward = new(Mathf.Sin(a), 0f, Mathf.Cos(a));
+            float reach = radius * (1f + .07f * Mathf.Sin(a * 5f + age * 3.4f) + .045f * Mathf.Sin(a * 9f - age * 5.1f));
+            Vertex(ground, new Vector2(.5f, 2f), WithAlpha(DeepWater.linear, alpha * .55f));
+            Vertex(ground + outward * (reach * .70f), new Vector2(.5f, 2f), WithAlpha(DeepWater.linear, alpha * .42f));
+            Vertex(ground + outward * (reach * .92f), new Vector2(.5f, 2f), WithAlpha(Aqua.linear, alpha * .38f));
+            Vertex(ground + outward * reach, new Vector2(.5f, 2f), WithAlpha(Foam.linear, alpha * (.34f + .30f * Mathf.Sin(a * 3f + age * 4f))));
+            Vertex(ground + outward * (reach * 1.07f), new Vector2(.5f, 2f), WithAlpha(Aqua.linear, 0f));
+            if (i == 0) continue;
+            int k = start + i * 5;
+            for (int j = 0; j < 4; j++) Join(k - 5 + j, k - 4 + j, k + j, k + j + 1);
+        }
+    }
+
+    // The dark shape of a shark under the surface, seen from above: nose, side fins, a swaying tail. `offset` is its fin from `ground`.
+    public void Silhouette(Vector3 ground, Vector3 offset, Vector3 forward, float length, float sway, float alpha)
+    {
+        if (alpha <= .001f) return;
+        Vector3 across = Vector3.Cross(Vector3.up, forward);
+        const int sections = 22;
+        int start = points.Count;
+        for (int i = 0; i <= sections; i++)
+        {
+            float u = i / (float)sections; // 0 = tail, 1 = nose
+            float body = Mathf.Pow(Mathf.Max(0f, Mathf.Sin(Mathf.PI * Mathf.Pow(u, .85f))), .8f) * .115f;
+            body += .075f * Mathf.Max(0f, 1f - Mathf.Abs(u - .58f) / .10f) + .07f * Mathf.Max(0f, 1f - Mathf.Abs(u - .05f) / .10f);
+            Vector3 at = ground + offset + forward * (length * (u - .56f)) + across * (length * .09f * sway * (1f - u) * (1f - u));
+            Color core = WithAlpha(new Color(.004f, .07f, .24f).linear, alpha);
+            Vertex(at - across * (length * body), new Vector2(.5f, 2f), WithAlpha(core, alpha * .45f));
+            Vertex(at, new Vector2(.5f, 2f), core);
+            Vertex(at + across * (length * body), new Vector2(.5f, 2f), WithAlpha(core, alpha * .45f));
+            if (i == 0) continue;
+            int k = start + i * 3;
+            Join(k - 3, k - 2, k, k + 1);
+            Join(k - 2, k - 1, k + 1, k + 2);
+        }
+    }
+
+    // The wake behind a fin along the way it came: two foam lines parting as they grow old. `state` per point is its age in seconds and its strength.
+    public void Wake(List<Vector3> path, List<Vector2> state)
+    {
+        for (int side = -1; side <= 1; side += 2)
+        {
+            int start = points.Count;
+            for (int i = 0; i < path.Count; i++)
+            {
+                Vector3 along = path[Mathf.Min(i + 1, path.Count - 1)] - path[Mathf.Max(i - 1, 0)];
+                Vector3 across = along.sqrMagnitude < 1e-8f ? Vector3.zero : Vector3.Cross(Vector3.up, along.normalized);
+                float old = state[i].x;
+                float left = Mathf.Clamp01(1f - old / .75f);
+                Vector3 middle = path[i] + across * (side * (.07f + old * .55f));
+                float wide = .035f + .075f * left;
+                Vertex(middle - across * wide, new Vector2(.5f, 2f), WithAlpha(Aqua.linear, 0f));
+                Vertex(middle, new Vector2(.5f, 2f), WithAlpha(Color.Lerp(Foam, Color.white, .5f).linear, state[i].y * Mathf.Min(1f, left * 1.4f)));
+                Vertex(middle + across * wide, new Vector2(.5f, 2f), WithAlpha(Aqua.linear, 0f));
+                if (i == 0) continue;
+                int k = start + i * 3;
+                Join(k - 3, k - 2, k, k + 1);
+                Join(k - 2, k - 1, k + 1, k + 2);
+            }
+        }
+    }
+
+    // The water heaped up in front of a fin and thrown to both sides.
+    public void Bow(Vector3 at, Vector3 forward, float age, float alpha, Vector3 right, Vector3 up)
+    {
+        Vector3 across = Vector3.Cross(Vector3.up, forward);
+        for (int i = 0; i < 16; i++)
+        {
+            float seed = Mathf.Repeat(i * .618034f + .15f, 1f);
+            float phase = Mathf.Repeat(age * Mathf.Lerp(2.2f, 3.4f, seed) + seed, 1f);
+            float side = i % 2 == 0 ? 1f : -1f;
+            Vector3 point = at + forward * (.10f - .45f * phase) + across * (side * (.03f + .24f * phase * (.5f + seed)))
+                + Vector3.up * (.02f + .15f * seed * Mathf.Sin(Mathf.PI * phase));
+            Puff(point, Mathf.Lerp(.034f, .075f, seed) * (1f - phase * .5f), alpha * (1f - phase), right, up, seed);
+        }
+    }
+
+    // Bubbles breaking all over the patch.
+    public void Boil(Vector3 ground, float radius, float age, float alpha, Vector3 right, Vector3 up)
+    {
+        for (int i = 0; i < 40; i++)
+        {
+            float seed = Mathf.Repeat(Mathf.Sin(i * 12.9898f) * 43758.55f, 1f);
+            float other = Mathf.Repeat(Mathf.Sin(i * 78.233f) * 12543.13f, 1f);
+            float phase = Mathf.Repeat(age * Mathf.Lerp(2.0f, 3.6f, other) + seed, 1f);
+            float turn = seed * Mathf.PI * 2f;
+            Vector3 at = ground + new Vector3(Mathf.Sin(turn), 0f, Mathf.Cos(turn)) * (radius * Mathf.Sqrt(other) * 1.05f)
+                + Vector3.up * (.02f + .22f * phase * other);
+            Puff(at, Mathf.Lerp(.018f, .055f, other) * (.4f + phase), alpha * (1f - phase), right, up, seed);
+        }
+    }
+
+    // How high the wave stands at angle `a`, against its mean: a few big heaps with a broken edge on them.
+    private static float Lobe(float a, float age) => Mathf.Clamp(.46f + .50f * Mathf.Pow(Mathf.Abs(Mathf.Sin(a * 3.5f + age * 2.5f + .6f)), 1.7f)
+        + .20f * Mathf.Sin(a * 11f - age * 9f) + .12f * Mathf.Sin(a * 23f + age * 13f), .20f, 1.20f);
+
+    private static float Low(Vector3 outward, Vector3 viewer) => Mathf.Lerp(1f, .52f, Mathf.SmoothStep(0f, 1f, Vector3.Dot(outward, viewer)));
+
+    // Foam riding the crest of a Surge: clumps of different sizes, thickest on the heaps, popping as they fade.
+    public void CrestFoam(Vector3 ground, float crest, float height, float radius, float age, float alpha, Vector3 right, Vector3 up, Vector3 viewer, float phase)
+    {
+        if (alpha <= .001f || height <= .004f) return;
+        const int bunches = 22;
+        for (int i = 0; i < bunches * 3; i++)
+        {
+            float seed = Mathf.Repeat(i * .618034f + .15f, 1f);
+            float variation = Mathf.Repeat(i * .414214f + .28f, 1f);
+            float a = (i / 3 + (i % 3) * .17f + seed * .20f) / bunches * Mathf.PI * 2f;
+            Vector3 outward = new(Mathf.Sin(a), 0f, Mathf.Cos(a));
+            float lobe = Lobe(a + phase, age);
+            Vector3 at = ground + outward * (crest * Mathf.Lerp(.95f, 1.07f, variation))
+                + Vector3.up * (height * lobe * Low(outward, viewer) * (1.02f - (i % 3) * .11f + .06f * seed) + radius * .012f);
+            float breathe = .82f + .18f * Mathf.Sin(age * 19f + i * 1.7f);
+            float size = radius * Mathf.Lerp(.040f, .084f, variation) * (i % 3 == 0 ? 1.25f : .80f) * Mathf.Lerp(.40f, 1.10f, lobe) * breathe * (.45f + .55f * alpha);
+            float heap = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(.30f, .66f, lobe));
+            Puff(at, size, alpha * heap * Mathf.Lerp(.75f, 1f, seed), right, up, seed);
+        }
+    }
+
+    // The low white burst where something breaks the surface. `since` counts from the first break.
+    public void Mist(Vector3 ground, float radius, float since, Vector3 right, Vector3 up)
+    {
+        if (since < 0f || since > .45f) return;
+        const int clumps = 26;
+        for (int i = 0; i < clumps; i++)
+        {
+            float seed = Mathf.Repeat(i * .618034f + .15f, 1f);
+            float variation = Mathf.Repeat(i * .414214f + .28f, 1f);
+            float phase = (since - .05f * seed) / Mathf.Lerp(.24f, .40f, variation);
+            if (phase < 0f || phase >= 1f) continue;
+            float turn = i * 2.39996f;
+            Vector3 outward = new(Mathf.Sin(turn), 0f, Mathf.Cos(turn));
+            Vector3 at = ground + outward * (radius * Mathf.Lerp(.45f, .80f, seed) + radius * .30f * phase)
+                + Vector3.up * (radius * Mathf.Lerp(.08f, .34f, variation) * Mathf.Sin(phase * Mathf.PI * .75f));
+            Puff(at, radius * Mathf.Lerp(.10f, .22f, variation) * (.55f + .65f * phase), .62f * (1f - phase) * Mathf.Min(1f, phase * 6f), right, up, seed);
+        }
+    }
+
+    // Water thrown outward in arcs from a ring of radius `from`: tapered jets with a round head, every fifth one a clump of foam. `since` counts from the throw.
+    public void Splash(Vector3 ground, float from, float reach, float since, int droplets, float height, float size, Vector3 right, Vector3 up)
+    {
+        Vector3 toward = Vector3.Cross(right, up);
+        if (since < 0f || since > .62f) return;
+        for (int i = 0; i < droplets; i++)
+        {
+            float seed = Mathf.Repeat(i * .618034f + .15f, 1f);
+            float variation = Mathf.Repeat(i * .414214f + .28f, 1f);
+            float lift = Mathf.Repeat(i * .732051f + .61f, 1f);
+            float phase = (since - .08f * seed) / Mathf.Lerp(.24f, .52f, variation);
+            if (phase < 0f || phase >= 1f) continue;
+            float turn = i * 2.39996f;
+            Vector3 outward = new(Mathf.Sin(turn), 0f, Mathf.Cos(turn));
+            float far = reach * Mathf.Lerp(.20f, 1f, seed);
+            float peak = height * Mathf.Lerp(.25f, 1f, lift);
+            Vector3 at = ground + outward * (from * Mathf.Lerp(.90f, 1.08f, variation) + far * phase) + Vector3.up * (peak * 4f * phase * (1f - phase));
+            float alpha = Mathf.Min(1f, phase * 8f) * (1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(.70f, 1f, phase)));
+            float wide = size * Mathf.Lerp(.55f, 1.55f, variation * variation) * (1f - phase * .45f);
+            if (i % 5 == 0) { Puff(at, wide * 1.7f, alpha * .9f, right, up, seed); continue; }
+            Vector3 flight = (outward * far + Vector3.up * (peak * 4f * (1f - 2f * phase))).normalized;
+            Streak(at - flight * (wide * Mathf.Lerp(5f, 8f, seed) * (1f - phase * .5f)), at + flight * wide, wide * .80f, alpha, toward);
+            Puff(at, wide * .62f, alpha, right, up, seed);
+        }
+    }
+
+    // A ragged round clump of foam facing the camera: white in the middle, soft at the edge.
+    public void Puff(Vector3 at, float size, float alpha, Vector3 right, Vector3 up, float seed)
+    {
+        if (alpha <= .001f || size <= .002f) return;
+        const int sides = 14;
+        int start = points.Count;
+        Vertex(at, new Vector2(.5f, 2f), WithAlpha(Color.white, alpha));
+        for (int i = 0; i < sides; i++)
+        {
+            float a = (i / (float)sides + seed) * Mathf.PI * 2f;
+            Vector3 way = (right * Mathf.Cos(a) + up * Mathf.Sin(a)) * (size * (.94f + .08f * Mathf.Sin(a * 5f + seed * 40f)));
+            Vertex(at + way * .62f, new Vector2(.5f, 2f), WithAlpha(Color.Lerp(Foam, Color.white, .55f).linear, alpha * .86f));
+            Vertex(at + way, new Vector2(.5f, 2f), WithAlpha(Aqua.linear, 0f));
+        }
+        for (int i = 0; i < sides; i++)
+        {
+            int near = start + 1 + i * 2, next = start + 1 + (i + 1) % sides * 2;
+            triangles.Add(start); triangles.Add(near); triangles.Add(next);
+            Join(near, near + 1, next, next + 1);
+        }
+    }
+
     // A ring of rising tongues of water, thrown outward at the top.
     public void Crown(Vector3 centre, float radius, float height, float age, float alpha)
     {

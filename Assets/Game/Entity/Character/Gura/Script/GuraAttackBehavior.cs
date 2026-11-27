@@ -4,8 +4,8 @@ using System.Linq;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
 
-// EN: Gura's Attack slot (Docs/GuraCharacter.md 4.1): four strikes in a row. Profile data {comboStepId, comboWindowId, nextFourId, reach, steps[4]}: the combo counter says which strike is next while the combo
-//     window (a timed State) lasts; the next-strike flag (`nextFourId`) makes the next press the fourth strike straight away and is spent by it. Each strike is a registered `combo_strike_action` (its numbers are the skill
+// EN: Gura's Attack slot (Docs/GuraCharacter.md 4.1): four strikes in a row. The next-strike flag starts at the third. Profile data {comboStepId, comboWindowId, nextFourId, reach, steps[4]}: the combo counter says which strike is next while the combo
+//     window (a timed State) lasts; the next-strike flag (`nextFourId`) makes the next press the third strike straight away and is spent by it. Each strike is a registered `combo_strike_action` (its numbers are the skill
 //     data). The behavior makes one decision per press (`attack_target`: the nearest enemy in reach, `invocation.Choose`), runs the strike over several frames (`Advance`, scaled by attack speed) and ends the cast when
 //     the strike ends. It has no network code: the owner's guess advances through the binding layer's predicted-behavior path (H1) and the authority replays the same.
 // VI: O Attack cua Gura: bon nhat chem lien tiep. Moi lan bam co mot quyet dinh (muc tieu gan nhat trong tam), Action chay nhieu khung qua Advance.
@@ -13,6 +13,7 @@ public sealed class GuraAttackBehavior : PNSkillBehavior
 {
     public const string DecisionPoint = "attack_target";
     public const int Steps = 4;
+    public const int FlagStep = 2;     // the next-strike flag starts the combo at the third strike, which goes on to the fourth
     private readonly PNSkillBehaviorContext context;
     private readonly EveId stepId, windowId, nextFourId;
     private readonly EveId[] steps = new EveId[Steps];
@@ -81,9 +82,9 @@ public sealed class GuraAttackBehavior : PNSkillBehavior
         {
             stat = context.Skill.GetComponent<PNStat>();
             var target = context.Skill.CurrentInvocation.Choose<PNStat>(DecisionPoint, () => Nearest(), null, reach);
-            // The next strike: the flag makes it the fourth at once; otherwise the combo goes on while the window lasts and starts over after it.
+            // The next strike: the flag makes it the third at once; otherwise the combo goes on while the window lasts and starts over after it.
             bool flagged = IsOn(abilities, nextFourId);
-            int index = flagged ? Steps - 1 : IsOn(abilities, windowId) ? Math.Min(step.Current, Steps - 1) : 0;
+            int index = flagged ? FlagStep : IsOn(abilities, windowId) ? Math.Min(step.Current, Steps - 1) : 0;
             if (target == null) NoTarget++;
             Vector3 direction = AimAt(target);
             // A held strike in Burst spends Wave (the chain); the one that would reach the last milestone is the free Skill Burst instead of a strike.
@@ -113,7 +114,7 @@ public sealed class GuraAttackBehavior : PNSkillBehavior
         var wave = abilities.GetCounter(PNGuraContent.WaveStack);
         if (!(chainStrike && wave.TryConsume(1)))
         {
-            // The flagged fourth strike needs no hit: it pays when it is cast (and its hits pay nothing more). Any other strike pays per hit (PNGuraSkill.OnHitConfirmed).
+            // The flagged strike needs no hit: it pays when it is cast (and its hits pay nothing more). Any other strike pays per hit (PNGuraSkill.OnHitConfirmed).
             if (flagged) { GuraResources.Gain(abilities, gainBurst[index], gainWave[index], gainCut[index], authority); context.Skill.GetComponent<PNGuraSkill>()?.Prepaid(actionContext); }
             return;
         }

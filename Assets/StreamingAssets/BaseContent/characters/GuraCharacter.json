@@ -407,27 +407,19 @@
               "id": "project_n:gura_trident_action",
               "start": {},
               "perform": {
-                "windup": 0.25,
+                "windup": 0.2,
                 "lockMovement": true,
-                "recovery": 0.3,
-                "maxFlight": 1.8,
+                "recovery": 0.25,
+                "maxFlight": 0.6,
                 "projectile": {
                   "projectileId": "project_n:gura_thrown_trident",
                   "input": {},
                   "count": 1,
                   "spread": 0,
-                  "aimRadius": 8
-                },
-                "blast": {
-                  "blastId": "project_n:gura_trident_splash",
-                  "dependency": "Independent",
-                  "input": {
-                    "delay": 0.05,
-                    "tail": 0.75,
-                    "radius": 2.0,
-                    "height": 1.5,
+                  "aimRadius": 6,
+                  "damage": {
                     "value": {
-                      "amount": 200,
+                      "amount": 80,
                       "statId": "base:attack_power"
                     },
                     "canCrit": true,
@@ -445,6 +437,152 @@
               "base:skill"
             ],
             "affectedByAttackSpeed": false
+          }
+        },
+        {
+          "id": "project_n:gura_vortex",
+          "data": {
+            "skill": {
+              "reward": {
+                "burst": 10,
+                "wave": 4,
+                "cut": 2.5,
+                "once": true
+              },
+              "flagOnHit": true
+            },
+            "action": {
+              "id": "project_n:gura_combat_strike",
+              "start": {},
+              "perform": {
+                "visualState": "vortex",
+                "lockMovement": true,
+                "tags": [
+                  "base:physical",
+                  "base:skill"
+                ],
+                "duration": 0.75,
+                "radius": 2.3,
+                "angle": 180,
+                "thickness": 0.6,
+                "height": 0.3,
+                "canCrit": true,
+                "guard": {
+                  "at": 0.26,
+                  "duration": 0.22,
+                  "buffId": "project_n:gura_untouchable"
+                },
+                "hits": [
+                  {
+                    "at": 0.14,
+                    "value": {
+                      "amount": 40,
+                      "statId": "base:attack_power"
+                    }
+                  },
+                  {
+                    "at": 0.36,
+                    "value": {
+                      "amount": 100,
+                      "statId": "base:attack_power"
+                    },
+                    "angle": 360
+                  },
+                  {
+                    "at": 0.58,
+                    "value": {
+                      "amount": 60,
+                      "statId": "base:attack_power"
+                    },
+                    "radius": 2.5,
+                    "angle": 110
+                  }
+                ]
+              },
+              "exit": {},
+              "cancel": {}
+            },
+            "categoryIds": [
+              "base:skill"
+            ],
+            "affectedByAttackSpeed": false,
+            "effects": [
+              {
+                "trigger": "OnCancel",
+                "kind": "Operation",
+                "id": "project_n:bypass_remove_buff",
+                "target": "Self",
+                "data": {
+                  "buffId": "project_n:gura_untouchable"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "project_n:gura_rush",
+          "data": {
+            "skill": {
+              "flagOnHit": true
+            },
+            "action": {
+              "id": "project_n:gura_combat_strike",
+              "start": {},
+              "perform": {
+                "visualState": "rush",
+                "lockMovement": true,
+                "tags": [
+                  "base:physical",
+                  "base:skill"
+                ],
+                "duration": 0.4,
+                "radius": 1.1,
+                "angle": 360,
+                "thickness": 0.5,
+                "height": 0.3,
+                "canCrit": true,
+                "guard": {
+                  "at": 0.0,
+                  "duration": 0.2,
+                  "buffId": "project_n:gura_untouchable"
+                },
+                "step": {
+                  "at": 0.0,
+                  "duration": 0.14,
+                  "distance": 7.0,
+                  "stopDistance": 0.6,
+                  "retreat": false,
+                  "permissionId": "base:motion_voluntary",
+                  "actorCollision": "IgnoreAllActors"
+                },
+                "hits": [
+                  {
+                    "at": 0.16,
+                    "value": {
+                      "amount": 120,
+                      "statId": "base:attack_power"
+                    }
+                  }
+                ]
+              },
+              "exit": {},
+              "cancel": {}
+            },
+            "categoryIds": [
+              "base:skill"
+            ],
+            "affectedByAttackSpeed": false,
+            "effects": [
+              {
+                "trigger": "OnCancel",
+                "kind": "Operation",
+                "id": "project_n:bypass_remove_buff",
+                "target": "Self",
+                "data": {
+                  "buffId": "project_n:gura_untouchable"
+                }
+              }
+            ]
           }
         },
         {
@@ -733,8 +871,8 @@
                   "showInUI": true,
                   "iconPath": "",
                   "displayOrder": 0,
-                  "maximum": 3,
-                  "initialAmount": 3,
+                  "maximum": 2,
+                  "initialAmount": 2,
                   "cooldown": 7,
                   "recovery": "PerStack",
                   "autoRecover": true,

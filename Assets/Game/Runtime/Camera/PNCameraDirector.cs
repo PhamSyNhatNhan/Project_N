@@ -275,7 +275,7 @@ public sealed partial class PNCameraDirector : MonoBehaviour, IPNViewCameraServi
         if (target == null) return;
         SweepCollisions();
         if (reserved == 0) return;
-        var actor = local.Actor != null ? local.Actor.transform : null;
+        var actor = local.Actor != null ? PNPhysicsPose.FollowOf(local.Actor.transform) : null;
         // One gameplay rig for every world (Docs/CameraSinglePathPlan.md): it follows the actor and takes its look from the resolved view of the viewed world.
         var rig = GameplayRig();
         Admit(rig, actor);

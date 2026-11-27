@@ -106,7 +106,9 @@ public static partial class PNVisualEditorChecks
             Require(body.Actor.Animator.BaseState == "walk" || body.Actor.Animator.BaseState == "idle", "slowing down leaves the run"); checks++;
             instance.transform.position += new Vector3(-.01f, 0f, 0f); body.Feed(.02f);
             Require(body.Actor.Animator.FacingLeft, "moving left turns the body to face left"); checks++;
-            body.Feed(.02f); Require(body.Actor.Animator.BaseState == "idle", "standing still is idle"); checks++;
+            body.Feed(.02f); Require(body.Actor.Animator.BaseState == "walk", "one frame without a step is not a stop (a physics or network step is slower than a frame)"); checks++;
+            body.Feed(PNVisualBody.StillSeconds); Require(body.Actor.Animator.BaseState == "idle", "standing still is idle"); checks++;
+            body.Feed(1f); instance.transform.position += new Vector3(.04f, 0f, 0f); body.Feed(.02f); Require(body.Actor.Animator.BaseState == "run", "the first step after a rest is read at once"); checks++;
             body.Clear();
             Require(body.Actor == null && visual.gameObject.activeSelf && capsule.height == h0 && capsule.radius == r0 && capsule.center == c0 && shadow.localScale == shadow0 && PNVisualSystem.Count == 0, "Clear restores the sprite, the capsule and the shadow and unregisters the puppet (pool-safe)"); checks++;
             Require(body.Begin(Character("{'body':{'visual':'project_n:visual_test'}}"), hub) && body.Active, "a returned entity can begin again"); checks++;
