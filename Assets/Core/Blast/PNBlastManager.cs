@@ -116,6 +116,8 @@ public abstract class PNBlastInstance : MonoBehaviour, EveIPoolable, IPNTimeTarg
     public virtual float ProgressSeconds => 0f;
     public PNBlastDependency Dependency => created != null ? created.Dependency : PNBlastDependency.Independent;
     protected PNStat Owner => created?.Owner;
+    // Who made it (null for a world's own); what the camera audience resolves a blast to.
+    public PNStat CreatedBy => created?.Owner;
     private EveEntityId ownerId;
     // True while an Owner-dependent blast's owner is alive, enabled and still in the blast's world (always true for the other dependencies).
     internal bool DependencyHolds()

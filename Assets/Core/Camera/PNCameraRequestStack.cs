@@ -27,6 +27,8 @@ public static class PNCameraRefusal
     public const string LimitReached = "LimitReached";
     public const string InvalidParameter = "InvalidParameter";
     public const string OutOfRange = "OutOfRange";
+    // The request is not for this machine's view (PNCameraAudience): another player's effect.
+    public const string OtherViewer = "OtherViewer";
 }
 
 // Refused-from-the-start handle (also what the empty service returns).

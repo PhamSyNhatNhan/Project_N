@@ -11,6 +11,26 @@ public enum PNShakeFalloff { Linear = 0, Quadratic = 1, None = 2 }
 // Shake request data. Plain values validated on construction; out-of-range values are refused, never silently clamped.
 // Amplitude is the peak displacement in world units along Direction (normalized internally). Radius 0 = same everywhere; otherwise the
 // amplitude is attenuated by the source's distance from the viewed actor (evaluated when the request is made).
+// Who a camera request is for (AGENTS.md 2026-11-28, the one network exception in gameplay code: it exists only as this request parameter).
+// The camera follows one actor per machine, and a skill's picture runs on every machine that shows it. Auto (no audience given): a request from a
+// player's actor or from anything a player owns plays only on that player's machine; any other source (an enemy, the world) plays for everyone.
+public enum PNCameraAudience { Auto = 0, Self = 1, Everyone = 2 }
+
+public static class PNCameraAudiences
+{
+    // fromPlayer: the source resolves to a player's actor; fromViewedActor: to the actor this machine's camera follows.
+    public static bool Accepts(PNCameraAudience audience, bool fromPlayer, bool fromViewedActor)
+    {
+        switch (audience)
+        {
+            case PNCameraAudience.Everyone: return true;
+            case PNCameraAudience.Self: return fromViewedActor;
+            case PNCameraAudience.Auto: return fromViewedActor || !fromPlayer;
+            default: throw new ArgumentOutOfRangeException(nameof(audience));
+        }
+    }
+}
+
 public readonly struct PNShakeSpec
 {
     public const float HardMaximumAmplitude = 10f, HardMaximumFrequency = 120f, HardMaximumDuration = 15f, HardMaximumRadius = 1000f;
@@ -252,6 +272,9 @@ public interface IPNCameraService
     float PlayerShakeGain { get; set; }
     // Shake from a source object. Only sources in the world this player is viewing shake the camera (others are refused with OtherWorld).
     IPNCameraHandle RequestShake(UnityEngine.Object source, string key, PNShakeSpec spec);
+    // The same with an audience; `owner` names whose it is when the source is not under that actor (a picture standing on its own in the scene).
+    // Refused with OtherViewer when this machine is not in the audience.
+    IPNCameraHandle RequestShake(UnityEngine.Object source, string key, PNShakeSpec spec, PNCameraAudience audience, PNStat owner = null) => RequestShake(source, key, spec);
 
     // Layered tuning (game -> mode -> world -> player). An invalid layer throws and changes nothing.
     PNCameraProfile Profile { get; }
@@ -263,6 +286,8 @@ public interface IPNCameraService
     float SetBaseZoom(float scale);
     // Gameplay zoom modifier with a handle; refused with NotSupported when no rig can zoom, NoCamera outside a session.
     IPNCameraHandle RequestZoom(object owner, string key, PNZoomRequest request);
+    // The same with an audience (see RequestShake); `source` names whose it is when `owner` is not under that actor.
+    IPNCameraHandle RequestZoom(object owner, string key, PNZoomRequest request, PNCameraAudience audience, PNStat source = null) => RequestZoom(owner, key, request);
     // Camera-only lock-on: frames the local actor and the target together with fixed pitch/yaw. Does not aim or rotate anything.
     IPNCameraHandle RequestLockOn(UnityEngine.Object owner, UnityEngine.Transform target, PNLockOnRequest request);
     // Local cinematic (this player's view only). Highest priority camera; releasing blends back to whatever was live before (world rig or lock-on).
@@ -288,12 +313,14 @@ public sealed class PNNullCameraService : IPNCameraService
     public bool Available => false;
     public float PlayerShakeGain { get; set; } = 1f;
     public IPNCameraHandle RequestShake(UnityEngine.Object source, string key, PNShakeSpec spec) => Refuse();
+    public IPNCameraHandle RequestShake(UnityEngine.Object source, string key, PNShakeSpec spec, PNCameraAudience audience, PNStat owner = null) => Refuse();
     public PNCameraProfile Profile => PNCameraProfile.Default;
     public void SetProfileLayer(PNCameraProfileSource source, PNCameraProfileLayer layer) { }
     public PNCameraRigCapabilities ViewCapabilities => PNCameraRigCapabilities.None;
     public float BaseZoom => 1f;
     public float SetBaseZoom(float scale) => 1f;
     public IPNCameraHandle RequestZoom(object owner, string key, PNZoomRequest request) => Refuse();
+    public IPNCameraHandle RequestZoom(object owner, string key, PNZoomRequest request, PNCameraAudience audience, PNStat source = null) => Refuse();
     public IPNCameraHandle RequestLockOn(UnityEngine.Object owner, UnityEngine.Transform target, PNLockOnRequest request) => Refuse();
     public IPNCameraHandle RequestCinematic(UnityEngine.Object owner, string key, PNCinematicShot shot) => Refuse();
     public IPNCameraHandle RequestCinematicSequence(UnityEngine.Object owner, string key, PNCinematicSequence sequence) => Refuse();

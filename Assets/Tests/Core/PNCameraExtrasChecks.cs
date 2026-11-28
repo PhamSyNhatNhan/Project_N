@@ -77,8 +77,8 @@ public static class PNCameraExtrasChecks
             Check(Mathf.Abs(output.fieldOfView - fovStill) < .2f, "releasing the field-of-view request returns the authored lens");
             Check(service.RequestZoom(owner.transform, "ortho", PNZoomRequest.ToOrthographicSize(2f)).RefusalReason == PNCameraRefusal.NotSupported, "an orthographic-size request on a perspective view is refused with NotSupported");
             local.Select(poseWorld); Run(20);
-            var poseDist = service.RequestZoom(owner.transform, "dist2", PNZoomRequest.ToDistance(4f)); Run(250);
-            Check(poseDist.IsActive && Mathf.Abs(Cmp().CameraDistance - 4f) < .02f, "a distance request on a world whose vcam has no composer is accepted (every world has the one composer rig) [dist=" + Cmp().CameraDistance + " caps=" + director.ViewCapabilities + " view=" + director.View.Distance + "]"); poseDist.Dispose(); Run(300);
+            var poseDist = service.RequestZoom(owner.transform, "dist2", PNZoomRequest.ToDistance(5f)); Run(250);
+            Check(poseDist.IsActive && Mathf.Abs(Cmp().CameraDistance - 5f) < .02f, "a distance request on a world whose vcam has no composer is accepted (every world has the one composer rig) [dist=" + Cmp().CameraDistance + " caps=" + director.ViewCapabilities + " view=" + director.View.Distance + "]"); poseDist.Dispose(); Run(300);
             float poseFov = output.fieldOfView;
             var poseZoom = service.RequestZoom(owner.transform, "fov2", PNZoomRequest.ToFieldOfView(31f)); Run(250);
             Check(Mathf.Abs(output.fieldOfView - Mathf.Max(31f, poseFov * PNCameraProfile.Default.LensScaleMin)) < .3f, "a field-of-view request zooms the lens of a world without a composer (limited by the lens range)");
@@ -212,6 +212,29 @@ public static class PNCameraExtrasChecks
             var poseOrbit = service.RequestOrbit(owner.transform, "pose", new PNOrbitRequest(10f, 0f, 0f)); Run(5);
             Check(poseOrbit.IsActive && Mathf.Abs(Mathf.DeltaAngle(10f, RigT().rotation.eulerAngles.y)) < .5f, "orbit is accepted on every world"); poseOrbit.Dispose(); Run(5);
             local.Select(composerWorld); Run(20);
+
+            // ---- audience (AGENTS.md 2026-11-28): another player's effect is not this view's unless it asks for everyone -------------------------------------
+            {
+                local.Select(composerWorld); Run(5);
+                var player = new GameObject("other player"); UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(player, composerWorld.PhysicsOwner);
+                player.AddComponent<PNStat>();
+                var role = player.AddComponent<PNEntityRole>();
+                typeof(PNEntityRole).GetField("<IsPlayer>k__BackingField", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).SetValue(role, true);
+                var picture = new GameObject("picture"); picture.transform.SetParent(player.transform, false);
+                var loose = new GameObject("loose picture"); UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(loose, composerWorld.PhysicsOwner);
+                var shake = new PNShakeSpec(.05f, 20f, .2f);
+                Check(service.RequestShake(picture, "a", shake).RefusalReason == PNCameraRefusal.OtherViewer, "with no audience another player's shake does not shake this view");
+                Check(service.RequestShake(loose, "b", shake, PNCameraAudience.Auto, player.GetComponent<PNStat>()).RefusalReason == PNCameraRefusal.OtherViewer, "a picture that names another player as its owner does not shake this view");
+                var everyone = service.RequestShake(picture, "c", shake, PNCameraAudience.Everyone);
+                Check(everyone.IsActive, "another player's shake for everyone shakes this view");
+                var world = service.RequestShake(prop, "d", shake);
+                Check(world.IsActive, "with no audience a world object's shake shakes this view");
+                Check(service.RequestShake(prop, "e", shake, PNCameraAudience.Self).RefusalReason == PNCameraRefusal.OtherViewer, "Self from something that is not this view's actor is refused");
+                Check(service.RequestZoom(picture.transform, "f", PNZoomRequest.Factor(1.2f)).RefusalReason == PNCameraRefusal.OtherViewer, "with no audience another player's zoom does not zoom this view");
+                Check(service.RequestFollowTuning(picture.transform, "g", new PNFollowTuning { LookaheadTime = .1f }).RefusalReason == PNCameraRefusal.OtherViewer, "another player's follow tuning does not reach this view");
+                everyone.Dispose(); world.Dispose();
+                UnityEngine.Object.DestroyImmediate(loose); UnityEngine.Object.DestroyImmediate(player); Run(5);
+            }
 
             // ---- teardown ----------------------------------------------------------------------------------------------------------------------------------------
             var pendingBounds = service.RequestBounds(owner.transform, "end", new PNCameraBounds(new Vector3(0, 3, 4), new Vector3(30, 40, 4)));

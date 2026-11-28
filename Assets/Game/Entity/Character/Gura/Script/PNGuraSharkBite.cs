@@ -73,8 +73,10 @@ public sealed class PNGuraSharkBite : MonoBehaviour, IDisposable
         {
             shook = true;
             shake?.Dispose();
+            // The bite stands on its own in the scene: it names whose it is, so only her player's camera shakes.
             shake = PNCameraServices.Current.RequestShake(gameObject, "gura.shark_bite",
-                new PNShakeSpec(.13f, 24f, .24f, .18f, 0f, PNShakeShape.Recoil, .65f, 1f, .12f, 7f, PNShakeFalloff.Quadratic));
+                new PNShakeSpec(.13f, 24f, .24f, .18f, 0f, PNShakeShape.Recoil, .65f, 1f, .12f, 7f, PNShakeFalloff.Quadratic),
+                PNCameraAudience.Auto, caster != null ? caster.GetComponent<PNStat>() : null);
         }
         previousAge = age;
 

@@ -47,6 +47,7 @@ public sealed partial class PNCameraDirector
     {
         if (released || output == null || viewed == null || reserved == 0) return new PNRefusedCameraHandle(PNCameraRefusal.NoCamera);
         if (owner == null) return new PNRefusedCameraHandle(PNCameraRefusal.OwnerGone);
+        if (!ForThisView(owner, PNCameraAudience.Auto)) return new PNRefusedCameraHandle(PNCameraRefusal.OtherViewer);
         if (string.IsNullOrEmpty(key) || key.Length > 128 || sequence == null || sequence.Shots.Count == 0) return new PNRefusedCameraHandle(PNCameraRefusal.InvalidParameter);
         foreach (var shot in sequence.Shots)
         {

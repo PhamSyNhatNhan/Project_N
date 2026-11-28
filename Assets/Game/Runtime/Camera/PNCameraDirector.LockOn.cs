@@ -38,6 +38,7 @@ public sealed partial class PNCameraDirector
     {
         if (released || output == null || viewed == null || local?.Actor == null) return new PNRefusedCameraHandle(PNCameraRefusal.NoCamera);
         if (owner == null || target == null) return new PNRefusedCameraHandle(PNCameraRefusal.OwnerGone);
+        if (!ForThisView(owner, PNCameraAudience.Auto)) return new PNRefusedCameraHandle(PNCameraRefusal.OtherViewer);
         if (!local.Contains(target) || !local.Contains(local.Actor)) return new PNRefusedCameraHandle(PNCameraRefusal.OtherWorld);
         if (ReferenceEquals(target, local.Actor.transform)) return new PNRefusedCameraHandle(PNCameraRefusal.InvalidParameter);
         if (reserved == 0) return new PNRefusedCameraHandle(PNCameraRefusal.NotSupported);

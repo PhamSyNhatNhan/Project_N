@@ -68,10 +68,12 @@ public sealed partial class PNCameraDirector
         return playerBaseZoom;
     }
 
-    public IPNCameraHandle RequestZoom(object owner, string key, PNZoomRequest request)
+    public IPNCameraHandle RequestZoom(object owner, string key, PNZoomRequest request) => RequestZoom(owner, key, request, PNCameraAudience.Auto);
+    public IPNCameraHandle RequestZoom(object owner, string key, PNZoomRequest request, PNCameraAudience audience, PNStat source = null)
     {
         if (released || output == null || viewed == null || rigZooms.Count == 0) return new PNRefusedCameraHandle(PNCameraRefusal.NoCamera);
         if (owner == null) return new PNRefusedCameraHandle(PNCameraRefusal.OwnerGone);
+        if (!ForThisView(source != null ? source : owner, audience)) return new PNRefusedCameraHandle(PNCameraRefusal.OtherViewer);
         if (owner is UnityEngine.Object unityOwner && unityOwner == null) return new PNRefusedCameraHandle(PNCameraRefusal.OwnerGone);
         if (string.IsNullOrEmpty(key) || key.Length > 128) return new PNRefusedCameraHandle(PNCameraRefusal.InvalidParameter);
         if (ViewCapabilities == PNCameraRigCapabilities.None) return new PNRefusedCameraHandle(PNCameraRefusal.NotSupported);

@@ -94,8 +94,10 @@ public sealed class PNGuraRushSurf : MonoBehaviour
         else if (onTheWay && !shook && !seeking && Application.isPlaying)
         {
             shook = true;
+            // The surf may be left in the scene after the Action: it names whose it is, so only her player's camera shakes.
             shake = PNCameraServices.Current.RequestShake(gameObject, "gura.rush_hit",
-                new PNShakeSpec(.11f, 25f, .24f, .18f, 0f, PNShakeShape.Recoil, .68f, 1f, .12f, 7f, PNShakeFalloff.Quadratic));
+                new PNShakeSpec(.11f, 25f, .24f, .18f, 0f, PNShakeShape.Recoil, .68f, 1f, .12f, 7f, PNShakeFalloff.Quadratic),
+                PNCameraAudience.Auto, owner != null ? owner.GetComponent<PNStat>() : null);
         }
 
         Vector3 side = Vector3.Cross(Vector3.up, facing).normalized;

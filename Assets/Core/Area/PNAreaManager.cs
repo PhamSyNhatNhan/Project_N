@@ -89,6 +89,8 @@ public abstract class PNAreaInstance : MonoBehaviour, EveIPoolable, IPNTimeTarge
     private readonly PNInstanceLifecycle life = new PNInstanceLifecycle(Reasons);
     private PNTimeTargets.Entry timeEntry;
     private PNAreaCreateRequest created; private double scaleFactor = double.NaN;
+    // Who made it (null for a world's own); what the camera audience resolves an area to.
+    public PNStat CreatedBy => created?.Owner;
     // The creator's `area_scale` (Scale route over a base of 1, read from the source snapshot at creation; 1 = unchanged). What it scales is the implementation's choice.
     protected double ScaleFactor
     {

@@ -345,12 +345,47 @@ public sealed partial class PNCameraDirector : MonoBehaviour, IPNViewCameraServi
 
     // ---- shake API ---------------------------------------------------------------------------------------------------------------
 
-    public IPNCameraHandle RequestShake(UnityEngine.Object source, string key, PNShakeSpec spec)
+    // Whose a request is: the stat it names, the actor above it, or the player behind a projectile, blast or area. Unknown (an enemy's prop, a world object) is nobody's.
+    private PNStat OwnerOf(object owner)
+    {
+        if (owner is PNStat stat) return stat != null ? stat : null;
+        var component = owner as Component ?? (owner as GameObject)?.transform;
+        if (component == null) return null;
+        var actor = component.GetComponentInParent<PNStat>(true);
+        if (actor != null) return actor;
+        var projectile = component.GetComponentInParent<PNProjectileInstance>(true);
+        if (projectile != null)
+        {
+            var launch = projectile.Launch;
+            if (launch == null) return null;
+            if (launch.Source?.LoadedSource != null) return launch.Source.LoadedSource;
+            // A view-only copy on another machine has no combat source, only the shooter's id.
+            return launch.SourceId.IsValid && session?.Entities != null && session.Entities.TryGet(launch.SourceId, out var shooter) ? shooter.GetComponent<PNStat>() : null;
+        }
+        var blast = component.GetComponentInParent<PNBlastInstance>(true);
+        if (blast != null) return blast.CreatedBy;
+        var area = component.GetComponentInParent<PNAreaInstance>(true);
+        return area != null ? area.CreatedBy : null;
+    }
+
+    // The camera audience (AGENTS.md 2026-11-28): only the request's own player sees a player's effect unless it asked for everyone.
+    private bool ForThisView(object owner, PNCameraAudience audience)
+    {
+        if (audience == PNCameraAudience.Everyone) return true;
+        var stat = OwnerOf(owner);
+        bool player = stat != null && PNEntityRoles.IsPlayer(stat);
+        bool mine = stat != null && local?.Actor != null && ReferenceEquals(stat.gameObject, local.Actor.gameObject);
+        return PNCameraAudiences.Accepts(audience, player, mine);
+    }
+
+    public IPNCameraHandle RequestShake(UnityEngine.Object source, string key, PNShakeSpec spec) => RequestShake(source, key, spec, PNCameraAudience.Auto);
+    public IPNCameraHandle RequestShake(UnityEngine.Object source, string key, PNShakeSpec spec, PNCameraAudience audience, PNStat owner = null)
     {
         if (released || output == null || viewed == null) return new PNRefusedCameraHandle(PNCameraRefusal.NoCamera);
         if (source == null) return new PNRefusedCameraHandle(PNCameraRefusal.OwnerGone);
         var component = source as Component ?? (source as GameObject)?.transform;
         if (component == null || local?.World == null || !local.Contains(component)) return new PNRefusedCameraHandle(PNCameraRefusal.OtherWorld);
+        if (!ForThisView(owner != null ? owner : source, audience)) return new PNRefusedCameraHandle(PNCameraRefusal.OtherViewer);
         if (string.IsNullOrEmpty(key) || key.Length > 128 || !(spec.Amplitude > 0f)) return new PNRefusedCameraHandle(PNCameraRefusal.InvalidParameter);
         // Distance falloff is evaluated once, from the source to the viewed actor (or the camera when there is no actor).
         var focus = local.Actor != null ? local.Actor.transform.position : output.transform.position;

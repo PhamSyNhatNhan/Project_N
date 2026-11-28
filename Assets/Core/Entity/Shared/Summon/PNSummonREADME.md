@@ -49,9 +49,13 @@ entity time it stands still 0.3 s and fires `project_n:eve2_pet_shot` (Eve's hom
 ## Coop
 
 The coop host enrolls a summon like any host entity (replication shell with the metadata's `Template` = the role), so clients see it; removing it goes through the binding,
-so the shell is destroyed on every client. Clients never run `PNSummon` or the pet behavior (no authority). The pet's movement and shots are **not** replicated yet (a client
-sees the pet where it was created); Skill/projectile/summon networking is a later phase. A summon commanded by a client needs Skill networking.
+so the shell is destroyed on every client. Clients never run `PNSummon` or the pet behavior (no authority). What reaches the other machines (checked 2026-11-28):
+movement through `PNMove` (a summon that moves needs `PNMove` on its prefab plus `base:move_speed` / `base:jump_speed`; the pet's hover goes through it), shots through the
+projectile object channel (since O3), `summon_scale` through `PNActorMetadata.Scale` + `PNScaleView`; a client's pet cast is guessed on its own machine (G7,
+`PNPetPredictionChecks`). Not on the wire: `PNEntityRequest.Summoner` is host-side only, so a client cannot trace a summon (or its shot copies, which carry the
+summon's id) back to the player who called it; the camera audience therefore treats a summon's effect as nobody's (Everyone) on clients. A summon commanded by a
+client needs Skill networking.
 
 ## Not done
 
-Summons that follow their owner across worlds (they are retired instead), `followsOwner`, a pet position/shot replication, summons commanded by a client, loot/clear flags for summons.
+Summons that follow their owner across worlds (they are retired instead), `followsOwner`, the summoner id on the wire, summons commanded by a client, loot/clear flags for summons.

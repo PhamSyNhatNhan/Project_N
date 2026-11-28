@@ -58,6 +58,7 @@ public sealed partial class PNCameraDirector
     {
         if (released || output == null || viewed == null) return new PNRefusedCameraHandle(PNCameraRefusal.NoCamera);
         if (owner == null) return new PNRefusedCameraHandle(PNCameraRefusal.OwnerGone);
+        if (!ForThisView(owner, PNCameraAudience.Auto)) return new PNRefusedCameraHandle(PNCameraRefusal.OtherViewer);
         if (string.IsNullOrEmpty(key) || key.Length > 128 || !(bounds.Size.x > 0f)) return new PNRefusedCameraHandle(PNCameraRefusal.InvalidParameter);
         if (!admitted.Keys.Any(v => v != null && v != cinematicRig)) return new PNRefusedCameraHandle(PNCameraRefusal.NotSupported);
         try { return boundsRequests.Request(owner, key, 0, viewed.InstanceId, new BoundsRecord { Bounds = bounds }); }
@@ -102,6 +103,7 @@ public sealed partial class PNCameraDirector
     {
         if (released || output == null || viewed == null) return new PNRefusedCameraHandle(PNCameraRefusal.NoCamera);
         if (owner == null) return new PNRefusedCameraHandle(PNCameraRefusal.OwnerGone);
+        if (!ForThisView(owner, PNCameraAudience.Auto)) return new PNRefusedCameraHandle(PNCameraRefusal.OtherViewer);
         if (string.IsNullOrEmpty(key) || key.Length > 128 || tuning == null) return new PNRefusedCameraHandle(PNCameraRefusal.InvalidParameter);
         try { tuning.Validate(); } catch (Exception) { return new PNRefusedCameraHandle(PNCameraRefusal.InvalidParameter); }
         if ((ViewCapabilities & PNCameraRigCapabilities.Follow) == 0) return new PNRefusedCameraHandle(PNCameraRefusal.NotSupported);
@@ -181,6 +183,7 @@ public sealed partial class PNCameraDirector
     {
         if (released || output == null || viewed == null) return new PNRefusedCameraHandle(PNCameraRefusal.NoCamera);
         if (owner == null) return new PNRefusedCameraHandle(PNCameraRefusal.OwnerGone);
+        if (!ForThisView(owner, PNCameraAudience.Auto)) return new PNRefusedCameraHandle(PNCameraRefusal.OtherViewer);
         if (string.IsNullOrEmpty(key) || key.Length > 128 || request.BlendSeconds < 0f) return new PNRefusedCameraHandle(PNCameraRefusal.InvalidParameter);
         if ((ViewCapabilities & PNCameraRigCapabilities.Follow) == 0) return new PNRefusedCameraHandle(PNCameraRefusal.NotSupported);
         try { return orbits.Request(owner, key, 0, viewed.InstanceId, request); }
