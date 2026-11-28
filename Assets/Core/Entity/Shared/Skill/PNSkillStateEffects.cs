@@ -11,13 +11,16 @@ using Newtonsoft.Json.Linq;
 //     rồi báo skill (`OnAbilityEnded`) để phần thưởng/dọn dẹp chạy ở một chỗ. Ability vẫn là trạng thái thụ động; guess/replay không đụng vào.
 public sealed class PNStateEffectData
 {
+    public const int MaxLooks = 4;
     public EveId State { get; private set; }
     // Optional stat source: `SourceId` + `Modifiers` go together.
     public EveId SourceId { get; private set; }
     public IReadOnlyList<EveStatModifier> Modifiers { get; private set; } = Array.Empty<EveStatModifier>();
     public IReadOnlyList<EveId> BuffIds { get; private set; } = Array.Empty<EveId>();
-    // Optional look sustained on the entity while the state is on (a registered `PNLookDefinition`): display only, it follows the state itself.
-    public EveId LookId { get; private set; }
+    // Optional looks sustained on the entity while the state is on (registered `PNLookDefinition`s): display only, they follow the state itself.
+    // Content writes `"look": "<id>"` or `"look": ["<id>", ...]`. `LookId` is the first one (or none).
+    public IReadOnlyList<EveId> LookIds { get; private set; } = Array.Empty<EveId>();
+    public EveId LookId => LookIds.Count > 0 ? LookIds[0] : default;
 
     public static IReadOnlyList<PNStateEffectData> ParseAll(JToken token)
     {
@@ -70,10 +73,19 @@ public sealed class PNStateEffectData
         }
         if (obj["look"] != null)
         {
-            if (obj["look"].Type != JTokenType.String) throw new FormatException("A stateEffects look must be an ID string.");
-            data.LookId = EveId.Parse(obj["look"].Value<string>());
+            var entries = obj["look"] is JArray list ? new List<JToken>(list) : new List<JToken> { obj["look"] };
+            if (entries.Count == 0 || entries.Count > MaxLooks) throw new FormatException("A stateEffects look list has 1.." + MaxLooks + " looks.");
+            var looks = new List<EveId>();
+            foreach (var item in entries)
+            {
+                if (item.Type != JTokenType.String) throw new FormatException("A stateEffects look must be an ID string.");
+                var id = EveId.Parse(item.Value<string>());
+                if (looks.Contains(id)) throw new FormatException("stateEffects lists a look twice: " + id);
+                looks.Add(id);
+            }
+            data.LookIds = looks;
         }
-        if (!data.SourceId.IsValid && data.BuffIds.Count == 0 && !data.LookId.IsValid) throw new FormatException("A stateEffects entry needs a statSource, buffs or a look.");
+        if (!data.SourceId.IsValid && data.BuffIds.Count == 0 && data.LookIds.Count == 0) throw new FormatException("A stateEffects entry needs a statSource, buffs or a look.");
         return data;
     }
     // Content check: every modifier resolves, every Buff and look exists.
@@ -91,7 +103,7 @@ public sealed class PNStateEffectData
             source.SetSource(SourceId, Modifiers);
         }
         foreach (var id in BuffIds) hub.Buffs().Get(id);
-        if (LookId.IsValid) hub.Get<PNLookDefinition>().Get(LookId);
+        foreach (var id in LookIds) hub.Get<PNLookDefinition>().Get(id);
     }
 }
 
@@ -135,7 +147,7 @@ public partial class PNSkill
         stateEffectAbilities = null;
         var left = new List<ActiveStateEffect>(activeStateEffects.Values); activeStateEffects.Clear();
         foreach (var effect in left) effect.Dispose();
-        foreach (var effect in stateEffectData) if (effect.LookId.IsValid && HasLook(effect.LookId)) SetLook(effect.LookId, false);
+        foreach (var effect in stateEffectData) foreach (var look in effect.LookIds) if (HasLook(look)) SetLook(look, false);
         stateEffectData = Array.Empty<PNStateEffectData>();
     }
     protected bool HasStateEffects(EveId state) => activeStateEffects.ContainsKey(state);
@@ -152,7 +164,7 @@ public partial class PNSkill
         foreach (var candidate in stateEffectData) if (candidate.State == after.Id) { data = candidate; break; }
         if (data == null) return;
         // The look follows the state wherever this skill is simulated (the authority and the owner's guess); every other machine draws it from the entity's picture.
-        if (data.LookId.IsValid && (HasGameplayAuthority || IsOwnerClient)) SetLook(data.LookId, after.IsActive);
+        if (HasGameplayAuthority || IsOwnerClient) foreach (var look in data.LookIds) SetLook(look, after.IsActive);
         if (!HasGameplayAuthority) return;
         bool wasActive = change.Before != null && change.Before.IsActive;
         if (!wasActive && after.IsActive) StartStateEffects(data);

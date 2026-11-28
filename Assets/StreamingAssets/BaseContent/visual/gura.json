@@ -2,6 +2,19 @@
  "schemaVersion": 1,
  "extensions": {
   "project_n": {
+   "visualGlows": [
+    {
+     "id": "project_n:gura_burst_hair",
+     "parts": ["hair_front", "hair_front_far", "hair_loop_near", "hair_loop_far"],
+     "key": "#50a8e8",
+     "color": "#00b3ff",
+     "core": "#bdfaff",
+     "spill": 1,
+     "rise": 0.35,
+     "release": 0.5,
+     "pulse": { "depth": 0.2, "rate": 0.83 }
+    }
+   ],
    "visualParts": [
     {
      "id": "project_n:gura_hair_back",

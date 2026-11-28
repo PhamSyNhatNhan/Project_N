@@ -131,6 +131,7 @@ public class PNContentModule : EveIContentModule, EveIContentFinalizeModule, Eve
         hub.GetOrCreate<PNVisualStringShapeDefinition>(); hub.NameRegistry<PNVisualStringShapeDefinition>("visual_string_shapes");
         hub.GetOrCreate<PNVisualStringColorDefinition>(); hub.NameRegistry<PNVisualStringColorDefinition>("visual_string_colors");
         hub.GetOrCreate<PNVisualStringStyleDefinition>(); hub.NameRegistry<PNVisualStringStyleDefinition>("visual_string_styles");
+        hub.GetOrCreate<PNVisualGlowDefinition>(); hub.NameRegistry<PNVisualGlowDefinition>("visual_glows");
         hub.GetOrCreate<PNSyncStateDefinition>(); hub.GetOrCreate<PNSyncCommandDefinition>();
         hub.GetOrCreate<PNSharedValueDefinition>(); hub.NameRegistry<PNSharedValueDefinition>("shared_values");
         hub.GetOrCreate<PNRunDefinition>(); hub.NameRegistry<PNRunDefinition>("roguelite_runs");

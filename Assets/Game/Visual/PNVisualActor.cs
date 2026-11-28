@@ -282,6 +282,23 @@ public static class PNVisualRuntime
     }
 }
 
+// A light on part of a puppet's own paint, for any rig: nothing is redrawn. `Parts` are bone ids (free parts) and slot ids; null = the whole puppet.
+// `Key` picks which paint lights up (by hue, within `Tolerance`; null = all paint but the ink). `Color` is the light, `Core` its hot middle,
+// `Spill` how far it bleeds onto the paint around it (`Spread` = how wide), `Amount` the strength. Colours are sRGB, as authored.
+public struct PNVisualGlow
+{
+    public IReadOnlyList<string> Parts;
+    public Color? Key;
+    public float Tolerance;             // 0 = .5
+    public Color Color, Core;
+    public float Amount, Spill, Spread; // Spread 0 = 1
+    public int Priority;                // two glows on one part: the higher one is drawn, then the newer
+    public float Rise, Release;         // seconds to come up, to fade once let go
+    public float PulseDepth, PulseRate; // breathing (rate in breaths a second)
+    public System.Func<double?> Remaining;      // with `Warning`: blink while this is under it
+    public float Warning;
+}
+
 // EN: One rig puppet drawn as ONE mesh (a quad per visible part, sorted by layer) on the shared atlas. It owns a PNVisualAnimator (pure pose maths), writes the vertices each
 //     tick without allocating, and exposes sockets and the build's capsule. It never touches gameplay: the entity feeds it a state, a phase, a facing and effects.
 //     Camera facing is a PNCameraFacingTarget on the same object, not done here.
@@ -395,6 +412,7 @@ public sealed class PNVisualActor : MonoBehaviour
     // Builds the puppet. `feetLocal` is where the feet are in the parent's space (the mesh origin sits there); `buildOverride` replaces the appearance's build.
     public void Bind(PNVisualAppearanceDefinition definition, EveRegistryHub hub, Vector3 feetLocal, EveId? buildOverride = null, bool? forceLive = null)
     {
+        glows.Clear(); glowData = null;         // a new appearance is a new rig: its glows do not carry over
         if (animator != null) throw new InvalidOperationException("This Visual actor is already bound.");
         appearance = definition ?? throw new ArgumentNullException(nameof(definition)); if (hub == null) throw new ArgumentNullException(nameof(hub));
         var rigs = hub.Get<PNVisualRigDefinition>(); var rigDef = rigs.Get(appearance.Rig); rig = rigDef.Resolve(id => rigs.Get(id));
@@ -603,6 +621,105 @@ public sealed class PNVisualActor : MonoBehaviour
     public void SetFlash(float value) { flash = Mathf.Clamp01(value); dirty = true; }
     public void SetFade(float value) { fade = Mathf.Clamp01(value); dirty = true; }
 
+    // Lights on the puppet's own paint (see PNVisualGlow). Any number at once; on one part the higher priority wins, then the newer. View only.
+    private sealed class GlowEntry
+    {
+        public int Id; public PNVisualGlow Glow; public bool[] Bones, Slots;
+        public float Age, Released = -1f, Blink, Strength;
+        public Vector4 Settings, Key, Colour, Core;
+    }
+    private static int glowIds;         // unique for the process: a handle of a destroyed puppet never touches another
+    private readonly List<GlowEntry> glows = new List<GlowEntry>();
+    private Vector4[][] glowData;       // uv4..uv7, made the first time an actor glows: others keep their vertex layout
+    public int GlowCount => glows.Count;
+
+    public int AddGlow(in PNVisualGlow value)
+    {
+        if (rig == null) return 0;
+        var entry = new GlowEntry { Id = ++glowIds, Glow = value };
+        if (value.Parts != null)
+        {
+            entry.Bones = new bool[rig.Bones.Count]; entry.Slots = new bool[rig.Slots.Count];
+            for (int i = 0; i < value.Parts.Count; i++)
+            {
+                int bone = rig.BoneIndex(value.Parts[i]), slot = rig.SlotIndex(value.Parts[i]);
+                if (bone >= 0) entry.Bones[bone] = true;
+                if (slot >= 0) entry.Slots[slot] = true;
+            }
+        }
+        entry.Key = Paint(value.Key ?? Color.white); entry.Key.w = value.Spread > 0f ? value.Spread : 1f;
+        entry.Colour = Paint(value.Color); entry.Core = Paint(value.Core);
+        glows.Add(entry); Settle(entry, 0f); dirty = true;
+        return entry.Id;
+    }
+    // Changes how strong a glow is (its other settings stay). False when the handle is gone.
+    public bool SetGlowAmount(int handle, float amount)
+    {
+        for (int i = 0; i < glows.Count; i++)
+            if (glows[i].Id == handle) { glows[i].Glow.Amount = Mathf.Clamp01(amount); Settle(glows[i], 0f); dirty = true; return true; }
+        return false;
+    }
+    // Lets a glow go: it fades over its `Release` seconds, or vanishes at once with `now`.
+    public void RemoveGlow(int handle, bool now = false)
+    {
+        for (int i = 0; i < glows.Count; i++)
+        {
+            if (glows[i].Id != handle) continue;
+            if (now || glows[i].Glow.Release <= 0f) glows.RemoveAt(i);
+            else if (glows[i].Released < 0f) glows[i].Released = 0f;
+            dirty = true; return;
+        }
+    }
+    public void ClearGlows() { if (glows.Count > 0) { glows.Clear(); dirty = true; } }
+
+    private static void Settle(GlowEntry entry, float dt)
+    {
+        var glow = entry.Glow;
+        entry.Age += dt;
+        if (entry.Released >= 0f) entry.Released += dt;
+        float strength = Mathf.Clamp01(glow.Amount);
+        if (glow.Rise > 0f) strength *= Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(entry.Age / glow.Rise));
+        if (entry.Released >= 0f) strength *= 1f - Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(entry.Released / Mathf.Max(.001f, glow.Release)));
+        if (glow.PulseDepth > 0f) strength *= 1f - glow.PulseDepth * (.5f - .5f * Mathf.Sin(entry.Age * glow.PulseRate * 2f * Mathf.PI));
+        double? left = entry.Released < 0f && glow.Remaining != null ? glow.Remaining() : null;
+        if (left.HasValue && left.Value > 0d && left.Value < glow.Warning)
+        {
+            entry.Blink += dt * Mathf.Lerp(30f, 14f, (float)left.Value / glow.Warning);
+            strength *= Mathf.Lerp(.15f, 1f, .5f + .5f * Mathf.Cos(entry.Blink));
+        }
+        else entry.Blink = 0f;
+        entry.Strength = strength;
+        entry.Settings = new Vector4(strength, Mathf.Clamp01(glow.Spill), glow.Tolerance > 0f ? glow.Tolerance : .5f, glow.Key.HasValue ? 1f : 0f);
+    }
+
+    private void AdvanceGlows(float dt)
+    {
+        if (glows.Count == 0 || dt <= 0f) return;
+        for (int i = glows.Count - 1; i >= 0; i--)
+        {
+            var entry = glows[i];
+            Settle(entry, dt);
+            if (entry.Released >= 0f && entry.Released >= entry.Glow.Release) glows.RemoveAt(i);
+        }
+        dirty = true;
+    }
+
+    private void WriteGlow(in Drawable d, int first, int count)
+    {
+        GlowEntry best = null;
+        for (int i = 0; i < glows.Count; i++)
+        {
+            var entry = glows[i];
+            if (entry.Strength <= 0f) continue;
+            if (entry.Glow.Parts != null && !(d.Slot >= 0 ? entry.Slots[d.Slot] : d.Bone >= 0 && entry.Bones[d.Bone])) continue;
+            if (best == null || entry.Glow.Priority >= best.Glow.Priority) best = entry;        // later in the list = newer
+        }
+        Vector4 settings = default, key = default, colour = default, core = default;
+        if (best != null) { settings = best.Settings; key = best.Key; colour = best.Colour; core = best.Core; }
+        for (int k = first; k < first + count; k++) { glowData[0][k] = settings; glowData[1][k] = key; glowData[2][k] = colour; glowData[3][k] = core; }
+    }
+    private static Vector4 Paint(Color c) => QualitySettings.activeColorSpace == ColorSpace.Linear ? c.linear : c;     // authored as sRGB, like part colours
+
     // Socket position in the actor's local space (metres), or false when the rig has no such socket.
     public bool TryGetSocketLocal(string id, out Vector3 position)
     {
@@ -617,6 +734,23 @@ public sealed class PNVisualActor : MonoBehaviour
         position = transform.TransformPoint(local); return true;
     }
 
+    // The posed quad of one slot (local space; top left, top right, bottom right, bottom left) with its atlas uv, for a view that draws over one part.
+    // False when the slot is empty here or is not a plain quad.
+    public bool TryCopySlotQuad(string slotId, Vector3[] corners, Vector2[] uvs, out Vector4 bounds, out float alpha)
+    {
+        bounds = default; alpha = 0f;
+        if (drawables == null) return false;
+        for (int i = 0; i < drawables.Length; i++)
+        {
+            var d = drawables[i];
+            if (d.Slot < 0 || d.Kind != 0 || rig.Slots[d.Slot].Id != slotId) continue;
+            for (int k = 0; k < 4; k++) { corners[k] = vertices[d.VertexStart + k]; uvs[k] = uv0[d.VertexStart + k]; }
+            bounds = uvBounds[d.VertexStart]; alpha = colors[d.VertexStart].a / 255f * fade;
+            return true;
+        }
+        return false;
+    }
+
     // One frame: advance the pose (entity clock seconds), evaluate it and, when the mesh is visible (or `force`), write the vertices.
     public void Tick(float dt, bool writeMesh = true)
     {
@@ -626,6 +760,7 @@ public sealed class PNVisualActor : MonoBehaviour
         strings?.FeedPosition(transform.position,dt);
         strings?.Advance(dt);                                  // the strings lower and fall away on the same clock
         animator.Advance(dt);                                  // time and blends always advance, so motions keep their meaning while the actor is out of view
+        AdvanceGlows(dt);
         if (writeMesh) { animator.Evaluate(); poseDirty = false; WriteMesh(); }
         else poseDirty = true;                                 // evaluated on demand (EnsurePose) or on re-entry
     }
@@ -730,6 +865,8 @@ public sealed class PNVisualActor : MonoBehaviour
     private void WriteMesh()
     {
         var a = animator;
+        if (glowData != null && glowData[0].Length != vertices.Length) glowData = null;
+        if (glows.Count > 0 && glowData == null) glowData = new[] { new Vector4[vertices.Length], new Vector4[vertices.Length], new Vector4[vertices.Length], new Vector4[vertices.Length] };
         for (int i = 0; i < drawables.Length; i++)
         {
             ref var d = ref drawables[i];
@@ -829,10 +966,12 @@ public sealed class PNVisualActor : MonoBehaviour
             var tint = tintColors[(int)d.Tint]; float alpha = d.Slot >= 0 ? a.SlotAlpha[d.Slot] : 1f; if (d.Blush) alpha *= appearance.BlushAlpha;
             var color = new Color32(tint.r, tint.g, tint.b, (byte)Mathf.Clamp(Mathf.RoundToInt(tint.a * alpha), 0, 255));
             var effect = new Vector2(flash, fade);
+            if (glowData != null) WriteGlow(d, v, count);
             var bounds = new Vector4(uv.xMin, uv.yMin, uv.xMax, uv.yMax);   // both flavours carry the transparent border (baked: with the marks), so samples may read all of it
             for (int k = 0; k < count; k++) { colors[v + k] = color; uv1[v + k] = effect; uvBounds[v + k] = bounds; paperLayer[v+k]=new Vector2(d.Layer,shaded?1f:0f); }
         }
         mesh.SetVertices(vertices); mesh.SetUVs(0, uv0); mesh.SetUVs(1, uv1); mesh.SetUVs(2, uvBounds); mesh.SetColors(colors);
+        if (glowData != null) for (int c = 0; c < glowData.Length; c++) mesh.SetUVs(4 + c, glowData[c]);
         mesh.SetUVs(3,paperLayer); if (shadowOn) WritePaperCasters();
         dirty = false;
     }

@@ -182,6 +182,7 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
         // Looks (Docs/ObservedViewPlan.md PV3): pictures that logic only names; the engine draws them on every machine.
         var looks = hub.GetOrCreate<PNLookDefinition>();
         looks.Register(new PNLookDefinition(PNGuraCoatLooks.Id, PNGuraCoatLooks.Create)); // named by Gura's `stateEffects`, so every build knows the ID
+        looks.Register(new PNLookDefinition(PNGuraBurstEyeLooks.Id, PNGuraBurstEyeLooks.Create));
 #if UNITY_5_3_OR_NEWER
         looks.Register(new PNLookDefinition(EveBurstLook.Id, EveBurstLook.Create));
         looks.Register(new PNLookDefinition(EveMotionTrailLook.Id, EveMotionTrailLook.Create));
@@ -389,7 +390,8 @@ public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeMod
             {
                 if (effect?["buffs"] is JArray effectBuffs)
                     foreach (var buff in effectBuffs) if (buff.Type == JTokenType.String) ValidateReference(EveId.Parse(buff.Value<string>()), hub.Buffs(), contentNamespace, dependencies);
-                if (effect?["look"]?.Type == JTokenType.String) ValidateReference(EveId.Parse(effect["look"].Value<string>()), hub.Get<PNLookDefinition>(), contentNamespace, dependencies);
+                foreach (var look in effect?["look"] is JArray effectLooks ? (IEnumerable<JToken>)effectLooks : new[] { effect?["look"] })
+                    if (look?.Type == JTokenType.String) ValidateReference(EveId.Parse(look.Value<string>()), hub.Get<PNLookDefinition>(), contentNamespace, dependencies);
             }
         foreach (var phasePayload in new[] { data.Action.Start, data.Action.Perform, data.Action.Exit, data.Action.Cancel })
         {

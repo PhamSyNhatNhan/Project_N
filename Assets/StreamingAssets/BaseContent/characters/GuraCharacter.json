@@ -897,6 +897,7 @@
               "stateEffects": [
                 {
                   "state": "project_n:gura_burst_state",
+                  "look": ["project_n:gura_burst_eyes", "project_n:gura_burst_hair"],
                   "statSource": {
                     "id": "project_n:gura_burst_bonus",
                     "modifiers": [

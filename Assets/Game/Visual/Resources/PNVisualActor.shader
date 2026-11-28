@@ -2,6 +2,8 @@
 //       3D renderer (index 1, draws `UniversalForward`). A pass tagged for only one of them is silently not drawn by the other (an invisible puppet, no error).
 // Visual actor: every part of one puppet is a quad of one mesh. Part colours (skin, eye, ...) and the part alpha live in the vertex colour; the effects that apply to the
 // WHOLE actor travel in the second UV set so the shared material keeps batching: x = flash towards white (0..1), y = fade (alpha multiplier).
+// A glow (PNVisualGlow) travels per part in uv4..uv7, present only on actors that were asked to glow: uv4 = amount, spill, key tolerance, keyed; uv5 = key paint, bleed width;
+// uv6 = light; uv7 = hot middle. Amount 0 (the normal case) costs one branch.
 Shader "PN/VisualActor"
 {
     Properties
@@ -45,14 +47,15 @@ Shader "PN/VisualActor"
         CBUFFER_END
         float _PaperCasterCount;
         float4 _PaperCasterA[128],_PaperCasterB[128],_PaperCasterC[128],_PaperCasterBounds[128],_PaperCasterMeta[128];
-        struct Attributes { float4 positionOS : POSITION; float2 uv : TEXCOORD0; float2 effect : TEXCOORD1; float4 bounds : TEXCOORD2; float2 layer : TEXCOORD3; half4 color : COLOR; };
-        struct Varyings { float4 positionCS : SV_POSITION; float2 uv : TEXCOORD0; float2 effect : TEXCOORD1; float4 bounds : TEXCOORD2; float2 layer : TEXCOORD3;float2 localXY:TEXCOORD4; half4 color : COLOR; };
+        struct Attributes { float4 positionOS : POSITION; float2 uv : TEXCOORD0; float2 effect : TEXCOORD1; float4 bounds : TEXCOORD2; float2 layer : TEXCOORD3; half4 color : COLOR; float4 glow : TEXCOORD4; float4 glowKey : TEXCOORD5; float4 glowColor : TEXCOORD6; float4 glowCore : TEXCOORD7; };
+        struct Varyings { float4 positionCS : SV_POSITION; float2 uv : TEXCOORD0; float2 effect : TEXCOORD1; float4 bounds : TEXCOORD2; float2 layer : TEXCOORD3;float2 localXY:TEXCOORD4; half4 color : COLOR; float4 glow : TEXCOORD5; half4 glowKey : TEXCOORD6; half4 glowColor : TEXCOORD7; half4 glowCore : TEXCOORD8; };
         Varyings vert(Attributes input)
         {
             Varyings output;
             output.positionCS = TransformObjectToHClip(input.positionOS.xyz);
             output.uv = input.uv; output.effect = input.effect; output.color = input.color; output.bounds = input.bounds;
             output.layer=input.layer;output.localXY=input.positionOS.xy;
+            output.glow = input.glow; output.glowKey = input.glowKey; output.glowColor = input.glowColor; output.glowCore = input.glowCore;
 #if !defined(UNITY_COLORSPACE_GAMMA)
             half3 c = input.color.rgb; output.color.rgb = c * (c * (c * 0.305306011 + 0.682171111) + 0.012522878);   // sRGB -> linear: part colours are authored as sRGB hex (#ffeddb), the framebuffer is linear
 #endif
@@ -117,6 +120,64 @@ Shader "PN/VisualActor"
                 if(coverage>.999)break;
             }
             return coverage;
+        }
+        // How much a paint takes the glow: never the black ink; with a key, only paint of that hue (brightness does not matter, so shades of it follow).
+        half glowKeyed(half3 paint, Varyings input)
+        {
+            half high = max(paint.r, max(paint.g, paint.b));
+            half takes = smoothstep(.006, .03, high);
+            if (input.glow.w > .5)
+            {
+                half3 key = input.glowKey.rgb;
+                half away = distance(paint / max(high, .001), key / max(max(key.r, max(key.g, key.b)), .001));
+                takes *= 1 - smoothstep(input.glow.z * .7, input.glow.z * 1.3, away);
+            }
+            return takes;
+        }
+        half tapGlow(float2 uv, bool shadedTile, Varyings input)
+        {
+            float4 size = shadedTile ? _ShadeTex_TexelSize : _MainTex_TexelSize;
+            float2 at = clamp(uv, input.bounds.xy + size.xy * .5, input.bounds.zw - size.xy * .5);
+            half4 c = shadedTile ? SAMPLE_TEXTURE2D_LOD(_ShadeTex, sampler_ShadeTex, at, 0) : SAMPLE_TEXTURE2D_LOD(_MainTex, sampler_MainTex, at, 0);
+            return glowKeyed(c.rgb * input.color.rgb, input) * c.a;
+        }
+        half3 paintGlow(half3 rgb, half3 paint, Varyings input)
+        {
+            [branch] if (input.glow.x > 0)
+            {
+                bool shadedTile = input.layer.y > .5;
+                float2 texel = shadedTile ? _ShadeTex_TexelSize.xy : _MainTex_TexelSize.xy;
+                half close = 0, wide = 0;
+                [unroll] for (int k = 0; k < 8; k++)
+                {
+                    float2 way; sincos(k * .785398, way.y, way.x);
+                    close += tapGlow(input.uv + way * texel * 11, shadedTile, input);
+                    wide += tapGlow(input.uv + way * texel * 26, shadedTile, input);
+                }
+                close /= 8; wide /= 8;
+                // The rings above shape the hot middle; the bleed has its own width, sampled again only when it differs.
+                half bleedClose = close, bleedWide = wide;
+                [branch] if (abs(input.glowKey.w - 1) > .01)
+                {
+                    bleedClose = 0; bleedWide = 0;
+                    [unroll] for (int k = 0; k < 8; k++)
+                    {
+                        float2 way; sincos(k * .785398, way.y, way.x);
+                        bleedClose += tapGlow(input.uv + way * texel * (11 * input.glowKey.w), shadedTile, input);
+                        bleedWide += tapGlow(input.uv + way * texel * (26 * input.glowKey.w), shadedTile, input);
+                    }
+                    bleedClose /= 8; bleedWide /= 8;
+                }
+                half own = glowKeyed(paint, input);
+                // The lit paint itself: hotter the further it is from its own edge.
+                half3 lit = lerp(input.glowColor.rgb, input.glowCore.rgb, smoothstep(.40, .95, (close + wide) * .5));
+                rgb = lerp(rgb, lit, own * input.glow.x);
+                // The bleed: only onto light paint, so the ink lines stay dark.
+                half lum = dot(rgb, half3(.2126, .7152, .0722));
+                half halo = saturate((bleedClose * .65 + bleedWide * .55) * 2) * (1 - own) * smoothstep(.08, .35, lum);
+                rgb = lerp(rgb, lerp(input.glowColor.rgb, input.glowCore.rgb, .3), halo * input.glow.y * input.glow.x * .8);
+            }
+            return rgb;
         }
         half4 fragDynamic(Varyings input)
         {
@@ -196,6 +257,7 @@ Shader "PN/VisualActor"
                 float overlap=paperOverlap(queryXY,px,py,input.layer.x);
                 rgb=lerp(rgb,rgb*half3(.48,.43,.58),overlap*_OverlapShadow);
             }
+            rgb = paintGlow(rgb, texel.rgb * input.color.rgb, input);
             half ink = saturate(edge - texel.a) * _OutlineColor.a;
             ink *= 1 - _SketchStrength * (.5 + broad); // fixed to the art; never crawls with time
             half faceAlpha = texel.a + ink * (1 - texel.a);
@@ -232,6 +294,7 @@ Shader "PN/VisualActor"
                 float overlap = paperOverlap(queryXY, px, py, input.layer.x);
                 rgb = lerp(rgb, rgb * half3(.48,.43,.58), overlap * _OverlapShadow);
             }
+            rgb = paintGlow(rgb, texel.rgb * input.color.rgb, input);
             rgb = lerp(rgb, half3(1, 1, 1), saturate(input.effect.x));
             return half4(rgb, texel.a * input.color.a * saturate(input.effect.y));
 #else

@@ -135,6 +135,26 @@ Sway, spring, ripple, trails and particles advance on the actor clock, including
 
 Fresh checks: `PNVisualStringTests.PresentationEffects` (idle, motion, bounds, pause, settle, catch-up, reuse); `PNVisualStringEffectsCheck.Run/RunCapacity` (120 captured native frames, 300 active tick/draw frames at 0 B, hide cleanup, both renderer paths, 512 maximal primary ribbons retained); existing `PNVisualStringsCheck.Run` 22 and `PNVisualEditorChecks.RunStringsGameplay` 17. The latter checks Lorica/entrance/reuse; the new render fixture invokes the hit presentation directly, not a network session. Artifacts: `.utmp/StringEffects20261030/Frames`, `strings-main.gif`, `native-final.txt`.
 
+## Glows: light on a puppet's own paint (2026-11-29, RulesVersion 203)
+
+Nothing is redrawn: `PN/VisualActor` lights the paint that matches, in place, so it follows bends and is still covered by the parts in front.
+
+Content, `extensions.project_n.visualGlows`:
+
+```json
+{ "id": "project_n:gura_burst_hair", "parts": ["hair_front", "hair_loop_near"], "key": "#50a8e8",
+  "color": "#00b3ff", "core": "#bdfaff", "tolerance": 0.5, "amount": 1, "spill": 1, "spread": 1, "priority": 0,
+  "rise": 0.35, "release": 0.5, "pulse": { "depth": 0.2, "rate": 0.83 } }
+```
+
+- Only `id` and `color` are required. `parts` = bone ids (free parts) and slot ids; absent = the whole puppet. `key` = the paint that lights (by hue); absent = all paint but the black ink. `spill` = bleed onto the paint around, `spread` = how wide (0.25..3). Limits are refused, never clamped.
+- Every glow is also a **look** of the same ID (path: lowercase, digits, underscores, at most 24). Name it in `stateEffects[].look` (one ID or a list of up to 4), `perform.look` or `skill.SetLook`. No code, no network data: the look rides the entity's picture.
+- Several glows at once: on different parts they all show; on one part the higher `priority` wins, then the newer (no blending).
+- Code (view only): `PNVisualActor.AddGlow(PNVisualGlow)` returns a handle; `SetGlowAmount`, `RemoveGlow(handle, now)`, `ClearGlows`. The actor animates rise, pulse, blink and fade on its own clock. A new `Bind` drops all glows.
+- Optional `"warning": { "state": "<Ability state>", "seconds": 2 }` blinks in the last seconds of that state (Gura does not use it). It blinks only where the Ability is known (the host and the owner); others see a steady glow.
+- A puppet that never glowed keeps its vertex layout (uv4..uv7 are made on the first glow).
+- A body without a puppet draws nothing.
+
 ## Not done
 
 The rig tools (`ArtSource/VisualDemo`, `ArtSource/RigTool`) do not show or author `segments`/`bend`/`sway` yet (write them in the JSON); a bent part's children do not follow the curve; Eve and Eve 2 still use their prefab sprite; first enemy art; equipment art and loadout; corpse behaviour; aim UI; authored interior sketch strokes; a boss flag for `KeyActors`, baking world sprites, the puppet strings; flipbook art; Android and mobile timing; a Player run of the Visual test character through the real factory in a coop session.

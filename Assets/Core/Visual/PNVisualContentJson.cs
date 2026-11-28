@@ -10,7 +10,7 @@ using Newtonsoft.Json.Linq;
 // VI: JSON của các registry Visual trong `extensions.project_n`. Trường lạ bị từ chối, số phải hữu hạn trong giới hạn cứng, tham chiếu được kiểm theo phụ thuộc pack.
 public sealed partial class PNBuffContentBatch
 {
-    public static readonly string[] VisualFields = { "visualRigs", "visualParts", "visualBuilds", "visualMotions", "visualMotionSets", "visualExpressions", "visualAppearances", "visualStringShapes", "visualStringColors", "visualStringStyles" };
+    public static readonly string[] VisualFields = { "visualRigs", "visualParts", "visualBuilds", "visualMotions", "visualMotionSets", "visualExpressions", "visualAppearances", "visualStringShapes", "visualStringColors", "visualStringStyles", "visualGlows" };
     private readonly Dictionary<EveId, PNVisualRigDefinition> visualRigs = new Dictionary<EveId, PNVisualRigDefinition>();
     private readonly Dictionary<EveId, PNVisualPartDefinition> visualParts = new Dictionary<EveId, PNVisualPartDefinition>();
     private readonly Dictionary<EveId, PNVisualBuildDefinition> visualBuilds = new Dictionary<EveId, PNVisualBuildDefinition>();
@@ -20,7 +20,7 @@ public sealed partial class PNBuffContentBatch
     private readonly Dictionary<EveId, PNVisualAppearanceDefinition> visualAppearances = new Dictionary<EveId, PNVisualAppearanceDefinition>();
 
     private IEnumerable<EveIIdentified> VisualDefinitions => visualRigs.Values.Cast<EveIIdentified>().Concat(visualParts.Values).Concat(visualBuilds.Values).Concat(visualMotions.Values)
-        .Concat(visualMotionSets.Values).Concat(visualExpressions.Values).Concat(visualAppearances.Values).Concat(VisualStringDefinitions);
+        .Concat(visualMotionSets.Values).Concat(visualExpressions.Values).Concat(visualAppearances.Values).Concat(VisualStringDefinitions).Concat(VisualGlowDefinitions);
 
     private void CommitVisual()
     {
@@ -32,6 +32,7 @@ public sealed partial class PNBuffContentBatch
         foreach (var d in visualExpressions.Values) hub.Get<PNVisualExpressionDefinition>().Register(d);
         foreach (var d in visualAppearances.Values) hub.Get<PNVisualAppearanceDefinition>().Register(d);
         CommitVisualStrings();
+        CommitVisualGlows();
     }
 
     private void ParseVisual(JObject root, EveContentExtensionDocument document)
@@ -43,6 +44,7 @@ public sealed partial class PNBuffContentBatch
         foreach (var token in Array(root["visualMotionSets"])) AddVisual(visualMotionSets, ParseMotionSet(Object(token), document), hub.Get<PNVisualMotionSetDefinition>());
         foreach (var token in Array(root["visualExpressions"])) AddVisual(visualExpressions, ParseExpression(Object(token), document), hub.Get<PNVisualExpressionDefinition>());
         ParseVisualStrings(root, document);
+        ParseVisualGlows(root, document);
         foreach (var token in Array(root["visualAppearances"])) AddVisual(visualAppearances, ParseAppearance(Object(token), document), hub.Get<PNVisualAppearanceDefinition>());
     }
 

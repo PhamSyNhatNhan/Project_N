@@ -8,8 +8,23 @@ using UnityEngine;
 //     entity drive the puppet's states (position and replicated health, so a replica needs nothing extra on the wire). A character without `body.visual` is untouched. The factory calls Begin after configuring an entity and Clear when it returns to the pool.
 // VI: Gắn con rối rig lên entity có `body.visual`: tắt sprite cũ, vẽ bằng PNVisualActor, capsule theo build, bóng theo build, chuyển động/bị đánh/chết của entity điều khiển trạng thái.
 [DisallowMultipleComponent]
-public sealed class PNVisualBody : MonoBehaviour
+public sealed class PNVisualBody : MonoBehaviour, IPNGlowSurface
 {
+    // Glows asked for by looks (PNGlowLook): the puppet draws and animates them.
+    public bool GlowReady => actor != null;
+    public int AddGlow(PNVisualGlowDefinition glow, Func<double?> remaining)
+    {
+        if (actor == null || glow == null) return 0;
+        Color Shade(PNVisualColor c) => new Color(c.R, c.G, c.B, c.A);
+        return actor.AddGlow(new PNVisualGlow
+        {
+            Parts = glow.Parts, Key = glow.Key.HasValue ? Shade(glow.Key.Value) : (Color?)null, Tolerance = glow.Tolerance,
+            Color = Shade(glow.Color), Core = Shade(glow.Core), Amount = glow.Amount, Spill = glow.Spill, Spread = glow.Spread, Priority = glow.Priority,
+            Rise = glow.Rise, Release = glow.Release, PulseDepth = glow.PulseDepth, PulseRate = glow.PulseRate, Remaining = remaining, Warning = glow.WarningSeconds,
+        });
+    }
+    public void RemoveGlow(int handle, bool now) { if (actor != null) actor.RemoveGlow(handle, now); }
+
     [SerializeField] private Transform visual;          // the authored sprite object, switched off while a puppet is drawn
     [SerializeField] private CapsuleCollider capsule;
     [SerializeField, Min(0f)] private float walkSpeed = .08f, runSpeed = 1.1f;   // m/s of the entity; below walkSpeed it stands
