@@ -28,6 +28,9 @@ internal sealed class PNGuraWaterParticles : System.IDisposable
                 return new PNGuraWaterParticles(owner, pack.SkillExplosion);      // every layer, as the pack made it
             case "dive":
                 return new PNGuraWaterParticles(owner, pack.DiveBubbles);
+            case "burst_land":
+                // Water_Impact's strike only: the crown ring and the long splashes (not its bubbles, pool or rising streams).
+                return new PNGuraWaterParticles(owner, pack.TridentImpact, "splash_mesh", "splash_long_end");
             case "surge":
                 return new PNGuraWaterParticles(owner, pack.DashSplash, "ground_water", "ripples");
             default:

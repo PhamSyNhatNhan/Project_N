@@ -74,7 +74,7 @@ public sealed partial class PNCameraDirector : MonoBehaviour, IPNViewCameraServi
     private readonly Dictionary<CinemachineVirtualCameraBase, Admission> admitted = new Dictionary<CinemachineVirtualCameraBase, Admission>();
     private readonly Dictionary<Behaviour, bool> suppressed = new Dictionary<Behaviour, bool>();
     private GameObject fallbackObject;
-    public const float DefaultFallbackDistance = 5.5f;
+    public const float DefaultFallbackDistance = 6.5f;
     private CinemachineCamera fallback;
     private OutputChannels reserved;
     private EveWorldContext viewed;

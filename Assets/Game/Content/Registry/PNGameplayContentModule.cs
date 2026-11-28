@@ -9,7 +9,7 @@ using Newtonsoft.Json.Linq;
 public class PNGameplayContentModule : EveIContentModule, EveIContentFinalizeModule, EveIContentReferenceValidator, EveIContentExtension
 {
     // The look of the Hall and the Lobby (Docs/CameraSinglePathPlan.md C4): their shell scenes no longer carry a virtual camera, the world declares it. 45 degrees, 5.5 m, FOV 38, as the scene rigs were.
-    private static readonly PNCameraViewLayer ShellView=new PNCameraViewLayer{Projection=PNCameraProjection.Perspective,FieldOfView=38f,Pitch=45f,Yaw=0f,Distance=5.5f};
+    private static readonly PNCameraViewLayer ShellView=new PNCameraViewLayer{Projection=PNCameraProjection.Perspective,FieldOfView=38f,Pitch=38f,Yaw=0f,Distance=6.5f};
     private readonly List<(EveId id,string owner,IReadOnlyCollection<string> dependencies)> motionReferences=new List<(EveId,string,IReadOnlyCollection<string>)>();
     public static readonly EveId LockMovementOperation = EveId.Parse("project_n:lock_movement");
     public static readonly EveId DamageAction = EveId.Parse("project_n:damage_action");

@@ -6,15 +6,15 @@ using UnityEngine;
 // EN: Gura's Skill slot (Docs/GuraCharacter.md 4.2). Outside Burst it has two forms, picked once per press (`cast_form`, a decision, so the owner's guess and the authority take the same one): an enemy nearer than
 //     `formRange` (to the edge of its body) gets the near form (`meleeActionDataId`, the vortex); a farther one, or none within `reach`, gets the throw (`actionDataId`). A throw that hits an enemy which is still
 //     alive goes on, in the same cast, with the rush (`rushActionDataId`, a strike that walks to it); a miss, a kill or no right to move ends the cast. The next-strike flag of these two forms is not
-//     given here but by their hits (skill data `flagOnHit`). In Burst the slot is the Skill Burst (`inBurst`): one Action, and `afterStateId` is raised when it ends.
-//     Profile data {cooldownAbilityId, actionDataId, meleeActionDataId, rushActionDataId, formRange, reach, afterStateId, inBurst}. It has no network code.
+//     given here but by their hits (skill data `flagOnHit`). Each form has its own cooldown (the near one `meleeCooldownAbilityId`) and the slot answers only when BOTH are ready. In Burst the slot is the Skill Burst (`inBurst`): one Action, and `afterStateId` is raised when it ends.
+//     Profile data {cooldownAbilityId, meleeCooldownAbilityId, actionDataId, meleeActionDataId, rushActionDataId, formRange, reach, afterStateId, inBurst}. It has no network code.
 // VI: O Skill cua Gura. Ngoai Burst co hai dang chon mot lan luc bam: quai gan thi xoay nuoc, quai xa thi nem dinh ba, trung quai con song thi lao toi. Trong Burst la Skill Burst.
 public sealed class GuraCastBehavior : PNSkillBehavior
 {
     public const string DecisionPoint = "cast_target";
     public const string FormPoint = "cast_form";
     private readonly PNSkillBehaviorContext context;
-    private readonly EveId cooldownId, throwId, meleeId, rushId, afterId, burstCooldownId, burstActionId;
+    private readonly EveId cooldownId, meleeCooldownId, throwId, meleeId, rushId, afterId, burstCooldownId, burstActionId;
     private readonly float reach, formRange;
     private PNSkillAction action; private PNSkillActionContext actionContext; private bool casting, inBurst; private PNStat stat;
     public static int Casts, Cancels, Melees, Throws, Rushes;
@@ -24,7 +24,7 @@ public sealed class GuraCastBehavior : PNSkillBehavior
     {
         this.context = context ?? throw new ArgumentNullException(nameof(context));
         var data = PNBuffContentBatch.Object(context.Profile.Data);
-        cooldownId = EveId.Parse(PNBuffContentBatch.String(data, "cooldownAbilityId")); throwId = EveId.Parse(PNBuffContentBatch.String(data, "actionDataId"));
+        cooldownId = EveId.Parse(PNBuffContentBatch.String(data, "cooldownAbilityId")); meleeCooldownId = EveId.Parse(PNBuffContentBatch.String(data, "meleeCooldownAbilityId")); throwId = EveId.Parse(PNBuffContentBatch.String(data, "actionDataId"));
         meleeId = EveId.Parse(PNBuffContentBatch.String(data, "meleeActionDataId")); rushId = EveId.Parse(PNBuffContentBatch.String(data, "rushActionDataId"));
         reach = (float)PNBuffContentBatch.Number(data, "reach"); formRange = (float)PNBuffContentBatch.Number(data, "formRange");
         afterId = EveId.Parse(PNBuffContentBatch.String(data, "afterStateId"));
@@ -32,8 +32,8 @@ public sealed class GuraCastBehavior : PNSkillBehavior
     }
     public static void Validate(JToken data, EveRegistryHub hub)
     {
-        var obj = PNBuffContentBatch.Object(data); PNBuffContentBatch.Fields(obj, "cooldownAbilityId", "actionDataId", "meleeActionDataId", "rushActionDataId", "formRange", "reach", "afterStateId", "inBurst");
-        foreach (var key in new[] { "cooldownAbilityId", "actionDataId", "meleeActionDataId", "rushActionDataId", "afterStateId" }) EveId.Parse(PNBuffContentBatch.String(obj, key));
+        var obj = PNBuffContentBatch.Object(data); PNBuffContentBatch.Fields(obj, "cooldownAbilityId", "meleeCooldownAbilityId", "actionDataId", "meleeActionDataId", "rushActionDataId", "formRange", "reach", "afterStateId", "inBurst");
+        foreach (var key in new[] { "cooldownAbilityId", "meleeCooldownAbilityId", "actionDataId", "meleeActionDataId", "rushActionDataId", "afterStateId" }) EveId.Parse(PNBuffContentBatch.String(obj, key));
         double r = PNBuffContentBatch.Number(obj, "reach"); if (!(r > 0d && r <= 50d)) throw new FormatException("gura_cast reach must be in (0, 50].");
         double near = PNBuffContentBatch.Number(obj, "formRange"); if (!(near >= 0d && near <= r)) throw new FormatException("gura_cast formRange must be in [0, reach].");
         var burst = PNBuffContentBatch.Object(obj["inBurst"]); PNBuffContentBatch.Fields(burst, "cooldownAbilityId", "actionDataId"); EveId.Parse(PNBuffContentBatch.String(burst, "cooldownAbilityId")); EveId.Parse(PNBuffContentBatch.String(burst, "actionDataId"));
@@ -53,7 +53,9 @@ public sealed class GuraCastBehavior : PNSkillBehavior
         // In Burst the Skill is the Skill Burst: its own action and its own cooldown.
         inBurst = GuraResources.InBurst(context.Abilities);
         var cooldown = context.Abilities.GetCooldown(inBurst ? burstCooldownId : cooldownId);
-        if (!cooldown.CanConsume() || !context.TryBegin()) return false;
+        // Outside Burst the slot waits for both forms' cooldowns, whichever form the press would take; the form taken spends its own.
+        var meleeCooldown = inBurst ? null : context.Abilities.GetCooldown(meleeCooldownId);
+        if (!cooldown.CanConsume() || meleeCooldown != null && !meleeCooldown.CanConsume() || !context.TryBegin()) return false;
         casting = true; bool failed = true;
         try
         {
@@ -65,7 +67,7 @@ public sealed class GuraCastBehavior : PNSkillBehavior
             {
                 bool melee = context.Skill.CurrentInvocation.Choose<bool>(FormPoint, () => target != null && Gap(target) <= formRange);
                 useAction = melee ? meleeId : throwId;
-                if (melee) Melees++; else Throws++;
+                if (melee) { Melees++; cooldown = meleeCooldown; } else Throws++;
             }
             Begin(useAction, target, direction);
             if (!cooldown.TryConsume()) throw new InvalidOperationException("Cast cooldown changed during the cast.");

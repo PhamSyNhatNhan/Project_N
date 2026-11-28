@@ -11,11 +11,18 @@ using UnityEngine;
 //       radius, innerRadius, angle (degrees), thickness, height   the sector each hit sweeps in front of the caster (`melee_scale` sizes radius/thickness, not the angle)
 //       step {at, duration, distance, stopDistance, retreat, permissionId, actorCollision}   optional body motion toward the first target: it ends where it should stand `stopDistance` from the target,
 //            never more than `distance` and, only when `retreat` is true, it also backs away when the caster stands closer than `stopDistance`; it starts `at` seconds in and takes `duration`
+//       step.aroundDegrees (optional, [-180, 180]): instead of stopping short of the target, the step ends `stopDistance` from it at that bearing, measured from the side the cast came from (0 = in
+//            front of it, negative = toward the caster's right of it, positive = toward the left); never further than `distance`. Not with `retreat`.
 //       step.height (m, optional): the body also rises and falls in a parabola over the step (a jump); the motion then writes the vertical too
 //       `step` is one such object, or an array of up to MaxSteps of them in time order without overlap (approach, then step back). A later step still measures from where the
 //            target was last seen when it is gone by then.
+//       step.speed (m/s, optional): the step takes as long as the way needs (`duration` is then the shortest it takes) and the strike's clock stands still at `at` until the body has arrived, so hits,
+//            later steps and the end follow the arrival. A guard that starts at that `at` or later lasts the travel longer. The Action presents `travel` {seconds, end x, y, z} for its view.
+//       reaim (optional): each hit turns toward where the followed target is then (its own yaw kept), instead of the cast aim; the Action presents `aim` {hit index, x, z} for its view
 //       recoveryCancelAt (s, optional): the earliest age at which the next press may cut the recovery short; the last hit and the end of the last step come first in any case
 //       hits [{at, value, iframeDuration?, yawDegrees?}]   each opens a separate melee hitbox at its own age; yawDegrees rotates the sector relative to cast aim (default 0)
+//       shots [{at, projectile}] (optional, up to MaxShots, in time order): at that age a volley is fired the way of the cast aim through the registered `create_projectile` Operation
+//            (`projectile` is its payload, damage included); what was fired flies on whatever happens to the strike. The recovery cannot be cut before the last shot.
 //       lockMovement (optional)  blocks manual controls through recovery; scripted motion keeps its own permission
 //       hits[].radius, hits[].innerRadius, hits[].angle, hits[].thickness (optional)   that hit's own sector; a missing one is the strike's
 //       guard {at, duration, buffId} (optional)   a registered Buff on the caster for that part of the strike (its apply input takes the duration), given through the context's Buff door; a cancel
@@ -26,11 +33,12 @@ using UnityEngine;
 // VI: Mot nhat chem cua combo dang timeline: moi so lieu la payload dang ky. Hanh vi cap huong ngam va muc tieu; Action khong co ma mang.
 public sealed class PNComboStrikeAction : PNSkillAction, IPNSkillMotionAction
 {
-    public const int MaxHits = 8, MaxSteps = 4;
+    public const int MaxHits = 12, MaxSteps = 4, MaxShots = 4;
     public static void Validate(PNSkillActionData data, EveRegistryHub hub)
     {
         var p = PNBuffContentBatch.Object(data.Perform);
-        PNBuffContentBatch.Fields(p, "duration", "radius", "innerRadius", "angle", "thickness", "height", "step", "hits", "canCrit", "tags", "visualState", "lockMovement", "recoveryCancelAt", "guard");
+        PNBuffContentBatch.Fields(p, "duration", "radius", "innerRadius", "angle", "thickness", "height", "step", "hits", "canCrit", "tags", "visualState", "lockMovement", "recoveryCancelAt", "guard", "reaim", "shots");
+        if (p["reaim"] != null && p["reaim"].Type != JTokenType.Boolean) throw new FormatException("reaim must be a boolean.");
         if (p["lockMovement"] != null && p["lockMovement"].Type != JTokenType.Boolean)
             throw new FormatException("lockMovement must be a boolean.");
         if (p["visualState"] != null && p["visualState"].Type != JTokenType.String)
@@ -53,7 +61,14 @@ public sealed class PNComboStrikeAction : PNSkillAction, IPNSkillMotionAction
             foreach (var token in steps)
             {
                 var step = PNBuffContentBatch.Object(token);
-                PNBuffContentBatch.Fields(step, "at", "duration", "distance", "stopDistance", "retreat", "height", "permissionId", "actorCollision");
+                PNBuffContentBatch.Fields(step, "at", "duration", "distance", "stopDistance", "retreat", "height", "permissionId", "actorCollision", "speed", "aroundDegrees");
+                if (step["speed"] != null) Positive(step, "speed", 100);
+                if (step["aroundDegrees"] != null)
+                {
+                    double around = PNBuffContentBatch.Number(step, "aroundDegrees");
+                    if (!(around >= -180d && around <= 180d)) throw new FormatException("step.aroundDegrees must be in [-180, 180].");
+                    if (step["retreat"] != null && step["retreat"].Type == JTokenType.Boolean && step["retreat"].Value<bool>()) throw new FormatException("step.aroundDegrees cannot be used with retreat.");
+                }
                 if (step["height"] != null) { double hh = PNBuffContentBatch.Number(step, "height"); if (!(hh >= 0d && hh <= 10d)) throw new FormatException("step.height must be in [0, 10]."); }
                 if (!(PNBuffContentBatch.Number(step, "at") >= 0d)) throw new FormatException("step.at must be nonnegative.");
                 Positive(step, "duration", 5); Positive(step, "distance", 10);
@@ -103,6 +118,19 @@ public sealed class PNComboStrikeAction : PNSkillAction, IPNSkillMotionAction
 #endif
             var values = PNSkillValues.Parse(hit["value"]); values.ValidateStats(hub); values.ValidateNonnegativeAmounts();
         }
+        if (p["shots"] != null)
+        {
+            if (!(p["shots"] is JArray shots) || shots.Count < 1 || shots.Count > MaxShots) throw new FormatException("shots must hold 1 to " + MaxShots + " volleys.");
+            double before = 0d;
+            foreach (var token in shots)
+            {
+                var shot = PNBuffContentBatch.Object(token); PNBuffContentBatch.Fields(shot, "at", "projectile");
+                double at = PNBuffContentBatch.Number(shot, "at");
+                if (!(at >= 0d && at <= duration) || at < before) throw new FormatException("Shot times must be ordered and inside the Action duration.");
+                before = at;
+                PNCreateProjectileOperation.Validate(shot["projectile"], hub);
+            }
+        }
         new PNStatSet(hub).ResolveDamageType(data.PerformTags);
     }
     // `step` as a list, whether the data wrote one motion or several.
@@ -111,17 +139,21 @@ public sealed class PNComboStrikeAction : PNSkillAction, IPNSkillMotionAction
     { double n = PNBuffContentBatch.Number(p, key); if (double.IsNaN(n) || double.IsInfinity(n) || n <= 0 || n > maximum) throw new FormatException("Invalid combo strike number: " + key); }
 
 #if UNITY_5_3_OR_NEWER
-    internal const string StepEndFact = "step_end";
+    internal const string StepEndFact = "step_end", TravelFact = "travel", AimFact = "aim";
     internal bool PresentFirstStepEnd { get; set; }
     private PNSkillActionContext context;
     private Action cancelOwner;
     private float age, duration, radius, innerRadius, angle, thickness, height;
-    private struct StepData { public float At, Seconds, Distance, StopDistance, Height; public bool Retreat; public EveId Permission; public PNMotionActorCollision Collision; }
+    private struct StepData { public float At, Seconds, Distance, StopDistance, Height, Speed; public bool Retreat; public float? Around; public EveId Permission; public PNMotionActorCollision Collision; }
     private StepData[] steps; private int stepIndex; private bool stepStarted;
     private float stepAmount, stepDone, cancelAt;
+    // A step with a speed: the clock waits at its start while the body travels `travel` seconds.
+    private float travel, travelled, travelExtra; private bool holding, reaim;
     private Vector3 stepDirection, aim, focus; private PNStat followed; private bool hasFocus;
     private PNBodyMotion motor;
     private PNSkillOperation movementLock;
+    private float[] shotAt; private JToken[] shotData; private int shotNext;
+    private readonly System.Collections.Generic.List<PNSkillOperation> volleys = new();
     private float[] hitAt; private PNSkillMeleeHitbox[] boxes; private bool[] swept;
     private struct Shape { public float Radius, Inner, Angle, Thickness; }
     private Shape[] shapes; private float guardAt, guardSeconds; private EveId guardBuff; private bool guardPending;
@@ -134,7 +166,7 @@ public sealed class PNComboStrikeAction : PNSkillAction, IPNSkillMotionAction
     {
         get
         {
-            if (swept == null || age < cancelAt) return false;
+            if (swept == null || age < cancelAt || shotAt != null && shotNext < shotAt.Length) return false;
             foreach (var done in swept) if (!done) return false;
             return cancelOwner == null || steps == null || stepIndex >= steps.Length;
         }
@@ -159,10 +191,13 @@ public sealed class PNComboStrikeAction : PNSkillAction, IPNSkillMotionAction
             {
                 At = step["at"].Value<float>(), Seconds = step["duration"].Value<float>(), Distance = step["distance"].Value<float>(), StopDistance = step["stopDistance"].Value<float>(),
                 Retreat = step["retreat"] != null && step["retreat"].Value<bool>(), Height = step["height"] == null ? 0f : step["height"].Value<float>(),
+                Speed = step["speed"] == null ? 0f : step["speed"].Value<float>(),
+                Around = step["aroundDegrees"]?.Value<float>(),
                 Permission = EveId.Parse(step["permissionId"].Value<string>()), Collision = (PNMotionActorCollision)Enum.Parse(typeof(PNMotionActorCollision), step["actorCollision"].Value<string>())
             };
         }
         cancelAt = p["recoveryCancelAt"]?.Value<float>() ?? 0f;
+        reaim = p["reaim"]?.Value<bool>() == true;
         caster = c.Skill.GetComponent<PNStat>();
         aim = Flat(c.Direction.Value, Vector3.right);
         context = c;
@@ -176,6 +211,8 @@ public sealed class PNComboStrikeAction : PNSkillAction, IPNSkillMotionAction
             }
             var hits = (JArray)p["hits"]; hitAt = new float[hits.Count]; boxes = new PNSkillMeleeHitbox[hits.Count]; swept = new bool[hits.Count];
             hitDirections = new Vector3[hits.Count]; shapes = new Shape[hits.Count];
+            var shots = p["shots"] as JArray; shotAt = new float[shots?.Count ?? 0]; shotData = new JToken[shotAt.Length];
+            for (int i = 0; i < shotAt.Length; i++) { shotAt[i] = shots[i]["at"].Value<float>(); shotData[i] = shots[i]["projectile"]; }
             var guard = p["guard"] as JObject; guardPending = guard != null;
             if (guardPending) { guardAt = guard["at"].Value<float>(); guardSeconds = guard["duration"].Value<float>(); guardBuff = EveId.Parse(guard["buffId"].Value<string>()); }
             // One hitbox per hit, each with its own damage capture taken now, so Buffs gained during the strike change none of its hits.
@@ -208,6 +245,12 @@ public sealed class PNComboStrikeAction : PNSkillAction, IPNSkillMotionAction
     private void Sweep(int index)
     {
         swept[index] = true;
+        if (reaim && hasFocus)
+        {
+            var turned = Quaternion.FromToRotation(aim, Flat(focus - context.Skill.transform.position, aim)) * hitDirections[index];
+            hitDirections[index] = Flat(turned, hitDirections[index]);
+            if (context.CanPresent) context.Present(AimFact, index, hitDirections[index].x, hitDirections[index].z);
+        }
         var origin = context.Skill.transform.position + Vector3.up * height;
         var shape = shapes[index];
         boxes[index].Open(EveHitboxShape.Sector(shape.Radius, shape.Thickness, shape.Angle, shape.Inner), origin, shape.Radius, 0, (point, outcome) => { },
@@ -238,22 +281,37 @@ public sealed class PNComboStrikeAction : PNSkillAction, IPNSkillMotionAction
                 // Standing on the target itself leaves only the aim to step back from it.
                 if (distance < 1e-4f) { if (!step.Retreat) { CloseStep(); continue; } toward = aim; distance = 0f; }
                 float gap = known ? distance - step.StopDistance : 0f;
+                if (step.Around.HasValue && known)
+                {
+                    // To a place beside the target, whatever the way there is.
+                    toward = focus + Quaternion.AngleAxis(step.Around.Value, Vector3.up) * -aim * step.StopDistance - self; toward.y = 0f;
+                    gap = toward.magnitude;
+                    if (gap < 1e-4f) toward = aim;
+                }
                 stepAmount = gap >= 0f ? Mathf.Min(step.Distance, gap) : step.Retreat ? -Mathf.Min(step.Distance, -gap) : 0f;
                 if (Mathf.Abs(stepAmount) < .001f && step.Height <= 0f) { CloseStep(); continue; }
                 stepDirection = toward.normalized * (stepAmount < 0f ? -1f : 1f); stepAmount = Mathf.Abs(stepAmount); stepDone = 0f;
                 try { motor = new PNBodyMotion(context.Skill.GetComponent<PNMove>(), step.Permission, step.Collision, step.Height > 0f, cancelOwner); }
                 catch (InvalidOperationException) { motor = null; CloseStep(); continue; }     // no local motion rights (a replica or a held body): the strike still happens in place
-                if (PresentFirstStepEnd && stepIndex == 0 && context.CanPresent)
+                bool paced = step.Speed > 0f;
+                if (paced)
+                {
+                    // The time already past `at` counts as travelled.
+                    travel = Mathf.Max(step.Seconds, stepAmount / step.Speed); travelled = Mathf.Max(0f, age - step.At); age = step.At; holding = true;
+                    travelExtra += travel;
+                }
+                if ((paced || PresentFirstStepEnd && stepIndex == 0) && context.CanPresent)
                 {
                     var hits = new RaycastHit[32];
                     var capsule = context.Skill.GetComponent<CapsuleCollider>();
-                    float travel = PNBodyMotion.Clip(capsule.gameObject.scene, capsule, context.Skill,
+                    float reach = PNBodyMotion.Clip(capsule.gameObject.scene, capsule, context.Skill,
                         stepDirection, stepAmount, step.Collision, PNBodyMotion.TrajectorySkin, ref hits, out _);
-                    Vector3 end = motor.Position + stepDirection * travel;
-                    context.Present(StepEndFact, end.x, end.y, end.z);
+                    Vector3 end = motor.Position + stepDirection * reach;
+                    if (paced) context.Present(TravelFact, travel, end.x, end.y, end.z);
+                    else context.Present(StepEndFact, end.x, end.y, end.z);
                 }
             }
-            float fraction = Mathf.Clamp01((age - step.At) / step.Seconds);
+            float fraction = Mathf.Clamp01(holding ? travelled / travel : (age - step.At) / step.Seconds);
             if (motor != null && motor.CanWrite && fraction > stepDone)
             {
                 float arc = step.Height > 0f ? step.Height * (4f * fraction * (1f - fraction) - 4f * stepDone * (1f - stepDone)) : 0f;
@@ -263,19 +321,32 @@ public sealed class PNComboStrikeAction : PNSkillAction, IPNSkillMotionAction
             else break;
         }
     }
-    private void CloseStep() { stepIndex++; stepStarted = false; stepAmount = 0f; stepDone = 0f; motor?.Dispose(); motor = null; }
+    private void CloseStep()
+    {
+        // The clock goes on from the arrival with what was left of this frame.
+        if (holding) { holding = false; age += Mathf.Max(0f, travelled - travel); }
+        EndStep();
+    }
+    private void EndStep() { stepIndex++; stepStarted = false; stepAmount = 0f; stepDone = 0f; motor?.Dispose(); motor = null; }
     public override bool AdvanceAuxiliary(float dt)
     {
         if (ended) return true;
-        age += dt;
+        if (holding) travelled += dt; else age += dt;
+        Step();
         if (guardPending && age >= guardAt)
         {
             guardPending = false;
             var buffs = context.Skill.GetComponent<PNBuffManager>();
-            if (buffs != null && buffs.IsReady) context.ApplyBuff(buffs, guardBuff, caster, new JObject { ["duration"] = (double)guardSeconds });
+            if (buffs != null && buffs.IsReady) context.ApplyBuff(buffs, guardBuff, caster, new JObject { ["duration"] = (double)(guardSeconds + travelExtra) });
         }
-        Step();
         for (int i = 0; i < boxes.Length; i++) if (!swept[i] && age >= hitAt[i]) Sweep(i);
+        while (shotNext < shotAt.Length && age >= shotAt[shotNext])
+        {
+            // The Operation decides by role: the real volley, the shooter's guess, or nothing.
+            var volley = CreateOperation(context, PNProjectileGameplayContent.CreateProjectile);
+            volleys.Add(volley);
+            volley.Execute(context, shotData[shotNext++]);
+        }
         return age >= duration;
     }
     public override void Exit(PNSkillActionContext c) { try { c.CompleteAction(); } finally { Dispose(); } }
@@ -285,6 +356,8 @@ public sealed class PNComboStrikeAction : PNSkillAction, IPNSkillMotionAction
         if (ended) return; ended = true;
         if (boxes != null) foreach (var box in boxes) box?.Dispose();
         motor?.Dispose(); motor = null; followed = null;
+        foreach (var volley in volleys) volley.Dispose();
+        volleys.Clear();
         movementLock?.Dispose(); movementLock = null;
         context = null;
     }

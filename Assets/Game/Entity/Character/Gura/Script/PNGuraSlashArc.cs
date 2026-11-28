@@ -32,6 +32,8 @@ internal sealed class PNGuraSlashArc : IDisposable
     private const float SplashFromU = .46f, SplashToU = .70f, SplashFromV = .40f, SplashToV = .60f;
 
     private readonly Layer deep, bright;
+    private Color brightTint = Bright, deepTint = Deep, foamTint = Foam;
+    private float opacity = 1f;
     private readonly bool finisher;
     private readonly float clockScale;
     private readonly GameObject foam;
@@ -162,29 +164,30 @@ internal sealed class PNGuraSlashArc : IDisposable
             return;
         }
         float fade = 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(Tail - .085f, Tail, since));
-        Draw(deep, pose, Frame(DeepFrames, since), Deep, fade, -.004f);
-        Draw(bright, pose, Frame(BrightFrames, since), Bright, fade, .004f);
+        Draw(deep, pose, Frame(DeepFrames, since), deepTint, fade * opacity, -.004f);
+        Draw(bright, pose, Frame(BrightFrames, since), brightTint, fade * opacity, .004f);
         DrawFoam(centre, forward, radius, angle, side, since, lift);
     }
 
     // A straight cut instead of a crescent: the same two flipbook layers on a line, thick in the middle and pointed at both ends. `since` places the flipbook, `swept` (0..1) how much of the
     // line is drawn, `born` is the real time from the hit for the splashes that break off it.
-    public void DrawLine(Vector3 from, Vector3 to, float width, float since, float swept, float alpha, float born)
+    public void DrawLine(Vector3 from, Vector3 to, float width, float since, float swept, float alpha, float born, Vector3? side = null)
     {
         if (swept <= .002f || alpha <= .001f || since >= Tail) { Hide(); return; }
         float held = Mathf.Max(0f, since);
-        float fade = alpha * (1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(Tail - .085f, Tail, since)));
-        Line(deep, from, to, width, swept, Frame(DeepFrames, held), Deep, fade, -.004f);
-        Line(bright, from, to, width * .82f, swept, Frame(BrightFrames, held), Bright, fade, .004f);
+        float fade = alpha * opacity * (1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(Tail - .085f, Tail, since)));
+        // The way its width spreads: flat on the floor unless a steep line asks to face the camera.
+        Vector3 wide = side ?? Vector3.Cross(Vector3.up, to - from).normalized;
+        Line(deep, from, to, wide, width, swept, Frame(DeepFrames, held), deepTint, fade, -.004f);
+        Line(bright, from, to, wide, width * .82f, swept, Frame(BrightFrames, held), brightTint, fade, .004f);
         LineFoam(from, to, width, swept, born);
     }
 
-    private static void Line(Layer layer, Vector3 from, Vector3 to, float width, float swept, int frame, Color color, float alpha, float offset)
+    private static void Line(Layer layer, Vector3 from, Vector3 to, Vector3 across, float width, float swept, int frame, Color color, float alpha, float offset)
     {
         if (layer.Node == null) return;
         int tileX = frame % Tiles, tileY = Tiles - 1 - frame / Tiles;
         Color tint = color.linear; tint.a *= alpha;
-        Vector3 across = Vector3.Cross(Vector3.up, to - from).normalized;
         var node = layer.Node.transform;
         for (int column = 0; column <= Columns; column++)
         {
@@ -277,7 +280,8 @@ internal sealed class PNGuraSlashArc : IDisposable
     {
         if (foam == null) return;
         var node = foam.transform;
-        Color tint = Foam.linear;
+        Color tint = foamTint.linear;
+        tint.a *= opacity;
         bool any = false;
         for (int i = 0; i < Splashes; i++)
         {
@@ -375,6 +379,16 @@ internal sealed class PNGuraSlashArc : IDisposable
         if (deep.Node != null) deep.Node.SetActive(false);
         if (bright.Node != null) bright.Node.SetActive(false);
         if (foam != null) foam.SetActive(false);
+    }
+
+    // A water shadow's cut: the same shapes, thinner and paler than her own.
+    public PNGuraSlashArc AsShadow(float strength)
+    {
+        brightTint = new Color(.62f, .83f, .92f);
+        deepTint = new Color(.47f, .62f, .76f);
+        foamTint = new Color(.84f, .93f, .98f);
+        opacity = strength;
+        return this;
     }
 
     private bool disposed;

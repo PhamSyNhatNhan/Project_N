@@ -17,13 +17,14 @@ public static class PNGuraContent
     public static readonly EveId AttackBehavior = EveId.Parse("project_n:gura_attack");
     public static readonly EveId CombatStrikeAction = EveId.Parse("project_n:gura_combat_strike");
     public static readonly EveId DashAction = EveId.Parse("project_n:gura_dash_action");
+    public static readonly EveId SlashWave = EveId.Parse("project_n:gura_slash_wave");
     public static readonly EveId ThrownTrident = EveId.Parse("project_n:gura_thrown_trident"), TridentSplash = EveId.Parse("project_n:gura_trident_splash");
     public static readonly EveId ComboStrikeAction = EveId.Parse("project_n:combo_strike_action");
     public static readonly EveId ComboStep = EveId.Parse("project_n:gura_combo_step"), ComboWindow = EveId.Parse("project_n:gura_combo_window"),
         NextFour = EveId.Parse("project_n:gura_next_four"), WaterCoat = EveId.Parse("project_n:gura_water_coat");
     public static readonly EveId SkillProfile = EveId.Parse("project_n:binding_gura_skill"), SkillBehavior = EveId.Parse("project_n:gura_cast"),
         TridentSkill = EveId.Parse("project_n:gura_trident"), TridentAction = EveId.Parse("project_n:gura_trident_action"), TridentProjectile = EveId.Parse("project_n:gura_trident"),
-        SkillReady = EveId.Parse("project_n:gura_skill_ready"), SkillBurstSkill = EveId.Parse("project_n:gura_skill_burst"),
+        SkillReady = EveId.Parse("project_n:gura_skill_ready"), MeleeReady = EveId.Parse("project_n:gura_melee_ready"), SkillBurstSkill = EveId.Parse("project_n:gura_skill_burst"),
         UltimateProfile = EveId.Parse("project_n:binding_gura_ultimate"), UltimateBehavior = EveId.Parse("project_n:gura_ultimate"), BurstProfile = EveId.Parse("project_n:binding_gura_burst"), BurstBehavior = EveId.Parse("project_n:gura_burst"),
         VortexSkill = EveId.Parse("project_n:gura_vortex"), RushSkill = EveId.Parse("project_n:gura_rush"),
         SharkSkill = EveId.Parse("project_n:gura_shark"), DiveSkill = EveId.Parse("project_n:gura_dive"), LeapSkill = EveId.Parse("project_n:gura_leap"), FangsSkill = EveId.Parse("project_n:gura_fangs"), BurstSlamSkill = EveId.Parse("project_n:gura_burst_slam"),
@@ -57,8 +58,11 @@ public static class PNGuraContent
         var trident = JObject.Parse("{'speed':14,'acceleration':0,'speedMin':0,'speedMax':40,'life':{'mode':'Time','value':1.6},'volume':{'size':[0.3,0.3,0.3]},'environmentMask':['Wall'],'hitLimit':1,'turnRate':720,'homeAfter':0,'lostTarget':'Reacquire','searchRadius':10,'searchInterval':0.2}");
         hub.Instances().Register(new PNProjectileDefinition(TridentProjectile, typeof(PNGuraFangProjectile), trident, PNHomingSettings.ValidateDefinition, PNDirectionalSettings.ValidateInput));
         // The Skill's own throw is quick and ends at 6 m; the Fangs keep the slower, longer one above.
-        var thrown = JObject.Parse("{'speed':24,'acceleration':0,'speedMin':0,'speedMax':40,'life':{'mode':'Distance','value':6},'volume':{'size':[0.3,0.3,0.3]},'environmentMask':['Wall'],'hitLimit':1,'turnRate':720,'homeAfter':0,'lostTarget':'Reacquire','searchRadius':6,'searchInterval':0.1}");
+        var thrown = JObject.Parse("{'speed':11.76,'acceleration':0,'speedMin':0,'speedMax':40,'life':{'mode':'Distance','value':6},'volume':{'size':[0.3,0.3,0.3]},'environmentMask':['Wall'],'hitLimit':1,'turnRate':720,'homeAfter':0,'lostTarget':'Reacquire','searchRadius':6,'searchInterval':0.1}");
         hub.Instances().Register(new PNProjectileDefinition(ThrownTrident, typeof(PNGuraThrownTrident), thrown, PNHomingSettings.ValidateDefinition, PNDirectionalSettings.ValidateInput));
+        // The flying slashes of the near form: straight, through every enemy (each once), gone after 3 s or at a wall.
+        var slashWave = JObject.Parse("{'speed':6,'acceleration':0,'speedMin':0,'speedMax':40,'life':{'mode':'Time','value':3},'volume':{'size':[1.2,1.0,0.4]},'environmentMask':['Wall'],'hitLimit':64}");
+        hub.Instances().Register(new PNProjectileDefinition(SlashWave, typeof(PNGuraSlashWave), slashWave, PNDirectionalSettings.ValidateDefinition, PNGuraSlashWave.ValidateLaunch));
         hub.Instances().Register(new PNBlastDefinition(TridentSplash, typeof(PNGuraTridentSplash), new JObject(),
             (token, _) => PNBuffContentBatch.Fields(PNBuffContentBatch.Object(token)), input => PNCylinderBlast.Validate(input)));
         hub.Actions().Register(new PNSkillActionDefinition(FangAction, typeof(PNGuraFangAction), (a, h) => PNGuraFangAction.Validate(a, h), PNSkillContextRequirements.Direction).NoView());
@@ -79,10 +83,10 @@ public static class PNGuraContent
         var payload = (JObject)data.Perform;
         switch (payload["visualState"]?.Value<string>())
         {
-            case "attack_1": case "attack_2": case "attack_3": case "attack_4": case "shark": case "dive": case "vortex": case "rush":
+            case "attack_1": case "attack_2": case "attack_3": case "attack_4": case "shark": case "dive": case "vortex": case "rush": case "burst":
                 break;
             default:
-                throw new FormatException("Gura combat strike requires an attack, vortex, rush, shark or dive visualState.");
+                throw new FormatException("Gura combat strike requires an attack, vortex, rush, burst, shark or dive visualState.");
         }
     }
 
@@ -101,7 +105,7 @@ public static class PNGuraContent
         var dashInput = new PlayerSkillInputConfig { TapDuration = .15f, HoldMode = PlayerSkillHoldMode.Repeat, RepeatDelay = .16f, RepeatInterval = .1f };
         hub.Get<PNSkillBindingProfile>().Register(new PNSkillBindingProfile(DashProfile, DashSkill, PNGameSkillBindings.LegacyBehavior,
             new JObject { ["slot"] = PNSkillSlots.Dash.ToString(), ["eve"] = false }, dashInput));
-        var skillData = new JObject { ["cooldownAbilityId"] = SkillReady.ToString(), ["actionDataId"] = TridentSkill.ToString(), ["meleeActionDataId"] = VortexSkill.ToString(), ["rushActionDataId"] = RushSkill.ToString(),
+        var skillData = new JObject { ["cooldownAbilityId"] = SkillReady.ToString(), ["meleeCooldownAbilityId"] = MeleeReady.ToString(), ["actionDataId"] = TridentSkill.ToString(), ["meleeActionDataId"] = VortexSkill.ToString(), ["rushActionDataId"] = RushSkill.ToString(),
             ["formRange"] = 2.0, ["reach"] = 8.0, ["afterStateId"] = NextFour.ToString(),
             ["inBurst"] = new JObject { ["cooldownAbilityId"] = BurstSkillReady.ToString(), ["actionDataId"] = SkillBurstSkill.ToString() } };
         hub.Get<PNSkillBindingProfile>().Register(new PNSkillBindingProfile(SkillProfile, TridentSkill, SkillBehavior, skillData, new PlayerSkillInputConfig { PressImmediately = true }, actionDataIds: new[] { TridentSkill, VortexSkill, RushSkill, SkillBurstSkill }));

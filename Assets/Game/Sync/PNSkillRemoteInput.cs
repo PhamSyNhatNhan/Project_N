@@ -21,7 +21,7 @@ public sealed class PNSkillRemoteInput : MonoBehaviour, IPNSyncEntityListener, I
     public const double QueueSeconds = 0.25;
     // S4-S5 and 4.4c-4.4d: the owner's machine reports the hits it decided (one command both ways, see PNHitReport: Dealt = my cast hit these, Taken = this object hit me) and the choices it made at decision points inside a cast.
     public static readonly EveId HitReportCommand = EveId.Parse("project_n:hit_report"), DecisionCommand = EveId.Parse("project_n:skill_decision");
-    public const int HitReportCommandBytes = 512, DecisionCommandBytes = 256, MaxTargetsPerReport = 16, MaxHitsPerCast = 64, MaxDecisionsPerPoint = 4, KeyWindow = 64;
+    public const int HitReportCommandBytes = 512, DecisionCommandBytes = 256, MaxTargetsPerReport = 16, MaxHitsPerCast = 192, MaxDecisionsPerPoint = 4, KeyWindow = 64;
     public const float HitTolerance = 1.5f; public const double DecisionSeconds = 3;
     // G4: a skill names its decision points at the `Choose` call, so the host keeps no list; it only bounds how many answers wait (per point and in all) and for how long.
     public const int MaxDecisionsWaiting = 16;

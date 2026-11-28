@@ -14,12 +14,14 @@ internal sealed class PNGuraWaterFx : IDisposable
     private readonly GameObject node;
     private readonly Mesh mesh;
     private bool disposed;
+    private readonly Material own;
     private readonly List<Vector3> points = new List<Vector3>(256);
     private readonly List<Color> colors = new List<Color>(256);
     private readonly List<Vector2> uv = new List<Vector2>(256);
     private readonly List<int> triangles = new List<int>(768);
 
-    public PNGuraWaterFx(Transform owner, string name = "Gura Water")
+    // `queue`: draw at this place in the transparent order instead of the shader's (for water that lies under something).
+    public PNGuraWaterFx(Transform owner, string name = "Gura Water", int queue = 0)
     {
         node = new GameObject(name) { layer = owner.gameObject.layer };
         node.transform.SetParent(owner, false);
@@ -29,6 +31,8 @@ internal sealed class PNGuraWaterFx : IDisposable
         node.AddComponent<MeshFilter>().sharedMesh = mesh;
         var renderer = node.AddComponent<MeshRenderer>();
         renderer.sharedMaterial = Resources.Load<Material>("PNVfx/GuraWater");
+        if (queue > 0 && renderer.sharedMaterial != null)
+            renderer.sharedMaterial = own = new Material(renderer.sharedMaterial) { hideFlags = HideFlags.HideAndDontSave, renderQueue = queue };
         renderer.shadowCastingMode = ShadowCastingMode.Off;
         renderer.receiveShadows = false;
         node.SetActive(false);
@@ -63,6 +67,7 @@ internal sealed class PNGuraWaterFx : IDisposable
         if (disposed) return;
         disposed = true;
         Hide();
+        if (own != null) { if (Application.isPlaying) UnityEngine.Object.Destroy(own); else UnityEngine.Object.DestroyImmediate(own); }
         if (Application.isPlaying) { UnityEngine.Object.Destroy(mesh); UnityEngine.Object.Destroy(node); }
         else { UnityEngine.Object.DestroyImmediate(mesh); UnityEngine.Object.DestroyImmediate(node); }
     }
@@ -296,6 +301,28 @@ internal sealed class PNGuraWaterFx : IDisposable
         }
     }
 
+    // A ribbon of water along `path` (first point = tail): thin at both ends, bright toward the head.
+    public void Strand(IReadOnlyList<Vector3> path, float width, float alpha, Vector3 view)
+    {
+        if (alpha <= .001f || path == null || path.Count < 3) return;
+        int start = points.Count, last = path.Count - 1;
+        for (int i = 0; i <= last; i++)
+        {
+            float u = i / (float)last;
+            Vector3 along = path[Mathf.Min(i + 1, last)] - path[Mathf.Max(i - 1, 0)];
+            Vector3 across = Vector3.Cross(view, along).normalized;
+            float half = width * Mathf.Pow(Mathf.Max(0f, Mathf.Sin(Mathf.PI * Mathf.Pow(u, 1.3f))), .7f);
+            float shown = alpha * Mathf.SmoothStep(0f, 1f, u * 2.2f);
+            Vertex(path[i] - across * half, new Vector2(u, 2f), WithAlpha(DeepWater.linear, shown * .45f));
+            Vertex(path[i], new Vector2(u, 2f), WithAlpha(Color.Lerp(Aqua, Foam, u).linear, shown));
+            Vertex(path[i] + across * (half * .7f), new Vector2(u, 2f), WithAlpha(Aqua.linear, shown * .55f));
+            if (i == 0) continue;
+            int k = start + i * 3;
+            Join(k - 3, k - 2, k, k + 1);
+            Join(k - 2, k - 1, k + 1, k + 2);
+        }
+    }
+
     public void Ripple(Vector3 center, float radius, float thickness, float fade)
     {
         const int sections = 44;
@@ -386,6 +413,78 @@ internal sealed class PNGuraWaterFx : IDisposable
             if (i == 0) continue;
             int k = start + i * 6;
             for (int j = 0; j < 5; j++) Join(k - 6 + j, k - 5 + j, k + j, k + j + 1);
+        }
+    }
+
+    // The floor wet and dark under a wave: a soft ellipse, no edge.
+    public void WetShade(Vector3 centre, Vector3 forward, float halfWidth, float halfLength, float alpha)
+    {
+        if (alpha <= .01f) return;
+        const int sides = 32;
+        Vector3 across = Vector3.Cross(Vector3.up, forward).normalized;
+        var dark = new Color(.004f, .03f, .12f);
+        int start = points.Count;
+        Vertex(centre, new Vector2(.5f, 2f), WithAlpha(dark, alpha));
+        for (int i = 0; i < sides; i++)
+        {
+            float a = i / (float)sides * Mathf.PI * 2f;
+            Vector3 way = forward * (Mathf.Cos(a) * halfLength) + across * (Mathf.Sin(a) * halfWidth);
+            Vertex(centre + way * .55f, new Vector2(.5f, 2f), WithAlpha(dark, alpha * .8f));
+            Vertex(centre + way, new Vector2(.5f, 2f), WithAlpha(dark, 0f));
+        }
+        for (int i = 0; i < sides; i++)
+        {
+            int near = start + 1 + i * 2, next = start + 1 + (i + 1) % sides * 2;
+            triangles.Add(start); triangles.Add(near); triangles.Add(next);
+            Join(near, near + 1, next, next + 1);
+        }
+    }
+
+    // A round bubble of water: clear in the middle, a bright rim and one small glint, always a clean circle whatever its size.
+    public void Bead(Vector3 at, float radius, float alpha, Vector3 right, Vector3 up)
+    {
+        if (alpha <= .01f || radius <= .002f) return;
+        const int sides = 24;
+        int start = points.Count;
+        Vertex(at, new Vector2(.5f, 2f), WithAlpha(Aqua.linear, alpha * .08f));
+        for (int i = 0; i < sides; i++)
+        {
+            float a = i / (float)sides * Mathf.PI * 2f;
+            Vector3 way = (right * Mathf.Cos(a) + up * Mathf.Sin(a)) * radius;
+            Vertex(at + way * .58f, new Vector2(.5f, 2f), WithAlpha(Aqua.linear, alpha * .14f));
+            Vertex(at + way * .90f, new Vector2(.5f, 2f), WithAlpha(Color.Lerp(Foam, Color.white, .5f).linear, alpha * .95f));
+            Vertex(at + way * 1.08f, new Vector2(.5f, 2f), WithAlpha(Aqua.linear, 0f));
+        }
+        for (int i = 0; i < sides; i++)
+        {
+            int near = start + 1 + i * 3, next = start + 1 + (i + 1) % sides * 3;
+            triangles.Add(start); triangles.Add(near); triangles.Add(next);
+            Join(near, near + 1, next, next + 1);
+            Join(near + 1, near + 2, next + 1, next + 2);
+        }
+        // The glint, up and to the left.
+        Vector3 spot = at + (up * .40f - right * .34f) * radius;
+        int middle = points.Count;
+        Vertex(spot, new Vector2(.5f, 2f), WithAlpha(Color.white.linear, alpha));
+        for (int i = 0; i < sides; i++)
+        {
+            float a = i / (float)sides * Mathf.PI * 2f;
+            Vertex(spot + (right * Mathf.Cos(a) + up * Mathf.Sin(a)) * (radius * .19f), new Vector2(.5f, 2f), WithAlpha(Color.white.linear, alpha * .75f));
+        }
+        for (int i = 0; i < sides; i++) { triangles.Add(middle); triangles.Add(middle + 1 + i); triangles.Add(middle + 1 + (i + 1) % sides); }
+    }
+
+    // Round beads thrown out from a place and falling back; `p` runs 0 to 1.
+    public void BeadBurst(Vector3 centre, float reach, float height, float p, int count, float size, Vector3 right, Vector3 up)
+    {
+        if (p < 0f || p >= 1f) return;
+        for (int i = 0; i < count; i++)
+        {
+            float seed = Mathf.Repeat(i * .618034f + .15f, 1f), variation = Mathf.Repeat(i * .414214f + .28f, 1f);
+            float turn = i * 2.39996f;
+            Vector3 outward = new(Mathf.Cos(turn), 0f, Mathf.Sin(turn));
+            Vector3 at = centre + outward * (reach * Mathf.Lerp(.3f, 1f, seed) * p) + Vector3.up * (height * Mathf.Lerp(.3f, 1f, variation) * 4f * p * (1f - p));
+            Bead(at, size * (.45f + seed * seed) * (1f - .55f * p), 1f - p * p, right, up);
         }
     }
 

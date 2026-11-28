@@ -18,7 +18,7 @@ public sealed partial class PNCameraDirector
     private bool viewApplied, viewSmoothing;
     private float viewedSince;
     private float curPitch, curYaw, curDistance, curFov, curOrtho, tgtPitch, tgtYaw, tgtDistance, tgtFov, tgtOrtho;
-    public const float DefaultRigDistance = 5.5f;
+    public const float DefaultRigDistance = 6.5f;
     // A look that changes within this many real seconds of the world being viewed is applied at once (the world is being entered); later changes blend.
     private const float EntryWindow = 1f;
 

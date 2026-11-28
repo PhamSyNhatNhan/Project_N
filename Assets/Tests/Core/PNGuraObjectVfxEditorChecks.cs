@@ -790,6 +790,106 @@ public static class PNGuraObjectVfxEditorChecks
             }
             Check(move.CanMove, "Skill completion did not release walking.");
             skill.RequestSlot(PNSkillSlots.Skill, released);
+            // Each form has its own cooldown and the slot answers only when both are ready.
+            var throwReady = skill.Abilities.GetCooldown(PNGuraContent.SkillReady);
+            var meleeReady = skill.Abilities.GetCooldown(PNGuraContent.MeleeReady);
+            throwReady.ResetToFull(); meleeReady.ResetToFull();
+            Check(skill.RequestSlot(PNSkillSlots.Skill, started), "Skill refused with both cooldowns ready.");
+            Check(!throwReady.CanConsume() && meleeReady.CanConsume(), "A throw must spend the throw cooldown only.");
+            skill.CancelBindingExecution();
+            skill.RequestSlot(PNSkillSlots.Skill, released);
+            throwReady.ResetToFull();
+            Check(meleeReady.TryConsume(), "The near cooldown could not be spent.");
+            bool answered = skill.RequestSlot(PNSkillSlots.Skill, started);
+            Check(move.CanMove && throwReady.CanConsume(), "Skill cast while the near cooldown ran: answered=" + answered + " move=" + move.CanMove + " throwReady=" + throwReady.CanConsume());
+            skill.RequestSlot(PNSkillSlots.Skill, released);
+            meleeReady.ResetToFull(); throwReady.ResetToFull();
+
+            // The near form: nine hits, a dash to each side of the enemy, then the hop back while two flying slashes are let go.
+            {
+                var registered = hub.Skills.Get(EveId.Parse("project_n:gura_vortex")).Data as JObject;
+                Check(registered != null, "The near form's data is not a JSON object.");
+                var vortex = (JObject)registered.DeepClone();
+                void Refused(string why, Action<JObject> change)
+                {
+                    var copy = (JObject)vortex.DeepClone();
+                    change((JObject)copy["action"]["perform"]);
+                    bool refused = false;
+                    try { PNComboStrikeAction.Validate(PNSkillData.Parse(copy).Action, hub); }
+                    catch (FormatException) { refused = true; }
+                    Check(refused, "The combo strike accepted " + why + ".");
+                }
+                var perform = (JObject)vortex["action"]["perform"];
+                Check(((JArray)perform["hits"]).Count == 9 && Mathf.Approximately(perform["radius"].Value<float>(), 3.5f), "The near form must carry nine hits of radius 3.5.");
+                Check(((JArray)perform["shots"]).Count == 2, "The near form must let two slashes fly.");
+                PNComboStrikeAction.Validate(PNSkillData.Parse(vortex).Action, hub);
+                Refused("a bearing past 180", x => x["step"][0]["aroundDegrees"] = 181);
+                Refused("a bearing with a retreat", x => x["step"][0]["retreat"] = true);
+                Refused("too many hits", x => { var list = (JArray)x["hits"]; while (list.Count <= PNComboStrikeAction.MaxHits) list.Add(list[list.Count - 1].DeepClone()); });
+                Refused("shots out of order", x => x["shots"][1]["at"] = 1.0);
+                Refused("a shot past the end", x => x["shots"][1]["at"] = 9.0);
+                Refused("too many shots", x => { var list = (JArray)x["shots"]; while (list.Count <= PNComboStrikeAction.MaxShots) list.Add(list[list.Count - 1].DeepClone()); });
+                Refused("a slash leaning past 80 degrees", x => x["shots"][0]["projectile"]["input"]["tilt"] = 120);
+
+                var home = gura.transform.position;
+                var nearObject = new GameObject("Gura near fixture target");
+                nearObject.SetActive(false);
+                SceneManager.MoveGameObjectToScene(nearObject, scene);
+                nearObject.layer = PNLayers.Enemy;
+                Vector3 foe = new Vector3(1.5f, 0f, 0f);
+                nearObject.transform.position = foe;
+                nearObject.AddComponent<EveEntityIdentity>().Assign(new EveEntityId(930424), EveId.Parse("project_n:dummy"), 0);
+                nearObject.AddComponent<PNEnemyStat>();
+                nearObject.AddComponent<CapsuleCollider>().radius = .18f;
+                var nearLoader = nearObject.AddComponent<EveEntityLoader>();
+                nearLoader.Load(hub);
+                nearObject.SetActive(true);
+                rigidBody.position = Vector3.zero; gura.transform.position = Vector3.zero;
+                Physics.SyncTransforms();
+                move.SetMoveDirection(Vector2.right);
+                try
+                {
+                    Check(skill.RequestSlot(PNSkillSlots.Skill, started) && !move.CanMove, "The near form was not cast.");
+                    Vector3 Offset() => Vector3.ProjectOnPlane(gura.transform.position - foe, Vector3.up);
+                    var seen = new System.Collections.Generic.List<string>();
+                    var waves = new System.Collections.Generic.HashSet<PNGuraSlashWave>();
+                    var struck = new System.Collections.Generic.HashSet<PNGuraSlashWave>();
+                    var hitCount = typeof(PNProjectileInstance).GetProperty("HitCount", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+                    for (int frame = 1; frame <= 176; frame++)
+                    {
+                        advance.Invoke(skill, new object[] { 1f / 60f });
+                        body.Actor.Tick(1f / 60f);
+                        projectiles.Advance(1f / 60f);
+                        foreach (var wave in scene.GetRootGameObjects().SelectMany(x => x.GetComponentsInChildren<PNGuraSlashWave>(true)).Where(x => x.IsRunning))
+                        {
+                            waves.Add(wave);
+                            if (Convert.ToInt32(hitCount.GetValue(wave)) > 0) struck.Add(wave);
+                        }
+                        if (frame == 13) Check(Offset().z < -.8f && Mathf.Abs(Offset().x) < .3f, "The first dash did not end on the right of the enemy: " + Offset());
+                        if (frame == 31) Check(Offset().z > .8f && Mathf.Abs(Offset().x) < .3f, "The flight did not end on the left of the enemy: " + Offset());
+                        if (frame % 20 == 0 && (frame >= 60 && frame <= 120)) seen.Add(gura.transform.Find("Gura water double 0") != null ? "shadow" : "none");
+                    }
+                    Check(move.CanMove, "The near form did not finish.");
+                    Check(waves.Count == 2 && struck.Count == 2, "The two flying slashes were not let go through the enemy: " + waves.Count + " flew, " + struck.Count + " struck.");
+                    Check(seen.Count == 4 && seen.All(x => x == "shadow"), "The near form shows no shadows: " + string.Join(",", seen));
+                    float away = Offset().magnitude;
+                    Check(away > 1.6f && away < 2f && Offset().x < -1.5f, "The hop back did not leave her 1.8 m in front of the enemy: " + Offset());
+                    // The slashes live 3 s: let them run out before the other projectile checks.
+                    for (int frame = 0; frame < 200; frame++) projectiles.Advance(1f / 60f);
+                    Check(!PNGuraSubmerge.Held(body), "Gura stayed hidden after the near form.");
+                }
+                finally
+                {
+                    skill.CancelBindingExecution();
+                    skill.RequestSlot(PNSkillSlots.Skill, released);
+                    move.SetMoveDirection(Vector2.zero);
+                    rigidBody.position = home; gura.transform.position = home;
+                    nearLoader.Unload();
+                    UnityEngine.Object.DestroyImmediate(nearObject);
+                    throwReady.ResetToFull(); meleeReady.ResetToFull();
+                    Physics.SyncTransforms();
+                }
+            }
             var projectileId = EveId.Parse(config["projectile"]["projectileId"].Value<string>());
             var blastId = EveId.Parse(splashConfig["blastId"].Value<string>());
             var combat = PNCombatSource.Capture(stat);
@@ -918,7 +1018,7 @@ public static class PNGuraObjectVfxEditorChecks
                     coatLook.Tick(1f / 60f); puppet.Tick(1f / 60f);
                     Capture($"coat-motion-{frame:D2}", new Vector3(gura.transform.position.x * .75f, .30f, 0f), 1.0f, gura);
                 }
-                Check(Seen() && Sheet() && Part("Gura Dash coat ring") && coatLook.Fill < .4f, "The running coat must be a thin sheet with a ring, so she stays seen.");
+                Check(Seen() && Sheet() && Part("Gura Dash coat ring") && coatLook.Fill > .95f, "The running coat must stay solid water with a ring, as the Skill's coat.");
                 Check(coatLook.GhostCount >= 1 && coatLook.GhostCount <= 3, "Running in the coat leaves no after-image.");
                 puppet.Renderer.enabled = false; coatLook.Tick(1f / 60f);
                 Check(!Seen() && !Sheet() && !Part("Gura Dash coat ring") && coatLook.GhostCount == 0, "The coat stayed while her puppet was away.");

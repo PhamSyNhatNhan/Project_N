@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using EveEngine;
 using UnityEngine;
 
-// Water after-images: frozen copies of poses left where they were, melting from the feet up (her Dash and the held coat). At most `limit` at a time. Display only.
+// Water after-images: frozen copies of poses left where they were, melting from the head down (her Dash and the held coat). At most `limit` at a time. Display only.
 internal sealed class PNGuraWaterGhosts : IDisposable
 {
     private sealed class Ghost { public PNGuraEchoRush.Silhouette Shape; public float Age; }
@@ -38,7 +38,7 @@ internal sealed class PNGuraWaterGhosts : IDisposable
             ghost.Age += delta;
             float k = ghost.Age / life;
             if (k >= 1f) { Drop(i); continue; }
-            ghost.Shape.DrawFrozen(ghost.Age, Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(.15f, 1f, k)), false, .62f * (1f - .55f * k));
+            ghost.Shape.DrawFrozen(ghost.Age, Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(.15f, 1f, k)), true, .62f * (1f - .55f * k));
         }
     }
 

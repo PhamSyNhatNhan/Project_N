@@ -280,9 +280,10 @@
           "data": {
             "skill": {},
             "action": {
-              "id": "project_n:combo_strike_action",
+              "id": "project_n:gura_combat_strike",
               "start": {},
               "perform": {
+                "visualState": "burst",
                 "tags": [
                   "base:physical",
                   "base:burst"
@@ -308,7 +309,7 @@
                   "distance": 5,
                   "stopDistance": 0.5,
                   "retreat": false,
-                  "height": 3.5,
+                  "height": 7,
                   "permissionId": "base:motion_voluntary",
                   "actorCollision": "IgnoreAllActors"
                 }
@@ -407,10 +408,10 @@
               "id": "project_n:gura_trident_action",
               "start": {},
               "perform": {
-                "windup": 0.2,
+                "windup": 0.25,
                 "lockMovement": true,
                 "recovery": 0.25,
-                "maxFlight": 0.6,
+                "maxFlight": 0.9,
                 "projectile": {
                   "projectileId": "project_n:gura_thrown_trident",
                   "input": {},
@@ -461,41 +462,170 @@
                   "base:physical",
                   "base:skill"
                 ],
-                "duration": 0.75,
-                "radius": 2.3,
-                "angle": 180,
+                "duration": 2.75,
+                "radius": 3.5,
+                "angle": 360,
                 "thickness": 0.6,
                 "height": 0.3,
                 "canCrit": true,
                 "guard": {
-                  "at": 0.26,
-                  "duration": 0.22,
+                  "at": 0.34,
+                  "duration": 1.86,
                   "buffId": "project_n:gura_untouchable"
                 },
                 "hits": [
                   {
-                    "at": 0.14,
+                    "at": 0.22,
                     "value": {
                       "amount": 40,
+                      "statId": "base:attack_power"
+                    },
+                    "radius": 1.6,
+                    "angle": 180
+                  },
+                  {
+                    "at": 0.52,
+                    "value": {
+                      "amount": 40,
+                      "statId": "base:attack_power"
+                    },
+                    "radius": 1.6,
+                    "angle": 180
+                  },
+                  {
+                    "at": 0.75,
+                    "value": {
+                      "amount": 28,
                       "statId": "base:attack_power"
                     }
                   },
                   {
-                    "at": 0.36,
+                    "at": 0.96,
                     "value": {
-                      "amount": 100,
+                      "amount": 28,
                       "statId": "base:attack_power"
-                    },
-                    "angle": 360
+                    }
                   },
                   {
-                    "at": 0.58,
+                    "at": 1.17,
                     "value": {
-                      "amount": 60,
+                      "amount": 28,
                       "statId": "base:attack_power"
-                    },
-                    "radius": 2.5,
-                    "angle": 110
+                    }
+                  },
+                  {
+                    "at": 1.38,
+                    "value": {
+                      "amount": 28,
+                      "statId": "base:attack_power"
+                    }
+                  },
+                  {
+                    "at": 1.59,
+                    "value": {
+                      "amount": 28,
+                      "statId": "base:attack_power"
+                    }
+                  },
+                  {
+                    "at": 1.8,
+                    "value": {
+                      "amount": 28,
+                      "statId": "base:attack_power"
+                    }
+                  },
+                  {
+                    "at": 2.01,
+                    "value": {
+                      "amount": 28,
+                      "statId": "base:attack_power"
+                    }
+                  }
+                ],
+                "shots": [
+                  {
+                    "at": 2.3,
+                    "projectile": {
+                      "projectileId": "project_n:gura_slash_wave",
+                      "input": {
+                        "tilt": 40
+                      },
+                      "count": 1,
+                      "spread": 0,
+                      "damage": {
+                        "value": {
+                          "amount": 62,
+                          "statId": "base:attack_power"
+                        },
+                        "canCrit": true,
+                        "tags": [
+                          "base:physical",
+                          "base:skill"
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "at": 2.52,
+                    "projectile": {
+                      "projectileId": "project_n:gura_slash_wave",
+                      "input": {
+                        "tilt": -40
+                      },
+                      "count": 1,
+                      "spread": 0,
+                      "damage": {
+                        "value": {
+                          "amount": 62,
+                          "statId": "base:attack_power"
+                        },
+                        "canCrit": true,
+                        "tags": [
+                          "base:physical",
+                          "base:skill"
+                        ]
+                      }
+                    }
+                  }
+                ],
+                "reaim": true,
+                "step": [
+                  {
+                    "at": 0.05,
+                    "duration": 0.12,
+                    "distance": 3.0,
+                    "stopDistance": 1.0,
+                    "aroundDegrees": -90,
+                    "permissionId": "base:motion_voluntary",
+                    "actorCollision": "IgnoreAllActors"
+                  },
+                  {
+                    "at": 0.34,
+                    "duration": 0.14,
+                    "distance": 3.0,
+                    "stopDistance": 1.0,
+                    "aroundDegrees": 90,
+                    "permissionId": "base:motion_voluntary",
+                    "actorCollision": "IgnoreAllActors"
+                  },
+                  {
+                    "at": 2.1,
+                    "duration": 0.1,
+                    "distance": 3.0,
+                    "stopDistance": 1.0,
+                    "aroundDegrees": 0,
+                    "permissionId": "base:motion_voluntary",
+                    "actorCollision": "IgnoreAllActors"
+                  },
+                  {
+                    "at": 2.24,
+                    "duration": 0.36,
+                    "distance": 3.0,
+                    "stopDistance": 1.8,
+                    "aroundDegrees": 0,
+                    "height": 0.35,
+                    "permissionId": "base:motion_voluntary",
+                    "actorCollision": "IgnoreAllActors"
                   }
                 ]
               },
@@ -535,21 +665,22 @@
                   "base:physical",
                   "base:skill"
                 ],
-                "duration": 0.4,
+                "duration": 0.38,
                 "radius": 1.1,
                 "angle": 360,
                 "thickness": 0.5,
                 "height": 0.3,
                 "canCrit": true,
                 "guard": {
-                  "at": 0.0,
-                  "duration": 0.2,
+                  "at": 0.1,
+                  "duration": 0.1,
                   "buffId": "project_n:gura_untouchable"
                 },
                 "step": {
-                  "at": 0.0,
-                  "duration": 0.14,
+                  "at": 0.1,
+                  "duration": 0.08,
                   "distance": 7.0,
+                  "speed": 12.96,
                   "stopDistance": 0.6,
                   "retreat": false,
                   "permissionId": "base:motion_voluntary",
@@ -557,7 +688,7 @@
                 },
                 "hits": [
                   {
-                    "at": 0.16,
+                    "at": 0.12,
                     "value": {
                       "amount": 120,
                       "statId": "base:attack_power"
@@ -639,6 +770,19 @@
                   "maximum": 1,
                   "initialAmount": 1,
                   "cooldown": 5,
+                  "recovery": "PerStack",
+                  "autoRecover": true,
+                  "clock": "Game"
+                },
+                {
+                  "id": "project_n:gura_melee_ready",
+                  "kind": "Cooldown",
+                  "showInUI": true,
+                  "iconPath": "",
+                  "displayOrder": 0,
+                  "maximum": 1,
+                  "initialAmount": 1,
+                  "cooldown": 8,
                   "recovery": "PerStack",
                   "autoRecover": true,
                   "clock": "Game"
@@ -751,6 +895,19 @@
                 }
               ],
               "stateEffects": [
+                {
+                  "state": "project_n:gura_burst_state",
+                  "statSource": {
+                    "id": "project_n:gura_burst_bonus",
+                    "modifiers": [
+                      { "statId": "base:crowd_control", "value": -5, "group": 0, "calculationId": "base:mitigation" },
+                      { "statId": "base:attack_power", "value": 0.3, "group": 1 },
+                      { "statId": "base:move_speed", "value": 0.2, "group": 1 },
+                      { "statId": "base:attack_speed", "value": 0.2, "group": 1 },
+                      { "statId": "base:defense", "value": 0.2, "group": 1 }
+                    ]
+                  }
+                },
                 {
                   "state": "project_n:gura_water_coat",
                   "look": "project_n:gura_coat",

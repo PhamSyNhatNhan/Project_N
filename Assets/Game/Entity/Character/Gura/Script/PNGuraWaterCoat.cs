@@ -47,12 +47,12 @@ internal sealed class PNGuraCoatLook : PNLook
     }
 }
 
-// Draws itself from its own age. Put on: solid water rises from her feet, then clears to a thin coat with a ring of light around her, so the face and the colours stay seen. While she runs it leaves
+// Draws itself from its own age. Put on: solid water rises from her feet and stays solid, the same coat as the Skill's rush and attack 3 (user, 2026-11-28), with a ring of light around her. While she runs it leaves
 // solid after-images and two speed lines. In the last second of the state it flickers. Let go: it turns solid and melts away layer by layer, with rings on the ground.
 public sealed class PNGuraCoatVisual : MonoBehaviour
 {
-    private const float Rise = .12f, ClearFrom = .18f, ClearTo = .42f, Flash = .08f, ReleaseTail = .46f;
-    private const float Thin = .12f, RingWidth = .028f, Warning = 1f, GhostEvery = .75f;
+    private const float Rise = .12f, GhostsFrom = .42f, Flash = .08f, ReleaseTail = .46f;
+    private const float Blink = .4f, RingWidth = .028f, Warning = 1f, GhostEvery = .75f;
     private Transform owner;
     private PNSkill skill;
     private PNAbility state;
@@ -64,7 +64,7 @@ public sealed class PNGuraCoatVisual : MonoBehaviour
     private PNVisualActor covered;
     private PNVisualBody body;
     private Vector3 lastPosition, heading = Vector3.right;
-    private float age, moving, run, blink, releasedFor = -1f, releasedFill = Thin;
+    private float age, moving, run, blink, releasedFor = -1f, releasedFill = 1f;
     private float fill = 1f;
 
     public bool Releasing => releasedFor >= 0f;
@@ -145,7 +145,6 @@ public sealed class PNGuraCoatVisual : MonoBehaviour
 
         bool releasing = releasedFor >= 0f;
         float rise = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(age / Rise));
-        float clear = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(ClearFrom, ClearTo, age));
 
         // The last second: it comes and goes, faster toward the end.
         float steady = 1f;
@@ -164,9 +163,9 @@ public sealed class PNGuraCoatVisual : MonoBehaviour
             // Rising: a waterline climbs from the feet (`dissolve` = the share of her height still dry).
             waterline = rise < 1f;
             dissolve = waterline ? Mathf.Lerp(.995f, 0f, rise) : 0f;
-            // (the warning also flashes the inside half solid, so it is seen at a glance)
-            fill = Mathf.Lerp(.55f, Mathf.Lerp(1f, Thin, clear), steady);
-            opacity = Mathf.Lerp(.96f, .90f, clear);
+            // (the warning flashes the inside thin, so it is seen at a glance)
+            fill = Mathf.Lerp(Blink, 1f, steady);
+            opacity = .96f;
             ringOpacity = rise * .95f * Mathf.Lerp(.12f, 1f, steady);
             ringWide = RingWidth * (1f + .16f * Mathf.Sin(age * 7f));
         }
@@ -174,7 +173,6 @@ public sealed class PNGuraCoatVisual : MonoBehaviour
         {
             float solid = Mathf.Clamp01(releasedFor / Flash);
             float melt = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(Flash, ReleaseTail - .03f, releasedFor));
-            fromTop = false;
             dissolve = melt;
             fill = Mathf.Lerp(releasedFill, 1f, solid);
             opacity = .95f;
@@ -196,7 +194,7 @@ public sealed class PNGuraCoatVisual : MonoBehaviour
         }
 
         // Solid after-images while she runs, once the Dash that put the coat on is over.
-        if (!releasing && running && age > ClearTo)
+        if (!releasing && running && age > GhostsFrom)
         {
             run += step.magnitude;
             if (run >= GhostEvery && actor != null) { run = 0f; ghosts.Spawn(actor); }

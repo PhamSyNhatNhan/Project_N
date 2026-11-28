@@ -110,7 +110,7 @@ internal sealed class PNGuraEchoRush : IDisposable
             else if (age >= FormAt && age < ShowAt)
                 coat.Draw(actor, age, 1f - Mathf.InverseLerp(FormAt, ShowAt, age), true, 1f);
             else if (age >= ShowAt && age < CoatEnd)
-                coat.Draw(actor, age, Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(ShowAt + .02f, CoatEnd, age)), false, .95f);
+                coat.Draw(actor, age, Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(ShowAt + .02f, CoatEnd, age)), true, .95f);
             else coat.Hide();
         }
 
@@ -376,12 +376,13 @@ internal sealed class PNGuraEchoRush : IDisposable
     }
 
     // One water double: a puppet of Gura's own appearance that only this view poses (it is not ticked by the visual system and never drawn as a character), with its own trident.
-    private sealed class Double : IDisposable
+    internal sealed class Double : IDisposable
     {
         private readonly GameObject root;
         private readonly PNVisualActor actor;
         private readonly Silhouette silhouette;
         private readonly PNGuraAttackWeapon trident;
+        private string playing = "echo_cut";
 
         public Double(Transform owner, PNVisualActor source, Material material, int index)
         {
@@ -420,6 +421,24 @@ internal sealed class PNGuraEchoRush : IDisposable
             Vector3 feet = actor.transform.position;
             trident.Draw(new PNGuraAttackWeapon.Pose(feet + Vector3.up * .21f + heading * .07f, axis,
                 Vector3.Cross(Vector3.up, axis).normalized, .62f, .21f, 0f), opacity * .94f * (1f - dissolve) * (1f - dissolve));
+        }
+
+        // One pose of `motion` (0..1 of it), looking `heading`, the trident from `grip` (off the feet) along `axis`.
+        public void Hold(PNVisualActor source, Vector3 position, Vector3 heading, string motion, float phase, float age, float dissolve, float opacity, Vector3 grip, Vector3 axis)
+        {
+            root.SetActive(true);
+            root.transform.SetPositionAndRotation(position, root.transform.parent.rotation);
+            actor.transform.localPosition = source.transform.localPosition;
+            actor.transform.localRotation = source.transform.localRotation;
+            var camera = PNViewCamera.Current;
+            actor.SetFacingLeft(Vector3.Dot(heading, camera != null ? camera.transform.right : Vector3.right) < 0f);
+            if (playing != motion && actor.Play(motion, true)) playing = motion;
+            actor.SetPhase(phase);
+            actor.Tick(0f);
+            actor.Renderer.enabled = false;
+            silhouette.Draw(actor, age, dissolve, true, Mathf.Clamp01(opacity));
+            trident.Draw(new PNGuraAttackWeapon.Pose(actor.transform.position + grip, axis.normalized,
+                Vector3.Cross(Vector3.up, axis).normalized, .72f, .23f, 0f), Mathf.Clamp01(opacity) * (1f - dissolve) * (1f - dissolve));
         }
 
         public void Hide()

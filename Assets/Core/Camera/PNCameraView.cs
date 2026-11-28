@@ -26,8 +26,8 @@ public sealed class PNCameraView
     public float BackgroundG { get; }
     public float BackgroundB { get; }
 
-    // What the shipped rigs (Hall, Lobby, ErMode) were: 45 degrees, 5.5 m, FOV 38, damping 1, soft zone .2 x .35, lookahead .05.
-    public static readonly PNCameraView Default = new PNCameraView(PNCameraProjection.Perspective, 38f, 5f, 45f, 0f, 5.5f, 0f, 0f, 1f, 1f, 1f, .05f, 0f, 0f, .2f, .35f, 0f, 0f, 0f);
+    // The game view: 38 degrees down, 6.5 m (user, 2026-11-28; the rigs shipped before were 45 degrees and 5.5 m), FOV 38, damping 1, soft zone .2 x .35, lookahead .05.
+    public static readonly PNCameraView Default = new PNCameraView(PNCameraProjection.Perspective, 38f, 5f, 38f, 0f, 6.5f, 0f, 0f, 1f, 1f, 1f, .05f, 0f, 0f, .2f, .35f, 0f, 0f, 0f);
 
     public PNCameraView(PNCameraProjection projection, float fieldOfView, float orthographicSize, float pitch, float yaw, float distance, float screenX, float screenY, float dampingX, float dampingY, float dampingZ,
         float lookaheadTime, float deadZoneWidth, float deadZoneHeight, float softZoneWidth, float softZoneHeight, float backgroundR, float backgroundG, float backgroundB)
